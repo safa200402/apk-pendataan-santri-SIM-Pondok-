@@ -1,0 +1,187 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#9e2f22">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="../../shared-ui.css">
+  <link rel="stylesheet" href="../../shared-shell.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+  <script src="../../shared-ui.js"></script>
+  <title>Template Perkembangan</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700&display=swap');
+    :root { --paper:#f6efe0; --ink:#4d4034; --muted:#7b6a58; --line:rgba(91,73,57,0.15); --accent:#b97650; --success:#74846c; --danger:#a55a52; --warning:#b58439; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; }
+    .panel { padding: 22px; }
+    h1,h2,h3 { margin: 0 0 10px; }
+    p { margin: 0; line-height: 1.6; }
+    button, input, textarea { font: inherit; }
+    label { display: grid; gap: 6px; font-size: 13px; font-weight: 600; }
+    .ctl { width: 100%; padding: 11px 14px; border-radius: 14px; border: 1.5px solid var(--line); background: rgba(255,255,255,0.7); font-weight: 500; color: var(--ink); outline: none; }
+    .ctl:focus { border-color: var(--accent); }
+    textarea.ctl { min-height: 120px; resize: vertical; line-height: 1.6; }
+    .form-card { border: 1px solid var(--line); border-radius: 18px; padding: 18px; background: rgba(242, 222, 154, 0.96); display: grid; gap: 12px; }
+    .form-foot { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
+    .tpl-grid { display: grid; gap: 12px; margin-top: 16px; }
+    .tpl-card { border: 1px solid var(--line); border-radius: 16px; padding: 16px; background: rgba(242, 222, 154, 0.96); }
+    .tpl-card .th { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .tpl-card .th strong { font-size: 15px; }
+    .tpl-card .tb { font-size: 13px; color: var(--muted); white-space: pre-wrap; line-height: 1.6; }
+    .ico-btn { background: none; border: none; cursor: pointer; padding: 6px 8px; border-radius: 8px; color: var(--muted); font-size: 15px; }
+    .ico-btn:hover { color: var(--accent); background: rgba(0,0,0,0.04); }
+    .ico-btn.del:hover { color: var(--danger); }
+    .empty-state { text-align: center; padding: 40px 16px; color: var(--muted); }
+    .empty-state i { font-size: 32px; opacity: 0.4; }
+    .notice-inline { display: none; margin-top: 12px; padding: 10px 14px; border-radius: 10px; font-size: 13px; }
+    .hint { font-size: 12.5px; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+  <main>
+    <div class="app-layout">
+      <section class="panel nav" id="nav"></section>
+      <div class="content-stack">
+        <section class="panel">
+          <h1 style="font-family:'Playfair Display',serif;font-size:1.9rem;">Template Perkembangan Santri</h1>
+          <p style="color:var(--muted);font-size:14px;">Buat kalimat template agar pembina regu tinggal pakai saat mencatat perkembangan harian santri. Gunakan <code>...</code> sebagai bagian yang diisi.</p>
+        </section>
+
+        <section class="panel">
+          <h2 style="font-size:1.1rem;">Tambah / Edit Template</h2>
+          <div class="form-card">
+            <input type="hidden" id="tplId">
+            <label>Judul Template <input type="text" id="tplJudul" class="ctl" placeholder="Contoh: Kehadiran tepat waktu"></label>
+            <label>Isi Template
+              <textarea id="tplTeks" class="ctl" placeholder="Pada hari ini ananda hadir tepat waktu dan mengikuti kegiatan dengan baik ..."></textarea>
+              <span class="hint">Tips: tulis kalimat umum yang sering dipakai. Pembina bisa menyunting setelah memilih template.</span>
+            </label>
+            <div class="form-foot">
+              <button class="btn ghost" id="resetBtn" type="button">Reset</button>
+              <button class="btn primary" id="saveBtn" type="button"><i class="fa-solid fa-plus"></i> Tambah Template</button>
+            </div>
+            <div id="formNotice" class="notice-inline"></div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2 style="font-size:1.1rem;">Daftar Template</h2>
+          <div id="listArea"><div class="empty-state"><i class="fa-solid fa-spinner fa-spin"></i><p style="margin-top:8px;">Memuat...</p></div></div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <script src="../../shared-access.js"></script>
+  <script src="../../shared-nav.js"></script>
+  <script src="../../shared-shell.js"></script>
+  <script>
+    const API_BASE = window.location.origin + '/api';
+    const STORAGE = { apiBase: 'ps_api_base', token: 'ps_token', session: 'ps_session' };
+    localStorage.setItem(STORAGE.apiBase, API_BASE);
+    const state = { templates: [] };
+    let noticeId = '', noticeCounter = 0;
+
+    function getToken() { return localStorage.getItem(STORAGE.token) || ''; }
+    function clearSession() { localStorage.removeItem(STORAGE.token); localStorage.removeItem(STORAGE.session); }
+    function getStoredSession() { try { return JSON.parse(localStorage.getItem(STORAGE.session) || 'null'); } catch (e) { return null; } }
+    function canManagePerkembanganTemplateScoped() {
+      const session = window.PSAccess && typeof window.PSAccess.getScopedSession === 'function' ? window.PSAccess.getScopedSession(getStoredSession()) : getStoredSession();
+      const p = session && session.permissions;
+      return !!(p && (p.isAdmin || p.isSuperAdmin || p.isKsantrian));
+    }
+    function toParams(d) { const p = new URLSearchParams(); Object.entries(d).forEach(([k, v]) => { if (v === undefined || v === null) return; p.append(k, typeof v === 'object' ? JSON.stringify(v) : String(v)); }); return p; }
+    function escapeHtml(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+    function showNotice(text, type) {
+      const stack = document.getElementById('noticeStack');
+      const el = document.createElement('div'); el.className = `notice show ${type || ''}`.trim();
+      el.dataset.noticeId = `n-${Date.now()}-${noticeCounter += 1}`; el.textContent = text;
+      el.addEventListener('click', () => el.remove()); setTimeout(() => el.remove(), type === 'error' ? 9000 : 5000);
+      if (noticeId) { const o = document.querySelector(`[data-notice-id="${noticeId}"]`); if (o) o.remove(); }
+      stack.prepend(el); noticeId = el.dataset.noticeId; if (stack.matches(':popover-open')) stack.hidePopover(); stack.showPopover();
+    }
+    async function api(action, payload = {}, method = 'GET') {
+      const token = getToken();
+      if (!token) { clearSession(); window.location.replace('/pages/login/'); throw new Error('Sesi tidak ditemukan.'); }
+      const response = method === 'GET'
+        ? await fetch(`${API_BASE}?${toParams({ action, token, ...payload }).toString()}`)
+        : await fetch(API_BASE, { method, body: toParams({ action, token, ...payload }) });
+      const json = await response.json();
+      if (!json.ok) { const e = new Error(json.error?.message ? `Server: ${json.error.message}` : 'Gagal.'); e.code = json.error?.code || 500; if (e.code === 401) { clearSession(); window.location.replace('/pages/login/'); } throw e; }
+      return json.data;
+    }
+    function mountShell(session) { return window.PSShell.mount({ currentPage: window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : 'perkembanganTemplate.html', session, getStoredSession, storageKey: STORAGE.session }); }
+    function formNotice(msg, type) { const el = document.getElementById('formNotice'); if (!msg) { el.style.display = 'none'; return; } el.style.display = 'block'; el.style.background = type === 'error' ? 'rgba(165,90,82,0.12)' : 'rgba(116,132,108,0.15)'; el.style.color = type === 'error' ? 'var(--danger)' : 'var(--success)'; el.textContent = msg; }
+
+    async function load() {
+      const area = document.getElementById('listArea');
+      area.innerHTML = '<div class="empty-state"><i class="fa-solid fa-spinner fa-spin"></i></div>';
+      try { const data = await api('perkembangan.template.list'); state.templates = data.templates || []; renderList(); }
+      catch (e) { area.innerHTML = `<div class="empty-state"><i class="fa-solid fa-triangle-exclamation" style="color:var(--danger)"></i><p style="margin-top:8px;color:var(--danger);font-weight:600;">${escapeHtml(e.message)}</p></div>`; }
+    }
+    function renderList() {
+      const area = document.getElementById('listArea');
+      if (!state.templates.length) { area.innerHTML = '<div class="empty-state"><i class="fa-solid fa-file-lines"></i><p style="margin-top:8px;font-weight:600;">Belum ada template. Tambahkan di atas.</p></div>'; return; }
+      area.innerHTML = '<div class="tpl-grid">' + state.templates.map(t => `
+        <div class="tpl-card">
+          <div class="th"><strong>${escapeHtml(t.judul)}</strong>
+            <span><button class="ico-btn" onclick="editTpl('${escapeHtml(t.id)}')" title="Edit"><i class="fa-solid fa-pen"></i></button>
+            <button class="ico-btn del" onclick="deleteTpl('${escapeHtml(t.id)}')" title="Hapus"><i class="fa-solid fa-trash"></i></button></span>
+          </div>
+          <div class="tb">${escapeHtml(t.teks)}</div>
+        </div>`).join('') + '</div>';
+    }
+    function resetForm() {
+      document.getElementById('tplId').value = '';
+      document.getElementById('tplJudul').value = '';
+      document.getElementById('tplTeks').value = '';
+      document.getElementById('saveBtn').innerHTML = '<i class="fa-solid fa-plus"></i> Tambah Template';
+      formNotice('');
+    }
+    function editTpl(id) {
+      const t = state.templates.find(x => x.id === id); if (!t) return;
+      document.getElementById('tplId').value = t.id;
+      document.getElementById('tplJudul').value = t.judul;
+      document.getElementById('tplTeks').value = t.teks;
+      document.getElementById('saveBtn').innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Simpan Perubahan';
+      formNotice('');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      document.getElementById('tplJudul').focus();
+    }
+    async function saveTpl() {
+      if (!canManagePerkembanganTemplateScoped()) { formNotice('Mudir hanya bisa melihat template perkembangan, tidak bisa menyimpan.', 'error'); return; }
+      const id = document.getElementById('tplId').value;
+      const judul = document.getElementById('tplJudul').value.trim();
+      const teks = document.getElementById('tplTeks').value.trim();
+      if (!judul || !teks) { formNotice('Judul & isi wajib diisi.', 'error'); return; }
+      const btn = document.getElementById('saveBtn'); btn.disabled = true;
+      try { await api('perkembangan.template.save', { id, judul, teks }, 'POST'); await load(); resetForm(); showNotice('Template disimpan.', ''); }
+      catch (e) { formNotice(e.message, 'error'); }
+      finally { btn.disabled = false; }
+    }
+    async function deleteTpl(id) {
+      if (!canManagePerkembanganTemplateScoped()) { showNotice('Mudir hanya bisa melihat template perkembangan, tidak bisa menghapus.', 'error'); return; }
+      if (!confirm('Hapus template ini?')) return;
+      try { await api('perkembangan.template.delete', { id }, 'POST'); await load(); showNotice('Template dihapus.', ''); }
+      catch (e) { showNotice(e.message, 'error'); }
+    }
+
+    window.editTpl = editTpl; window.deleteTpl = deleteTpl;
+
+    const session = getStoredSession();
+    if (!session) { clearSession(); window.location.replace('/pages/login/'); }
+    else if (window.PSAccess && window.PSAccess.redirectIfForbidden(session, '/pages/perkembanganTemplate/')) { /* redirected */ }
+    else {
+      mountShell(session);
+      document.getElementById('saveBtn').addEventListener('click', saveTpl);
+      document.getElementById('resetBtn').addEventListener('click', resetForm);
+      window.addEventListener('load', load);
+    }
+    if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {}); }
+  </script>
+</body>
+</html>

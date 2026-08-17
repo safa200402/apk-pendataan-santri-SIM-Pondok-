@@ -1,0 +1,1432 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#9e2f22">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="../../shared-ui.css">
+  <script src="../../shared-ui.js"></script>
+  <title>Pelanggaran Santri</title>
+  <link rel="stylesheet" href="../../shared-shell.css">
+  <link rel="stylesheet" href="../../vendor/fontawesome/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700&display=swap');
+    :root {
+      --paper: #f6efe0;
+      --ink: #4d4034;
+      --muted: #7b6a58;
+      --line: rgba(91, 73, 57, 0.15);
+      --accent: #b97650;
+      --success: #74846c;
+      --danger: #a55a52;
+      --warning: #b58439;
+      --shadow: 0 18px 45px rgba(87, 67, 51, 0.18);
+      --radius: 24px;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; }
+    .panel { padding: 22px; }
+    h1, h2, h3 { margin: 0 0 10px; }
+    p { margin: 0; line-height: 1.65; }
+    .paging { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; flex-direction: column; }
+    .filters { display: grid; gap: 12px; margin-top: 16px; }
+    .toolbar { display: flex; gap: 7px; }
+    button, input, select, textarea { font: inherit; }
+    button { padding: 12px 18px; font-weight: 700; cursor: pointer; align-items: center;}
+    .primary { box-shadow: 0 14px 28px rgba(185, 118, 80, 0.22); }
+    input, select, textarea { width: 100%; padding: 13px 14px; outline: none; }
+    label { display: grid; gap: 7px; font-size: 14px; font-weight: 600; }
+    .list { display: grid; gap: 12px; }
+    .card { padding: 16px; }
+    .pill { display: inline-flex; padding: 7px 11px; font-size: 12px; font-weight: 700; border-radius: 21px;}
+    .notice { display: none; padding: 14px 16px; line-height: 1.55; }
+    .notice.show { display: block; }
+    dialog { padding: 0; }
+    .dialog-body { padding: 22px; display: flex; gap: 14px; max-height: 135vh; overflow: auto; flex-direction: column; justify-content: space-between; height: 100% !important; }
+    .paging-host { display: grid; gap: 8px; margin: 3px 0; justify-items: center; }
+    .paging { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; }
+    .page-center { display: grid; gap: 8px; justify-items: center; }
+    .page-numbers { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+    .page-numbers button { padding: 0 14px; }
+    .page-summary { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+    .field-grid { display: grid; gap: 12px; margin-top: 12px; }
+    .dialog-body.dialog-body-split { padding: 0; overflow: hidden; }
+    .dialog-head { flex-shrink: 0; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 18px 22px 14px; background: #ebf6ff; border-bottom: 1px solid rgba(75, 44, 32, 0.15); }
+    .dialog-close { flex-shrink: 0; padding: 6px 12px; font-size: 16px; line-height: 1; border-radius: 10px; }
+    .dialog-scroll { flex: 1; min-height: 0; overflow: auto; padding: 14px 22px; }
+    .dialog-footer { flex-shrink: 0; margin: 0; padding: 14px 22px 18px; border-top: 1px solid rgba(75, 44, 32, 0.15); background: #ebf6ff; }
+
+    @media (max-width: 960px) { .paging { grid-template-columns: 1fr; } }
+
+    body::before { content: ''; position: fixed; inset: 0; pointer-events: none; opacity: 0.15; mix-blend-mode: multiply; }
+    body::after { content: ''; position: fixed; inset: 0; pointer-events: none; opacity: 0.23; }
+
+    h1, h2, h3 { text-transform: uppercase; }
+    .nav a, button { font-weight: 800 !important; text-transform: uppercase; }
+
+    .list { grid-template-columns: 1fr; gap: 14px; }
+
+    .section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .section-head-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+    .tab-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+    .tab-btn { padding: 10px 16px; font-size: 12px; font-weight: 800 !important; letter-spacing: 0.08em; text-transform: uppercase; border-radius: 12px; }
+    .tab-btn.active { box-shadow: 0 14px 28px rgba(185, 118, 80, 0.22); }
+
+    .p-card { padding: 16px 18px; border-radius: 18px; background: rgba(242, 222, 154, 0.96);}
+    .p-card.row-male { background: #ddeeff; border-color: rgba(70,130,180,0.25); }
+    .p-card.row-female { background: #ffe4f0; border-color: rgba(200,100,140,0.25); }
+    .p-card.row-male-inactive { background: linear-gradient(135deg, #888 0%, #cce6ff 100%); border-color: rgba(70,130,180,0.25); }
+    .p-card.row-female-inactive { background: linear-gradient(135deg, #888 0%, #ffd6e8 100%); border-color: rgba(200,100,140,0.25); }
+    .p-card.row-male-frozen { background: linear-gradient(135deg, #d0d0d0 0%, #cce6ff 100%); border-color: rgba(70,130,180,0.25); }
+    .p-card.row-female-frozen { background: linear-gradient(135deg, #d0d0d0 0%, #ffd6e8 100%); border-color: rgba(200,100,140,0.25); }
+    .p-card.row-nogender-inactive { background: linear-gradient(135deg, #888 0%, rgba(255,248,230,0.96) 100%); }
+    .p-card.row-nogender-frozen { background: linear-gradient(135deg, #d0d0d0 0%, rgba(255,248,230,0.96) 100%); }
+    .p-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; flex-wrap: wrap; cursor: pointer; user-select: none; }
+    .p-card-left { flex: 1; min-width: 0; }
+    .p-santri-name { font-size: 15px; font-weight: 800; text-transform: uppercase; }
+    .p-santri-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .p-badges { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+    .p-body { display: none; margin-top: 10px; }
+    .p-card.expanded .p-body { display: block; }
+    .p-chevron { transition: transform 0.2s; }
+    .p-card.expanded .p-chevron { transform: rotate(180deg); }
+    .p-jenis { font-size: 14px; font-weight: 700; margin: 8px 0 4px; text-transform: uppercase; }
+    .p-deskripsi { font-size: 13px; color: var(--muted); line-height: 1.55; }
+    .p-footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); }
+    .p-footer-meta { display: flex; gap: 10px; flex-wrap: wrap; }
+    .p-hukuman-box { margin-top: 10px; padding: 10px 14px; border-radius: 12px; font-size: 13px; }
+    .p-hukuman-text { font-weight: 700; margin-bottom: 3px; }
+    .p-hukuman-by { font-size: 11px; color: var(--muted); }
+    .success-soft { background: rgba(116, 132, 108, 0.12); color: #3a5a30; }
+
+    .pill-berat  { background: rgba(165, 90, 82, 0.14); color: #8a3a30; }
+    .pill-sedang { background: rgba(181, 132, 57, 0.14); color: #7a5a0a; }
+    .pill-ringan { background: rgba(116, 132, 108, 0.14); color: #3a5a30; }
+    .pill-menunggu { background: rgba(181, 132, 57, 0.12); color: #7a5a0a; }
+    .pill-selesai  { background: rgba(116, 132, 108, 0.14); color: #3a5a30; }
+    .pill-dibatalkan { background: rgba(123, 106, 88, 0.16); color: #5b4a3a; }
+    .pill-santri-inactive { background: rgba(90, 90, 90, 0.18); color: #3d3d3d; }
+    .pill-santri-frozen   { background: rgba(70, 130, 180, 0.18); color: #2d5f86; }
+    .pill-santri-active   { background: rgba(74, 96, 64, 0.16); color: #3a5a30; }
+
+    .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 16px; }
+    .stat-card { padding: 14px 16px; border-radius: 16px; text-align: center; background: rgba(242, 222, 154, 0.96) !important;}
+    .stat-value { font-size: 28px; font-weight: 800; line-height: 1; }
+    .stat-label { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
+    .stat-berat .stat-value  { color: #a55a52; }
+    .stat-sedang .stat-value { color: #8a6a10; }
+    .stat-ringan .stat-value { color: #4a6040; }
+    .stat-menunggu .stat-value { color: #8a6a10; }
+
+    .santri-search-wrap { position: relative; }
+    .santri-chip-list { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 8px; }
+    .santri-chip { display: inline-flex; align-items: center; gap: 7px; padding: 7px 8px 7px 13px; border-radius: 20px; background: rgba(185, 118, 80, 0.14); color: var(--ink); font-size: 12.5px; font-weight: 700; }
+    .santri-chip button { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; padding: 0; border: none; border-radius: 50%; background: rgba(165, 90, 82, 0.18); color: #8a3a30; cursor: pointer; font-size: 11px; line-height: 1; }
+    .santri-chip-empty { font-size: 12px; color: var(--muted); font-weight: 500; }
+    .santri-suggestions { display: none !important; position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 20; max-height: 220px; overflow-y: auto; border-radius: 14px; display: none; padding: 6px; flex-direction: column; gap: 2px; }
+    .santri-suggestions.open { display: flex !important; }
+    .suggestion-item { padding: 9px 12px; cursor: pointer; font-size: 14px; border-radius: 10px; display: flex; flex-direction: column; gap: 2px; }
+    .suggestion-item:hover { background: rgba(91, 73, 57, 0.07); }
+    .suggestion-item-jenis { flex-direction: row; align-items: center; justify-content: space-between; gap: 10px; }
+    .suggestion-noinduk { font-size: 11px; color: var(--muted); }
+
+    .jenis-list { display: grid; gap: 8px; }
+    .jenis-card { padding: 12px 16px; border-radius: 14px; display: flex; align-items: center; gap: 10px; }
+    .jenis-card-body { flex: 1; min-width: 0; }
+    .jenis-name { font-weight: 700; font-size: 14px; text-transform: uppercase; letter-spacing: 0.04em; }
+    .jenis-desc { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .jenis-actions { display: flex; gap: 6px; }
+    .jenis-group-label { font-size: 11px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin: 14px 0 6px; }
+
+    .empty-state { padding: 36px 20px; text-align: center; color: var(--muted); font-size: 14px; }
+
+    .form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 600px) { .form-row-2 { grid-template-columns: 1fr; } }
+
+    .filter-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+    .filter-grid .filter-wide { grid-column: span 2; }
+    @media (max-width: 900px) { .filter-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 600px) { .filter-grid { grid-template-columns: 1fr; } .filter-grid .filter-wide { grid-column: span 1; } }
+
+    #quickImportForm { height: 100%; }
+
+    .foto-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+    .foto-thumb-wrap { position: relative; width: 72px; height: 72px; border-radius: 10px; overflow: hidden; }
+    .foto-thumb-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .foto-thumb-del { position: absolute; top: 2px; right: 2px; background: rgba(165,90,82,0.85); color: #fff; border: none; border-radius: 50%; width: 20px; height: 20px; font-size: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; }
+    .foto-upload-btn { padding: 8px 12px; font-size: 12px; }
+
+    #pelCamDialog { max-width: 520px; width: calc(100vw - 24px); }
+    #pelCamVideo { width: 100%; border-radius: 14px; background: #111; display: block; max-height: 54vh; object-fit: cover; }
+    #pelCamCanvas { display: none; }
+    .pel-cam-controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: center; margin-top: 14px; }
+    .cam-dialog-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+    .edit-history-subtitle { font-weight: 600; margin: 0; }
+    .edit-history-list { display: grid; gap: 10px; }
+    .edit-history-entry { display: flex; align-items: flex-start; gap: 12px; padding: 10px 12px; background: rgba(91,73,57,0.05); border-radius: 8px; border: 1px solid rgba(91,73,57,0.12); }
+    .edit-history-order { min-width: 26px; height: 26px; border-radius: 50%; background: var(--accent, #c99a28); color: #fff; display: grid; place-items: center; font-size: 11px; font-weight: 700; flex-shrink: 0; }
+    .edit-history-info { display: grid; gap: 2px; }
+    .edit-history-name { font-weight: 700; font-size: 14px; }
+    .edit-history-jabatan { font-size: 12px; color: var(--muted); }
+    .edit-history-meta { font-size: 12px; color: var(--muted); }
+    .edit-history-empty { color: var(--muted); font-size: 13px; margin: 0; text-align: center; padding: 16px 0; }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-left">
+      <button class="drawer-toggle" id="navToggle" type="button" aria-label="Toggle sidebar">Menu</button>
+      <div class="header-brand">Pendataan Santri</div>
+      <div class="header-page">Pelanggaran</div>
+    </div>
+    <div class="header-right">
+      <span class="header-chip" id="headerRole">Admin</span>
+    </div>
+  </header>
+  <div class="drawer-backdrop" id="navBackdrop"></div>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+  <main>
+    <div class="app-layout">
+      <section class="panel nav" id="nav"></section>
+      <div class="content-stack">
+
+        <section class="notice info" id="notice"></section>
+
+        <section class="panel">
+          <div class="section-head">
+            <div>
+              <h2>Pelanggaran Santri</h2>
+              <p style="color:var(--muted);font-size:13px;margin-top:4px;">Pencatatan dan pengelolaan pelanggaran &mdash; semua pengurus dapat mencatat, bagian hukuman &amp; admin menetapkan hukuman.</p>
+            </div>
+          </div>
+
+          <div class="tab-bar" id="tabBar" style="margin-bottom:0; margin-top: 11px;">
+            <button class="primary tab-btn active" data-tab="rekap" type="button"><i class="fa-solid fa-list-ul"></i>&ensp;Rekap</button>
+            <button class="secondary tab-btn" data-tab="input" type="button"><i class="fa-solid fa-plus"></i>&ensp;Input Pelanggaran</button>
+          </div>
+        </section>
+
+        <!-- TAB: REKAP -->
+        <section class="panel" id="tabRekap">
+          <div class="stats-row">
+            <div class="stat-card stat-berat card"><div class="stat-value" id="statBerat">—</div><div class="stat-label">Berat</div></div>
+            <div class="stat-card stat-sedang card"><div class="stat-value" id="statSedang">—</div><div class="stat-label">Sedang</div></div>
+            <div class="stat-card stat-ringan card"><div class="stat-value" id="statRingan">—</div><div class="stat-label">Ringan</div></div>
+            <div class="stat-card stat-menunggu card"><div class="stat-value" id="statMenunggu">—</div><div class="stat-label">Belum Dihukum</div></div>
+          </div>
+
+          <div class="filters" id="filtersPanel">
+            <div class="filter-grid">
+              <label>
+                Tahun Ajaran
+                <select id="filterTahunAjaran"><option value="">Semua tahun ajaran</option></select>
+              </label>
+              <label class="filter-wide">
+                Cari santri / jenis / keterangan
+                <input type="search" id="filterQ" placeholder="Ketik untuk mencari…">
+              </label>
+              <label>
+                Jenis Kelamin
+                <select id="filterGender">
+                  <option value="">Semua santri</option>
+                  <option value="l">Laki-laki</option>
+                  <option value="p">Perempuan</option>
+                </select>
+              </label>
+              <label>
+                Dari Tanggal
+                <input type="date" id="filterDariTanggal">
+              </label>
+              <label>
+                Sampai Tanggal
+                <input type="date" id="filterSampaiTanggal">
+              </label>
+              <label>
+                Kategori
+                <select id="filterKategori">
+                  <option value="">Semua kategori</option>
+                  <option value="berat">Berat</option>
+                  <option value="sedang">Sedang</option>
+                  <option value="ringan">Ringan</option>
+                </select>
+              </label>
+              <label>
+                Urutkan
+                <select id="filterSort">
+                  <option value="tanggal_desc">Tanggal Terbaru</option>
+                  <option value="updated">Terbaru Diperbarui</option>
+                  <option value="nama_az">Nama A–Z</option>
+                  <option value="nama_za">Nama Z–A</option>
+                  <option value="tanggal_asc">Tanggal Terlama</option>
+                </select>
+              </label>
+              <label>
+                Status Hukuman
+                <select id="filterStatusHukuman">
+                  <option value="">Semua status</option>
+                  <option value="menunggu">Belum dihukum</option>
+                  <option value="selesai">Sudah dihukum</option>
+                </select>
+              </label>
+              <label>
+                Status Data
+                <select id="filterStatus">
+                  <option value="">Semua (kecuali Dihapus)</option>
+                  <option value="dihapus">Dihapus</option>
+                </select>
+              </label>
+            </div>
+          </div>
+
+          <div class="toolbar" id="actionToolbar">
+            <button class="primary" type="button" id="btnExportLaporan" style="background:var(--theme-gold);"><i class="fa-solid fa-file-lines"></i>&ensp;Export Laporan</button>
+            <button class="primary" type="button" id="btnCopyWa" style="background:#25D366;"><i class="fa-brands fa-whatsapp"></i>&ensp;Salin untuk WA</button>
+            <button class="primary" type="button" id="btnExportExcel" data-toolbar-extra style="background:var(--theme-gold);"><i class="fa-solid fa-file-excel"></i>&ensp;Export Excel</button>
+            <button class="primary" type="button" id="btnImportExcel" data-toolbar-extra style="background:var(--theme-gold);"><i class="fa-solid fa-file-import"></i>&ensp;Import Excel</button>
+            <button class="danger" type="button" id="btnDeleteAll" data-toolbar-extra><i class="fa-solid fa-trash"></i>&ensp;Hapus Semua</button>
+            <button class="secondary toolbar-collapse-toggle" id="toolbarCollapseToggle" type="button" aria-expanded="false" aria-label="Buka aksi tambahan">+</button>
+          </div>
+
+          <div class="paging-host" id="paginationTop" style="margin-top:16px;"></div>
+
+          <div class="list" id="rekapList" style="margin-top:16px;"></div>
+
+          <div class="paging-host" id="paginationBottom" style="margin-top:16px;"></div>
+        </section>
+
+        <!-- TAB: INPUT -->
+        <section class="panel" id="tabInput" hidden>
+          <h3>Catat Pelanggaran Baru</h3>
+          <form id="inputForm" autocomplete="off">
+            <div class="filters">
+              <label>
+                Santri <span style="color:var(--danger)">*</span> <span style="font-weight:400;color:var(--muted);">(bisa pilih lebih dari satu, untuk pelanggaran yang dilakukan bersama)</span>
+                <div class="santri-search-wrap">
+                  <input type="text" id="inputSantriSearch" placeholder="Ketik nama atau no. induk santri…" autocomplete="off">
+                  <div class="santri-suggestions card" id="santriSuggestions"></div>
+                </div>
+                <div class="santri-chip-list" id="santriChipList"></div>
+              </label>
+
+              <label>
+                Jenis Pelanggaran <span style="color:var(--danger)">*</span>
+                <div class="santri-search-wrap" id="jenisSearchWrap">
+                  <input type="text" id="inputJenisSearch" placeholder="Ketik untuk cari jenis pelanggaran…" autocomplete="off">
+                  <div class="santri-suggestions card" id="jenisSuggestions"></div>
+                </div>
+                <input type="hidden" id="inputJenisSelect">
+              </label>
+
+              <label id="jenisCustomWrap" hidden>
+                Nama Pelanggaran (kustom) <span style="color:var(--danger)">*</span>
+                <input type="text" id="inputJenisCustom" placeholder="Tuliskan jenis pelanggaran…">
+              </label>
+
+              <div class="form-row-2">
+                <label>
+                  Kategori <span style="color:var(--danger)">*</span>
+                  <select id="inputKategori">
+                    <option value="">— Pilih kategori —</option>
+                    <option value="berat">Berat</option>
+                    <option value="sedang">Sedang</option>
+                    <option value="ringan">Ringan</option>
+                  </select>
+                  <span id="inputKategoriHint" style="font-size:11px;font-weight:400;color:var(--muted);" hidden>Otomatis mengikuti jenis pelanggaran yang dipilih.</span>
+                </label>
+                <label>
+                  Tanggal Pelanggaran
+                  <input type="date" id="inputTanggal">
+                </label>
+              </div>
+
+              <label>
+                Deskripsi / Keterangan Detail
+                <textarea id="inputDeskripsi" rows="3" placeholder="Jelaskan kronologi atau detail pelanggaran…" style="resize:vertical;"></textarea>
+              </label>
+
+              <label id="inputHukumanWrap" hidden>
+                Hukuman <span style="font-weight:400;color:var(--muted);">(opsional — langsung tetapkan hukuman saat mencatat)</span>
+                <textarea id="inputHukuman" rows="2" placeholder="Kosongkan kalau belum mau menetapkan hukuman sekarang…" style="resize:vertical;"></textarea>
+              </label>
+
+              <label>
+                Tahun Ajaran
+                <select id="inputTahunAjaran"><option value="">— Pilih tahun ajaran —</option></select>
+              </label>
+
+              <div>
+                <div style="font-size:14px;font-weight:600;margin-bottom:8px;">Foto Bukti Pelanggaran</div>
+                <div class="foto-grid" id="inputFotoGrid"></div>
+                <input type="file" id="inputFotoFile" accept="image/*" multiple style="display:none;">
+              </div>
+
+              <div class="toolbar">
+                <button class="primary" type="submit" id="btnSubmitInput"><i class="fa-solid fa-paper-plane"></i>&ensp;Catat Pelanggaran</button>
+                <button class="secondary" type="button" id="btnResetInput"><i class="fa-solid fa-rotate-left"></i>&ensp;Reset</button>
+              </div>
+            </div>
+          </form>
+        </section>
+
+
+      </div>
+    </div>
+  </main>
+
+  <!-- Dialog Assign Hukuman -->
+  <dialog id="assignDialog">
+    <form method="dialog">
+      <div class="dialog-body">
+        <div>
+          <h3 id="assignDialogTitle" style="margin-bottom:6px;">Tetapkan Hukuman</h3>
+          <div id="assignDialogMeta" style="font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.55;"></div>
+          <input type="hidden" id="assignPelanggaranId">
+          <div class="field-grid">
+            <label>Hukuman <span style="color:var(--danger)">*</span>
+              <textarea id="assignHukuman" rows="3" placeholder="Tuliskan hukuman yang diberikan…" style="resize:vertical;"></textarea>
+            </label>
+            <label>Catatan Tambahan
+              <input type="text" id="assignCatatan" placeholder="Opsional">
+            </label>
+          </div>
+        </div>
+        <div class="toolbar ps-dialog-footer" style="margin-top:4px;">
+          <button class="danger" type="button" id="btnAssignClear" hidden><i class="fa-solid fa-eraser"></i>&ensp;Hapus Hukuman</button>
+          <button class="primary" type="button" id="btnAssignSubmit"><i class="fa-solid fa-gavel"></i>&ensp;<span id="btnAssignSubmitLabel">Tetapkan Hukuman</span></button>
+          <button class="secondary" type="button" id="btnAssignCancel">Batal</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Dialog Edit Pelanggaran -->
+  <dialog id="editDialog">
+    <form method="dialog" class="dialog-body dialog-body-split">
+      <div class="dialog-head">
+        <div>
+          <h3 style="margin-bottom:6px;">Edit Pelanggaran</h3>
+        </div>
+        <button type="button" class="secondary dialog-close" id="btnEditDialogClose" aria-label="Tutup">&times;</button>
+      </div>
+      <div class="dialog-scroll">
+        <div>
+          <input type="hidden" id="editId">
+          <div class="field-grid">
+            <div class="form-row-2">
+              <label>Kategori
+                <select id="editKategori">
+                  <option value="berat">Berat</option>
+                  <option value="sedang">Sedang</option>
+                  <option value="ringan">Ringan</option>
+                </select>
+              </label>
+              <label>Tanggal Pelanggaran
+                <input type="date" id="editTanggal">
+              </label>
+            </div>
+            <label>Nama Jenis Pelanggaran
+              <input type="text" id="editJenisNama" placeholder="Nama jenis pelanggaran">
+            </label>
+            <label>Deskripsi / Keterangan
+              <textarea id="editDeskripsi" rows="3" style="resize:vertical;"></textarea>
+            </label>
+            <label>Catatan Tambahan
+              <input type="text" id="editCatatan" placeholder="Opsional">
+            </label>
+            <div>
+              <div style="font-size:14px;font-weight:600;margin-bottom:8px;">Foto Bukti Pelanggaran</div>
+              <div class="foto-grid" id="editFotoGrid"></div>
+              <input type="file" id="editFotoInput" accept="image/*" multiple style="display:none;">
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="toolbar dialog-footer">
+        <button class="primary" type="button" id="btnEditSubmit"><i class="fa-solid fa-floppy-disk"></i>&ensp;Simpan</button>
+        <button class="secondary" type="button" id="btnEditCancel">Batal</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="pelCamDialog">
+    <div class="dialog-body">
+      <div class="cam-dialog-head">
+        <div>
+          <h3>Ambil Foto</h3>
+          <p style="font-size:13px;color:var(--muted);margin-top:4px;text-transform:none;">Arahkan kamera, lalu tekan Ambil Foto.</p>
+        </div>
+        <button type="button" class="secondary cam-dialog-close" id="pelBtnTutupKamera" aria-label="Tutup">&times;</button>
+      </div>
+      <video id="pelCamVideo" autoplay playsinline muted></video>
+      <canvas id="pelCamCanvas"></canvas>
+      <section class="notice" id="pelCamError" style="display:none;"></section>
+      <div class="pel-cam-controls">
+        <button type="button" class="secondary" id="pelBtnSwitchCam" style="font-size:12px;padding:10px 16px;"><i class="fa-solid fa-camera-rotate" style="margin-right:6px;"></i>Balik Kamera</button>
+        <button type="button" class="primary" id="pelBtnCapture"><i class="fa-solid fa-camera-retro" style="margin-right:6px;"></i>Ambil Foto</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Dialog Hapus Semua -->
+  <dialog id="deleteAllDialog">
+    <form method="dialog">
+      <div class="dialog-body">
+        <div>
+          <h3 style="margin-bottom:6px;color:#a55a52;">Hapus Semua Data Pelanggaran</h3>
+          <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">Semua data pelanggaran dan foto bukti akan dihapus <strong>permanen</strong>. Tindakan ini tidak bisa dibatalkan.</p>
+          <div class="field-grid">
+            <label>Untuk lanjut, ketik: <code>HAPUS SEMUA</code>
+              <input type="text" id="deleteAllInput" autocomplete="off" placeholder="Ketik HAPUS SEMUA">
+            </label>
+          </div>
+        </div>
+        <div class="toolbar">
+          <button class="primary" type="button" id="btnDeleteAllConfirm" disabled style="background:#a55a52;box-shadow:none;"><i class="fa-solid fa-trash"></i>&ensp;Hapus Permanen</button>
+          <button class="secondary" type="button" id="btnDeleteAllCancel">Batal</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="ps-floating-dialog" id="editHistoryDialog">
+    <div class="dialog-body duplicate-dialog-body ps-dialog-shell">
+      <div class="duplicate-dialog-head ps-dialog-header">
+        <div>
+          <h3>Riwayat Edit Pelanggaran</h3>
+          <p id="editHistorySubtitle" class="edit-history-subtitle"></p>
+        </div>
+      </div>
+      <div class="edit-history-list" id="editHistoryList"></div>
+      <div class="toolbar ps-dialog-footer">
+        <button class="secondary" id="closeEditHistoryDialog" type="button">Tutup</button>
+      </div>
+    </div>
+  </dialog>
+
+  <input type="file" id="importExcelInput" accept=".xlsx,.xls" style="display:none;">
+
+  <script src="../../shared-access.js"></script>
+  <script src="../../shared-nav.js"></script>
+  <script src="../../shared-shell.js"></script>
+  <script src="../../shared-excel.js"></script>
+  <script>
+    const API_BASE = window.location.origin + '/api';
+    const STORAGE = { apiBase: 'ps_api_base', token: 'ps_token', session: 'ps_session' };
+    localStorage.setItem(STORAGE.apiBase, API_BASE);
+
+    const state = {
+      items: [], jenisItems: [],
+      refs: { santri: [], tahunAjaran: [] },
+      page: 1, pageSize: 10, total: 0,
+      stats: { berat: 0, sedang: 0, ringan: 0, menunggu: 0 },
+      filters: { tahunAjaranId: '', dariTanggal: '', sampaiTanggal: '', kategori: '', status: '', statusHukuman: '', gender: '', q: '', sortBy: 'tanggal_desc' },
+      expandedIds: new Set(),
+      canEdit: false,
+      canDelete: false,
+      toolbarExpanded: false
+    };
+    const uiState = { currentNoticeId: '', noticeCounter: 0, noticeShownAt: 0, pendingNotice: null };
+
+    function getToken() { return localStorage.getItem(STORAGE.token) || ''; }
+    function getStoredSession() { try { return JSON.parse(localStorage.getItem(STORAGE.session) || 'null'); } catch (_) { return null; } }
+    function getScopedSession() {
+      return window.PSAccess && typeof window.PSAccess.getScopedSession === 'function'
+        ? window.PSAccess.getScopedSession(getStoredSession()) : getStoredSession();
+    }
+    function canAssignHukuman() { const s = getScopedSession(); return !!(s && s.permissions && s.permissions.canAssignHukuman); }
+    function isAdmin() { const s = getScopedSession(); return !!(s && s.permissions && s.permissions.isAdmin); }
+
+    function toParams(data) {
+      const p = new URLSearchParams();
+      Object.entries(data).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') p.append(k, String(v)); });
+      return p;
+    }
+    async function api(data) {
+      const res = await fetch(API_BASE + '?' + toParams({ ...data, token: getToken() }));
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error?.message || 'Error');
+      return json.data;
+    }
+    async function apiPost(data) {
+      const res = await fetch(API_BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...data, token: getToken() }) });
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error?.message || 'Error');
+      return json.data;
+    }
+
+    function createNoticeEl(text, type) {
+      const el = document.createElement('section');
+      el.className = `notice show ${type || 'info'}`;
+      el.dataset.noticeId = `n-${Date.now()}-${uiState.noticeCounter += 1}`;
+      el.textContent = text;
+      function dismiss() { if (!el.parentNode) return; el.classList.add('notice-dismissing'); window.setTimeout(() => { el.remove(); const s = document.getElementById('noticeStack'); if (s && !s.hasChildNodes() && s.matches(':popover-open')) s.hidePopover(); }, 220); }
+      el.addEventListener('click', dismiss);
+      window.setTimeout(dismiss, type === 'error' ? 10000 : 6000);
+      return el;
+    }
+    function showNotice(text, type) {
+      if (uiState.pendingNotice) { clearTimeout(uiState.pendingNotice); uiState.pendingNotice = null; }
+      const elapsed = Date.now() - uiState.noticeShownAt;
+      if (elapsed < 2000 && uiState.currentNoticeId) { uiState.pendingNotice = window.setTimeout(() => { uiState.pendingNotice = null; showNotice(text, type); }, 2000 - elapsed); return; }
+      const el = createNoticeEl(text, type);
+      const stack = document.getElementById('noticeStack');
+      stack.prepend(el);
+      uiState.currentNoticeId = el.dataset.noticeId;
+      uiState.noticeShownAt = Date.now();
+      if (stack.matches(':popover-open')) stack.hidePopover();
+      stack.showPopover();
+    }
+
+    function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+    function fmtDate(s) { if (!s) return '—'; const d = new Date(s); if (isNaN(d)) return s; return d.toLocaleDateString('id-ID', { day:'2-digit', month:'short', year:'numeric' }); }
+    function todayIso() { return new Date().toISOString().slice(0,10); }
+    function katPill(k) {
+      const m = { berat: ['pill-berat','Berat'], sedang: ['pill-sedang','Sedang'], ringan: ['pill-ringan','Ringan'] };
+      const [cls, label] = m[(k||'').toLowerCase()] || ['pill-ringan', k||'—'];
+      return `<span class="pill ${cls}">${esc(label)}</span>`;
+    }
+    function statusPill(s) {
+      const isSelesai = (s||'').toLowerCase() === 'selesai';
+      return `<span class="pill ${isSelesai?'pill-selesai':'pill-menunggu'}">${isSelesai?'Sudah Dihukum':'Belum Dihukum'}</span>`;
+    }
+
+    async function loadRefs() {
+      try {
+        const refs = await api({ action: 'references' });
+        state.refs.santri = (refs && refs.santri) ? refs.santri : [];
+        state.refs.tahunAjaran = (refs && refs.tahunAjaran) ? refs.tahunAjaran : [];
+      } catch (_) {}
+      populateTahunAjaranSelects();
+    }
+    function populateTahunAjaranSelects() {
+      ['filterTahunAjaran','inputTahunAjaran'].forEach(id => {
+        const sel = document.getElementById(id); if (!sel) return;
+        const first = sel.options[0]; sel.innerHTML = ''; sel.appendChild(first);
+        state.refs.tahunAjaran.forEach(ta => {
+          const opt = document.createElement('option'); opt.value = ta.id;
+          opt.textContent = (ta.namaDisplay || ta.nama || ta.id) + (ta.isAktif ? ' (aktif)' : '');
+          sel.appendChild(opt);
+        });
+        if (id === 'inputTahunAjaran') { const aktif = state.refs.tahunAjaran.find(t => t.isAktif); if (aktif) sel.value = aktif.id; }
+        if (id === 'filterTahunAjaran') { const aktif = state.refs.tahunAjaran.find(t => t.isAktif); if (aktif) { sel.value = aktif.id; state.filters.tahunAjaranId = aktif.id; } }
+      });
+    }
+
+    async function loadJenis() {
+      try { const d = await api({ action: 'pelanggaran.jenis.list', status: 'all' }); state.jenisItems = d.items || []; } catch (_) { state.jenisItems = []; }
+    }
+    function jenisGroupsFiltered(q) {
+      const trim = (q || '').trim().toLowerCase();
+      const groups = { berat: [], sedang: [], ringan: [] };
+      state.jenisItems.filter(j => (j.status || '').toLowerCase() !== 'nonaktif').forEach(j => {
+        const k = (j.kategori || '').toLowerCase();
+        if (!groups[k]) return;
+        if (trim && !(j.nama || '').toLowerCase().includes(trim)) return;
+        groups[k].push(j);
+      });
+      return groups;
+    }
+    function renderJenisSuggestions(q) {
+      const sug = document.getElementById('jenisSuggestions');
+      const groups = jenisGroupsFiltered(q);
+      const katLabel = { berat: 'Berat', sedang: 'Sedang', ringan: 'Ringan' };
+      let html = `<div class="suggestion-item" data-id="__custom__" data-kategori="" data-name="— Lainnya (tulis sendiri) —"><strong>— Lainnya (tulis sendiri) —</strong></div>`;
+      ['berat', 'sedang', 'ringan'].forEach(kat => {
+        if (!groups[kat].length) return;
+        html += `<div style="padding:6px 10px 2px;font-size:11px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);">${katLabel[kat]}</div>`;
+        html += groups[kat].map(j => `<div class="suggestion-item suggestion-item-jenis" data-id="${esc(j.id)}" data-kategori="${esc(j.kategori)}" data-name="${esc(j.nama)}"><strong>${esc(j.nama)}</strong>${katPill(j.kategori)}</div>`).join('');
+      });
+      sug.innerHTML = html;
+      sug.classList.add('open');
+      sug.querySelectorAll('.suggestion-item[data-id]').forEach(el => el.addEventListener('click', () => selectJenis(el.dataset.id, el.dataset.name, el.dataset.kategori)));
+    }
+    function selectJenis(id, name, kategori) {
+      document.getElementById('inputJenisSelect').value = id;
+      document.getElementById('inputJenisSearch').value = name;
+      document.getElementById('jenisSuggestions').classList.remove('open');
+      const customWrap = document.getElementById('jenisCustomWrap');
+      customWrap.hidden = id !== '__custom__';
+      const kategoriSelect = document.getElementById('inputKategori');
+      const kategoriHint = document.getElementById('inputKategoriHint');
+      if (id !== '__custom__' && kategori) {
+        kategoriSelect.value = kategori;
+        kategoriSelect.disabled = true;
+        kategoriHint.hidden = false;
+      } else {
+        kategoriSelect.disabled = false;
+        kategoriHint.hidden = true;
+      }
+      if (id === '__custom__') document.getElementById('inputJenisCustom').focus();
+    }
+
+    async function loadRekap() {
+      const f = state.filters;
+      try {
+        const d = await api({ action: 'pelanggaran.list', page: state.page, pageSize: state.pageSize, tahunAjaranId: f.tahunAjaranId, dariTanggal: f.dariTanggal, sampaiTanggal: f.sampaiTanggal, kategori: f.kategori, status: f.status, statusHukuman: f.statusHukuman, gender: f.gender, q: f.q, sortBy: f.sortBy });
+        state.items = d.items || []; state.total = d.total || 0; state.stats = d.stats || { berat:0, sedang:0, ringan:0, menunggu:0, dihapus:0 };
+        renderRekap(); renderPagination(); updateStats();
+      } catch (e) { showNotice(e.message, 'error'); }
+    }
+    function updateStats() {
+      const s = state.stats || { berat:0, sedang:0, ringan:0, menunggu:0 };
+      document.getElementById('statBerat').textContent = s.berat;
+      document.getElementById('statSedang').textContent = s.sedang;
+      document.getElementById('statRingan').textContent = s.ringan;
+      document.getElementById('statMenunggu').textContent = s.menunggu;
+    }
+    function renderRekap() {
+      const list = document.getElementById('rekapList');
+      if (!state.items.length) { list.innerHTML = '<div class="empty-state"><i class="fa-regular fa-folder-open" style="font-size:36px;margin-bottom:10px;display:block;"></i>Tidak ada data pelanggaran ditemukan.</div>'; return; }
+      list.innerHTML = state.items.map(renderCard).join('');
+      list.querySelectorAll('.p-card-header').forEach(header => {
+        header.addEventListener('click', e => {
+          if (e.target.closest('button')) return;
+          const card = header.closest('.p-card');
+          const id = card.dataset.id;
+          if (state.expandedIds.has(id)) state.expandedIds.delete(id);
+          else state.expandedIds.add(id);
+          card.classList.toggle('expanded', state.expandedIds.has(id));
+        });
+      });
+      list.querySelectorAll('.btn-assign').forEach(btn => btn.addEventListener('click', e => { e.stopPropagation(); openAssignDialog(btn.dataset.id); }));
+      list.querySelectorAll('.btn-edit').forEach(btn => btn.addEventListener('click', e => { e.stopPropagation(); openEditDialog(btn.dataset.id); }));
+      list.querySelectorAll('.btn-history').forEach(btn => btn.addEventListener('click', e => { e.stopPropagation(); showEditHistory(btn.dataset.id); }));
+      list.querySelectorAll('.btn-batalkan').forEach(btn => btn.addEventListener('click', e => { e.stopPropagation(); batalkanPelanggaranItem(btn.dataset.id); }));
+      list.querySelectorAll('.btn-pulihkan').forEach(btn => btn.addEventListener('click', e => { e.stopPropagation(); pulihkanPelanggaranItem(btn.dataset.id); }));
+      list.querySelectorAll('.btn-hapus').forEach(btn => btn.addEventListener('click', e => { e.stopPropagation(); openHapusPelanggaranDialog(btn.dataset.id); }));
+    }
+    function getCardRowClass(gender, statusKey) {
+      if (statusKey === 'inactive') {
+        if (gender === 'male') return 'row-male-inactive';
+        if (gender === 'female') return 'row-female-inactive';
+        return 'row-nogender-inactive';
+      }
+      if (statusKey === 'dibekukan') {
+        if (gender === 'male') return 'row-male-frozen';
+        if (gender === 'female') return 'row-female-frozen';
+        return 'row-nogender-frozen';
+      }
+      if (gender === 'male') return 'row-male';
+      if (gender === 'female') return 'row-female';
+      return '';
+    }
+    function renderCard(item) {
+      const canAssign = canAssignHukuman();
+      const gRaw = (item.santriGender||'').toLowerCase();
+      const genderNorm = ['l','lk','laki-laki','laki','pria','male','ikhwan'].includes(gRaw) ? 'male' : ['p','pr','perempuan','wanita','female','akhwat'].includes(gRaw) ? 'female' : '';
+      const sRaw = (item.santriStatus||'').toLowerCase();
+      const statusKey = ['inactive','nonaktif'].includes(sRaw) ? 'inactive' : ['dibekukan','frozen','beku'].includes(sRaw) ? 'dibekukan' : 'active';
+      const genderCls = getCardRowClass(genderNorm, statusKey);
+      const santriStatusPill = statusKey === 'inactive' ? '<span class="pill pill-santri-inactive">Santri Nonaktif</span>'
+        : statusKey === 'dibekukan' ? '<span class="pill pill-santri-frozen">Santri Dibekukan</span>'
+        : '<span class="pill pill-santri-active">Santri Aktif</span>';
+      const isDibatalkan = (item.status||'').toLowerCase() === 'dihapus';
+      const dibatalkanPill = isDibatalkan ? '<span class="pill pill-dibatalkan">Dihapus</span>' : '';
+      const expanded = state.expandedIds.has(item.id) ? 'expanded' : '';
+      const fotos = item.fotos || [];
+      const fotoHtml = fotos.length ? `<div class="foto-grid" style="margin-top:8px;">${fotos.map(f=>`<div class="foto-thumb-wrap"><a href="/${esc(f.path)}" target="_blank"><img src="/${esc(f.path)}" alt="${esc(f.name)}"></a></div>`).join('')}</div>` : '';
+      const hukumanSection = item.statusHukuman === 'selesai'
+        ? `<div class="p-hukuman-box success-soft"><div class="p-hukuman-text"><i class="fa-solid fa-gavel"></i>&nbsp; ${esc(item.hukuman)}</div><div class="p-hukuman-by">Ditetapkan oleh ${esc(item.hukumanByNama||'—')} &middot; ${fmtDate(item.hukumanAt)}</div></div>${canAssign ? `<div style="margin-top:8px;"><button class="secondary btn-assign" data-id="${esc(item.id)}" type="button" style="font-size:11px;padding:8px 14px;"><i class="fa-solid fa-pen"></i>&ensp;Edit Hukuman</button></div>` : ''}`
+        : canAssign ? `<div style="margin-top:8px;"><button class="secondary btn-assign" data-id="${esc(item.id)}" type="button" style="font-size:11px;padding:8px 14px;"><i class="fa-solid fa-gavel"></i>&ensp;Tetapkan Hukuman</button></div>` : '';
+      return `<article class="card p-card ${genderCls} ${expanded}" data-id="${esc(item.id)}">
+        <div class="p-card-header">
+          <div class="p-card-left">
+            <div class="p-santri-name">${esc(item.santriNama||'—')}</div>
+            <div class="p-santri-meta">No. Induk: ${esc(item.santriNoInduk||'—')} &nbsp;·&nbsp; ${fmtDate(item.tanggal)}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div class="p-badges">${katPill(item.kategori)}${statusPill(item.statusHukuman)}${dibatalkanPill}${santriStatusPill}</div>
+            <i class="fa-solid fa-chevron-down p-chevron" style="color:var(--muted);font-size:12px;margin-left:4px;"></i>
+          </div>
+        </div>
+        <div class="p-body">
+          <div class="p-jenis"><i class="fa-solid fa-tag" style="font-size:12px;"></i>&nbsp; ${esc(item.jenisNama||'—')}</div>
+          ${item.deskripsi ? `<div class="p-deskripsi">${esc(item.deskripsi)}</div>` : ''}
+          ${hukumanSection}
+          ${fotoHtml}
+          <div class="p-footer">
+            <div class="p-footer-meta">
+              <span>Dicatat oleh: ${esc(item.inputByNama||'—')}</span>
+              ${item.catatan ? `<span><i class="fa-regular fa-comment"></i>&nbsp;${esc(item.catatan)}</span>` : ''}
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              <button class="secondary btn-edit${state.canEdit ? '' : ' ps-locked'}" data-id="${esc(item.id)}" type="button" ${state.canEdit ? '' : 'disabled title="Hanya Bagian Hukuman, Admin, atau Super Admin yang bisa mengedit."'} style="font-size:11px;padding:7px 12px;"><i class="fa-solid fa-pen"></i>&ensp;Edit</button>
+              ${!isDibatalkan ? `<button class="secondary btn-batalkan${state.canEdit ? '' : ' ps-locked'}" data-id="${esc(item.id)}" type="button" ${state.canEdit ? '' : 'disabled title="Hanya Bagian Hukuman, Admin, atau Super Admin yang bisa mengedit."'} style="font-size:11px;padding:7px 12px;"><i class="fa-solid fa-ban"></i>&ensp;Hapus</button>` : ''}
+              ${isDibatalkan ? `<button class="secondary btn-pulihkan${state.canEdit ? '' : ' ps-locked'}" data-id="${esc(item.id)}" type="button" ${state.canEdit ? '' : 'disabled title="Hanya Bagian Hukuman, Admin, atau Super Admin yang bisa mengedit."'} style="font-size:11px;padding:7px 12px;"><i class="fa-solid fa-rotate-left"></i>&ensp;Pulihkan</button>` : ''}
+              <button class="secondary btn-history" data-id="${esc(item.id)}" type="button" style="font-size:11px;padding:7px 12px;" title="Riwayat pengedit"><i class="fa-solid fa-clock-rotate-left"></i>&ensp;Riwayat</button>
+              <button class="danger btn-hapus${state.canDelete ? '' : ' ps-locked'}" data-id="${esc(item.id)}" type="button" ${state.canDelete ? '' : 'disabled title="Hanya Super Admin yang bisa menghapus."'} style="font-size:11px;padding:7px 12px;"><i class="fa-solid fa-trash"></i>&ensp;Hapus Permanen</button>
+            </div>
+          </div>
+        </div>
+      </article>`;
+    }
+    function buildPaginationList(page, totalPages) {
+      const max = 10;
+      if (totalPages <= max) return Array.from({ length: totalPages }, (_, i) => i + 1);
+      const mid = max - 2;
+      const pages = [1];
+      let start = Math.max(2, page - Math.floor(mid / 2));
+      let end = start + mid - 1;
+      if (end > totalPages - 1) { end = totalPages - 1; start = end - mid + 1; }
+      if (start > 2) pages.push('...');
+      for (let v = start; v <= end; v++) pages.push(v);
+      if (end < totalPages - 1) pages.push('...');
+      pages.push(totalPages);
+      return pages;
+    }
+    function renderPagination() {
+      const total = state.total, ps = state.pageSize, pg = state.page;
+      const totalPages = Math.ceil(total / ps) || 1;
+      state.totalPages = totalPages;
+      const markup = total ? `
+        <div class="paging">
+          <button class="secondary" type="button" data-page="${pg - 1}" ${pg <= 1 ? 'disabled' : ''}>Sebelumnya</button>
+          <div class="page-center">
+            <div class="page-numbers">
+              ${buildPaginationList(pg, totalPages).map(item =>
+                item === '...'
+                  ? '<span class="page-summary">...</span>'
+                  : `<button class="secondary page-btn ${item === pg ? 'active' : ''}" type="button" data-page="${item}">${item}</button>`
+              ).join('')}
+            </div>
+            <div class="page-summary">Halaman ${pg} dari ${totalPages} &nbsp;|&nbsp; Total ${total} pelanggaran</div>
+          </div>
+          <button class="secondary" type="button" data-page="${pg + 1}" ${pg >= totalPages ? 'disabled' : ''}>Berikutnya</button>
+        </div>
+      ` : '';
+      window.PSUI.syncPaginationHosts({ markup, visibleCount: state.items.length, totalCount: total, topId: 'paginationTop', bottomId: 'paginationBottom' });
+    }
+
+
+    function showEditHistory(id) {
+      const item = state.items.find(i => i.id === id); if (!item) return;
+      const subtitle = `${esc(item.santriNama || '—')} — ${esc(item.jenisNama || '—')} (${fmtDate(item.tanggal)})`;
+      document.getElementById('editHistorySubtitle').innerHTML = subtitle;
+      const history = (() => { try { return JSON.parse(item.editHistory || '[]'); } catch (_) { return []; } })();
+      const formatDate = iso => { if (!iso) return '-'; const d = new Date(iso); return isNaN(d) ? iso : d.toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }); };
+      const actionLabel = a => a === 'create' ? 'Dibuat' : 'Diedit';
+      const rows = history.map((entry, i) => `
+        <div class="edit-history-entry">
+          <div class="edit-history-order">#${i + 1}</div>
+          <div class="edit-history-info">
+            <div class="edit-history-name">${esc(entry.name || '-')}</div>
+            ${entry.jabatan ? `<div class="edit-history-jabatan">${esc(entry.jabatan)}</div>` : ''}
+            <div class="edit-history-meta">${actionLabel(entry.action)} &bull; ${esc(formatDate(entry.at))}</div>
+          </div>
+        </div>
+      `).join('');
+      document.getElementById('editHistoryList').innerHTML = rows || '<p class="edit-history-empty">Belum ada riwayat pengedit tersimpan.</p>';
+      document.getElementById('editHistoryDialog').showModal();
+    }
+
+    // Hapus (tidak menghapus data secara permanen, hanya menandai status "Dihapus")
+    async function batalkanPelanggaranItem(id) {
+      const item = state.items.find(i => i.id === id); if (!item) return;
+      if (!confirm(`Tandai catatan pelanggaran "${item.santriNama}" sebagai Dihapus? Data tidak dihapus permanen dari sistem, hanya ditandai "Dihapus" (masih bisa dilihat lewat filter status, dan bisa dipulihkan lagi kalau perlu).`)) return;
+      try { await apiPost({ action:'pelanggaran.toggle', id, active:false }); showNotice('Data ditandai dihapus.'); await loadRekap(); }
+      catch (e) { showNotice(e.message,'error'); }
+    }
+
+    // Pulihkan (kembalikan data yang sebelumnya ditandai "Dihapus")
+    async function pulihkanPelanggaranItem(id) {
+      const item = state.items.find(i => i.id === id); if (!item) return;
+      if (!confirm(`Pulihkan catatan pelanggaran "${item.santriNama}"? Data akan muncul lagi sebagai data aktif.`)) return;
+      try { await apiPost({ action:'pelanggaran.toggle', id, active:true }); showNotice('Data berhasil dipulihkan.'); await loadRekap(); }
+      catch (e) { showNotice(e.message,'error'); }
+    }
+
+    // Hapus permanen (khusus Super Admin, wajib ketik HAPUS)
+    function openHapusPelanggaranDialog(id) {
+      const item = state.items.find(i => i.id === id); if (!item) return;
+      let dlg = document.getElementById('hapusPelanggaranDialog');
+      if (!dlg) { dlg = document.createElement('dialog'); dlg.id = 'hapusPelanggaranDialog'; dlg.style.cssText = 'border:none;border-radius:16px;padding:0;max-width:480px;width:94vw;box-shadow:0 20px 60px rgba(0,0,0,0.3);color:var(--ink);'; document.body.appendChild(dlg); }
+      dlg.innerHTML = `<div style="padding:22px;display:grid;gap:12px;font-family:inherit;">
+        <h3 style="margin:0;color:var(--danger);">Hapus Data Pelanggaran</h3>
+        <div style="font-size:13.5px;line-height:1.6;">Data pelanggaran <strong>${esc(item.santriNama)}</strong> (${fmtDate(item.tanggal)}) akan dihapus permanen dan tidak bisa dikembalikan. Kalau hanya ingin menandai data ini sebagai dihapus tanpa menghilangkannya secara permanen, tutup dialog ini dan gunakan tombol "Hapus" (bukan "Hapus Permanen") pada kartu.</div>
+        <label style="display:grid;gap:6px;font-size:13px;font-weight:600;">Ketik <strong>HAPUS</strong> untuk mengonfirmasi:
+          <input type="text" id="hapusPelanggaranWord" autocomplete="off" placeholder="HAPUS" style="padding:11px 13px;border-radius:12px;border:1.5px solid #ccc;font:inherit;text-transform:uppercase;letter-spacing:0.1em;">
+        </label>
+        <div style="display:flex;gap:10px;justify-content:flex-end;">
+          <button class="secondary" type="button" id="hapusPelanggaranCancel">Batal</button>
+          <button class="danger" type="button" id="hapusPelanggaranOk" disabled>Hapus permanen</button>
+        </div>
+      </div>`;
+      dlg.showModal();
+      const wordEl = dlg.querySelector('#hapusPelanggaranWord');
+      const okBtn = dlg.querySelector('#hapusPelanggaranOk');
+      wordEl.oninput = () => { okBtn.disabled = wordEl.value.trim().toUpperCase() !== 'HAPUS'; };
+      dlg.querySelector('#hapusPelanggaranCancel').onclick = () => dlg.close();
+      okBtn.onclick = async () => {
+        if (wordEl.value.trim().toUpperCase() !== 'HAPUS') return;
+        dlg.close();
+        try { const res = await apiPost({ action:'pelanggaran.delete', id, confirm:'HAPUS' }); showNotice((res && res.message) || 'Data dihapus permanen.'); await loadRekap(); }
+        catch (e) { showNotice(e.message || 'Gagal menghapus.','error'); }
+      };
+    }
+
+    function openAssignDialog(id) {
+      const item = state.items.find(i => i.id === id); if (!item) return;
+      const isEdit = item.statusHukuman === 'selesai';
+      document.getElementById('assignPelanggaranId').value = id;
+      document.getElementById('assignHukuman').value = isEdit ? (item.hukuman || '') : '';
+      document.getElementById('assignCatatan').value = item.catatan || '';
+      document.getElementById('assignDialogMeta').innerHTML = `<strong>${esc(item.santriNama)}</strong> &mdash; ${esc(item.jenisNama)} ${katPill(item.kategori)}`;
+      document.getElementById('assignDialogTitle').textContent = isEdit ? 'Edit Hukuman' : 'Tetapkan Hukuman';
+      document.getElementById('btnAssignSubmitLabel').textContent = isEdit ? 'Simpan Perubahan' : 'Tetapkan Hukuman';
+      document.getElementById('btnAssignClear').hidden = !isEdit;
+      document.getElementById('assignDialog').showModal();
+      document.getElementById('assignHukuman').focus();
+    }
+    document.getElementById('btnAssignCancel').addEventListener('click', () => document.getElementById('assignDialog').close());
+    document.getElementById('btnAssignSubmit').addEventListener('click', async () => {
+      const id = document.getElementById('assignPelanggaranId').value;
+      const hukuman = document.getElementById('assignHukuman').value.trim();
+      const catatan = document.getElementById('assignCatatan').value.trim();
+      if (!hukuman) { showNotice('Isi hukuman wajib diisi.','error'); return; }
+      const btn = document.getElementById('btnAssignSubmit'); btn.disabled = true;
+      try { await apiPost({ action:'pelanggaran.assign.hukuman', id, hukuman, catatan }); document.getElementById('assignDialog').close(); showNotice('Hukuman berhasil disimpan.'); await loadRekap(); }
+      catch (e) { showNotice(e.message,'error'); } finally { btn.disabled = false; }
+    });
+    document.getElementById('btnAssignClear').addEventListener('click', async () => {
+      const id = document.getElementById('assignPelanggaranId').value;
+      const item = state.items.find(i => i.id === id);
+      if (!confirm(`Hapus hukuman untuk "${item ? item.santriNama : 'santri ini'}"? Pelanggaran akan kembali berstatus "Belum Dihukum".`)) return;
+      const btn = document.getElementById('btnAssignClear'); btn.disabled = true;
+      try { await apiPost({ action:'pelanggaran.clear.hukuman', id }); document.getElementById('assignDialog').close(); showNotice('Hukuman berhasil dihapus.'); await loadRekap(); }
+      catch (e) { showNotice(e.message,'error'); } finally { btn.disabled = false; }
+    });
+
+    // Edit dialog
+    function renderEditFotos(fotos, id) {
+      const grid = document.getElementById('editFotoGrid');
+      grid.innerHTML = (fotos||[]).map(f => `<div class="foto-thumb-wrap"><a href="/${esc(f.path)}" target="_blank"><img src="/${esc(f.path)}" alt="${esc(f.name)}"></a><button class="foto-thumb-del" type="button" data-path="${esc(f.path)}" title="Hapus"><i class="fa-solid fa-xmark"></i></button></div>`).join('') +
+        `<button class="secondary foto-upload-btn" type="button" id="btnEditFotoCamera"><i class="fa-solid fa-camera"></i>&ensp;Kamera</button>` +
+        `<button class="secondary foto-upload-btn" type="button" id="btnEditFotoFile"><i class="fa-solid fa-image"></i>&ensp;File</button>`;
+      grid.querySelectorAll('.foto-thumb-del').forEach(b => b.addEventListener('click', async () => {
+        const currentId = document.getElementById('editId').value;
+        b.disabled = true;
+        try { const res = await apiPost({ action:'pelanggaran.foto.delete', id:currentId, path:b.dataset.path }); renderEditFotos(res.fotos, currentId); const item = state.items.find(i=>i.id===currentId); if(item) item.fotos=res.fotos; }
+        catch(e2) { showNotice(e2.message,'error'); b.disabled=false; }
+      }));
+      document.getElementById('btnEditFotoCamera').addEventListener('click', () => openPelCam('edit'));
+      document.getElementById('btnEditFotoFile').addEventListener('click', () => document.getElementById('editFotoInput').click());
+    }
+    async function uploadEditFotos(input) {
+      const id = document.getElementById('editId').value;
+      const files = Array.from(input.files || []); input.value = '';
+      for (const f of files) {
+        await new Promise(resolve => {
+          const reader = new FileReader();
+          reader.onload = async ev => {
+            try { const res = await apiPost({ action:'pelanggaran.foto.upload', id, dataUrl:ev.target.result, name:f.name }); renderEditFotos(res.fotos, id); const item = state.items.find(i=>i.id===id); if(item) item.fotos=res.fotos; }
+            catch(e2) { showNotice(e2.message,'error'); } resolve();
+          }; reader.readAsDataURL(f);
+        });
+      }
+    }
+    document.getElementById('editFotoInput').addEventListener('change', function() { uploadEditFotos(this); });
+
+    function openEditDialog(id) {
+      const item = state.items.find(i => i.id === id); if (!item) return;
+      document.getElementById('editId').value = id;
+      document.getElementById('editKategori').value = item.kategori || 'ringan';
+      document.getElementById('editTanggal').value = item.tanggal || '';
+      document.getElementById('editJenisNama').value = item.jenisNama || '';
+      document.getElementById('editDeskripsi').value = item.deskripsi || '';
+      document.getElementById('editCatatan').value = item.catatan || '';
+      document.getElementById('editFotoInput').value = '';
+      renderEditFotos(item.fotos || [], id);
+      document.getElementById('editDialog').showModal();
+    }
+    document.getElementById('btnEditCancel').addEventListener('click', () => document.getElementById('editDialog').close());
+    document.getElementById('btnEditDialogClose').addEventListener('click', () => document.getElementById('editDialog').close());
+    document.getElementById('closeEditHistoryDialog').addEventListener('click', () => document.getElementById('editHistoryDialog').close());
+    document.getElementById('btnEditSubmit').addEventListener('click', async () => {
+      const id = document.getElementById('editId').value;
+      const editTanggal = document.getElementById('editTanggal').value;
+      if (!editTanggal) { showNotice('Tanggal wajib diisi.','error'); return; }
+      const btn = document.getElementById('btnEditSubmit'); btn.disabled = true;
+      try {
+        await apiPost({ action:'pelanggaran.update', id, kategori:document.getElementById('editKategori').value, tanggal:editTanggal, jenis_nama:document.getElementById('editJenisNama').value.trim(), deskripsi:document.getElementById('editDeskripsi').value.trim(), catatan:document.getElementById('editCatatan').value.trim() });
+        document.getElementById('editDialog').close(); showNotice('Data pelanggaran berhasil diperbarui.'); await loadRekap();
+      } catch (e) { showNotice(e.message,'error'); } finally { btn.disabled = false; }
+    });
+
+    // Input foto pending
+    let inputPendingFotos = [];
+    function renderInputFotoGrid() {
+      const grid = document.getElementById('inputFotoGrid');
+      grid.innerHTML = inputPendingFotos.map((f, i) => `<div class="foto-thumb-wrap"><img src="${esc(f.url)}" alt="${esc(f.name)}"><button class="foto-thumb-del" type="button" data-idx="${i}" title="Hapus"><i class="fa-solid fa-xmark"></i></button></div>`).join('') +
+        `<button class="secondary foto-upload-btn" type="button" id="btnInputFotoCamera"><i class="fa-solid fa-camera"></i>&ensp;Kamera</button>` +
+        `<button class="secondary foto-upload-btn" type="button" id="btnInputFotoFile"><i class="fa-solid fa-image"></i>&ensp;File</button>`;
+      grid.querySelectorAll('.foto-thumb-del').forEach(b => b.addEventListener('click', () => {
+        const idx = Number(b.dataset.idx);
+        URL.revokeObjectURL(inputPendingFotos[idx].url);
+        inputPendingFotos.splice(idx, 1);
+        renderInputFotoGrid();
+      }));
+      document.getElementById('btnInputFotoCamera').addEventListener('click', () => openPelCam('input'));
+      document.getElementById('btnInputFotoFile').addEventListener('click', () => document.getElementById('inputFotoFile').click());
+    }
+    function addInputFotos(files) {
+      Array.from(files).forEach(f => { inputPendingFotos.push({ file: f, name: f.name, url: URL.createObjectURL(f) }); });
+      renderInputFotoGrid();
+    }
+    document.getElementById('inputFotoFile').addEventListener('change', function() { if (this.files) addInputFotos(this.files); this.value = ''; });
+
+    let santriSearchTimeout = null;
+    let selectedSantriList = [];
+    document.getElementById('inputSantriSearch').addEventListener('input', e => { clearTimeout(santriSearchTimeout); santriSearchTimeout = setTimeout(() => filterSantri(e.target.value), 250); });
+    document.getElementById('inputSantriSearch').addEventListener('focus', e => { if (e.target.value.length >= 1) filterSantri(e.target.value); });
+    document.addEventListener('click', e => {
+      if (!e.target.closest('#inputSantriSearch') && !e.target.closest('#santriSuggestions')) document.getElementById('santriSuggestions').classList.remove('open');
+      if (!e.target.closest('#jenisSearchWrap')) document.getElementById('jenisSuggestions').classList.remove('open');
+    });
+    function filterSantri(q) {
+      const trim = (q||'').trim().toLowerCase();
+      const sug = document.getElementById('santriSuggestions');
+      if (!trim) { sug.classList.remove('open'); return; }
+      const pickedIds = new Set(selectedSantriList.map(s => s.id));
+      const matched = state.refs.santri.filter(s => !pickedIds.has(String(s.id)) && ((s.name||s.namaLengkapAkte||'').toLowerCase().includes(trim) || (s.noInduk||'').toLowerCase().includes(trim))).slice(0,12);
+      if (!matched.length) { sug.innerHTML = '<div class="suggestion-item" style="color:var(--muted);">Tidak ditemukan</div>'; sug.classList.add('open'); return; }
+      sug.innerHTML = matched.map(s => `<div class="suggestion-item" data-id="${esc(s.id)}" data-name="${esc(s.name||s.namaLengkapAkte||'')}"><strong>${esc(s.name||s.namaLengkapAkte||s.id)}</strong><span class="suggestion-noinduk">No. Induk: ${esc(s.noInduk||'—')}</span></div>`).join('');
+      sug.classList.add('open');
+      sug.querySelectorAll('.suggestion-item[data-id]').forEach(el => el.addEventListener('click', () => {
+        addSelectedSantri(String(el.dataset.id), el.dataset.name);
+        document.getElementById('inputSantriSearch').value = '';
+        sug.classList.remove('open');
+        document.getElementById('inputSantriSearch').focus();
+      }));
+    }
+    function addSelectedSantri(id, name) {
+      if (selectedSantriList.some(s => s.id === id)) return;
+      selectedSantriList.push({ id, name });
+      renderSantriChips();
+    }
+    function removeSelectedSantri(id) {
+      selectedSantriList = selectedSantriList.filter(s => s.id !== id);
+      renderSantriChips();
+    }
+    function renderSantriChips() {
+      const host = document.getElementById('santriChipList');
+      if (!selectedSantriList.length) { host.innerHTML = '<span class="santri-chip-empty">Belum ada santri dipilih.</span>'; return; }
+      host.innerHTML = selectedSantriList.map(s => `<span class="santri-chip">${esc(s.name)}<button type="button" data-id="${esc(s.id)}" aria-label="Hapus"><i class="fa-solid fa-xmark"></i></button></span>`).join('');
+      host.querySelectorAll('button[data-id]').forEach(btn => btn.addEventListener('click', () => removeSelectedSantri(btn.dataset.id)));
+    }
+    renderSantriChips();
+    let jenisSearchTimeout = null;
+    document.getElementById('inputJenisSearch').addEventListener('input', e => {
+      document.getElementById('inputJenisSelect').value = '';
+      clearTimeout(jenisSearchTimeout);
+      jenisSearchTimeout = setTimeout(() => renderJenisSuggestions(e.target.value), 150);
+    });
+    document.getElementById('inputJenisSearch').addEventListener('focus', e => renderJenisSuggestions(e.target.value));
+    function showConfirmDialog(message, opts) {
+      opts = opts || {};
+      return new Promise(resolve => {
+        let dlg = document.getElementById('confirmWarningDialog');
+        if (!dlg) {
+          dlg = document.createElement('dialog');
+          dlg.id = 'confirmWarningDialog';
+          dlg.style.cssText = 'border:none;border-radius:16px;padding:0;max-width:440px;width:94vw;box-shadow:0 20px 60px rgba(0,0,0,0.3);color:var(--ink);';
+          document.body.appendChild(dlg);
+        }
+        dlg.innerHTML = `<div style="padding:22px;display:grid;gap:16px;font-family:inherit;">
+          <div style="display:flex;align-items:flex-start;gap:12px;">
+            <i class="fa-solid fa-triangle-exclamation" style="color:var(--warning);font-size:22px;margin-top:2px;"></i>
+            <div>
+              <h3 style="margin:0 0 6px;color:var(--ink);">${esc(opts.title || 'Konfirmasi')}</h3>
+              <div style="font-size:13.5px;line-height:1.6;color:var(--muted);">${esc(message)}</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:10px;justify-content:flex-end;">
+            <button class="secondary" type="button" id="confirmWarningCancel">${esc(opts.cancelLabel || 'Batal')}</button>
+            <button class="primary" type="button" id="confirmWarningOk" autofocus style="background:var(--warning);">${esc(opts.confirmLabel || 'Ya, Lanjutkan')}</button>
+          </div>
+        </div>`;
+        let settled = false;
+        const finish = val => { if (settled) return; settled = true; resolve(val); if (dlg.open) dlg.close(); };
+        dlg.querySelector('#confirmWarningCancel').onclick = () => finish(false);
+        dlg.querySelector('#confirmWarningOk').onclick = () => finish(true);
+        dlg.onclose = () => finish(false);
+        dlg.oncancel = e => e.preventDefault();
+        dlg.onclick = e => { if (e.target === dlg) e.stopPropagation(); };
+        dlg.showModal();
+      });
+    }
+    async function checkPelanggaranDuplicate(santriId, tanggal, jenisLabel, santriName) {
+      let existing = [];
+      try {
+        const d = await api({ action: 'pelanggaran.list', santriId, dariTanggal: tanggal, sampaiTanggal: tanggal, pageSize: 50 });
+        existing = d.items || [];
+      } catch (_) { return true; }
+      if (!existing.length) return true;
+      const sameJenis = existing.some(it => (it.jenisNama || '').trim().toLowerCase() === jenisLabel.trim().toLowerCase());
+      const message = sameJenis
+        ? `Kamu sudah mengisi pelanggaran santri ${santriName} dengan jenis yang sama di hari ini. Apakah benar-benar dia melanggar di hari yang sama dua kali?`
+        : `Kamu sudah mengisi pelanggaran santri ${santriName} di hari ini, apakah dia melakukan pelanggaran lagi?`;
+      return showConfirmDialog(message, { title: 'Sudah Ada Catatan Hari Ini', confirmLabel: 'Ya, Benar', cancelLabel: 'Batal' });
+    }
+    async function saveOnePelanggaran(santri, jenisId, jenisCustom, kategori, tanggal, deskripsi, hukuman, tahunAjaranId) {
+      const jenisLabel = jenisId === '__custom__' ? jenisCustom : document.getElementById('inputJenisSearch').value.trim();
+      const canProceed = await checkPelanggaranDuplicate(santri.id, tanggal, jenisLabel, santri.name);
+      if (!canProceed) return { status: 'skipped', santriName: santri.name };
+      const res = await apiPost({ action:'pelanggaran.save', santri_id:santri.id, jenis_id:jenisId==='__custom__'?'':jenisId, jenis_nama:jenisId==='__custom__'?jenisCustom:'', kategori, deskripsi, tanggal, hukuman, tahun_ajaran_id:tahunAjaranId });
+      const newId = res.id;
+      if (newId && inputPendingFotos.length) {
+        for (const f of inputPendingFotos) {
+          await new Promise(resolve => {
+            const reader = new FileReader();
+            reader.onload = async ev => { try { await apiPost({ action:'pelanggaran.foto.upload', id:newId, dataUrl:ev.target.result, name:f.name }); } catch(e2){} resolve(); };
+            reader.readAsDataURL(f.file);
+          });
+        }
+      }
+      return { status: 'saved', santriName: santri.name };
+    }
+    document.getElementById('inputForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      const jenisId = document.getElementById('inputJenisSelect').value;
+      const jenisCustom = document.getElementById('inputJenisCustom').value.trim();
+      const kategori = document.getElementById('inputKategori').value;
+      const tanggal = document.getElementById('inputTanggal').value;
+      const deskripsi = document.getElementById('inputDeskripsi').value.trim();
+      const hukuman = document.getElementById('inputHukuman').value.trim();
+      const tahunAjaranId = document.getElementById('inputTahunAjaran').value;
+      if (!selectedSantriList.length) { showNotice('Pilih santri terlebih dahulu.','error'); return; }
+      if (!tanggal) { showNotice('Tanggal wajib diisi.','error'); return; }
+      if (!jenisId) { showNotice('Pilih jenis pelanggaran.','error'); return; }
+      if (jenisId === '__custom__' && !jenisCustom) { showNotice('Tulis nama pelanggaran kustom.','error'); return; }
+      if (!kategori) { showNotice('Pilih kategori pelanggaran.','error'); return; }
+      const btn = document.getElementById('btnSubmitInput'); btn.disabled = true;
+      let savedCount = 0, failedCount = 0;
+      const skippedNames = [];
+      try {
+        for (const santri of selectedSantriList) {
+          try {
+            const outcome = await saveOnePelanggaran(santri, jenisId, jenisCustom, kategori, tanggal, deskripsi, hukuman, tahunAjaranId);
+            if (outcome.status === 'saved') savedCount += 1; else skippedNames.push(outcome.santriName);
+          } catch (e) { failedCount += 1; }
+        }
+        const parts = [];
+        if (savedCount) parts.push(`${savedCount} pelanggaran berhasil dicatat`);
+        if (skippedNames.length) parts.push(`${skippedNames.length} dilewati (dibatalkan saat konfirmasi: ${skippedNames.join(', ')})`);
+        if (failedCount) parts.push(`${failedCount} gagal`);
+        showNotice(parts.join(', ') + '.', failedCount ? 'error' : 'info');
+        if (savedCount) { resetInputForm(); switchTab('rekap'); await loadRekap(); }
+      } finally { btn.disabled = false; }
+    });
+    document.getElementById('btnResetInput').addEventListener('click', resetInputForm);
+    function resetInputForm() {
+      document.getElementById('inputForm').reset();
+      selectedSantriList = [];
+      renderSantriChips();
+      document.getElementById('jenisCustomWrap').hidden = true;
+      document.getElementById('inputKategori').disabled = false;
+      document.getElementById('inputKategoriHint').hidden = true;
+      document.getElementById('inputTanggal').value = todayIso();
+      const aktif = state.refs.tahunAjaran.find(t => t.isAktif);
+      if (aktif) document.getElementById('inputTahunAjaran').value = aktif.id;
+      inputPendingFotos.forEach(f => URL.revokeObjectURL(f.url));
+      inputPendingFotos = [];
+      renderInputFotoGrid();
+    }
+
+
+    function switchTab(tabId) {
+      const tabs = { rekap: 'tabRekap', input: 'tabInput' };
+      Object.entries(tabs).forEach(([key, elId]) => {
+        const panel = document.getElementById(elId);
+        if (panel) panel.hidden = key !== tabId;
+      });
+      document.querySelectorAll('.tab-btn[data-tab]').forEach(b => {
+        const active = b.dataset.tab === tabId;
+        b.classList.toggle('primary', active);
+        b.classList.toggle('secondary', !active);
+        b.classList.toggle('active', active);
+      });
+    }
+    document.getElementById('tabBar').addEventListener('click', e => { const b = e.target.closest('.tab-btn[data-tab]'); if (b) switchTab(b.dataset.tab); });
+
+    let filterTimeout = null;
+    ['filterTahunAjaran','filterDariTanggal','filterSampaiTanggal','filterKategori','filterStatus','filterStatusHukuman','filterGender','filterSort'].forEach(id => document.getElementById(id).addEventListener('change', () => { state.page = 1; applyFilters(); }));
+    document.getElementById('filterQ').addEventListener('input', () => { clearTimeout(filterTimeout); filterTimeout = setTimeout(() => { state.page = 1; applyFilters(); }, 350); });
+    function applyFilters() { state.filters.tahunAjaranId = document.getElementById('filterTahunAjaran').value; state.filters.dariTanggal = document.getElementById('filterDariTanggal').value; state.filters.sampaiTanggal = document.getElementById('filterSampaiTanggal').value; state.filters.kategori = document.getElementById('filterKategori').value; state.filters.status = document.getElementById('filterStatus').value; state.filters.statusHukuman = document.getElementById('filterStatusHukuman').value; state.filters.gender = document.getElementById('filterGender').value; state.filters.q = document.getElementById('filterQ').value; state.filters.sortBy = document.getElementById('filterSort').value; loadRekap(); }
+
+    document.addEventListener('click', event => {
+      const page = event.target.getAttribute('data-page');
+      if (!page) return;
+      const nextPage = Number(page);
+      if (!nextPage || nextPage < 1 || nextPage > state.totalPages || nextPage === state.page) return;
+      state.page = nextPage;
+      loadRekap();
+    });
+
+    // Super admin actions
+    const DATASET_KEY = 'pelanggaran';
+    async function apiExcel(action, payload, method) {
+      if (!method || method === 'GET') return api({ action, ...payload });
+      return apiPost({ action, ...payload });
+    }
+    document.getElementById('deleteAllInput').addEventListener('input', function() {
+      document.getElementById('btnDeleteAllConfirm').disabled = this.value.trim() !== 'HAPUS SEMUA';
+    });
+    document.getElementById('btnDeleteAllCancel').addEventListener('click', () => { document.getElementById('deleteAllDialog').close(); document.getElementById('deleteAllInput').value = ''; document.getElementById('btnDeleteAllConfirm').disabled = true; });
+    document.getElementById('btnDeleteAll').addEventListener('click', () => { document.getElementById('deleteAllInput').value = ''; document.getElementById('btnDeleteAllConfirm').disabled = true; document.getElementById('deleteAllDialog').showModal(); });
+    document.getElementById('btnDeleteAllConfirm').addEventListener('click', async () => {
+      const btn = document.getElementById('btnDeleteAllConfirm'); btn.disabled = true;
+      try {
+        const res = await apiPost({ action:'pelanggaran.deleteAll' });
+        document.getElementById('deleteAllDialog').close();
+        showNotice(res.message || 'Semua data dihapus.'); await loadRekap();
+      } catch (e) { showNotice(e.message,'error'); btn.disabled = false; }
+    });
+    document.getElementById('btnExportExcel').addEventListener('click', async () => {
+      try { await window.PSExcel.exportDatasets(apiExcel, [DATASET_KEY], 'export-pelanggaran.xlsx'); }
+      catch (e) { showNotice(e.message || 'Gagal export.','error'); }
+    });
+
+    /* ── Export Laporan (Excel berformat, bukan dump untuk import) ── */
+    function getPeriodLabel() {
+      const dari = document.getElementById('filterDariTanggal').value;
+      const sampai = document.getElementById('filterSampaiTanggal').value;
+      if (!dari && !sampai) return 'Semua Waktu';
+      if (dari && sampai) return fmtDate(dari) + ' s/d ' + fmtDate(sampai);
+      if (dari) return 'Mulai ' + fmtDate(dari);
+      return 'S/d ' + fmtDate(sampai);
+    }
+    async function fetchAllFilteredPelanggaranItems() {
+      const f = state.filters;
+      const pageSize = 200;
+      let page = 1, all = [], total = Infinity;
+      while (all.length < total && page <= 25) {
+        const d = await api({ action: 'pelanggaran.list', page, pageSize, tahunAjaranId: f.tahunAjaranId, dariTanggal: f.dariTanggal, sampaiTanggal: f.sampaiTanggal, kategori: f.kategori, statusHukuman: f.statusHukuman, gender: f.gender, q: f.q, sortBy: f.sortBy });
+        all = all.concat(d.items || []);
+        total = d.total || 0;
+        page += 1;
+        if (!d.items || !d.items.length) break;
+      }
+      return all;
+    }
+    async function exportLaporan() {
+      if (!window.PSExcel) { showNotice('Library export belum siap.', 'error'); return; }
+      const btn = document.getElementById('btnExportLaporan'); btn.disabled = true;
+      try {
+        const items = await fetchAllFilteredPelanggaranItems();
+        if (!items.length) { showNotice('Tidak ada data untuk diekspor.', 'error'); return; }
+        const periodLabel = getPeriodLabel();
+        const columns = [
+          { label: 'No',              width: 24  },
+          { label: 'Nama Santri',     width: 108 },
+          { label: 'No. Induk',       width: 58  },
+          { label: 'Tanggal',         width: 58  },
+          { label: 'Kategori',        width: 50  },
+          { label: 'Jenis',           width: 90  },
+          { label: 'Deskripsi',       width: 100 },
+          { label: 'Status Hukuman',  width: 65  },
+          { label: 'Hukuman',         width: 90  },
+          { label: 'Ditetapkan Oleh', width: 80  },
+          { label: 'Catatan',         width: 80  },
+          { label: 'Dicatat Oleh',    width: 79  },
+        ];
+        const rows = items.map((item, i) => [
+          i + 1,
+          item.santriNama    || '—',
+          item.santriNoInduk || '—',
+          fmtDate(item.tanggal),
+          item.kategori       || '—',
+          item.jenisNama       || '—',
+          item.deskripsi       || '—',
+          item.statusHukuman === 'selesai' ? 'Sudah Dihukum' : 'Belum Dihukum',
+          item.hukuman         || '—',
+          item.hukumanByNama   || '—',
+          item.catatan          || '—',
+          item.inputByNama      || '—',
+        ]);
+        const ts = new Date().toISOString().slice(0, 10);
+        await window.PSExcel.buildReportWorkbookAndDownload({
+          title: 'Rekap Pelanggaran',
+          subtitle: 'Periode: ' + periodLabel + '  |  Total: ' + items.length + ' data',
+          columns, rows,
+          fileName: 'laporan-pelanggaran-' + ts + '.xlsx',
+          sheetName: 'Pelanggaran',
+        });
+        showNotice('Laporan Excel berhasil diunduh.', 'success');
+      } catch (e) {
+        showNotice('Gagal membuat laporan: ' + (e.message || e), 'error');
+      } finally { btn.disabled = false; }
+    }
+    document.getElementById('btnExportLaporan').addEventListener('click', exportLaporan);
+
+    /* ── Salin untuk WA (teks polos sesuai filter, untuk paste ke WhatsApp) ── */
+    function buildWaPelanggaranText(items, periodLabel) {
+      const lines = ['*LAPORAN PELANGGARAN SANTRI*', 'Periode: ' + periodLabel, 'Total: ' + items.length + ' data', ''];
+      items.forEach((item, i) => {
+        const isDibatalkan = (item.status || '').toLowerCase() === 'dihapus';
+        const hukumanText = item.statusHukuman === 'selesai' ? 'Sudah Dihukum' : 'Belum Dihukum';
+        lines.push(`${i + 1}. *${item.santriNama || '—'}* (No. Induk ${item.santriNoInduk || '—'})`);
+        lines.push(`   Tanggal: ${fmtDate(item.tanggal)}`);
+        lines.push(`   Kategori: ${item.kategori || '—'}`);
+        lines.push(`   Jenis: ${item.jenisNama || '—'}`);
+        if (item.deskripsi) lines.push(`   Deskripsi: ${item.deskripsi}`);
+        lines.push(`   Status Hukuman: ${hukumanText}`);
+        if (item.statusHukuman === 'selesai' && item.hukuman) lines.push(`   Hukuman: ${item.hukuman}${item.hukumanByNama ? ' (oleh ' + item.hukumanByNama + ')' : ''}`);
+        if (item.catatan) lines.push(`   Catatan: ${item.catatan}`);
+        if (isDibatalkan) lines.push('   ⚠ Status: Dihapus');
+        lines.push('');
+      });
+      const now = new Date();
+      lines.push(`_Disalin dari sistem pada ${fmtDate(now.toISOString())}, ${now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}_`);
+      return lines.join('\n');
+    }
+    async function copyTextToClipboard(text) {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        return;
+      }
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.focus(); ta.select();
+      const ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      if (!ok) throw new Error('Gagal menyalin ke clipboard.');
+    }
+    document.getElementById('btnCopyWa').addEventListener('click', async () => {
+      const btn = document.getElementById('btnCopyWa'); btn.disabled = true;
+      try {
+        const items = await fetchAllFilteredPelanggaranItems();
+        if (!items.length) { showNotice('Tidak ada data untuk disalin.', 'error'); return; }
+        const text = buildWaPelanggaranText(items, getPeriodLabel());
+        await copyTextToClipboard(text);
+        showNotice(`Data ${items.length} pelanggaran berhasil disalin. Silakan paste ke WhatsApp.`, 'success');
+      } catch (e) {
+        showNotice('Gagal menyalin: ' + (e.message || e), 'error');
+      } finally { btn.disabled = false; }
+    });
+
+    document.getElementById('btnImportExcel').addEventListener('click', () => document.getElementById('importExcelInput').click());
+    document.getElementById('importExcelInput').addEventListener('change', async function() {
+      const file = this.files && this.files[0]; this.value = ''; if (!file) return;
+      showNotice('Memproses import...','info');
+      try {
+        await window.PSExcel.importDataset(apiExcel, DATASET_KEY, file, { onProgress(done, total) { showNotice(`Import ${done}/${total}...`,'info'); } });
+        showNotice('Import selesai.'); await loadRekap();
+      } catch (e) { showNotice(e.message || 'Gagal import.','error'); }
+    });
+
+    window.addEventListener('DOMContentLoaded', async () => {
+      if (window.PSAccess && window.PSAccess.redirectIfForbidden(getStoredSession(), 'pelanggaran.html')) return;
+      if (window.PSShell) {
+        window.PSShell.mount({
+          currentPage: window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : '/pages/pelanggaran/',
+          session: getStoredSession(), getStoredSession, storageKey: STORAGE.session
+        });
+      }
+      document.getElementById('inputTanggal').value = todayIso();
+      renderInputFotoGrid();
+      const session = getStoredSession();
+      const scopedSession = getScopedSession();
+      const perms = scopedSession && scopedSession.permissions;
+      state.canDelete = !!(perms && (perms.isSuperAdmin || perms.canDelete));
+      state.canEdit = !!(perms && (perms.canAssignHukuman || perms.isSuperAdmin));
+      document.getElementById('inputHukumanWrap').hidden = !state.canEdit;
+      const canExportLaporan = !!(perms && (perms.isSuperAdmin || perms.isAdmin || perms.isKsantrian));
+      const lockReasonDelete = 'Hanya Super Admin yang bisa menggunakan fitur ini.';
+      const lockReasonExportLaporan = 'Hanya Admin, Kesantrian, atau Super Admin yang bisa menggunakan fitur ini.';
+      window.PSUI.applyPermissionLock(document.getElementById('btnExportLaporan'), canExportLaporan, lockReasonExportLaporan);
+      window.PSUI.applyPermissionLock(document.getElementById('btnCopyWa'), canExportLaporan, lockReasonExportLaporan);
+      window.PSUI.applyPermissionLock(document.getElementById('btnExportExcel'), state.canDelete, lockReasonDelete);
+      window.PSUI.applyPermissionLock(document.getElementById('btnImportExcel'), state.canDelete, lockReasonDelete);
+      window.PSUI.applyPermissionLock(document.getElementById('btnDeleteAll'), state.canDelete, lockReasonDelete);
+      window.PSUI.syncActionToolbar({ expanded: state.toolbarExpanded });
+      document.getElementById('toolbarCollapseToggle').addEventListener('click', () => {
+        state.toolbarExpanded = !state.toolbarExpanded;
+        window.PSUI.syncActionToolbar({ expanded: state.toolbarExpanded });
+      });
+      await Promise.all([loadRefs(), loadJenis()]);
+      await loadRekap();
+    });
+
+    // Kamera WebRTC
+    let _pelCamContext = 'input';
+    let _pelCamStream = null;
+    let _pelCamFacing = 'environment';
+
+    function startPelCam() {
+      stopPelCam();
+      const errEl = document.getElementById('pelCamError');
+      errEl.className = 'notice'; errEl.textContent = ''; errEl.style.display = 'none';
+      navigator.mediaDevices.getUserMedia({
+        video: { facingMode: _pelCamFacing, width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: false
+      }).then(function(stream) {
+        _pelCamStream = stream;
+        document.getElementById('pelCamVideo').srcObject = stream;
+      }).catch(function(e) {
+        const msg = e.name === 'NotAllowedError' ? 'Izin kamera ditolak.'
+          : e.name === 'NotFoundError' ? 'Kamera tidak ditemukan.'
+          : 'Gagal mengakses kamera: ' + e.message;
+        errEl.className = 'notice error'; errEl.textContent = msg; errEl.style.display = '';
+      });
+    }
+
+    function stopPelCam() {
+      if (_pelCamStream) { _pelCamStream.getTracks().forEach(t => t.stop()); _pelCamStream = null; }
+      const v = document.getElementById('pelCamVideo'); if (v) v.srcObject = null;
+    }
+
+    function capturePelPhoto() {
+      const video = document.getElementById('pelCamVideo');
+      const canvas = document.getElementById('pelCamCanvas');
+      if (!video.videoWidth) {
+        const errEl = document.getElementById('pelCamError');
+        errEl.className = 'notice error'; errEl.textContent = 'Kamera belum siap.'; errEl.style.display = '';
+        return;
+      }
+      canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      if (_pelCamFacing === 'user') { ctx.translate(canvas.width, 0); ctx.scale(-1, 1); }
+      ctx.drawImage(video, 0, 0);
+      canvas.toBlob(function(blob) {
+        stopPelCam();
+        document.getElementById('pelCamDialog').close();
+        const fileName = 'foto-pelanggaran-' + Date.now() + '.jpg';
+        if (_pelCamContext === 'input') {
+          inputPendingFotos.push({ file: new File([blob], fileName, { type: 'image/jpeg' }), name: fileName, url: URL.createObjectURL(blob) });
+          renderInputFotoGrid();
+        } else {
+          const reader = new FileReader();
+          reader.onload = async function(ev) {
+            try {
+              const id = document.getElementById('editId').value;
+              const res = await apiPost({ action: 'pelanggaran.foto.upload', id, dataUrl: ev.target.result, name: fileName });
+              renderEditFotos(res.fotos, id);
+              const item = state.items.find(i => i.id === id); if (item) item.fotos = res.fotos;
+            } catch (err) { showNotice(err.message, 'error'); }
+          };
+          reader.readAsDataURL(blob);
+        }
+      }, 'image/jpeg', 0.9);
+    }
+
+    function openPelCam(context) {
+      _pelCamContext = context;
+      _pelCamFacing = 'environment';
+      document.getElementById('pelCamDialog').showModal();
+      startPelCam();
+    }
+
+    document.getElementById('pelBtnTutupKamera').addEventListener('click', () => { stopPelCam(); document.getElementById('pelCamDialog').close(); });
+    document.getElementById('pelCamDialog').addEventListener('close', stopPelCam);
+    document.getElementById('pelBtnSwitchCam').addEventListener('click', () => { _pelCamFacing = _pelCamFacing === 'environment' ? 'user' : 'environment'; startPelCam(); });
+    document.getElementById('pelBtnCapture').addEventListener('click', capturePelPhoto);
+  </script>
+</body>
+</html>

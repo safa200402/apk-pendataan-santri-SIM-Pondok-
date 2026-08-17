@@ -1,0 +1,1644 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#111827">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="shared-ui.css">
+  <script src="shared-ui.js"></script>
+  <title>Index Pendataan Santri</title>
+  <style>
+    :root {
+      --page-bg: #d3bf86;
+      --page-accent: #4a3515;
+      --panel-bg: rgba(177, 141, 64, 0.22);
+      --panel-border: rgba(88, 61, 14, 0.2);
+      --panel-shadow: 0 28px 60px rgba(74, 53, 21, 0.18);
+      --text-main: #0f172a;
+      --text-muted: #6a5837;
+      --primary: #8f611d;
+      --primary-deep: #6f4913;
+      --success: #0f766e;
+      --warning: #b45309;
+      --danger: #b91c1c;
+      --surface-soft: rgba(194, 164, 94, 0.2);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.45;
+    }
+
+    code {
+      padding: 1px 6px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.08);
+      font-size: 0.92em;
+    }
+
+    .notice-stack {
+      position: fixed;
+      top: 18px;
+      right: 18px;
+      z-index: 20;
+      width: min(360px, calc(100vw - 36px));
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      pointer-events: none;
+    }
+
+    .notice {
+      padding: 15px 16px;
+      font-weight: 600;
+      line-height: 1.6;
+      pointer-events: auto;
+    }
+
+    .viewer {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      width: 100%;
+      padding: 28px 16px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .home-stack {
+      width: min(1180px, 100%);
+      margin: 0 auto;
+      display: grid;
+      gap: 18px;
+      justify-items: center;
+    }
+
+    .home-card {
+      width: min(1080px, 100%);
+      padding: 28px;
+      margin: 0 auto;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .eyebrow::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+    }
+
+    h1 {
+      margin: 16px 0 10px;
+      font-size: clamp(2.1rem, 5vw, 3.6rem);
+      line-height: 1.05;
+      letter-spacing: -0.03em;
+    }
+
+    .lead {
+      margin: 0;
+      max-width: 720px;
+      font-size: 1rem;
+      line-height: 1.7;
+    }
+
+    .brand-hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 22px;
+      align-items: center;
+      justify-items: center;
+      text-align: center;
+      width: min(880px, 100%);
+      margin: 0 auto;
+    }
+
+    .brand-hero-media {
+      display: grid;
+      place-items: center;
+      /* padding: 24px; */
+      /* */
+      /* */
+      /* */
+      /* min-height: 320px; */
+      width: min(100%, 360px);
+    }
+
+    .brand-hero-logo {
+      width: min(100%, 260px);
+      max-height: 260px;
+      object-fit: contain;
+      /* border-radius: 28px; */
+      filter: drop-shadow(0 20px 30px rgba(15, 23, 42, 0.12));
+    }
+
+    .brand-hero-copy {
+      display: grid;
+      gap: 16px;
+      align-content: center;
+      justify-items: center;
+      width: 100%;
+    }
+
+    .brand-summary {
+      font-size: 1.02rem;
+      line-height: 1.8;
+      white-space: pre-line;
+    }
+
+    .brand-profile-grid {
+      display: grid;
+      gap: 14px;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      width: 100%;
+    }
+
+    .brand-profile-card {
+      padding: 18px;
+    }
+
+    .brand-profile-card strong {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 0.86rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .brand-profile-card p {
+      margin: 0;
+      line-height: 1.7;
+      white-space: pre-line;
+    }
+
+    .landing-carousel-section {
+      display: grid;
+      gap: 18px;
+      margin-top: 28px;
+      /* background: #333; */
+      padding: 13px;
+      /* border: 5px solid black; */
+      border-radius: 2pc;
+    }
+
+    .section-heading {
+      display: grid;
+      gap: 10px;
+      max-width: 760px;
+    }
+
+    .section-heading h2 {
+      margin: 0 !important;
+      font-size: clamp(1.9rem, 4vw, 2.7rem) !important;
+      line-height: 1.08 !important;
+      letter-spacing: -0.03em !important;
+    }
+
+    .section-heading p {
+      margin: 0;
+      line-height: 1.75;
+    }
+
+
+    .landing-carousel-shell {
+      display: grid;
+      gap: 14px;
+    }
+
+    .landing-carousel-frame {
+      overflow: hidden;
+      border-radius: 28px;
+      border: 1px solid var(--panel-border);
+      background: rgba(163, 125, 46, 0.2);
+      box-shadow: 0 18px 40px rgba(15, 23, 42, 0.12);
+    }
+
+    .landing-carousel-track {
+      display: flex;
+      width: 100%;
+      transition: transform 0.45s ease;
+      will-change: transform;
+    }
+
+    .landing-carousel-slide {
+      min-width: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .landing-carousel-slide img {
+      width: 100%;
+      height: clamp(260px, 42vw, 420px);
+      object-fit: cover;
+      display: block;
+      cursor: zoom-in;
+    }
+
+    .landing-carousel-overlay {
+      padding: 16px 20px;
+      background: rgb(231 204 124);
+      border-top: 1px solid rgba(15, 23, 42, 0.08);
+      color: #1e293b;
+    }
+
+    .landing-carousel-overlay strong {
+      display: block;
+      font-size: clamp(1rem, 2.4vw, 1.3rem);
+      line-height: 1.2;
+      color: #1e293b;
+    }
+
+    .landing-carousel-overlay p {
+      margin: 6px 0 0;
+      max-width: 720px;
+      line-height: 1.6;
+      color: rgba(30, 41, 59, 0.72);
+      font-size: 0.92rem;
+    }
+
+    .img-zoom-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 99999;
+      background: rgba(0, 0, 0, 0.88);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      cursor: zoom-out;
+      animation: img-zoom-in 0.2s ease;
+    }
+
+    .img-zoom-backdrop img {
+      max-width: 100%;
+      max-height: 90vh;
+      object-fit: contain;
+      border-radius: 8px;
+      box-shadow: 0 32px 80px rgba(0, 0, 0, 0.5);
+      pointer-events: none;
+    }
+
+    .img-zoom-close {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      width: 44px;
+      height: 44px;
+      border-radius: 999px;
+      border: 2px solid rgba(255,255,255,0.3);
+      background: rgba(0,0,0,0.5);
+      color: #fff;
+      font-size: 22px;
+      line-height: 1;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    @keyframes img-zoom-in {
+      from { opacity: 0; transform: scale(0.96); }
+      to   { opacity: 1; transform: scale(1); }
+    }
+
+    .enrollment-panel {
+      width: min(1080px, 100%);
+      margin: 0 auto;
+      padding: 36px 32px;
+      display: grid;
+      gap: 20px;
+    }
+
+    .enrollment-arabic {
+      font-size: clamp(1.6rem, 4vw, 2.4rem);
+      font-family: 'Amiri', 'Traditional Arabic', serif;
+      text-align: center;
+      color: var(--primary-deep, #6f4913);
+      letter-spacing: 0.04em;
+      line-height: 1.6;
+    }
+
+    .enrollment-header {
+      text-align: center;
+      display: grid;
+      gap: 8px;
+    }
+
+    .enrollment-header h2 {
+      margin: 0;
+      font-size: clamp(1.5rem, 3.5vw, 2.2rem);
+      color: var(--text-main, #0f172a);
+    }
+
+    .enrollment-header p {
+      margin: 0;
+      font-size: 1rem;
+      color: var(--text-muted, #6a5837);
+      line-height: 1.7;
+      max-width: 600px;
+      margin-inline: auto;
+    }
+
+    .enrollment-subtitle {
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: var(--primary, #8f611d);
+    }
+
+    .enrollment-form {
+      display: grid;
+      gap: 12px;
+      max-width: 480px;
+      margin-inline: auto;
+      width: 100%;
+    }
+
+    .enrollment-form input {
+      width: 100%;
+      min-height: 48px;
+      padding: 12px 16px;
+      border: 2px solid rgba(74, 47, 34, 0.2);
+      border-radius: 14px;
+      background: rgba(255, 251, 240, 0.96);
+      font: inherit;
+      font-size: 0.95rem;
+      color: var(--text-main, #0f172a);
+      outline: none;
+      transition: border-color 0.16s;
+    }
+
+    .enrollment-form input:focus {
+      border-color: var(--primary, #8f611d);
+    }
+
+    .enrollment-submit {
+      min-height: 52px;
+      padding: 0 28px;
+      font-size: 1rem;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+    }
+
+    .enrollment-contact {
+      text-align: center;
+      font-size: 0.88rem;
+      color: var(--text-muted, #6a5837);
+    }
+
+    .enrollment-contact a {
+      color: var(--primary, #8f611d);
+      font-weight: 700;
+    }
+
+    .landing-carousel-controls {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+    }
+
+    .landing-carousel-counter {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 42px;
+      padding: 0 18px;
+      border-radius: 999px;
+      border: 1px solid rgba(111, 73, 19, 0.16);
+      background: rgba(255, 248, 230, 0.72);
+      color: var(--primary-deep);
+      font-size: 0.82rem;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      box-shadow: 0 10px 20px rgba(15, 23, 42, 0.08);
+    }
+
+    .landing-carousel-dots {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+    }
+
+    .landing-carousel-dot {
+      width: 12px;
+      height: 12px;
+      padding: 0;
+      border: none;
+      border-radius: 999px;
+      background: rgba(74, 53, 21, 0.24);
+      cursor: pointer;
+      transition: width 0.24s ease, background-color 0.24s ease, transform 0.24s ease;
+    }
+
+    .landing-carousel-dot.active {
+      width: 34px;
+      background: var(--primary);
+      transform: translateY(-1px);
+    }
+
+    @media (min-width: 900px) {
+      .brand-hero {
+        grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+        justify-items: stretch;
+        text-align: left;
+        width: min(1000px, 100%);
+      }
+
+    .brand-hero-copy {
+        justify-items: start;
+      }
+
+    .brand-hero-media {
+        width: 100%;
+      }
+    }
+
+    .status-panel {
+      margin-top: 22px;
+      padding: 18px;
+    }
+
+    .status-label {
+      display: inline-block;
+      margin-bottom: 10px;
+      color: var(--text-muted);
+      font-size: 0.82rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .status-panel p {
+      margin: 0;
+      line-height: 1.65;
+      font-weight: 600;
+    }
+
+    .home-nav-list,
+    .meta-grid {
+      display: grid;
+      gap: 12px;
+    }
+
+    .home-nav-list {
+      margin-top: 20px;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .nav-item {
+      display: block;
+      padding: 15px 16px;
+      text-decoration: none;
+      font-weight: 700;
+      text-align: center;
+      transition: transform 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+    }
+
+    .nav-item:hover {
+      transform: translateY(-1px);
+    }
+
+    .meta-grid {
+      margin-top: 22px;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .meta-card {
+      padding: 18px;
+    }
+
+    .meta-card strong {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 0.98rem;
+    }
+
+    .meta-card p {
+      margin: 0;
+      line-height: 1.65;
+    }
+
+    .content-grid {
+      display: grid;
+      gap: 14px;
+      margin-top: 0;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    }
+
+    .content-card {
+      padding: 20px;
+    }
+
+    .content-card h3 {
+      margin: 0 0 10px;
+      font-size: 1.02rem;
+      line-height: 1.35;
+    }
+
+    .content-card p {
+      margin: 0;
+      line-height: 1.7;
+    }
+
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      min-height: 32px;
+      padding: 0 12px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    @media (max-width: 760px) {
+      .viewer {
+        padding: 18px 12px;
+      }
+
+    .home-card {
+        padding: 20px;
+      }
+
+    .brand-hero {
+        width: 100%;
+      }
+
+    .landing-carousel-overlay {
+        padding: 18px 18px 16px;
+      }
+
+    .landing-carousel-controls {
+        justify-content: center;
+      }
+
+    .brand-profile-grid,
+      .content-grid,
+      .home-nav-list,
+      .meta-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* retro-shell-public */
+    :root {
+      --retro-sidebar-width: 280px;
+      --retro-header-height: 72px;
+      --retro-cream: #f3e7cf;
+      --retro-paper: #fff6df;
+      --retro-brown: #4a2f22;
+      --retro-brown-soft: #6f4b35;
+      --retro-orange: #c96f35;
+      --retro-mustard: #d9a441;
+      --retro-dark: #24170f;
+      --retro-shadow: rgba(52, 32, 19, 0.22);
+    }
+
+    body {
+      display: block !important;
+      place-items: initial !important;
+      padding: calc(var(--retro-header-height) + 18px) 16px 24px 16px !important;
+      transition: padding-left 0.3s ease;
+    }
+
+    .retro-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 40;
+      display: none;
+    }
+
+    .retro-sidebar {
+      width: var(--retro-sidebar-width);
+      min-height: 100vh;
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 50;
+      padding: 24px 18px;
+      transform: translateX(calc(-100% - 18px));
+      transition: transform 0.3s ease;
+      overflow-y: auto;
+    }
+
+    body.retro-sidebar-open .retro-sidebar {
+      transform: translateX(0);
+    }
+
+    .retro-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding-bottom: 22px;
+      margin-bottom: 22px;
+      border-bottom: 1px dashed rgba(255, 246, 223, 0.45);
+    }
+
+    .retro-brand-logo {
+      width: 46px;
+      height: 46px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      font-size: 18px;
+      font-weight: 900;
+      box-shadow: inset 0 0 0 3px rgba(74, 47, 34, 0.35);
+      flex: none;
+    }
+
+    .retro-brand-copy {
+      min-width: 0;
+    }
+
+    .retro-brand-copy strong {
+      display: block;
+      font-size: 22px;
+      line-height: 1;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .retro-brand-copy span {
+      display: block;
+      margin-top: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+
+    .retro-nav {
+      display: grid;
+      gap: 10px;
+    }
+
+    .retro-nav a {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 13px 14px;
+      text-decoration: none;
+      font-weight: 700;
+      transition: transform 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+    }
+
+    .retro-nav a:hover,
+    .retro-nav a.active {
+      transform: translateX(4px);
+    }
+
+    .retro-sidebar-card {
+      margin-top: 26px;
+      padding: 16px;
+    }
+
+    .retro-sidebar-card p {
+      margin: 0;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .retro-header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 45;
+      height: var(--retro-header-height);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 0 28px;
+      border-bottom: 2px solid rgba(74, 47, 34, 0.12);
+      backdrop-filter: blur(14px);
+      transition: left 0.3s ease;
+    }
+
+    body.retro-sidebar-open .retro-header {
+      left: var(--retro-sidebar-width);
+    }
+
+    .retro-header-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      min-width: 0;
+    }
+
+    .portal-brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      min-width: 0;
+    }
+
+    .portal-brand-logo {
+      width: 48px;
+      height: 48px;
+      border-radius: 16px;
+      object-fit: contain;
+      /* background: rgba(202, 169, 96, 0.78);
+      border: 1px solid rgba(74, 47, 34, 0.14);
+      box-shadow: 0 12px 24px rgba(52, 32, 19, 0.12);
+      flex: 0 0 auto; */
+    }
+
+    .retro-toggle {
+      width: 44px;
+      height: 44px;
+      border: 0;
+      border-radius: 14px;
+      cursor: pointer;
+      font-size: 22px;
+      line-height: 1;
+      box-shadow: 0 8px 18px var(--retro-shadow);
+      transition: 0.2s ease;
+    }
+
+    .retro-toggle:hover {
+      transform: translateY(-1px);
+    }
+
+    .retro-header-title {
+      min-width: 0;
+    }
+
+    .retro-header-title strong {
+      display: block;
+      font-size: 22px;
+      line-height: 1;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    #portalBrandName {
+      letter-spacing: 0.02em;
+      text-transform: none;
+    }
+
+    .retro-header-title span {
+      display: block;
+      margin-top: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .retro-header-pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 44px;
+      padding: 0 16px;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      position: relative;
+      margin-left: auto;
+    }
+
+    .header-dropdown {
+      position: relative;
+    }
+
+    .header-menu-toggle {
+      min-height: 44px;
+      border-width: 0px !important;
+      padding: 0 18px;
+      border: 1px solid rgba(74, 47, 34, 0.16);
+      border-radius: 999px;
+      /* background: rgba(206, 171, 95, 0.78) !important; */
+      color: var(--retro-brown);
+      font: inherit;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      cursor: pointer;
+      box-shadow: 0px 0px 0px rgba(52, 32, 19, 0.08) !important;
+      transition: transform 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+    }
+
+    .header-menu-toggle:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 12px 22px rgba(52, 32, 19, 0.12);
+      background: rgba(224, 187, 103, 0.82);
+    }
+
+    .header-menu {
+      position: absolute;
+      top: calc(100% + 10px);
+      right: 0;
+      min-width: 220px;
+      padding: 10px;
+      border: 1px solid rgba(74, 47, 34, 0.14);
+      border-radius: 20px;
+      background: rgba(205, 169, 91, 0.92);
+      box-shadow: 0 20px 36px rgba(52, 32, 19, 0.16);
+      display: grid;
+      gap: 8px;
+    }
+
+    .header-menu[hidden] {
+      display: none !important;
+    }
+
+    .header-menu a {
+      display: flex;
+      align-items: center;
+      min-height: 42px;
+      padding: 0 14px;
+      border-radius: 14px;
+      color: var(--retro-brown);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 700;
+      transition: background-color 0.18s ease, transform 0.18s ease;
+    }
+
+    .header-menu a:hover {
+      background: rgba(201, 111, 53, 0.12);
+      transform: translateX(2px);
+    }
+
+    .header-menu button {
+      display: flex;
+      align-items: center;
+      min-height: 42px;
+      padding: 0 14px;
+      border-radius: 14px;
+      color: var(--retro-brown);
+      font: inherit;
+      font-size: 13px;
+      font-weight: 700;
+      background: none;
+      border: none;
+      width: 100%;
+      text-align: left;
+      cursor: pointer;
+      transition: background-color 0.18s ease, transform 0.18s ease;
+    }
+
+    .header-menu button:hover {
+      background: rgba(201, 111, 53, 0.12);
+      transform: translateX(2px);
+    }
+
+    .header-menu button:disabled {
+      opacity: 0.4;
+      cursor: default;
+      pointer-events: none;
+    }
+
+    .retro-shell-content {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+    }
+
+    .card.retro-shell-content {
+      margin: 0 auto;
+    }
+
+    .notice-stack {
+      top: calc(var(--retro-header-height) + 18px) !important;
+      z-index: 60 !important;
+    }
+
+    @media (max-width: 960px) {
+      body,
+      body.retro-sidebar-open {
+        padding-left: 16px !important;
+      }
+
+    body.retro-sidebar-open {
+        overflow: hidden;
+      }
+
+    .retro-header,
+      body.retro-sidebar-open .retro-header {
+        left: 0;
+        padding: 0 16px;
+      }
+
+    body.retro-sidebar-open .retro-overlay {
+        display: block;
+      }
+
+    .retro-header-pill {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body data-shell="off">
+  <header class="retro-header">
+    <div class="retro-header-left">
+      <div class="portal-brand">
+        <img class="portal-brand-logo" id="portalBrandLogo" src="/icons/icon-192.svg" alt="Logo Pendataan Santri">
+        <div class="retro-header-title">
+          <strong id="portalBrandName">Pendataan Santri</strong>
+        </div>
+      </div>
+    </div>
+    <div class="header-actions">
+      <div class="header-dropdown">
+        <button class="header-menu-toggle" id="headerMenuToggle" type="button" aria-expanded="false" aria-controls="headerMenu">☰</button>
+        <div class="header-menu" id="headerMenu" hidden>
+          <a href="/pages/login/" id="menuLoginPengurus">Login Pengurus</a>
+          <a href="/pages/loginSantri/" id="menuLoginSantri">Login Santri</a>
+          <a href="/pages/madingPublik/">Mading Publik</a>
+          <a href="/pages/accountProfile/" id="menuProfil" style="display:none">Profil Akun</a>
+          <a href="/pages/logout/" id="menuLogout" style="display:none">Logout</a>
+          <a href="/pages/madingDigital/" id="menuMadingDigital" style="display:none">Mading Digital</a>
+          <button id="indexPwaInstallBtn" type="button" hidden>Download App</button>
+        </div>
+      </div>
+    </div>
+  </header>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+  <main class="viewer retro-shell-content">
+    <div class="home-stack">
+      <section class="home-card">
+        <div class="brand-hero">
+          <div class="brand-hero-media">
+            <img class="brand-hero-logo" id="heroBrandLogo" src="/icons/icon-192.svg" alt="Logo Pendataan Santri">
+          </div>
+          <div class="brand-hero-copy">
+            <h1 id="heroBrandName">Pendataan Santri</h1>
+            <p class="lead" id="heroBrandTagline"></p>
+            <div class="brand-summary" id="heroBrandDescription"></div>
+            <div class="brand-profile-grid" id="heroBrandProfileGrid">
+              <article class="brand-profile-card" id="heroBrandAddressCard">
+                <strong>Alamat</strong>
+                <p id="heroBrandAddress">Alamat organisasi akan tampil di sini.</p>
+              </article>
+              <article class="brand-profile-card" id="heroBrandContactCard">
+                <strong>Kontak</strong>
+                <p id="heroBrandContact">Kontak organisasi akan tampil di sini.</p>
+              </article>
+              <article class="brand-profile-card" id="heroBrandEmailCard">
+                <strong>Email</strong>
+                <p id="heroBrandEmail">Email organisasi akan tampil di sini.</p>
+              </article>
+              <article class="brand-profile-card" id="heroBrandWebsiteCard">
+                <strong>Website</strong>
+                <p id="heroBrandWebsite">Website organisasi akan tampil di sini.</p>
+              </article>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section class="home-card" id="landingCarouselSection" hidden>
+        <div class="landing-carousel-shell">
+          <div class="landing-carousel-frame">
+            <div class="landing-carousel-track" id="landingCarouselTrack"></div>
+          </div>
+          <div class="landing-carousel-controls">
+            <div class="landing-carousel-counter" id="landingCarouselCounter">1 / 1</div>
+          </div>
+          <div class="landing-carousel-dots" id="landingCarouselDots"></div>
+        </div>
+      </section>
+      <section class="home-card" id="enrollmentSection" hidden>
+        <div class="enrollment-panel">
+          <div class="enrollment-arabic" id="enrollmentArabic">اطلبوا العلم</div>
+          <div class="enrollment-header">
+            <h2>Penerimaan Santri Baru</h2>
+            <p class="enrollment-subtitle" id="enrollmentSubtitle">Bergabunglah Bersama Keluarga <span id="enrollmentOrgName"></span></p>
+            <p id="enrollmentDescription"></p>
+          </div>
+          <form class="enrollment-form" id="enrollmentForm">
+            <input type="text" id="enrollmentCalonName" placeholder="Nama lengkap calon santri" required autocomplete="off">
+            <input type="tel" id="enrollmentParentWa" placeholder="Nomor WhatsApp orang tua" required autocomplete="off">
+            <button type="submit" class="btn enrollment-submit">Daftar Sekarang →</button>
+          </form>
+          <p class="enrollment-contact">Untuk informasi lebih lanjut hubungi: <a id="enrollmentAdminLink" href="#" target="_blank" rel="noopener" style="text-decoration: none;"></a></p>
+        </div>
+      </section>
+      <section class="home-card" id="publicContentSection">
+        <div class="content-grid" id="publicContentList">
+          <article class="content-card">
+            <h3>Memuat konten...</h3>
+            <p>Daftar konten publik sedang diambil dari backend lokal.</p>
+          </article>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    const API_BASE = window.location.origin + '/api';
+    const STORAGE = {
+      token: 'ps_token',
+      session: 'ps_session'
+    };
+
+    const enrollmentSection = document.getElementById('enrollmentSection');
+    const enrollmentOrgName = document.getElementById('enrollmentOrgName');
+    const enrollmentDescription = document.getElementById('enrollmentDescription');
+    const enrollmentAdminLink = document.getElementById('enrollmentAdminLink');
+    const enrollmentForm = document.getElementById('enrollmentForm');
+
+    if (enrollmentForm) {
+      enrollmentForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        const name = document.getElementById('enrollmentCalonName').value.trim();
+        const wa = document.getElementById('enrollmentParentWa').value.trim();
+        const adminContact = enrollmentAdminLink ? enrollmentAdminLink.dataset.contact : '';
+        if (!name || !wa || !adminContact) return;
+        const msg = encodeURIComponent(`Assalamu'alaikum, saya ingin mendaftarkan calon santri:\n\nNama: ${name}\nWA Orang Tua: ${wa}\n\nMohon informasi lebih lanjut. Terima kasih.`);
+        window.open(`https://wa.me/${adminContact}?text=${msg}`, '_blank', 'noopener');
+      });
+    }
+
+    const publicContentList = document.getElementById('publicContentList');
+    const portalBrandLogo = document.getElementById('portalBrandLogo');
+    const portalBrandName = document.getElementById('portalBrandName');
+    const heroBrandLogo = document.getElementById('heroBrandLogo');
+    const heroBrandName = document.getElementById('heroBrandName');
+    const heroBrandTagline = document.getElementById('heroBrandTagline');
+    const heroBrandDescription = document.getElementById('heroBrandDescription');
+    const heroBrandProfileGrid = document.getElementById('heroBrandProfileGrid');
+    const heroBrandAddressCard = document.getElementById('heroBrandAddressCard');
+    const heroBrandContactCard = document.getElementById('heroBrandContactCard');
+    const heroBrandEmailCard = document.getElementById('heroBrandEmailCard');
+    const heroBrandWebsiteCard = document.getElementById('heroBrandWebsiteCard');
+    const heroBrandAddress = document.getElementById('heroBrandAddress');
+    const heroBrandContact = document.getElementById('heroBrandContact');
+    const heroBrandEmail = document.getElementById('heroBrandEmail');
+    const heroBrandWebsite = document.getElementById('heroBrandWebsite');
+    const landingCarouselSection = document.getElementById('landingCarouselSection');
+    const landingCarouselTrack = document.getElementById('landingCarouselTrack');
+    const landingCarouselDots = document.getElementById('landingCarouselDots');
+    const landingCarouselCounter = document.getElementById('landingCarouselCounter');
+    const defaultPortalBrand = {
+      organizationName: 'Pendataan Santri',
+      logoUrl: 'icons/icon-192.svg',
+      organizationTagline: '',
+      organizationDescription: '',
+      organizationAddress: '',
+      organizationContact: '',
+      organizationEmail: '',
+      organizationWebsite: '',
+      landingGalleryTitle: 'Galeri Pesantren',
+      landingGallerySubtitle: 'Foto kegiatan, suasana, dan momen terbaik yang ingin ditampilkan di beranda.',
+      carouselItems: [],
+      enrollmentEnabled: false,
+      enrollmentAcademicYear: '',
+      enrollmentStartMonth: 'Juli',
+      enrollmentAdminContact: '',
+      enrollmentDescription: ''
+    };
+    const landingCarouselState = {
+      items: [],
+      index: 0,
+      timerId: 0
+    };
+    let currentNoticeId = '';
+    let noticeCounter = 0;
+
+    function createNotice(text, type = 'info') {
+      const element = document.createElement('div');
+      element.className = `notice ${type}`;
+      element.dataset.noticeId = `notice-${Date.now()}-${noticeCounter += 1}`;
+      element.textContent = text;
+      function dismiss() {
+        if (!element.parentNode) return;
+        element.classList.add('notice-dismissing');
+        window.setTimeout(() => {
+          element.remove();
+          const stack = document.getElementById('noticeStack');
+          if (stack && !stack.hasChildNodes() && stack.matches(':popover-open')) stack.hidePopover();
+        }, 220);
+      }
+      element.addEventListener('click', dismiss);
+      window.setTimeout(dismiss, type === 'error' ? 10000 : 6000);
+      return element;
+    }
+
+    function clearNotice() {
+      if (!currentNoticeId) return;
+      const element = document.querySelector(`[data-notice-id="${currentNoticeId}"]`);
+      if (element) element.remove();
+      currentNoticeId = '';
+    }
+
+    function showNotice(text, type = 'info') {
+      clearNotice();
+      const element = createNotice(text, type);
+      const stack = document.getElementById('noticeStack');
+      stack.prepend(element);
+      currentNoticeId = element.dataset.noticeId;
+      if (stack.matches(':popover-open')) stack.hidePopover();
+      stack.showPopover();
+    }
+
+    function getToken() {
+      return localStorage.getItem(STORAGE.token) || '';
+    }
+
+    function clearSession() {
+      localStorage.removeItem(STORAGE.token);
+      localStorage.removeItem(STORAGE.session);
+    }
+
+    function saveSession(token, session) {
+      localStorage.setItem(STORAGE.token, token);
+      localStorage.setItem(STORAGE.session, JSON.stringify(session));
+    }
+
+    function toParams(data) {
+      const params = new URLSearchParams();
+      Object.entries(data).forEach(([key, value]) => {
+        if (value === undefined || value === null) return;
+        params.append(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
+      });
+      return params;
+    }
+
+    async function requestApi(action, payload = {}, method = 'GET', includeToken = true) {
+      const data = { action, ...payload };
+      if (includeToken) {
+        const token = getToken();
+        if (!token) {
+          const error = new Error('Belum ada token sesi.');
+          error.code = 401;
+          throw error;
+        }
+        data.token = token;
+      }
+
+      const response = method === 'GET'
+        ? await fetch(`${API_BASE}?${toParams(data).toString()}`)
+        : await fetch(API_BASE, {
+            method,
+            body: toParams(data)
+          });
+
+      const json = await response.json();
+      if (!json.ok) {
+        const error = new Error(json.error?.message ? `Server mengatakan: ${json.error.message}` : 'Permintaan gagal.');
+        error.code = json.error?.code || response.status || 500;
+        throw error;
+      }
+      return json.data;
+    }
+
+    async function loadPublicContent() {
+      const data = await requestApi('content.public.list', { targetRole: 'umum' }, 'GET', false);
+      return data.items || [];
+    }
+
+    function escapeHtml(value) {
+      return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function normalizePortalCarouselItems(items) {
+      return (Array.isArray(items) ? items : []).map(item => ({
+        imageUrl: String(item && item.imageUrl ? item.imageUrl : '').trim(),
+        title: String(item && item.title ? item.title : '').trim(),
+        description: String(item && item.description ? item.description : '').trim()
+      })).filter(item => item.imageUrl);
+    }
+
+    function normalizePortalBrand(brand) {
+      return {
+        organizationName: String(brand && brand.organizationName ? brand.organizationName : defaultPortalBrand.organizationName).trim() || defaultPortalBrand.organizationName,
+        logoUrl: String(brand && brand.logoUrl ? brand.logoUrl : defaultPortalBrand.logoUrl).trim() || defaultPortalBrand.logoUrl,
+        organizationTagline: String(brand && brand.organizationTagline ? brand.organizationTagline : defaultPortalBrand.organizationTagline).trim(),
+        organizationDescription: String(brand && brand.organizationDescription ? brand.organizationDescription : defaultPortalBrand.organizationDescription).trim(),
+        organizationAddress: String(brand && brand.organizationAddress ? brand.organizationAddress : defaultPortalBrand.organizationAddress).trim(),
+        organizationContact: String(brand && brand.organizationContact ? brand.organizationContact : defaultPortalBrand.organizationContact).trim(),
+        organizationEmail: String(brand && brand.organizationEmail ? brand.organizationEmail : defaultPortalBrand.organizationEmail).trim(),
+        organizationWebsite: String(brand && brand.organizationWebsite ? brand.organizationWebsite : defaultPortalBrand.organizationWebsite).trim(),
+        landingGalleryTitle: String(brand && brand.landingGalleryTitle ? brand.landingGalleryTitle : defaultPortalBrand.landingGalleryTitle).trim() || defaultPortalBrand.landingGalleryTitle,
+        landingGallerySubtitle: String(brand && brand.landingGallerySubtitle ? brand.landingGallerySubtitle : defaultPortalBrand.landingGallerySubtitle).trim() || defaultPortalBrand.landingGallerySubtitle,
+        carouselItems: normalizePortalCarouselItems(brand && brand.carouselItems),
+        enrollmentEnabled: !!(brand && brand.enrollmentEnabled),
+        enrollmentAcademicYear: String(brand && brand.enrollmentAcademicYear ? brand.enrollmentAcademicYear : '').trim(),
+        enrollmentStartMonth: String(brand && brand.enrollmentStartMonth ? brand.enrollmentStartMonth : 'Juli').trim() || 'Juli',
+        enrollmentAdminContact: String(brand && brand.enrollmentAdminContact ? brand.enrollmentAdminContact : '').trim(),
+        enrollmentDescription: String(brand && brand.enrollmentDescription ? brand.enrollmentDescription : '').trim()
+      };
+    }
+
+    function syncBrandProfileCard(card, content, value, placeholder) {
+      if (!card || !content) return false;
+      const hasValue = !!String(value || '').trim();
+      card.hidden = !hasValue;
+      card.style.display = hasValue ? '' : 'none';
+      content.textContent = hasValue ? value : placeholder;
+      return hasValue;
+    }
+
+    function stopLandingCarouselAutoplay() {
+      if (landingCarouselState.timerId) {
+        window.clearInterval(landingCarouselState.timerId);
+        landingCarouselState.timerId = 0;
+      }
+    }
+
+    function updateLandingCarouselPosition() {
+      if (!landingCarouselTrack) return;
+      landingCarouselTrack.style.transform = `translateX(-${landingCarouselState.index * 100}%)`;
+      Array.from(landingCarouselDots ? landingCarouselDots.querySelectorAll('[data-carousel-index]') : []).forEach(button => {
+        const isActive = Number(button.getAttribute('data-carousel-index')) === landingCarouselState.index;
+        button.classList.toggle('active', isActive);
+        button.setAttribute('aria-current', isActive ? 'true' : 'false');
+      });
+      if (landingCarouselCounter) {
+        const total = landingCarouselState.items.length || 1;
+        landingCarouselCounter.textContent = `${Math.min(landingCarouselState.index + 1, total)} / ${total}`;
+      }
+    }
+
+    function startLandingCarouselAutoplay() {
+      stopLandingCarouselAutoplay();
+      if (landingCarouselState.items.length <= 1) {
+        return;
+      }
+      landingCarouselState.timerId = window.setInterval(() => {
+        setLandingCarouselIndex(landingCarouselState.index + 1, false);
+      }, 5200);
+    }
+
+    function setLandingCarouselIndex(nextIndex, restartAutoplay = true) {
+      const total = landingCarouselState.items.length;
+      if (!total) return;
+      const normalizedIndex = ((nextIndex % total) + total) % total;
+      landingCarouselState.index = normalizedIndex;
+      updateLandingCarouselPosition();
+      if (restartAutoplay) {
+        startLandingCarouselAutoplay();
+      }
+    }
+
+    function renderLandingCarousel(brand) {
+      if (!landingCarouselSection || !landingCarouselTrack || !landingCarouselDots) return;
+      const items = Array.isArray(brand.carouselItems) ? brand.carouselItems : [];
+      landingCarouselState.items = items.slice();
+      landingCarouselState.index = 0;
+      if (!items.length) {
+        landingCarouselSection.hidden = true;
+        landingCarouselTrack.innerHTML = '';
+        landingCarouselDots.innerHTML = '';
+        if (landingCarouselCounter) {
+          landingCarouselCounter.textContent = '0 / 0';
+        }
+        stopLandingCarouselAutoplay();
+        return;
+      }
+      landingCarouselSection.hidden = false;
+      landingCarouselTrack.innerHTML = items.map((item, index) => `
+        <article class="landing-carousel-slide" aria-label="Slide ${index + 1}">
+          <img src="${item.imageUrl}" alt="${escapeHtml(item.title || `Slide ${index + 1}`)}" data-zoom-src="${item.imageUrl}">
+          <div class="landing-carousel-overlay">
+            <strong>${escapeHtml(item.title || `Slide ${index + 1}`)}</strong>
+            <p>${escapeHtml(item.description || 'Galeri suasana dan kegiatan terbaik dari pesantren.')}</p>
+          </div>
+        </article>
+      `).join('');
+
+      landingCarouselTrack.querySelectorAll('img[data-zoom-src]').forEach(img => {
+        img.addEventListener('click', () => {
+          const backdrop = document.createElement('div');
+          backdrop.className = 'img-zoom-backdrop';
+          backdrop.innerHTML = `<img src="${img.dataset.zoomSrc}" alt="${img.alt}"><button class="img-zoom-close" aria-label="Tutup">&times;</button>`;
+          document.body.appendChild(backdrop);
+          const close = () => backdrop.remove();
+          backdrop.addEventListener('click', close);
+          backdrop.querySelector('.img-zoom-close').addEventListener('click', e => { e.stopPropagation(); close(); });
+          document.addEventListener('keydown', function onKey(e) {
+            if (e.key === 'Escape') { close(); document.removeEventListener('keydown', onKey); }
+          });
+        });
+      });
+      landingCarouselDots.innerHTML = items.map((item, index) => `
+        <button
+          class="landing-carousel-dot ${index === 0 ? 'active' : ''}"
+          type="button"
+          data-carousel-index="${index}"
+          aria-label="Buka slide ${index + 1}: ${escapeHtml(item.title || `Slide ${index + 1}`)}"
+          aria-current="${index === 0 ? 'true' : 'false'}"></button>
+      `).join('');
+      updateLandingCarouselPosition();
+      startLandingCarouselAutoplay();
+    }
+
+    function applyPortalBrand(brand) {
+      const normalized = normalizePortalBrand(brand);
+      const favicon = document.querySelector('link[rel="icon"]');
+      if (favicon && normalized.logoUrl) {
+        favicon.href = normalized.logoUrl;
+        favicon.type = normalized.logoUrl.endsWith('.svg') ? 'image/svg+xml' : 'image/png';
+      }
+      if (portalBrandName) {
+        portalBrandName.textContent = normalized.organizationName;
+      }
+      if (portalBrandLogo) {
+        portalBrandLogo.alt = `Logo ${normalized.organizationName}`;
+        portalBrandLogo.onerror = () => {
+          if (portalBrandLogo.src.indexOf(defaultPortalBrand.logoUrl) !== -1) return;
+          portalBrandLogo.src = defaultPortalBrand.logoUrl;
+        };
+        portalBrandLogo.src = normalized.logoUrl;
+      }
+      if (heroBrandName) {
+        heroBrandName.textContent = normalized.organizationName;
+      }
+      if (heroBrandLogo) {
+        heroBrandLogo.alt = `Logo ${normalized.organizationName}`;
+        heroBrandLogo.onerror = () => {
+          if (heroBrandLogo.src.indexOf(defaultPortalBrand.logoUrl) !== -1) return;
+          heroBrandLogo.src = defaultPortalBrand.logoUrl;
+        };
+        heroBrandLogo.src = normalized.logoUrl;
+      }
+      if (heroBrandTagline) {
+        heroBrandTagline.textContent = normalized.organizationTagline || '';
+      }
+      if (heroBrandDescription) {
+        heroBrandDescription.textContent = normalized.organizationDescription || '';
+      }
+      if (heroBrandAddress) {
+        syncBrandProfileCard(heroBrandAddressCard, heroBrandAddress, normalized.organizationAddress, 'Alamat organisasi akan tampil di sini.');
+      }
+      if (heroBrandContact) {
+        syncBrandProfileCard(heroBrandContactCard, heroBrandContact, normalized.organizationContact, 'Kontak organisasi akan tampil di sini.');
+      }
+      if (heroBrandEmail) {
+        syncBrandProfileCard(heroBrandEmailCard, heroBrandEmail, normalized.organizationEmail, 'Email organisasi akan tampil di sini.');
+      }
+      if (heroBrandWebsite) {
+        syncBrandProfileCard(heroBrandWebsiteCard, heroBrandWebsite, normalized.organizationWebsite, 'Website organisasi akan tampil di sini.');
+      }
+      if (heroBrandProfileGrid) {
+        const cards = [heroBrandAddressCard, heroBrandContactCard, heroBrandEmailCard, heroBrandWebsiteCard];
+        heroBrandProfileGrid.hidden = !cards.some(card => card && !card.hidden);
+      }
+      renderLandingCarousel(normalized);
+
+      if (enrollmentSection) {
+        enrollmentSection.hidden = !normalized.enrollmentEnabled;
+        if (normalized.enrollmentEnabled) {
+          if (enrollmentOrgName) enrollmentOrgName.textContent = normalized.organizationName;
+          if (enrollmentDescription) {
+            const month = normalized.enrollmentStartMonth || 'Juli';
+            const year = normalized.enrollmentAcademicYear ? ` Tahun ajaran ${normalized.enrollmentAcademicYear}` : '';
+            enrollmentDescription.textContent = normalized.enrollmentDescription + (year ? ` ${year} dimulai setiap bulan ${month}.` : ` Tahun ajaran baru dimulai pada bulan ${month}.`);
+          }
+          if (enrollmentAdminLink && normalized.enrollmentAdminContact) {
+            const contact = normalized.enrollmentAdminContact.replace(/\D/g, '');
+            enrollmentAdminLink.href = `https://wa.me/${contact}`;
+            enrollmentAdminLink.textContent = normalized.enrollmentAdminContact;
+            enrollmentAdminLink.dataset.contact = contact;
+          }
+        }
+      }
+
+      document.title = `${normalized.organizationName} | Beranda`;
+    }
+
+    async function loadPortalBrand() {
+      const data = await requestApi('portal.brand.public.get', {}, 'GET', false);
+      return normalizePortalBrand(data.brand || null);
+    }
+
+    function renderPublicContent(items, errorMessage) {
+      if (!publicContentList) return;
+      const section = document.getElementById('publicContentSection');
+      if (errorMessage) {
+        if (section) section.hidden = false;
+        publicContentList.innerHTML = `
+          <article class="content-card">
+            <h3>Gagal memuat konten</h3>
+            <p>${errorMessage}</p>
+          </article>
+        `;
+        return;
+      }
+      if (!items.length) {
+        if (section) section.hidden = true;
+        return;
+      }
+      if (section) section.hidden = false;
+      publicContentList.innerHTML = items.map(item => `
+        <article class="content-card">
+          <h3>${item.title || '-'}</h3>
+          <p>${item.summary || item.body || '-'}</p>
+          <div class="meta">
+            <span class="chip">${item.targetRole || 'umum'}</span>
+            <span class="chip">${item.publishedAt || '-'}</span>
+          </div>
+        </article>
+      `).join('');
+    }
+
+    window.addEventListener('load', async () => {
+      if (window.location.protocol === 'file:') {
+        showNotice('Jangan buka dari file://. Jalankan folder ini lewat local server, misalnya http://localhost:5500/.', 'error');
+        return;
+      }
+
+      try {
+        applyPortalBrand(await loadPortalBrand());
+      } catch (error) {
+        applyPortalBrand(defaultPortalBrand);
+      }
+
+      try {
+        renderPublicContent(await loadPublicContent());
+      } catch (error) {
+        renderPublicContent([], error.message || 'Konten publik belum bisa dimuat dari backend lokal.');
+      }
+
+      const token = getToken();
+      if (!token) {
+        return;
+      }
+
+      try {
+        const data = await requestApi('session');
+        saveSession(token, data.session);
+      } catch (error) {
+        clearSession();
+        showNotice('Sesi lama tidak valid atau sudah usang. Silakan login kembali dari dropdown di kanan atas.', 'error');
+      }
+    });
+
+    if (landingCarouselDots) {
+      landingCarouselDots.addEventListener('click', event => {
+        const button = event.target.closest('[data-carousel-index]');
+        if (!button) return;
+        setLandingCarouselIndex(Number(button.getAttribute('data-carousel-index')));
+      });
+    }
+
+    if (landingCarouselSection) {
+      landingCarouselSection.addEventListener('mouseenter', stopLandingCarouselAutoplay);
+      landingCarouselSection.addEventListener('mouseleave', startLandingCarouselAutoplay);
+      landingCarouselSection.addEventListener('focusin', stopLandingCarouselAutoplay);
+      landingCarouselSection.addEventListener('focusout', () => {
+        window.setTimeout(() => {
+          if (!landingCarouselSection.contains(document.activeElement)) {
+            startLandingCarouselAutoplay();
+          }
+        }, 0);
+      });
+    }
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
+    }
+  </script>
+
+  <script>
+    (() => {
+      const isLoggedIn = !!localStorage.getItem('ps_token');
+      document.getElementById('menuLoginPengurus').style.display  = isLoggedIn ? 'none' : '';
+      document.getElementById('menuLoginSantri').style.display    = isLoggedIn ? 'none' : '';
+      document.getElementById('menuProfil').style.display         = isLoggedIn ? '' : 'none';
+      document.getElementById('menuLogout').style.display         = isLoggedIn ? '' : 'none';
+      document.getElementById('menuMadingDigital').style.display  = isLoggedIn ? '' : 'none';
+    })();
+
+    (() => {
+      const toggle = document.getElementById('headerMenuToggle');
+      const menu = document.getElementById('headerMenu');
+      if (!toggle || !menu) return;
+
+      function setOpen(open) {
+        toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        menu.hidden = !open;
+      }
+
+      toggle.addEventListener('click', event => {
+        event.stopPropagation();
+        setOpen(menu.hidden);
+      });
+
+      document.addEventListener('click', event => {
+        if (event.target.closest('.header-dropdown')) return;
+        setOpen(false);
+      });
+
+      document.addEventListener('keydown', event => {
+        if (event.key === 'Escape') {
+          setOpen(false);
+        }
+      });
+    })();
+
+    (() => {
+      const btn = document.getElementById('indexPwaInstallBtn');
+      if (!btn) return;
+
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+        || window.navigator.standalone === true;
+      if (isStandalone) return;
+
+      const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+      const isAndroid = /android/i.test(navigator.userAgent);
+
+      if (isIos) {
+        btn.hidden = false;
+        btn.disabled = false;
+        btn.addEventListener('click', () => {
+          showNotice('Di iPhone/iPad: ketuk ikon Bagikan (□↑) di Safari, lalu pilih "Tambahkan ke Layar Utama".', 'info');
+        });
+        return;
+      }
+
+      // Android via HTTP/LAN: beforeinstallprompt tidak akan muncul, tapi Chrome punya menu manual
+      if (isAndroid && location.protocol !== 'https:' && location.hostname !== 'localhost') {
+        btn.hidden = false;
+        btn.disabled = false;
+        btn.addEventListener('click', () => {
+          showNotice('Di Android Chrome: ketuk menu ⋮ (titik tiga) lalu pilih "Tambahkan ke layar utama" atau "Install app".', 'info');
+        });
+        return;
+      }
+
+      let pwaPrompt = null;
+
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        pwaPrompt = e;
+        btn.hidden = false;
+        btn.disabled = false;
+      });
+
+      window.addEventListener('appinstalled', () => {
+        pwaPrompt = null;
+        btn.disabled = true;
+        btn.hidden = true;
+      });
+
+      btn.addEventListener('click', () => {
+        if (!pwaPrompt) return;
+        pwaPrompt.prompt();
+        pwaPrompt.userChoice.then((choice) => {
+          if (choice.outcome === 'accepted') {
+            pwaPrompt = null;
+            btn.disabled = true;
+          }
+        });
+      });
+    })();
+  </script>
+</body>
+</html>
+

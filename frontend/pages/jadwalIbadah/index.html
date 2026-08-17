@@ -1,0 +1,1198 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#9e2f22">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="../../shared-ui.css">
+  <link rel="stylesheet" href="../../shared-shell.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+  <script src="../../shared-ui.js"></script>
+  <title>Jadwal Ibadah</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700&display=swap');
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; }
+    .panel { padding: 22px; }
+    button { font: inherit; }
+    :root { --ink:#4d4034; --muted:#7b6a58; --line:rgba(91,73,57,0.15); --accent:#b97650; --danger:#a55a52; --warning:#b58439; --jumat:#1565c0; }
+    .tabs {
+        display: flex;
+        /* border-bottom: 2px solid var(--line); */
+        margin-bottom: 16px;
+        flex-wrap: wrap;
+        gap: 7px;
+    }
+    .tab-btn { padding: 10px 18px; border: none; background: none; cursor: pointer; font: inherit; font-size: 14px; font-weight: 600; color: var(--muted); border-bottom: 3px solid transparent; margin-bottom: -2px; transition: color .15s; white-space: nowrap; }
+    .tab-btn:hover { color: var(--ink); }
+    .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .tab-btn.active.tab-khutbah { color: var(--jumat); border-bottom-color: var(--jumat); }
+    .tab-btn i { margin-right: 6px; font-size: 13px; }
+    /* ── jadwal sholat table ── */
+    .jadwal-wrap { overflow-x: auto; }
+    .jadwal-table { width: 100%; border-collapse: collapse; font-size: 13.5px; min-width: 620px; }
+    .jadwal-table th { padding: 9px 12px; background: #f8f5f1; border-bottom: 2px solid var(--line); font-weight: 700; color: var(--ink); font-size: 12.5px; text-align: center; white-space: nowrap; }
+    .jadwal-table th.col-hari { text-align: left; width: 80px; }
+    .jadwal-table td { padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: middle; text-align: center; }
+    .jadwal-table tr:last-child td { border-bottom: none; }
+    .jadwal-table td.hari-cell { font-weight: 700; color: var(--ink); text-align: left; white-space: nowrap; }
+    .jadwal-table td.hari-cell.jumat { color: var(--jumat); }
+    .jadwal-table td.slot-cell { padding: 6px 8px; vertical-align: top; }
+    .cell-stack { display: flex; flex-direction: column; gap: 5px; }
+    .cell-wrap { position: relative; display: flex; align-items: center; justify-content: center; gap: 5px; }
+    .cell-wrap-badal { padding-top: 5px; border-top: 1px dashed var(--line); }
+    .badal-tag { flex-shrink: 0; font-size: 9.5px; font-weight: 800; color: var(--accent); background: rgba(185,118,80,.12); border-radius: 5px; padding: 1px 5px; }
+    .cell-text { color: var(--ink); font-weight: 600; }
+    .cell-text.empty { color: var(--muted); font-style: italic; font-size: 12.5px; }
+    .cell-text-badal { font-size: 12px; font-weight: 500; }
+    .cell-text.filled { background: #dff5df; color: #2e6b2e; padding: 3px 8px; border-radius: 6px; }
+    .cell-input { width: 100%; min-width: 90px; padding: 5px 26px 5px 8px; border: 1px solid var(--line); border-radius: 7px; font: inherit; font-size: 13px; background: #fff; color: var(--ink); text-align: center; }
+    .cell-input-badal { font-size: 12px; padding: 5px 22px 5px 8px; }
+    .cell-input.filled { background: #dff5df; border-color: #8fd18f; color: #2e6b2e; }
+    .cell-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(185,118,80,.15); }
+    .cell-input.saving { border-color: #90caf9; }
+    .cell-input.saved  { border-color: #66bb6a; }
+    .cell-input.error  { border-color: var(--danger); }
+    .cell-status { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); font-size: 10px; pointer-events: none; }
+    .cell-status.saving { color: #90caf9; }
+    .cell-status.saved  { color: #66bb6a; }
+    .cell-status.error  { color: var(--danger); }
+    .meta-wrap { margin-top: 16px; display: flex; flex-direction: column; gap: 10px; }
+    .meta-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .meta-label { font-weight: 700; font-size: 13px; color: var(--ink); display: flex; align-items: center; gap: 6px; white-space: nowrap; min-width: 130px; }
+    .meta-input-wrap { position: relative; flex: 1; min-width: 160px; }
+    .meta-input { width: 100%; padding: 8px 32px 8px 12px; border: 1px solid var(--line); border-radius: 9px; font: inherit; font-size: 14px; background: #fff; color: var(--ink); }
+    .meta-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(185,118,80,.15); }
+    .meta-input.saving { border-color: #90caf9; }
+    .meta-input.saved  { border-color: #66bb6a; }
+    .meta-input.error  { border-color: var(--danger); }
+    .meta-status { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 12px; pointer-events: none; }
+    .meta-status.saving { color: #90caf9; }
+    .meta-status.saved  { color: #66bb6a; }
+    .meta-status.error  { color: var(--danger); }
+    .meta-text { color: var(--ink); font-size: 14px; }
+    .meta-text.empty { color: var(--muted); font-style: italic; }
+    /* ── khutbah jumat ── */
+    .khutbah-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; gap: 8px; }
+    .khutbah-header-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .khutbah-title { font-size: 15px; font-weight: 700; color: var(--jumat); display: flex; align-items: center; gap: 8px; }
+    .btn-tambah { padding: 8px 16px; background: var(--jumat); color: #fff; border: none; border-radius: 9px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: opacity .15s; }
+    .btn-tambah:hover { opacity: .85; }
+    .btn-tempel { padding: 8px 16px; background: transparent; color: var(--jumat); border: 1px solid var(--jumat); border-radius: 9px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: background .15s; }
+    .btn-tempel:hover { background: #eaf1fb; }
+    .khutbah-form { background: #f0f4fb; border: 1px solid rgba(21,101,192,.18); border-radius: 12px; padding: 16px; margin-bottom: 16px; display: flex; flex-direction: column; gap: 12px; }
+    .khutbah-form-title { font-weight: 700; font-size: 14px; color: var(--jumat); margin: 0; display: flex; align-items: center; gap: 8px; }
+    .form-row { display: flex; gap: 10px; flex-wrap: wrap; }
+    .form-group { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 140px; }
+    .form-group label { font-size: 12px; font-weight: 700; color: var(--muted); }
+    .form-group input { padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; font: inherit; font-size: 13.5px; background: #fff; color: var(--ink); }
+    .form-group input:focus { outline: none; border-color: var(--jumat); box-shadow: 0 0 0 2px rgba(21,101,192,.12); }
+    .form-actions { display: flex; gap: 8px; justify-content: flex-end; }
+    .btn-simpan { padding: 8px 20px; background: var(--jumat); color: #fff; border: none; border-radius: 8px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; transition: opacity .15s; }
+    .btn-simpan:hover:not(:disabled) { opacity: .85; }
+    .btn-simpan:disabled { opacity: .5; cursor: not-allowed; }
+    .btn-batal { padding: 8px 16px; background: transparent; color: var(--muted); border: 1px solid var(--line); border-radius: 8px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+    .btn-batal:hover { background: #f0ece8; }
+    .khutbah-wrap { overflow-x: auto; }
+    .khutbah-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+    .khutbah-table th { padding: 9px 12px; background: #e8edf7; border-bottom: 2px solid rgba(21,101,192,.15); font-weight: 700; color: var(--jumat); font-size: 12.5px; text-align: left; white-space: nowrap; }
+    .khutbah-table th.col-act { text-align: center; width: 120px; }
+    .khutbah-table td { padding: 8px 12px; border-bottom: 1px solid var(--line); vertical-align: middle; color: var(--ink); }
+    .khutbah-table tr:last-child td { border-bottom: none; }
+    .khutbah-table tr:hover td { background: #f7f9fd; }
+    .td-tanggal { font-weight: 700; color: var(--jumat); white-space: nowrap; }
+    .td-bulan { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .td-khotib { font-weight: 600; }
+    .td-khotib-badal { margin-top: 5px; padding-top: 5px; border-top: 1px dashed var(--line); display: flex; align-items: center; gap: 6px; font-weight: 500; }
+    .td-catatan { color: var(--muted); font-size: 13px; }
+    .td-act { text-align: center; white-space: nowrap; }
+    .btn-edit { padding: 4px 10px; font: inherit; font-size: 12px; font-weight: 600; background: transparent; border: 1px solid var(--jumat); color: var(--jumat); border-radius: 6px; cursor: pointer; margin-right: 4px; }
+    .btn-edit:hover { background: #e8edf7; }
+    .btn-riwayat { padding: 4px 8px; font: inherit; font-size: 12px; font-weight: 600; background: transparent; border: 1px solid var(--accent); color: var(--accent); border-radius: 6px; cursor: pointer; margin-right: 4px; }
+    .btn-riwayat:hover { background: #fdf5ed; }
+    .btn-hapus { padding: 4px 10px; font: inherit; font-size: 12px; font-weight: 600; background: transparent; border: 1px solid var(--danger); color: var(--danger); border-radius: 6px; cursor: pointer; }
+    .btn-hapus:hover { background: #fdf0ef; }
+    #confirmHapusDialog { border: none; border-radius: 14px; padding: 0; background: #fff; box-shadow: 0 8px 32px rgba(41,23,15,0.18); }
+    #confirmHapusDialog::backdrop { background: rgba(41,23,15,0.45); backdrop-filter: blur(4px); }
+    #editHistoryDialog { width: 100%; max-width: 480px; margin: auto; padding: 0; border: none; border-radius: 14px; background: rgba(255,248,230,0.98); overflow: hidden; box-shadow: 0 8px 32px rgba(41,23,15,0.18); }
+    #editHistoryDialog::backdrop { background: rgba(41,23,15,0.45); backdrop-filter: blur(4px); }
+    .eh-head { align-items: flex-start; justify-content: space-between; padding: 16px 18px 12px; }
+    .eh-title { font-size: 15px; font-weight: 700; color: var(--ink); display: flex; align-items: center; gap: 8px; }
+    .eh-subtitle { font-size: 12.5px; color: var(--muted); margin-top: 3px; 
+      display: flex;
+      align-items: center;
+      margin-left: 15px;
+    }
+    .eh-close { background: none; border: none; cursor: pointer; color: var(--muted); font-size: 20px; padding: 2px 6px; line-height: 1; }
+    .eh-close:hover { color: var(--ink); }
+    .eh-body { padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; max-height: 400px; overflow-y: auto; }
+    #khutbahTempelDialog { width: 100%; max-width: 640px; margin: auto; padding: 0; border: none; border-radius: 14px; background: rgba(255,248,230,0.98); overflow: hidden; box-shadow: 0 8px 32px rgba(41,23,15,0.18); }
+    #khutbahTempelDialog::backdrop { background: rgba(41,23,15,0.45); backdrop-filter: blur(4px); }
+    #khutbahTempelDialog .eh-body { max-height: 70vh; }
+    .tempel-textarea { width: 100%; box-sizing: border-box; min-height: 180px; padding: 10px 12px; border-radius: 10px; border: 1.5px solid var(--line); background: rgba(255,255,255,0.6); color: var(--ink); font-size: 13px; font-family: monospace; resize: vertical; }
+    .tempel-label { font-size: 12px; font-weight: 700; color: var(--muted); display: block; margin-bottom: 4px; }
+    .tempel-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .tempel-preview-item { padding: 12px 14px; border-radius: 12px; border: 1.5px solid var(--line); background: rgba(255,255,255,0.5); font-size: 13px; }
+    .tempel-preview-item.has-error { border-color: rgba(165,90,82,0.4); background: rgba(165,90,82,0.04); }
+    .tempel-preview-item.has-warning { border-color: rgba(181,132,57,0.4); background: rgba(181,132,57,0.04); }
+    .tempel-preview-item.ok { border-color: rgba(116,132,108,0.4); background: rgba(116,132,108,0.04); }
+    .tempel-preview-title { font-weight: 700; margin-bottom: 6px; }
+    .tempel-msg { font-size: 12px; margin-top: 4px; }
+    .tempel-msg.error { color: var(--danger); }
+    .tempel-msg.warn { color: var(--warning); }
+    .tempel-preview-list { display: flex; flex-direction: column; gap: 8px; }
+    .tempel-summary { font-size: 12.5px; color: var(--muted); }
+    .tempel-preview-area { display: none; flex-direction: column; gap: 10px; }
+    .tempel-preview-area.show { display: flex; }
+    .filter-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; align-items: center; }
+    .filter-input { padding: 7px 12px; border: 1px solid var(--line); border-radius: 8px; font: inherit; font-size: 13px; background: #fff; color: var(--ink); flex: 1; min-width: 130px; }
+    .filter-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(185,118,80,.12); }
+    .filter-reset { padding: 7px 12px; border: 1px solid var(--line); background: transparent; border-radius: 8px; font: inherit; font-size: 13px; color: var(--muted); cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 5px; }
+    .filter-reset:hover { background: #f0ece8; }
+    .empty-khutbah { text-align: center; padding: 32px 16px; color: var(--muted); font-style: italic; }
+    .kh-pagination { display: flex; gap: 4px; justify-content: center; padding: 12px 0 4px; flex-wrap: wrap; }
+    .pg-btn { min-width: 28px; height: 28px; padding: 0 6px; font: inherit; font-size: 12px; font-weight: 600; background: #fff; border: 1px solid rgba(21,101,192,.25); color: var(--jumat); border-radius: 6px; cursor: pointer; transition: background .12s, color .12s; }
+    .pg-btn:hover:not([disabled]) { background: #e8edf7; }
+    .pg-btn.active { background: var(--jumat); color: #fff; border-color: var(--jumat); }
+    .pg-btn[disabled] { opacity: .35; cursor: not-allowed; }
+    .pg-ellipsis { display: flex; align-items: center; font-size: 12px; color: var(--muted); padding: 0 2px; }
+    .loading { text-align: center; padding: 40px; color: var(--muted); }
+    .pdf-dl-btn-ji {
+      padding: 7px 18px; font: inherit; font-size: 13px; font-weight: 700;
+      background: var(--accent); color: #fff; border-radius: 20px;
+      border: none; cursor: pointer; margin-top: 12px; transition: filter .15s;
+      display: inline-block;
+    }
+    .pdf-dl-btn-ji:hover { filter: brightness(1.12); }
+    .pdf-dl-btn-ji:disabled { opacity: .55; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+  <main>
+    <div class="app-layout">
+      <section class="panel nav" id="nav"></section>
+      <div class="content-stack">
+        <section class="panel">
+          <h1 style="font-size:1.5rem;font-weight:700;color:var(--ink);margin:0 0 4px;">Jadwal Ibadah</h1>
+          <p style="color:var(--muted);font-size:14px;margin:0;">Jadwal tetap imam &amp; kultum per hari per waktu sholat, dan khutbah Jum'at. Terikat tahun ajaran.</p>
+          <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:12px;">
+            <label style="display:flex;flex-direction:column;gap:5px;font-size:12.5px;font-weight:700;color:var(--muted);min-width:220px;">
+              Tahun ajaran
+              <select id="filterTahunAjaran" style="padding:9px 12px;border:1px solid var(--line);border-radius:9px;font:inherit;font-size:13.5px;background:#fff;color:var(--ink);"></select>
+            </label>
+            <button class="pdf-dl-btn-ji" id="jadwalPdfBtn" type="button" style="margin-top:0;">&#8615; Download PDF</button>
+          </div>
+          <div id="lockedBanner" style="display:none;margin-top:12px;padding:10px 14px;border-radius:10px;background:rgba(165,90,82,.12);color:var(--danger);font-size:13px;font-weight:700;">Tahun ajaran ini berstatus Close (terkunci) — data tidak dapat diubah.</div>
+          <div id="berandaAktifWrap" style="display:none;margin-top:12px;padding:10px 14px;border-radius:10px;background:rgba(185,118,80,.08);align-items:center;gap:10px;flex-wrap:wrap;"></div>
+        </section>
+        <section class="panel">
+          <div id="content"><div class="loading"><i class="fa-solid fa-spinner fa-spin fa-2x"></i><p style="margin-top:12px;">Memuat...</p></div></div>
+        </section>
+      </div>
+    </div>
+  </main>
+  <dialog id="confirmHapusDialog">
+    <div style="padding:24px 22px 20px;min-width:280px;">
+      <div style="font-size:15px;font-weight:700;color:var(--ink);margin-bottom:10px;display:flex;align-items:center;gap:8px;"><i class="fa-solid fa-triangle-exclamation" style="color:var(--danger);"></i>Hapus Jadwal Khutbah</div>
+      <div id="confirmHapusMsg" style="font-size:13.5px;color:var(--muted);margin-bottom:20px;line-height:1.5;"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button id="confirmHapusBatal" type="button" class="btn-batal">Batal</button>
+        <button id="confirmHapusOk" type="button" style="padding:8px 20px;background:var(--danger);color:#fff;border:none;border-radius:8px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="fa-solid fa-trash"></i> Hapus</button>
+      </div>
+    </div>
+  </dialog>
+  <dialog id="editHistoryDialog">
+    <div class="eh-head">
+      <div>
+        <div class="eh-title"><i class="fa-solid fa-clock-rotate-left"></i> Riwayat Edit</div>
+        <div class="eh-subtitle" id="editHistorySubtitle"></div>
+      </div>
+    </div>
+    <div class="eh-body" id="editHistoryList"></div>
+  </dialog>
+  <dialog id="khutbahTempelDialog">
+    <div class="eh-head">
+      <div>
+        <div class="eh-title"><i class="fa-solid fa-paste"></i> Tempel Data Khutbah Jum'at</div>
+        <div class="eh-subtitle" style="margin-left:0;">Tempel banyak jadwal sekaligus, satu blok per jadwal, dipisah baris kosong.</div>
+      </div>
+      <button type="button" class="eh-close" id="khutbahTempelCloseBtn" aria-label="Tutup">&times;</button>
+    </div>
+    <div class="eh-body">
+      <div>
+        <label class="tempel-label" for="khutbahTempelInput">Data tempelan</label>
+        <textarea class="tempel-textarea" id="khutbahTempelInput" placeholder="TANGGAL: 2026-08-14
+KHOTIB: Ust Hanan
+KHOTIB BADAL:
+CATATAN:
+
+TANGGAL: 2026-08-21
+KHOTIB: Ust Fauzan
+KHOTIB BADAL: Ust Zubair
+CATATAN: Bulan Ramadhan"></textarea>
+      </div>
+      <div class="tempel-actions">
+        <button type="button" class="btn-simpan" id="khutbahTempelParseBtn">Buat Preview</button>
+        <button type="button" class="btn-batal" id="khutbahTempelExampleBtn">Isi Contoh</button>
+        <button type="button" class="btn-batal" id="khutbahTempelClearBtn">Kosongkan</button>
+      </div>
+      <div id="khutbahTempelPreviewArea" class="tempel-preview-area">
+        <div class="tempel-summary" id="khutbahTempelSummary"></div>
+        <div class="tempel-preview-list" id="khutbahTempelPreviewList"></div>
+        <div class="tempel-actions">
+          <button type="button" class="btn-simpan" id="khutbahTempelSaveBtn" disabled>Simpan data valid</button>
+        </div>
+      </div>
+    </div>
+  </dialog>
+  <script src="../../shared-access.js"></script>
+  <script src="../../shared-nav.js"></script>
+  <script src="../../shared-shell.js"></script>
+  <script>
+    const API_BASE = window.location.origin + '/api';
+    const STORAGE = { apiBase: 'ps_api_base', token: 'ps_token', session: 'ps_session' };
+    localStorage.setItem(STORAGE.apiBase, API_BASE);
+
+    function getStoredSession() { try { return JSON.parse(localStorage.getItem(STORAGE.session)); } catch { return null; } }
+    function getToken() { return localStorage.getItem(STORAGE.token); }
+    function clearSession() { localStorage.removeItem(STORAGE.session); localStorage.removeItem(STORAGE.token); }
+    function escapeHtml(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+    function mountShell(session) { return window.PSShell.mount({ currentPage: window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : 'jadwalIbadah.html', session, getStoredSession, storageKey: STORAGE.session }); }
+
+    function showNotice(msg, type) {
+      const stack = document.getElementById('noticeStack');
+      if (!stack) return;
+      const el = document.createElement('section');
+      el.className = 'notice show ' + (type || 'info');
+      el.textContent = msg;
+      el.addEventListener('click', () => el.remove());
+      setTimeout(() => el.remove(), type === 'error' ? 8000 : 5000);
+      stack.prepend(el);
+      if (!stack.matches(':popover-open')) stack.showPopover();
+    }
+
+    async function api(action, payload = {}, method = 'GET') {
+      const token = getToken();
+      if (!token) { clearSession(); window.location.replace('/pages/login/'); throw new Error('Sesi tidak ditemukan.'); }
+      const r = method === 'POST'
+        ? await fetch(API_BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, token, ...payload }) })
+        : await fetch(`${API_BASE}?${new URLSearchParams({ action, token, ...payload })}`);
+      const json = await r.json();
+      if (!json.ok) { const e = new Error(json.error?.message || 'Gagal.'); e.code = json.error?.code || 500; if (e.code === 401) { clearSession(); window.location.replace('/pages/login/'); } throw e; }
+      return json.data;
+    }
+
+    const HARI = [
+      { key: 'senin',  label: 'Senin' },
+      { key: 'selasa', label: 'Selasa' },
+      { key: 'rabu',   label: 'Rabu' },
+      { key: 'kamis',  label: 'Kamis' },
+      { key: 'jumat',  label: "Jum'at", isJumat: true },
+      { key: 'sabtu',  label: 'Sabtu' },
+      { key: 'ahad',   label: 'Ahad' }
+    ];
+    const WAKTU = [
+      { key: 'subuh',   label: 'Subuh' },
+      { key: 'dzuhur',  label: 'Dzuhur' },
+      { key: 'ashar',   label: 'Ashar' },
+      { key: 'maghrib', label: 'Maghrib' },
+      { key: 'isya',    label: 'Isya' }
+    ];
+    // Tiap slot (hari x waktu x imam/kultum) punya 1 nama utama + sampai 2 nama badal (cadangan),
+    // ditumpuk ke bawah dalam satu kolom waktu yang sama (bukan menambah kolom ke samping).
+    const BADAL_SUBS = [
+      { sub: '',       label: 'Utama',   tag: '',   dataSuffix: '' },
+      { sub: 'badal1', label: 'Badal 1', tag: 'Badal', dataSuffix: 'Badal1' },
+      { sub: 'badal2', label: 'Badal 2', tag: 'Badal', dataSuffix: 'Badal2' }
+    ];
+
+    const BULAN_ID = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+
+    function formatTanggal(iso) {
+      if (!iso) return '—';
+      const d = new Date(iso + 'T00:00:00');
+      if (isNaN(d)) return iso;
+      return d.getDate() + ' ' + BULAN_ID[d.getMonth()] + ' ' + d.getFullYear();
+    }
+    function getBulanLabel(iso) {
+      if (!iso) return '';
+      const d = new Date(iso + 'T00:00:00');
+      if (isNaN(d)) return '';
+      return BULAN_ID[d.getMonth()] + ' ' + d.getFullYear();
+    }
+
+    let activeTab = 'imam';
+    let canEdit = false;
+    let currentData = null;
+    let tahunAjaranId = '';
+    let tahunAjaranList = [];
+    const saveTimers = {};
+
+    function populateTahunAjaranSelect() {
+      const sel = document.getElementById('filterTahunAjaran');
+      sel.innerHTML = tahunAjaranList.map(ta => `<option value="${escapeHtml(ta.id)}">${escapeHtml(ta.namaDisplay || ta.nama)}${ta.isAktif ? ' (Aktif)' : ''}</option>`).join('');
+      sel.value = tahunAjaranId;
+    }
+
+    function applyStatus(inputEl, stsEl, state) {
+      if (!inputEl || !stsEl) return;
+      if (!inputEl.dataset.baseClass) {
+        inputEl.dataset.baseClass = inputEl.className.replace(/ ?(saving|saved|error|filled)\b/g, '');
+      }
+      const base = inputEl.dataset.baseClass;
+      // Warnai hijau kalau ada isinya — dihitung ulang tiap kali (bukan dari cache) supaya
+      // selalu sinkron dengan nilai terbaru, bukan cuma nilai saat baseClass pertama di-cache.
+      const filled = inputEl.classList.contains('cell-input') && inputEl.value.trim() ? ' filled' : '';
+      inputEl.className = base + filled + (state ? ' ' + state : '');
+      stsEl.className = (stsEl.dataset.baseClass || 'cell-status') + (state ? ' ' + state : '');
+      if (state === 'saving') stsEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+      else if (state === 'saved') { stsEl.innerHTML = '<i class="fa-solid fa-check"></i>'; setTimeout(() => { stsEl.innerHTML = ''; applyStatus(inputEl, stsEl, null); }, 2000); }
+      else if (state === 'error') stsEl.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+      else stsEl.innerHTML = '';
+    }
+
+    // Satu baris (hari x waktu) menyimpan 8 nilai sekaligus: imam+3 badal & kultum+3 badal.
+    // Cuma satu tab (imam/kultum) yang tampil di DOM pada satu waktu, jadi nilai grup field
+    // yang lagi tidak aktif diambil dari cache currentData supaya tidak ikut kehapus saat simpan.
+    function gatherFieldGroupValues(hari, waktu, group) {
+      const result = {};
+      BADAL_SUBS.forEach(({ sub, dataSuffix }) => {
+        const dataKey = group + dataSuffix;
+        if (activeTab === group) {
+          const id = 'c_' + hari + '_' + waktu + '_' + group + (sub ? '_' + sub : '');
+          const el = document.getElementById(id);
+          result[dataKey] = el ? el.value : (currentData?.jadwal?.[hari]?.[waktu]?.[dataKey] ?? '');
+        } else {
+          result[dataKey] = currentData?.jadwal?.[hari]?.[waktu]?.[dataKey] ?? '';
+        }
+      });
+      return result;
+    }
+
+    async function saveSlot(hari, waktu, sub) {
+      const f = activeTab;
+      const changedId = 'c_' + hari + '_' + waktu + '_' + f + (sub ? '_' + sub : '');
+      const fEl = document.getElementById(changedId);
+      const fSts = document.getElementById('sts_' + changedId);
+      const imamValues = gatherFieldGroupValues(hari, waktu, 'imam');
+      const kultumValues = gatherFieldGroupValues(hari, waktu, 'kultum');
+      if (fEl && fSts) applyStatus(fEl, fSts, 'saving');
+      try {
+        await api('jadwal.ibadah.saveSlot', { hari, waktu, tahunAjaranId, ...imamValues, ...kultumValues });
+        if (currentData?.jadwal?.[hari]?.[waktu]) { Object.assign(currentData.jadwal[hari][waktu], imamValues, kultumValues); }
+        if (fEl && fSts) applyStatus(fEl, fSts, 'saved');
+      } catch (e) {
+        if (fEl && fSts) applyStatus(fEl, fSts, 'error');
+        showNotice('Gagal simpan ' + hari + ' ' + waktu + ': ' + e.message, 'error');
+      }
+    }
+
+    function scheduleSlot(hari, waktu, sub) {
+      const key = hari + '_' + waktu;
+      clearTimeout(saveTimers[key]);
+      saveTimers[key] = setTimeout(() => saveSlot(hari, waktu, sub), 700);
+    }
+
+    const metaTimer = {};
+    async function saveMeta() {
+      const cEl = document.getElementById('f_catatan');
+      const cSts = document.getElementById('sts_f_catatan');
+      const catatanVal = cEl ? cEl.value : (currentData?.catatan || '');
+      if (cEl && cSts) applyStatus(cEl, cSts, 'saving');
+      try {
+        await api('jadwal.ibadah.saveMeta', {
+          khutbah_jumat: currentData?.khutbahJumat || '',
+          catatan: catatanVal,
+          tampilBerandaAktif: currentData?.tampilBerandaAktif ? '1' : '0',
+          tahunAjaranId
+        });
+        if (currentData) { currentData.catatan = catatanVal; }
+        if (cEl && cSts) applyStatus(cEl, cSts, 'saved');
+      } catch (e) {
+        if (cEl && cSts) applyStatus(cEl, cSts, 'error');
+        showNotice('Gagal simpan catatan: ' + e.message, 'error');
+      }
+    }
+    function scheduleMeta() { clearTimeout(metaTimer.t); metaTimer.t = setTimeout(saveMeta, 700); }
+
+    /* ── Khutbah Jum'at state ── */
+    let _hapusPendingId = null;
+    let khutbahRows = [];
+    let khutbahFormMode = null; // null | 'tambah' | 'edit'
+    let khutbahEditId = null;
+    let khutbahFilter = { nama: '', bulan: '' };
+    let khutbahPage = 1;
+    const KHUTBAH_PER_PAGE = 10;
+
+    function getFilteredRows() {
+      const nama = khutbahFilter.nama.toLowerCase();
+      const bulan = khutbahFilter.bulan;
+      return khutbahRows.filter(r => {
+        const namaMatch = !nama || (r.khotib || '').toLowerCase().includes(nama);
+        const bulanMatch = !bulan || (r.tanggal || '').startsWith(bulan);
+        return namaMatch && bulanMatch;
+      });
+    }
+
+    function buildKhutbahRowsHtml(rows) {
+      if (!rows.length) {
+        const span = canEdit ? 4 : 3;
+        return `<tr><td colspan="${span}" style="text-align:center;padding:24px;color:var(--muted);font-style:italic;"><i class="fa-solid fa-magnifying-glass" style="opacity:.4;margin-right:6px;"></i>Tidak ada data yang cocok.</td></tr>`;
+      }
+      return rows.map(r => {
+        const actCol = canEdit
+          ? `<td class="td-act">
+              <button class="btn-edit" data-id="${escapeHtml(r.id)}"><i class="fa-solid fa-pen"></i></button>
+              <button class="btn-riwayat" data-id="${escapeHtml(r.id)}" title="Riwayat Edit"><i class="fa-solid fa-clock-rotate-left"></i></button>
+              <button class="btn-hapus" data-id="${escapeHtml(r.id)}"><i class="fa-solid fa-trash"></i></button>
+            </td>`
+          : '';
+        const badalHtml = r.khotibBadal
+          ? `<div class="td-khotib-badal"><span class="badal-tag">Badal</span><span class="cell-text filled">${escapeHtml(r.khotibBadal)}</span></div>`
+          : '';
+        return `<tr>
+          <td class="td-tanggal">${escapeHtml(formatTanggal(r.tanggal))}<div class="td-bulan">${escapeHtml(getBulanLabel(r.tanggal))}</div></td>
+          <td class="td-khotib">${escapeHtml(r.khotib) || '<span style="color:var(--muted);font-style:italic;">—</span>'}${badalHtml}</td>
+          <td class="td-catatan">${escapeHtml(r.catatan) || '—'}</td>
+          ${actCol}
+        </tr>`;
+      }).join('');
+    }
+
+    function applyKhutbahFilter() {
+      khutbahFilter.nama = document.getElementById('kh_f_nama')?.value || '';
+      khutbahFilter.bulan = document.getElementById('kh_f_bulan')?.value || '';
+      khutbahPage = 1;
+      const filtered = getFilteredRows();
+      const paged = filtered.slice(0, KHUTBAH_PER_PAGE);
+      const tbody = document.getElementById('khutbah-tbody');
+      if (tbody) tbody.innerHTML = buildKhutbahRowsHtml(paged);
+      const pgDiv = document.getElementById('khutbah-pagination');
+      if (pgDiv) pgDiv.innerHTML = buildPaginationHtml(filtered.length, 1);
+      const resetBtn = document.getElementById('kh_f_reset');
+      if (resetBtn) resetBtn.style.display = (khutbahFilter.nama || khutbahFilter.bulan) ? 'flex' : 'none';
+      bindTableButtons();
+    }
+
+    async function loadKhutbah() {
+      try {
+        const d = await api('jadwal.khutbah.list', { tahunAjaranId });
+        khutbahRows = d.rows || [];
+        renderKhutbahTab();
+      } catch (e) {
+        showNotice("Gagal memuat jadwal khutbah: " + e.message, 'error');
+      }
+    }
+
+    function renderKhutbahTab() {
+      const container = document.getElementById('khutbah-section');
+      if (!container) return;
+
+      const formHtml = (khutbahFormMode && canEdit) ? renderKhutbahForm() : '';
+      const tableHtml = renderKhutbahTable();
+      container.innerHTML = formHtml + tableHtml;
+      bindKhutbahEvents();
+    }
+
+    function renderKhutbahForm() {
+      const isEdit = khutbahFormMode === 'edit';
+      const row = isEdit ? khutbahRows.find(r => r.id === khutbahEditId) : null;
+      const tanggal = row ? row.tanggal : '';
+      const khotib = row ? escapeHtml(row.khotib) : '';
+      const khotibBadal = row ? escapeHtml(row.khotibBadal) : '';
+      const catatan = row ? escapeHtml(row.catatan) : '';
+      return `<div class="khutbah-form" id="khutbah-form">
+        <div class="khutbah-form-title"><i class="fa-solid fa-mosque"></i>${isEdit ? "Edit Jadwal Khutbah" : "Tambah Jadwal Khutbah"}</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Tanggal Jum'at</label>
+            <input type="date" id="kf_tanggal" value="${escapeHtml(tanggal)}" placeholder="Pilih tanggal">
+            <span id="kf_tanggal_warn" style="font-size:11.5px;color:var(--danger);display:${tanggal && !isJumat(tanggal) ? 'block' : 'none'};margin-top:2px;"><i class="fa-solid fa-triangle-exclamation"></i> Harus hari Jum'at</span>
+          </div>
+          <div class="form-group" style="flex:2;min-width:180px;">
+            <label>Nama Khotib</label>
+            <input type="text" id="kf_khotib" value="${khotib}" placeholder="Nama khotib">
+          </div>
+          <div class="form-group" style="flex:2;min-width:180px;">
+            <label>Nama Khotib Badal (opsional)</label>
+            <input type="text" id="kf_khotib_badal" value="${khotibBadal}" placeholder="Cadangan kalau khotib utama berhalangan">
+          </div>
+          <div class="form-group" style="flex:2;min-width:180px;">
+            <label>Catatan (opsional)</label>
+            <input type="text" id="kf_catatan" value="${catatan}" placeholder="Catatan tambahan">
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="btn-batal" id="kf_batal">Batal</button>
+          <button class="btn-simpan" id="kf_simpan"><i class="fa-solid fa-floppy-disk"></i> Simpan</button>
+        </div>
+      </div>`;
+    }
+
+    function renderKhutbahTable() {
+      const addBtn = canEdit
+        ? `<button class="btn-tambah" id="kh_tambah"><i class="fa-solid fa-plus"></i> Tambah Jadwal</button>
+           <button class="btn-tempel" id="kh_tempel"><i class="fa-solid fa-paste"></i> Tempel Data</button>`
+        : '';
+      if (!khutbahRows.length) {
+        return `<div class="khutbah-header">
+          <div class="khutbah-title"><i class="fa-solid fa-mosque"></i>Jadwal Khutbah Jum'at</div>
+          <div class="khutbah-header-actions">${addBtn}</div>
+        </div>
+        <div class="empty-khutbah"><i class="fa-solid fa-calendar-xmark" style="font-size:2rem;opacity:.35;"></i><p style="margin-top:10px;">Belum ada jadwal khutbah.</p></div>`;
+      }
+      const hasFilter = !!(khutbahFilter.nama || khutbahFilter.bulan);
+      const filterBar = `<div class="filter-bar">
+        <input class="filter-input" id="kh_f_nama" type="text" value="${escapeHtml(khutbahFilter.nama)}" placeholder="Cari nama khotib...">
+        <input class="filter-input" id="kh_f_bulan" type="month" value="${escapeHtml(khutbahFilter.bulan)}" style="max-width:190px;">
+        <button class="filter-reset" id="kh_f_reset" style="display:${hasFilter ? 'flex' : 'none'}"><i class="fa-solid fa-xmark"></i> Reset</button>
+      </div>`;
+      const actHead = canEdit ? '<th class="col-act">Aksi</th>' : '';
+      const filtered = getFilteredRows();
+      const start = (khutbahPage - 1) * KHUTBAH_PER_PAGE;
+      const paged = filtered.slice(start, start + KHUTBAH_PER_PAGE);
+      return `<div class="khutbah-header">
+        <div class="khutbah-title"><i class="fa-solid fa-mosque"></i>Jadwal Khutbah Jum'at</div>
+        <div class="khutbah-header-actions">${addBtn}</div>
+      </div>
+      ${filterBar}
+      <div class="khutbah-wrap"><table class="khutbah-table">
+        <thead><tr><th>Tanggal</th><th>Khotib</th><th>Catatan</th>${actHead}</tr></thead>
+        <tbody id="khutbah-tbody">${buildKhutbahRowsHtml(paged)}</tbody>
+      </table></div>
+      <div id="khutbah-pagination">${buildPaginationHtml(filtered.length, khutbahPage)}</div>`;
+    }
+
+    function buildPaginationHtml(total, page) {
+      const totalPages = Math.ceil(total / KHUTBAH_PER_PAGE);
+      if (totalPages <= 1) return '';
+      const maxVis = 5;
+      let s = Math.max(1, page - Math.floor(maxVis / 2));
+      let e = Math.min(totalPages, s + maxVis - 1);
+      if (e - s < maxVis - 1) s = Math.max(1, e - maxVis + 1);
+      let btns = `<button class="pg-btn" data-page="${page - 1}" ${page === 1 ? 'disabled' : ''}>&laquo;</button>`;
+      if (s > 1) { btns += `<button class="pg-btn" data-page="1">1</button>`; if (s > 2) btns += `<span class="pg-ellipsis">&hellip;</span>`; }
+      for (let i = s; i <= e; i++) btns += `<button class="pg-btn${i === page ? ' active' : ''}" data-page="${i}">${i}</button>`;
+      if (e < totalPages) { if (e < totalPages - 1) btns += `<span class="pg-ellipsis">&hellip;</span>`; btns += `<button class="pg-btn" data-page="${totalPages}">${totalPages}</button>`; }
+      btns += `<button class="pg-btn" data-page="${page + 1}" ${page === totalPages ? 'disabled' : ''}>&raquo;</button>`;
+      return `<div class="kh-pagination">${btns}</div>`;
+    }
+
+    function goToKhutbahPage(page) {
+      const filtered = getFilteredRows();
+      const totalPages = Math.max(1, Math.ceil(filtered.length / KHUTBAH_PER_PAGE));
+      khutbahPage = Math.min(Math.max(1, page), totalPages);
+      const start = (khutbahPage - 1) * KHUTBAH_PER_PAGE;
+      const tbody = document.getElementById('khutbah-tbody');
+      if (tbody) tbody.innerHTML = buildKhutbahRowsHtml(filtered.slice(start, start + KHUTBAH_PER_PAGE));
+      const pgDiv = document.getElementById('khutbah-pagination');
+      if (pgDiv) pgDiv.innerHTML = buildPaginationHtml(filtered.length, khutbahPage);
+      bindTableButtons();
+    }
+
+    function showConfirmHapus(id) {
+      const r = khutbahRows.find(x => x.id === id);
+      _hapusPendingId = id;
+      document.getElementById('confirmHapusMsg').textContent =
+        'Yakin ingin menghapus jadwal khutbah' + (r ? ' ' + formatTanggal(r.tanggal) + (r.khotib ? ' — ' + r.khotib : '') : '') + '?';
+      document.getElementById('confirmHapusDialog').showModal();
+    }
+
+    function bindTableButtons() {
+      document.querySelectorAll('.btn-edit').forEach(btn => btn.addEventListener('click', () => {
+        khutbahFormMode = 'edit'; khutbahEditId = btn.dataset.id;
+        renderKhutbahTab(); document.getElementById('kf_khotib')?.focus();
+      }));
+      document.querySelectorAll('.btn-riwayat').forEach(btn => btn.addEventListener('click', () => showEditHistory(btn.dataset.id)));
+      document.querySelectorAll('.btn-hapus').forEach(btn => btn.addEventListener('click', () => showConfirmHapus(btn.dataset.id)));
+      document.querySelectorAll('.pg-btn:not([disabled])').forEach(btn => btn.addEventListener('click', () => goToKhutbahPage(+btn.dataset.page)));
+    }
+
+    function showEditHistory(id) {
+      const r = khutbahRows.find(x => x.id === id);
+      if (!r) return;
+      document.getElementById('editHistorySubtitle').textContent = formatTanggal(r.tanggal) + (r.khotib ? ' — ' + r.khotib : '');
+      let history = [];
+      try { history = JSON.parse(r.editHistory || '[]'); } catch (_) { history = []; }
+      const listEl = document.getElementById('editHistoryList');
+      if (!history.length) {
+        listEl.innerHTML = '<p style="color:var(--muted);font-size:13px;">Belum ada riwayat edit.</p>';
+      } else {
+        listEl.innerHTML = history.map((e, i) => `
+          <div style="padding:10px 12px;border-radius:10px;background:rgba(255,248,230,0.85);border:1px solid var(--line);">
+            <div style="font-weight:700;font-size:13px;">${i + 1}. ${escapeHtml(e.name || '-')}</div>
+            <div style="font-size:12px;color:var(--muted);margin-top:2px;">${escapeHtml(e.jabatan || '-')} &nbsp;·&nbsp; ${escapeHtml(e.action || 'edit')}</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:1px;">${escapeHtml(e.at || '-')}</div>
+          </div>
+        `).join('');
+      }
+      document.getElementById('editHistoryDialog').showModal();
+    }
+
+    const KHUTBAH_TEMPEL_EXAMPLE = `TANGGAL: 2026-08-14
+KHOTIB: Ust Hanan
+KHOTIB BADAL:
+CATATAN:
+
+TANGGAL: 2026-08-21
+KHOTIB: Ust Fauzan
+KHOTIB BADAL: Ust Zubair
+CATATAN: Bulan Ramadhan`;
+
+    let khutbahTempelPreviews = [];
+
+    function resetKhutbahTempelPreviewUi() {
+      khutbahTempelPreviews = [];
+      document.getElementById('khutbahTempelPreviewArea').classList.remove('show');
+      document.getElementById('khutbahTempelPreviewList').innerHTML = '';
+      document.getElementById('khutbahTempelSummary').innerHTML = '';
+      const saveBtn = document.getElementById('khutbahTempelSaveBtn');
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Simpan data valid';
+    }
+
+    function openKhutbahTempelDialog() {
+      document.getElementById('khutbahTempelInput').value = '';
+      resetKhutbahTempelPreviewUi();
+      document.getElementById('khutbahTempelDialog').showModal();
+      document.getElementById('khutbahTempelInput').focus();
+    }
+
+    async function parseKhutbahTempelPreview() {
+      const text = document.getElementById('khutbahTempelInput').value.trim();
+      if (!text) { showNotice('Teks tempelan kosong.', 'error'); return; }
+      const btn = document.getElementById('khutbahTempelParseBtn');
+      btn.disabled = true;
+      try {
+        const data = await api('jadwal.khutbah.quickImportPreview', { text, tahunAjaranId }, 'POST');
+        khutbahTempelPreviews = data.previews || [];
+        renderKhutbahTempelPreview();
+      } catch (e) {
+        showNotice(e.message || 'Gagal membuat preview.', 'error');
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    function renderKhutbahTempelPreview() {
+      const area = document.getElementById('khutbahTempelPreviewArea');
+      const list = document.getElementById('khutbahTempelPreviewList');
+      const summaryEl = document.getElementById('khutbahTempelSummary');
+      const saveBtn = document.getElementById('khutbahTempelSaveBtn');
+      const validCount = khutbahTempelPreviews.filter(p => p.canSave).length;
+      const invalidCount = khutbahTempelPreviews.length - validCount;
+      const warningCount = khutbahTempelPreviews.reduce((sum, p) => sum + p.warnings.length, 0);
+
+      summaryEl.textContent = `Total ${khutbahTempelPreviews.length} — ${validCount} siap disimpan, ${invalidCount} perlu dicek, ${warningCount} warning.`;
+
+      list.innerHTML = khutbahTempelPreviews.map(p => {
+        const cls = p.errors.length ? 'has-error' : p.warnings.length ? 'has-warning' : 'ok';
+        const icon = p.errors.length
+          ? '<i class="fa-solid fa-circle-xmark" style="color:var(--danger);"></i>'
+          : p.warnings.length
+            ? '<i class="fa-solid fa-triangle-exclamation" style="color:var(--warning);"></i>'
+            : '<i class="fa-solid fa-circle-check" style="color:#4a7a3f;"></i>';
+        return `<div class="tempel-preview-item ${cls}">
+          <div class="tempel-preview-title">${icon} #${p.index} — ${escapeHtml(formatTanggal(p.tanggal))} — ${escapeHtml(p.khotib || '(tanpa khotib)')}</div>
+          ${p.errors.map(e => `<div class="tempel-msg error"><i class="fa-solid fa-xmark"></i> ${escapeHtml(e)}</div>`).join('')}
+          ${p.warnings.map(w => `<div class="tempel-msg warn"><i class="fa-solid fa-triangle-exclamation"></i> ${escapeHtml(w)}</div>`).join('')}
+        </div>`;
+      }).join('');
+
+      area.classList.add('show');
+      saveBtn.disabled = validCount === 0;
+      saveBtn.textContent = validCount ? `Simpan ${validCount} data valid` : 'Simpan data valid';
+    }
+
+    async function saveKhutbahTempel() {
+      const entries = khutbahTempelPreviews.filter(p => p.canSave);
+      if (!entries.length) return;
+      const btn = document.getElementById('khutbahTempelSaveBtn');
+      btn.disabled = true;
+      try {
+        const data = await api('jadwal.khutbah.quickImport', { entries, tahunAjaranId }, 'POST');
+        document.getElementById('khutbahTempelDialog').close();
+        showNotice(data.message || 'Data tersimpan.', 'success');
+        resetKhutbahTempelPreviewUi();
+        document.getElementById('khutbahTempelInput').value = '';
+        await loadKhutbah();
+      } catch (e) {
+        showNotice(e.message || 'Gagal menyimpan.', 'error');
+        btn.disabled = false;
+      }
+    }
+
+    function bindKhutbahEvents() {
+      document.getElementById('kh_tambah')?.addEventListener('click', () => {
+        khutbahFormMode = 'tambah'; khutbahEditId = null;
+        renderKhutbahTab();
+        document.getElementById('kf_tanggal')?.focus();
+      });
+      document.getElementById('kf_batal')?.addEventListener('click', () => {
+        khutbahFormMode = null; khutbahEditId = null;
+        renderKhutbahTab();
+      });
+      document.getElementById('kf_simpan')?.addEventListener('click', submitKhutbahForm);
+      document.getElementById('kh_tempel')?.addEventListener('click', openKhutbahTempelDialog);
+      document.getElementById('kf_tanggal')?.addEventListener('change', function () {
+        if (this.value && !isJumat(this.value)) {
+          const d = new Date(this.value + 'T00:00:00');
+          const diff = (5 - d.getDay() + 7) % 7 || 7;
+          d.setDate(d.getDate() + diff);
+          this.value = d.toISOString().slice(0, 10);
+        }
+        const warn = document.getElementById('kf_tanggal_warn');
+        if (warn) warn.style.display = this.value && !isJumat(this.value) ? 'block' : 'none';
+      });
+      bindTableButtons();
+      document.getElementById('kh_f_nama')?.addEventListener('input', applyKhutbahFilter);
+      document.getElementById('kh_f_bulan')?.addEventListener('change', applyKhutbahFilter);
+      document.getElementById('kh_f_reset')?.addEventListener('click', () => {
+        khutbahFilter = { nama: '', bulan: '' };
+        khutbahPage = 1;
+        renderKhutbahTab();
+      });
+    }
+
+    function isJumat(isoDate) {
+      if (!isoDate) return false;
+      const d = new Date(isoDate + 'T00:00:00');
+      return !isNaN(d) && d.getDay() === 5;
+    }
+
+    async function submitKhutbahForm() {
+      const simpanBtn = document.getElementById('kf_simpan');
+      const tanggal = document.getElementById('kf_tanggal')?.value?.trim() || '';
+      const khotib = document.getElementById('kf_khotib')?.value?.trim() || '';
+      const khotibBadal = document.getElementById('kf_khotib_badal')?.value?.trim() || '';
+      const catatan = document.getElementById('kf_catatan')?.value?.trim() || '';
+      if (!tanggal) { showNotice('Tanggal wajib diisi.', 'error'); document.getElementById('kf_tanggal')?.focus(); return; }
+      if (!isJumat(tanggal)) { showNotice("Tanggal harus hari Jum'at.", 'error'); document.getElementById('kf_tanggal')?.focus(); return; }
+      if (!khotib) { showNotice('Nama khotib wajib diisi.', 'error'); document.getElementById('kf_khotib')?.focus(); return; }
+      if (simpanBtn) { simpanBtn.disabled = true; simpanBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan...'; }
+      try {
+        const payload = { tanggal, khotib, khotibBadal, catatan, tahunAjaranId };
+        if (khutbahFormMode === 'edit' && khutbahEditId) payload.id = khutbahEditId;
+        const d = await api('jadwal.khutbah.save', payload);
+        if (khutbahFormMode === 'edit') {
+          const idx = khutbahRows.findIndex(r => r.id === khutbahEditId);
+          if (idx !== -1) khutbahRows[idx] = { id: khutbahEditId, tanggal, khotib, khotibBadal, catatan };
+        } else {
+          khutbahRows.push({ id: d.id, tanggal, khotib, khotibBadal, catatan });
+          khutbahRows.sort((a, b) => a.tanggal < b.tanggal ? -1 : a.tanggal > b.tanggal ? 1 : 0);
+        }
+        khutbahFormMode = null; khutbahEditId = null;
+        renderKhutbahTab();
+        showNotice('Jadwal khutbah berhasil disimpan.', 'success');
+      } catch (e) {
+        showNotice('Gagal simpan: ' + e.message, 'error');
+        if (simpanBtn) { simpanBtn.disabled = false; simpanBtn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Simpan'; }
+      }
+    }
+
+    async function hapusKhutbah(id) {
+      try {
+        await api('jadwal.khutbah.delete', { id });
+        khutbahRows = khutbahRows.filter(r => r.id !== id);
+        if (khutbahEditId === id) { khutbahFormMode = null; khutbahEditId = null; }
+        renderKhutbahTab();
+        showNotice('Jadwal khutbah dihapus.', 'success');
+      } catch (e) {
+        showNotice('Gagal hapus: ' + e.message, 'error');
+      }
+    }
+
+    function render(data) {
+      currentData = data;
+      const field = activeTab;
+
+      const khutbahTabClass = activeTab === 'khutbah' ? ' active tab-khutbah' : '';
+      const tabsHtml = `<div class="tabs">
+        <button class="tab-btn${activeTab === 'imam' ? ' active' : ''}" data-tab="imam"><i class="fa-solid fa-person-praying"></i>Imam Sholat</button>
+        <button class="tab-btn${activeTab === 'kultum' ? ' active' : ''}" data-tab="kultum"><i class="fa-solid fa-microphone"></i>Kultum</button>
+        <button class="tab-btn${khutbahTabClass}" data-tab="khutbah"><i class="fa-solid fa-mosque"></i>Khutbah Jum'at</button>
+      </div>`;
+
+      if (activeTab === 'khutbah') {
+        document.getElementById('content').innerHTML = tabsHtml + `<div id="khutbah-section"></div>`;
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', () => {
+          activeTab = btn.dataset.tab;
+          if (activeTab === 'khutbah') { render(currentData); loadKhutbah(); }
+          else render(currentData);
+        }));
+        khutbahFormMode = null; khutbahEditId = null;
+        loadKhutbah();
+        return;
+      }
+
+      const thCols = WAKTU.map(w => `<th>${escapeHtml(w.label)}</th>`).join('');
+      const rows = HARI.map(h => {
+        const cells = WAKTU.map(w => {
+          const slot = data.jadwal?.[h.key]?.[w.key] || {};
+          const stackRows = BADAL_SUBS.map(({ sub, label, tag, dataSuffix }) => {
+            const dataKey = field + dataSuffix;
+            const val = slot[dataKey] || '';
+            const id = 'c_' + h.key + '_' + w.key + '_' + field + (sub ? '_' + sub : '');
+            const tagHtml = tag ? `<span class="badal-tag">${escapeHtml(tag)}</span>` : '';
+            if (canEdit) {
+              return `<div class="cell-wrap${sub ? ' cell-wrap-badal' : ''}">
+                ${tagHtml}
+                <input class="cell-input${sub ? ' cell-input-badal' : ''}${val ? ' filled' : ''}" id="${id}" type="text" value="${escapeHtml(val)}" placeholder="${sub ? escapeHtml(label) : '—'}" data-hari="${h.key}" data-waktu="${w.key}" data-sub="${sub}">
+                <span class="cell-status" id="sts_${id}" data-base-class="cell-status"></span>
+              </div>`;
+            }
+            if (!val && sub) return '';
+            return `<div class="cell-wrap${sub ? ' cell-wrap-badal' : ''}">
+              ${tagHtml}
+              <span class="cell-text${sub ? ' cell-text-badal' : ''}${val ? ' filled' : ' empty'}">${val ? escapeHtml(val) : '—'}</span>
+            </div>`;
+          }).join('');
+          return `<td class="slot-cell"><div class="cell-stack">${stackRows}</div></td>`;
+        }).join('');
+        return `<tr><td class="hari-cell${h.isJumat ? ' jumat' : ''}">${escapeHtml(h.label)}</td>${cells}</tr>`;
+      }).join('');
+
+      const cv = data.catatan || '';
+      const metaHtml = canEdit
+        ? `<div class="meta-wrap">
+            <div class="meta-row">
+              <div class="meta-label"><i class="fa-solid fa-note-sticky"></i> Catatan</div>
+              <div class="meta-input-wrap">
+                <input class="meta-input" id="f_catatan" type="text" value="${escapeHtml(cv)}" placeholder="Catatan (opsional)">
+                <span class="meta-status" id="sts_f_catatan" data-base-class="meta-status"></span>
+              </div>
+            </div>
+          </div>`
+        : cv ? `<div class="meta-wrap">
+            <div class="meta-row">
+              <div class="meta-label"><i class="fa-solid fa-note-sticky"></i> Catatan</div>
+              <span class="meta-text">${escapeHtml(cv)}</span>
+            </div>
+          </div>` : '';
+
+      document.getElementById('content').innerHTML =
+        tabsHtml +
+        `<div class="jadwal-wrap"><table class="jadwal-table">
+          <thead><tr><th class="col-hari">Hari</th>${thCols}</tr></thead>
+          <tbody>${rows}</tbody>
+        </table></div>` + metaHtml;
+
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', () => {
+        activeTab = btn.dataset.tab;
+        if (activeTab === 'khutbah') { render(currentData); loadKhutbah(); }
+        else render(currentData);
+      }));
+      if (canEdit) {
+        document.querySelectorAll('.cell-input').forEach(inp => inp.addEventListener('input', () => {
+          inp.classList.toggle('filled', !!inp.value.trim());
+          scheduleSlot(inp.dataset.hari, inp.dataset.waktu, inp.dataset.sub);
+        }));
+        document.getElementById('f_catatan')?.addEventListener('input', scheduleMeta);
+      }
+    }
+
+    // Satu saklar global (tab-independent, tampil di panel atas) menggantikan toggle
+    // per-tab/per-baris: kalau ON, carousel beranda otomatis nampilin jadwal Imam/Kultum hari
+    // ini + Khutbah Jum'at dlm rentang -3/+5 hari dari hari ini (lihat handleJadwalIbadahBerandaCarousel_).
+    function renderBerandaAktifToggle(data) {
+      const wrap = document.getElementById('berandaAktifWrap');
+      if (!wrap) return;
+      const aktif = !!data.tampilBerandaAktif;
+      if (canEdit) {
+        wrap.style.display = 'flex';
+        wrap.innerHTML = `
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--ink);cursor:pointer;">
+            <input type="checkbox" id="berandaAktifToggle" ${aktif ? 'checked' : ''} style="width:17px;height:17px;accent-color:var(--accent);cursor:pointer;">
+            <i class="fa-solid fa-house"></i> Tampilkan jadwal ini sebagai popup carousel di halaman Beranda
+          </label>
+          <span style="font-size:11.5px;color:var(--muted);">(Imam &amp; Kultum hari ini, Khutbah Jum'at H-3 s/d H+5)</span>
+        `;
+        document.getElementById('berandaAktifToggle').addEventListener('change', (e) => {
+          if (currentData) currentData.tampilBerandaAktif = e.target.checked;
+          saveMeta();
+        });
+      } else {
+        wrap.style.display = aktif ? 'flex' : 'none';
+        wrap.innerHTML = aktif
+          ? `<span style="font-size:13px;color:var(--ink);"><i class="fa-solid fa-circle-check" style="color:#66bb6a;"></i> Jadwal ini sedang tampil sbg popup carousel di halaman Beranda</span>`
+          : '';
+      }
+    }
+
+    async function loadData(nextTahunAjaranId) {
+      document.getElementById('content').innerHTML = '<div class="loading"><i class="fa-solid fa-spinner fa-spin fa-2x"></i></div>';
+      try {
+        const data = await api('jadwal.ibadah.get', { tahunAjaranId: nextTahunAjaranId || tahunAjaranId || '' });
+        tahunAjaranId = data.tahunAjaranId || '';
+        tahunAjaranList = data.tahunAjaranList || [];
+        populateTahunAjaranSelect();
+        const banner = document.getElementById('lockedBanner');
+        if (banner) banner.style.display = data.locked ? 'block' : 'none';
+        renderBerandaAktifToggle(data);
+        render(data);
+      } catch (e) {
+        document.getElementById('content').innerHTML = `<div class="loading" style="color:var(--danger);"><i class="fa-solid fa-triangle-exclamation fa-2x"></i><p>${escapeHtml(e.message)}</p></div>`;
+      }
+    }
+
+    // ── PDF Download ─────────────────────────────────────────────────
+    async function loadJsPDF() {
+      if (window.jspdf) return;
+      await new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+        s.onload = resolve;
+        s.onerror = () => reject(new Error('Gagal memuat library PDF.'));
+        document.head.appendChild(s);
+      });
+    }
+
+    async function downloadJadwalPDF() {
+      if (!currentData) { showNotice('Data belum dimuat, coba lagi sebentar.', 'error'); return; }
+      const btn = document.getElementById('jadwalPdfBtn');
+      btn.disabled = true; btn.textContent = 'Memproses...';
+      try {
+        await loadJsPDF();
+
+        // Ambil data khutbah segar (tidak bergantung tab aktif)
+        let kRows = [];
+        try { const d = await api('jadwal.khutbah.list', { tahunAjaranId }); kRows = d.rows || []; } catch(e) {}
+
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+        const PW = 210, PH = 297, ML = 12;
+        const CW = PW - 2*ML; // 186mm
+
+        const ink    = [77,64,52];
+        const muted  = [123,106,88];
+        const acc    = [185,118,80];
+        const jum    = [21,101,192];
+        const headBg = [248,245,241];
+        const lineC  = [210,200,185];
+        const titleBg = [158,47,34];
+        const blueL  = [180,200,230];
+        const badalC = [46,107,46];
+
+        const hariW  = 28;
+        const waktuW = (CW - hariW) / WAKTU.length; // ~31.6mm
+        const headRowH = 8, rowH = 10, badalLineH = 3.6;
+
+        function getBadalNames(hariKey, waktuKey, field) {
+          const slot = currentData.jadwal?.[hariKey]?.[waktuKey] || {};
+          return BADAL_SUBS.filter(b => b.sub).map(b => (slot[field + b.dataSuffix] || '').trim()).filter(Boolean);
+        }
+
+        // ── Tabel imam atau kultum ──
+        function drawSlotTable(startY, title, field) {
+          doc.setFillColor(...acc);
+          doc.roundedRect(ML, startY, CW, 7.5, 1.5, 1.5, 'F');
+          doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor(255,255,255);
+          doc.text(title, ML+4, startY+4.2, { baseline:'middle' });
+          let y = startY + 10;
+
+          // Header kolom
+          doc.setFillColor(...headBg);
+          doc.rect(ML, y, CW, headRowH, 'F');
+          doc.setDrawColor(...lineC); doc.setLineWidth(0.3);
+          doc.rect(ML, y, CW, headRowH, 'S');
+          doc.setFontSize(7.5); doc.setFont('helvetica','bold'); doc.setTextColor(...muted);
+          doc.text('Hari', ML+4, y+headRowH/2, { baseline:'middle' });
+          WAKTU.forEach((w, wi) => {
+            const cx = ML + hariW + wi*waktuW;
+            doc.setDrawColor(...lineC); doc.setLineWidth(0.15);
+            doc.line(cx, y, cx, y+headRowH);
+            doc.text(w.label, cx+waktuW/2, y+headRowH/2, { align:'center', baseline:'middle' });
+          });
+          y += headRowH;
+
+          // Baris data — tinggi baris menyesuaikan kalau ada nama badal (ditumpuk ke bawah nama utama)
+          HARI.forEach((h, hi) => {
+            const maxBadal = Math.max(0, ...WAKTU.map(w => getBadalNames(h.key, w.key, field).length));
+            const thisRowH = rowH + maxBadal * badalLineH;
+
+            const bg = hi%2===0 ? [255,255,255] : [252,250,248];
+            doc.setFillColor(...bg);
+            doc.rect(ML, y, CW, thisRowH, 'F');
+            doc.setDrawColor(...lineC); doc.setLineWidth(0.15);
+            doc.rect(ML, y, CW, thisRowH, 'S');
+
+            doc.setFontSize(8); doc.setFont('helvetica','bold');
+            doc.setTextColor(...(h.isJumat ? jum : ink));
+            doc.text(h.label, ML+4, y+thisRowH/2, { baseline:'middle' });
+
+            WAKTU.forEach((w, wi) => {
+              const cx = ML + hariW + wi*waktuW;
+              doc.setDrawColor(...lineC); doc.setLineWidth(0.15);
+              doc.line(cx, y, cx, y+thisRowH);
+              const val = currentData.jadwal?.[h.key]?.[w.key]?.[field] || '';
+              const badalNames = getBadalNames(h.key, w.key, field);
+              const totalLines = 1 + badalNames.length;
+              let ty = y + thisRowH/2 - ((totalLines-1) * badalLineH) / 2;
+
+              const lbl = doc.splitTextToSize(val||'—', waktuW-4)[0]||'';
+              doc.setFontSize(7.5); doc.setFont('helvetica','normal');
+              doc.setTextColor(...(val ? ink : muted));
+              doc.text(lbl, cx+waktuW/2, ty, { align:'center', baseline:'middle' });
+
+              badalNames.forEach(bName => {
+                ty += badalLineH;
+                const bLbl = doc.splitTextToSize('Badal: ' + bName, waktuW-4)[0]||'';
+                doc.setFontSize(6.2); doc.setFont('helvetica','italic');
+                doc.setTextColor(...badalC);
+                doc.text(bLbl, cx+waktuW/2, ty, { align:'center', baseline:'middle' });
+              });
+            });
+            y += thisRowH;
+          });
+
+          doc.setDrawColor(...lineC); doc.setLineWidth(0.3);
+          doc.line(ML, y, ML+CW, y);
+          return y;
+        }
+
+        // ── Halaman 1: Imam + Kultum ──
+        doc.setFillColor(...titleBg);
+        doc.rect(0, 0, PW, 12, 'F');
+        doc.setFontSize(9); doc.setFont('helvetica','bold'); doc.setTextColor(255,255,255);
+        doc.text('JADWAL IBADAH', PW/2, 7, { align:'center' });
+
+        let y = 17;
+        const catatan = currentData.catatan || '';
+        if (catatan) {
+          doc.setFontSize(8); doc.setFont('helvetica','italic'); doc.setTextColor(...muted);
+          doc.text(catatan, PW/2, y+3, { align:'center' });
+          y += 9;
+        }
+
+        const afterImam = drawSlotTable(y, 'IMAM SHOLAT', 'imam');
+        drawSlotTable(afterImam + 8, 'KULTUM', 'kultum');
+
+        const printDate = new Date().toLocaleDateString('id-ID', { day:'numeric', month:'long', year:'numeric' });
+        doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor(...muted);
+        doc.text('Dicetak: ' + printDate, ML, PH-7);
+        doc.text('1', PW-ML, PH-7, { align:'right' });
+
+        // ── Halaman 2+: Khutbah Jum'at ──
+        if (kRows.length) {
+          doc.addPage();
+          doc.setFillColor(...jum);
+          doc.rect(0, 0, PW, 12, 'F');
+          doc.setFontSize(9); doc.setFont('helvetica','bold'); doc.setTextColor(255,255,255);
+          doc.text("JADWAL KHUTBAH JUM'AT", PW/2, 7, { align:'center' });
+
+          const sorted = [...kRows].sort((a,b) => (a.tanggal||'').localeCompare(b.tanggal||''));
+          const kTgl = 44, kKht = 82, kCat = CW - 44 - 82;
+          const kH = 8, kR = 10;
+          let kPage = 2, ky = 17;
+
+          function drawKhutbahHead(sy) {
+            doc.setFillColor(232,237,247);
+            doc.rect(ML, sy, CW, kH, 'F');
+            doc.setDrawColor(...blueL); doc.setLineWidth(0.3);
+            doc.rect(ML, sy, CW, kH, 'S');
+            doc.setFontSize(7.5); doc.setFont('helvetica','bold'); doc.setTextColor(...jum);
+            doc.text('Tanggal', ML+4, sy+kH/2, { baseline:'middle' });
+            doc.line(ML+kTgl, sy, ML+kTgl, sy+kH);
+            doc.text('Khotib', ML+kTgl+kKht/2, sy+kH/2, { align:'center', baseline:'middle' });
+            doc.line(ML+kTgl+kKht, sy, ML+kTgl+kKht, sy+kH);
+            doc.text('Catatan', ML+kTgl+kKht+kCat/2, sy+kH/2, { align:'center', baseline:'middle' });
+            return sy + kH;
+          }
+
+          ky = drawKhutbahHead(ky);
+
+          sorted.forEach((r, ri) => {
+            const hasBadal = !!(r.khotibBadal||'').trim();
+            const thisKr = kR + (hasBadal ? badalLineH : 0);
+            if (ky + thisKr > PH - 14) {
+              doc.setFontSize(7); doc.setTextColor(...muted);
+              doc.text(String(kPage), PW-ML, PH-7, { align:'right' });
+              doc.addPage(); kPage++;
+              doc.setFillColor(...jum);
+              doc.rect(0, 0, PW, 12, 'F');
+              doc.setFontSize(9); doc.setFont('helvetica','bold'); doc.setTextColor(255,255,255);
+              doc.text("JADWAL KHUTBAH JUM'AT (lanjutan)", PW/2, 7, { align:'center' });
+              ky = 17;
+              ky = drawKhutbahHead(ky);
+            }
+
+            const bg = ri%2===0 ? [255,255,255] : [249,251,255];
+            doc.setFillColor(...bg);
+            doc.rect(ML, ky, CW, thisKr, 'F');
+            doc.setDrawColor(...blueL); doc.setLineWidth(0.15);
+            doc.rect(ML, ky, CW, thisKr, 'S');
+
+            doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor(...jum);
+            doc.text(formatTanggal(r.tanggal), ML+4, ky+thisKr/2, { baseline:'middle' });
+
+            doc.line(ML+kTgl, ky, ML+kTgl, ky+thisKr);
+            let kty = ky + thisKr/2 - (hasBadal ? badalLineH/2 : 0);
+            doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor(...ink);
+            doc.text(doc.splitTextToSize(r.khotib||'—', kKht-8)[0]||'', ML+kTgl+4, kty, { baseline:'middle' });
+            if (hasBadal) {
+              kty += badalLineH;
+              doc.setFontSize(6.2); doc.setFont('helvetica','italic'); doc.setTextColor(...badalC);
+              doc.text('Badal: ' + (doc.splitTextToSize(r.khotibBadal, kKht-8)[0]||''), ML+kTgl+4, kty, { baseline:'middle' });
+            }
+
+            doc.line(ML+kTgl+kKht, ky, ML+kTgl+kKht, ky+thisKr);
+            doc.setFontSize(7.5); doc.setFont('helvetica','normal'); doc.setTextColor(...muted);
+            doc.text(doc.splitTextToSize(r.catatan||'—', kCat-8)[0]||'', ML+kTgl+kKht+4, ky+thisKr/2, { baseline:'middle' });
+
+            ky += thisKr;
+          });
+
+          doc.setDrawColor(...blueL); doc.setLineWidth(0.3);
+          doc.line(ML, ky, ML+CW, ky);
+          doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor(...muted);
+          doc.text('Dicetak: ' + printDate, ML, PH-7);
+          doc.text(String(kPage), PW-ML, PH-7, { align:'right' });
+        }
+
+        doc.save('jadwal-ibadah.pdf');
+        showNotice('PDF berhasil diunduh.', 'info');
+      } catch(err) {
+        showNotice(err.message||'Gagal membuat PDF.', 'error');
+      } finally {
+        btn.disabled = false; btn.textContent = '↓ Download PDF';
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────
+
+    const session = getStoredSession();
+    if (!session) { clearSession(); window.location.replace('/pages/login/'); }
+    else if (window.PSAccess && window.PSAccess.redirectIfForbidden(session, '/pages/jadwalIbadah/')) { /* redirected */ }
+    else {
+      const scoped = window.PSAccess ? window.PSAccess.getScopedSession(session) : session;
+      const p = scoped && scoped.permissions ? scoped.permissions : null;
+      canEdit = !!(p && (p.isSuperAdmin || p.isAdmin || p.canManageJadwalIbadah));
+      mountShell(session);
+      loadData();
+      document.getElementById('jadwalPdfBtn').addEventListener('click', downloadJadwalPDF);
+      document.getElementById('filterTahunAjaran').addEventListener('change', (e) => loadData(e.target.value));
+    }
+    document.getElementById('confirmHapusOk').addEventListener('click', async () => {
+      document.getElementById('confirmHapusDialog').close();
+      const id = _hapusPendingId; _hapusPendingId = null;
+      if (id) await hapusKhutbah(id);
+    });
+    document.getElementById('confirmHapusBatal').addEventListener('click', () => {
+      document.getElementById('confirmHapusDialog').close();
+      _hapusPendingId = null;
+    });
+    document.getElementById('khutbahTempelCloseBtn').addEventListener('click', () => document.getElementById('khutbahTempelDialog').close());
+    document.getElementById('khutbahTempelParseBtn').addEventListener('click', parseKhutbahTempelPreview);
+    document.getElementById('khutbahTempelExampleBtn').addEventListener('click', () => { document.getElementById('khutbahTempelInput').value = KHUTBAH_TEMPEL_EXAMPLE; });
+    document.getElementById('khutbahTempelClearBtn').addEventListener('click', () => {
+      document.getElementById('khutbahTempelInput').value = '';
+      resetKhutbahTempelPreviewUi();
+    });
+    document.getElementById('khutbahTempelSaveBtn').addEventListener('click', saveKhutbahTempel);
+    if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {}); }
+  </script>
+</body>
+</html>

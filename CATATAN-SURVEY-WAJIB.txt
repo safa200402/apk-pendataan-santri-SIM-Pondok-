@@ -1,0 +1,265 @@
+CATATAN - SURVEY WAJIB (klon pengumuman, tapi popup tidak bisa
+ditutup sebelum semua pertanyaan terjawab benar)
+===================================================================
+Ditulis: 2026-07-29
+Terkait: backend/server.js, frontend/shared-shell.js,
+frontend/pages/survey/index.html, frontend/shared-access.js,
+frontend/shared-nav.js
+
+
+RINGKASAN
+---------
+Fitur baru: "survey" -- mirip pengumuman (target jabatan tertentu,
+tanggal mulai/berakhir, popup otomatis muncul di semua halaman lewat
+shared-shell.js), TAPI:
+- Popup-nya TIDAK BISA ditutup (tidak ada tombol x, tidak bisa klik
+  di luar, tidak ada dismiss apa pun) sampai SEMUA pertanyaan
+  terjawab BENAR.
+- 1 survey = BANYAK pertanyaan (bukan 1 pertanyaan per survey),
+  campuran pilihan ganda & isian singkat.
+- Pertanyaan yang dijawab SALAH dipindah ke AKHIR antrean (requeue),
+  dan kalau pilihan ganda, opsi-nya DIACAK ULANG setiap kali muncul
+  lagi.
+- TIDAK ADA BATAS pengulangan -- benar-benar terus sampai semua benar.
+- Begitu SEMUA pertanyaan sudah pernah dijawab benar 1x, survey itu
+  SELESAI PERMANEN untuk akun tsb -- tidak akan ditawarkan lagi,
+  TIDAK ADA konsep "tampil max N kali" seperti pengumuman.
+
+Keputusan-keputusan ini sudah ditanya & dijawab user (2026-07-29,
+opsi Recommended semua dipilih): banyak pertanyaan per survey, isian
+singkat dicek cocok-persis (case-insensitive), tanpa batas
+pengulangan, dan selesai sekali = tidak muncul lagi.
+
+
+KEAMANAN: KENAPA JAWABAN TIDAK PERNAH DIKIRIM KE BROWSER
+------------------------------------------------------------
+Ini poin paling penting kalau mau utak-atik fitur ini nanti. Beda
+dari draft awal yang kepikiran "kirim semua soal+jawaban ke client,
+validasi di JS" -- itu SALAH karena siapa pun bisa buka DevTools ->
+tab Network -> lihat response JSON -> ketemu jawaban benarnya
+langsung. Makanya alurnya di-desain begini:
+
+1. `survey.owed` (dipanggil shared-shell.js tiap load halaman) cuma
+   kirim { id, type, text, options } per pertanyaan -- TIDAK PERNAH
+   include `correctIndex` (utk pilihan ganda) atau `correctAnswer`
+   (utk isian singkat). Lihat handleSurveyOwed_'s .map() yang
+   eksplisit cuma ambil field itu, backend/server.js.
+
+2. Tiap kali user submit 1 jawaban di popup, frontend panggil action
+   BARU `survey.answer.check` ({surveyId, questionId, answer}) --
+   SERVER yang bandingkan ke kunci jawaban asli (baca ulang dari
+   sheet 'survey', bukan dari apa pun yang dikirim client), balikin
+   `{correct: true/false, correctAnswerText}`.
+   [UPDATE 2026-08-07] correctAnswerText SEKARANG ikut dikirim balik,
+   TAPI HANYA kalau correct=false (kalau benar, string kosong) --
+   dipakai popup utk langsung mewarnai opsi yg benar jadi hijau +
+   pilihan yg salah dipilih jadi merah (permintaan user: kasih tau
+   jawaban benarnya begitu salah, bukan cuma "salah" doang). Ini masih
+   aman krn tetap 1 soal per-request, SETELAH dijawab -- bukan bocor
+   semua kunci jawaban di awal (survey.owed) spt draft awal yg ditolak.
+   Lihat handleSurveyAnswerCheck_, backend/server.js.
+
+3. Setelah user (di client) merasa semua pertanyaan sudah beres
+   (queue kosong), baru panggil `survey.complete` dgn payload semua
+   jawaban FINAL yg dikasih per pertanyaan. SERVER RE-VALIDASI ULANG
+   semua jawaban itu dari nol (handleSurveyComplete_, fungsi
+   isSurveyAnswerCorrect_ yg SAMA dgn yg dipakai answer.check) --
+   kalau ada satu saja yang ternyata salah/tidak sinkron, completion
+   DITOLAK (400). Ini mencegah client yang di-modif (skip logic
+   requeue, langsung claim selesai) lolos tanpa beneran jawab benar
+   semua.
+
+Jadi ADA 2 LAPIS validasi server-side (per-soal via answer.check, dan
+sekali lagi total via complete) -- TIDAK ADA logic "benar/salah" yg
+hidup di JS frontend sama sekali, itu semua cuma UI (radio button,
+requeue array, shuffle utk tampilan).
+
+TIDAK ADA "sesi ujian" berstate di server (tidak ada tabel/objek yang
+nyimpen "sedang di soal ke berapa") -- state urutan soal/requeue itu
+cuma hidup di JS memory selama popup terbuka. Konsekuensinya: kalau
+user refresh/navigasi ke halaman lain SEBELUM selesai, progress hilang
+dan mulai dari soal #1 lagi (dgn shuffle baru) di load berikutnya --
+TAPI jawaban yang mereka SUDAH tahu benar (dari percobaan sebelumnya)
+tetap bisa langsung dipakai lagi, cuma perlu diklik/ketik ulang.
+
+
+SKEMA DATA BARU (backend/server.js)
+------------------------------------
+1. Sheet `survey` (SCHEMAS, ~baris 835): title, description,
+   target_jabatan_ids (JSON array, SAMA POLA dgn pengumuman --
+   reuse pengumumanTargetIds_/pengumumanTargetsSession_ APA ADANYA,
+   fungsi2 itu sengaja generik thd nama kolom, bukan spesifik
+   pengumuman meski namanya begitu), questions_json (array
+   pertanyaan, lihat format di bawah), start_date/end_date, status.
+   TIDAK ADA is_unlimited/max_show_count (beda dari pengumuman) --
+   krn survey sifatnya sekali-selesai-permanen, bukan hitungan tampil.
+
+   Format 1 item di questions_json:
+     Pilihan ganda: {id, type:'mc', text, options:[string,...], correctIndex:int}
+     Isian singkat: {id, type:'short', text, correctAnswer:string}
+
+2. Sheet `surveyCompletion`: id, survey_id, pengurus_id, completed_at,
+   created_at. 1 baris = SUDAH SELESAI PERMANEN (binary), beda dari
+   pengumumanSeen yang berupa HITUNGAN (seen_count) -- survey tidak
+   butuh hitungan krn begitu selesai, ya selesai, titik.
+
+Keduanya HARD-DELETE (bukan soft-delete, sama seperti pengumuman --
+SOFT_DELETE_SHEETS_ cuma berisi halaqoh & halaqohTasmi). Cascade
+delete sudah ditambahkan: hapus 1 survey -> ikut hapus semua
+surveyCompletion terkait (cascadeDeleteReferences_ case 'survey');
+hapus 1 pengurus -> ikut hapus semua surveyCompletion miliknya
+(ditambahkan di case 'pengurus' yang sudah ada, di sebelah baris
+pengumumanSeen/pengumumanRespon).
+
+
+ACTION API BARU
+-----------------
+Pengurus (siapa saja, action.pengurus-level di authorizeAction_,
+persis di sebelah pengumuman.owed/markSeen/respond):
+  - survey.owed        -> handleSurveyOwed_ (list survey pending,
+                           pertanyaan sudah disanitasi, lihat di atas)
+  - survey.answer.check-> handleSurveyAnswerCheck_ (cek 1 jawaban)
+  - survey.complete    -> handleSurveyComplete_ (re-validasi total +
+                           catat selesai)
+
+Admin (Admin/Super Admin/Mudir, persis pola pengumuman.list/save/
+toggle/seenList/dst):
+  - survey.list, survey.save, survey.toggle
+  - survey.completionList     (siapa saja yg sudah selesai)
+  - survey.completion.delete  (hapus 1 baris completion -- akun itu
+                                akan ditawarkan survey ini lagi)
+  - survey.completion.deleteAll (hapus semua completion utk 1 survey
+                                  -- SEMUA akun target ditawarkan lagi)
+
+Super Admin only (requireSuperAdmin_, sama pola pengumuman.delete):
+  - survey.delete
+
+survey.toggle & survey.delete REUSE fungsi generik handleEntityToggle_
+/handleEntityDelete_ yang sudah ada (bukan fungsi baru) -- keduanya
+memang generik thd sheetKey apa pun yg punya kolom 'status'.
+
+
+FRONTEND: HALAMAN ADMIN "Kelola Survey"
+------------------------------------------
+frontend/pages/survey/index.html -- struktur dasarnya DIKLON dari
+pages/pengumuman/index.html (CSS variables, font, pola dialog, pola
+checklist jabatan, pola pagination angka+search yg baru dipasang di
+pengumuman) supaya konsisten. Bedanya:
+- Tidak ada upload media (survey tidak butuh lampiran gambar/video).
+- Ada QUESTION BUILDER di dalam dialog Tambah/Edit: tombol "Tambah
+  Pertanyaan" nambah 1 blok pertanyaan (array `questionDrafts` di
+  JS, per-item py draftId lokal utk keperluan render/hapus, TERPISAH
+  dari `id` asli soal yg dikirim ke server -- draftId cuma dipakai
+  di sisi UI, tidak pernah dikirim). Tiap blok: pilih jenis (radio
+  Pilihan Ganda / Isian Singkat), textarea teks soal, lalu:
+    - Pilihan Ganda: daftar opsi (min 2, tombol "+ Tambah Opsi", tiap
+      opsi py radio "ini yg benar" + tombol hapus per opsi).
+    - Isian Singkat: 1 input teks "kunci jawaban".
+- Tombol "Hasil" (bukan "Respon") per kartu survey -> buka dialog
+  #surveyCompletionDialog, isinya SAMA PERSIS pola search+pagination
+  angka (atas&bawah)+hapus satuan+hapus semua yg baru dipasang di
+  dialog Respon&Dilihat pengumuman -- kode fungsi
+  renderMiniPagination/buildPaginationList di-duplikat ke file ini
+  (bukan di-share lewat shared-shell.js) krn masing2 halaman punya
+  scope JS sendiri-sendiri (pattern yg sama dgn semua halaman lain
+  di app ini, tidak ada modul JS bersama antar-halaman selain
+  shared-*.js yg memang didesain utk itu).
+
+
+FRONTEND: POPUP QUIZ WAJIB (frontend/shared-shell.js)
+--------------------------------------------------------
+Fungsi baru, dipanggil dari mount() persis di sebelah
+syncAnnouncementPopup/syncAbsensiHalaqohAudit:
+  syncSurveyQueue(options) -> fetch 'survey.owed' -> kalau ada item,
+  showNextSurvey(token) -> runSurveyFlow(survey, token).
+
+runSurveyFlow membangun overlay FULLSCREEN (id `_surveyOverlay`,
+z-index 10000 -- SENGAJA lebih tinggi dari fullscreen pengumuman yg
+9999, supaya survey selalu di atas kalau kebetulan ada 2-2nya
+pending) yang TIDAK PUNYA:
+  - tombol close/x
+  - click-outside-to-dismiss handler
+  - ESC handling (krn ini bukan elemen <dialog> native, cuma <div>
+    fixed biasa -- ESC memang tidak berlaku ke situ)
+
+Alur per pertanyaan (queue array lokal, isinya hasil shuffle utk
+pilihan ganda):
+  renderCurrentQuestion() -> kalau queue kosong, panggil
+  finishSurvey() (POST survey.complete dgn semua finalAnswers yg
+  udah dikumpulin); kalau masih ada isi, render soal pertama di
+  queue + tombol "Jawab".
+  submitCurrentAnswer() -> POST survey.answer.check -> kalau benar:
+  simpan ke finalAnswers, queue.shift(); kalau salah: queue.shift()
+  lalu queue.push() lagi (pindah ke akhir), KALAU pilihan ganda maka
+  q.options di-shuffle ULANG dulu sebelum di-push balik (jadi urutan
+  opsi beda tiap kali soal itu muncul lagi).
+  [UPDATE 2026-08-07] Popup TIDAK langsung pindah ke soal berikutnya
+  setelah submit -- soal yg baru dijawab tetap ditampilkan dulu dgn
+  feedback visual (opsi yg dipilih diwarnai merah kalau salah, opsi/
+  input yg benar diwarnai hijau + teksnya ditampilkan kalau isian
+  singkat) + suara "Benar"/"Salah" via speakSurveyResult_() (Web
+  Speech API bawaan browser, speechSynthesis, lang id-ID -- BUKAN file
+  audio, jadi tidak ada asset baru). Tombol "Jawab" berubah jadi
+  "Lanjut"/"Lihat Hasil" yg auto-klik sendiri via setTimeout (1.4s
+  kalau benar, 2.6s kalau salah) supaya tidak wajib klik manual, tapi
+  bisa juga diklik lebih cepat. Lihat submitCurrentAnswer() &
+  speakSurveyResult_(), frontend/shared-shell.js.
+
+finishSurvey() kalau GAGAL (harusnya nyaris tidak pernah kejadian di
+alur normal, krn semua sudah tervalidasi benar satu-satu) akan RESET
+queue ke semua pertanyaan awal drpd macet selamanya di popup yg tidak
+bisa ditutup -- fail-safe, bukan behavior yang diharapkan terjadi.
+
+Setelah 1 survey selesai (overlay.remove()), showNextSurvey(token)
+dipanggil lagi utk cek apakah ada survey LAIN yg masih pending di
+_surveyQueue (antrean, sama pola dgn pengumuman) -- jadi kalau
+akun itu kena target lebih dari 1 survey sekaligus, ditampilkan
+satu-satu berurutan, bukan sekaligus/tabrakan.
+
+
+NAV & AKSES
+-------------
+- frontend/shared-nav.js: entry baru "* Kelola Survey" di section
+  Pengaturan, persis di bawah "* Kelola Pengumuman".
+- frontend/shared-access.js: 'survey.html' -> isAdmin||isSuperAdmin||
+  isMudir (SAMA PERSIS dgn 'pengumuman.html' & 'kelolaAudit.html').
+
+
+BELUM DIKERJAKAN / KETERBATASAN YANG PERLU DIINGAT
+------------------------------------------------------
+- TIDAK ADA batas maksimal percobaan -- kalau ada pengurus yg
+  typo terus-menerus di soal isian singkat, popup itu LITERAL tidak
+  bisa ditutup selamanya sampai dia benar. Ini sesuai permintaan
+  eksplisit user, bukan oversight -- tapi kalau nanti ada keluhan
+  "kejebak", opsi tercepat tanpa ubah kode: Admin buka Hasil ->
+  hapus completion record dia (kalau sudah pernah selesai sebelumnya
+  dan mau di-skip) TIDAK relevan di sini krn masalahnya justru BELUM
+  selesai -- solusi sebenarnya kalau perlu "jalan keluar darurat"
+  adalah Admin nonaktifkan survey itu (toggle off) dari Kelola Survey,
+  itu langsung bikin survey.owed tidak lagi mengembalikan survey itu
+  ke SIAPA PUN (bukan cuma orang yg kejebak), atau edit soalnya kalau
+  memang soalnya yg bermasalah (typo di kunci jawaban dsb).
+- Edit survey yang SUDAH PERNAH diselesaikan sebagian orang TIDAK
+  mereset completion mereka -- kalau admin ubah pertanyaan/kunci
+  jawaban stlh beberapa orang sudah selesai, orang yg sudah selesai
+  TETAP dianggap selesai (tidak ditawarkan ulang), walau isi
+  soalnya sudah beda. Kalau mau semua orang ulang dgn soal baru,
+  Admin perlu manual "Hapus Semua" di dialog Hasil setelah edit.
+- Progress quiz (soal ke berapa, requeue mana yg masih tersisa)
+  TIDAK disimpan ke server sama sekali -- cuma hidup di JS memory
+  selama popup terbuka. Refresh/pindah halaman = mulai dari soal
+  #1 lagi (lihat penjelasan keamanan di atas). Kalau ke depan mau
+  progress persisten, perlu tabel/state baru (belum ada) -- jangan
+  kaget kalau ada yg tanya "kok pas refresh soalnya ulang dari awal".
+- Tidak ada percobaan login/klik sungguhan utk verifikasi end-to-end
+  (alasan sama seperti fitur2 sebelumnya: DB lokal berisi data asli,
+  sengaja tidak dicoba tebak kredensial). Yang SUDAH diverifikasi:
+  node --check lolos di server.js, shared-shell.js, shared-access.js,
+  shared-nav.js, dan survey/index.html; server boot bersih (HTTP 200,
+  termasuk /pages/survey/ langsung 200); smoke test action
+  survey.list & survey.owed dgn token invalid mengembalikan 401 rapi
+  (bukan 500/crash).
+- Kalau nanti mau nambah fitur "lihat jawaban detail per pertanyaan"
+  (bukan cuma "sudah selesai jam berapa"), perlu skema baru (mis.
+  surveyAnswer per-pertanyaan) -- SENGAJA tidak dibikin di versi ini
+  supaya scope tetap manageable, sesuai constraint waktu saat itu.

@@ -1,0 +1,936 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#9e2f22">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="../../shared-ui.css">
+  <script src="../../shared-ui.js"></script>
+  <title>Rekap Zoom</title>
+  <link rel="stylesheet" href="../../shared-shell.css">
+  <link rel="stylesheet" href="../../vendor/fontawesome/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700&display=swap');
+    :root {
+      --paper: #f6efe0; --ink: #4d4034; --muted: #7b6a58;
+      --line: rgba(91,73,57,0.15); --accent: #b97650;
+      --success: #74846c; --danger: #a55a52; --warning: #b58439;
+      --shadow: 0 18px 45px rgba(87,67,51,0.18); --radius: 24px;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; }
+    h1, h2, h3 { margin: 0 0 10px; text-transform: uppercase; }
+    p { margin: 0; line-height: 1.65; }
+    .nav a, button { font-weight: 800 !important; text-transform: uppercase; }
+    .panel { padding: 22px; }
+    .card { padding: 16px; }
+    button, input, select, textarea { font: inherit; }
+    button { padding: 12px 18px; font-weight: 700; cursor: pointer; }
+    input, select, textarea { width: 100%; padding: 11px 13px; outline: none; }
+    label { display: grid; gap: 6px; font-size: 13px; font-weight: 600; }
+    .pill { display: inline-flex; padding: 5px 10px; font-size: 12px; font-weight: 700; border-radius: 6px; }
+    .paging-host { margin-top: 16px; }
+    .paging { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; }
+    .page-center { display: grid; gap: 8px; justify-items: center; }
+    .page-numbers { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+    .page-numbers button { padding: 0 14px; }
+    .page-summary { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+
+    /* Filters */
+    .filters { display: grid; gap: 12px; margin-top: 16px; }
+
+    /* Summary chips */
+    .summary-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; align-items: center; }
+    .summary-chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 700; }
+
+    /* Santri cards */
+    .santri-list { display: grid; gap: 10px; margin-top: 14px; }
+    .minimal-list-card { border-radius: 14px; overflow: hidden; }
+    .santri-header { display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; }
+    .santri-header:hover { filter: brightness(0.97); }
+    .santri-num { font-size: 11px; font-weight: 800; min-width: 22px; text-align: right; opacity: 0.5; flex-shrink: 0; }
+    .santri-info { flex: 1; min-width: 0; }
+    .santri-name { font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .santri-sub { font-size: 11px; opacity: 0.6; margin-top: 2px; }
+    .santri-badges { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+    .santri-toggle { font-size: 12px; opacity: 0.4; transition: transform 0.2s; flex-shrink: 0; }
+    .santri-toggle.open { transform: rotate(180deg); }
+
+    /* Status kunjungan badges */
+    .badge-keluar       { background: #7a5a00; color: #fff; }
+    .badge-keluar-tidak { background: #854e00; color: #fff; }
+    .badge-jenguk { background: #3d6b3a; color: #fff; }
+    .badge-tidak  { background: #852e2a; color: #fff; }
+    .badge-gender-l { background: #1e4b7a; color: #fff; }
+    .badge-gender-p { background: #7a2263; color: #fff; }
+    .badge-pel  { background: rgba(165,90,82,0.2); color: #7a2a26; }
+    .badge-cnt  { background: rgba(0,0,0,0.1); }
+
+    /* Expanded body */
+    .santri-body { display: none; padding: 4px 14px 14px; }
+    .santri-body.open { display: block; }
+    .pekan-grid { display: grid; gap: 8px; }
+    .pekan-row { border-radius: 10px; padding: 10px 12px; background: #f3d27a !important;}
+    .pekan-title { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+    .pekan-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    @media (min-width: 560px) { .pekan-fields { grid-template-columns: 1fr 105px 125px 160px 1.6fr 115px; } }
+    .pekan-fields label { font-size: 12px; }
+    .pekan-fields select, .pekan-fields input[type="text"] { font-size: 13px; padding: 8px 10px; border-radius: 8px; border: none; }
+    .kamera-wrap { display: flex; flex-direction: column; gap: 5px; justify-content: center;}
+    .kamera-wrap > span { font-size: 12px; font-weight: 600; }
+    .tampilan-wrap { display: flex; flex-direction: column; gap: 5px; }
+    .tampilan-wrap input[type="text"] { margin-top: 2px; }
+    .pekan-fields select.select-ok { background: #3d6b3a !important; color: #fff !important; }
+    .pekan-fields select.select-bad { background: #a52020 !important; color: #fff !important; }
+    .toggle-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 10px; border-radius: 8px; border: none; cursor: pointer; font-size: 12px; font-weight: 700; text-transform: uppercase; transition: background 0.15s; width: 100%; justify-content: center; 
+      border-width: 0px !important;
+      border-radius: 0px !important;
+      box-shadow: 0px 0px 0 #4b2c20 !important;
+    }
+    .toggle-btn.on { background: #3d6b3a; color: #fff; }
+    .toggle-btn.off { background: #a52020; color: #fff; }
+    .toggle-btn.dash { background: rgba(0,0,0,0.1); }
+    .save-indicator { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0; transition: opacity 0.25s; margin-left: auto; }
+    .save-indicator.saving { opacity: 1; color: #b97650; }
+    .save-indicator.saved { opacity: 1; color: #3d6b3a; }
+    .save-indicator.failed { opacity: 1; color: #a52020; }
+    .empty-state { text-align: center; padding: 40px 20px; color: var(--muted); font-size: 14px; }
+
+    /* Pelanggaran section inside card */
+    .pel-section { margin-top: 10px; border-radius: 10px; overflow: hidden; background: #f3d27a !important; }
+    .pel-section-title { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.07em; padding: 8px 12px 6px; display: flex; align-items: center; gap: 6px; background: rgba(0,0,0,0.06); }
+    .pel-empty { font-size: 12px; padding: 8px 12px; color: var(--success); font-weight: 600; display: flex; align-items: center; gap: 6px; }
+    .pel-item { display: flex; align-items: center; gap: 8px; padding: 7px 12px; font-size: 12px; border-top: 1px solid rgba(0,0,0,0.06); }
+    .pel-badge { font-size: 10px; font-weight: 800; text-transform: uppercase; padding: 2px 7px; border-radius: 5px; flex-shrink: 0; }
+    .pel-badge.berat  { background: #a52020; color: #fff; }
+    .pel-badge.sedang { background: #b58439; color: #fff; }
+    .pel-badge.ringan { background: #5a7a44; color: #fff; }
+    .pel-nama { flex: 1; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .pel-tgl  { font-size: 10px; opacity: 0.55; flex-shrink: 0; }
+    .pel-more { font-size: 11px; padding: 5px 12px; opacity: 0.5; font-style: italic; }
+    .pel-verdict { font-size: 12px; font-weight: 700; padding: 7px 12px; display: flex; align-items: center; gap: 6px; border-top: 1px solid rgba(0,0,0,0.06); }
+    .pel-verdict.bisa   { color: #3d6b3a; }
+    .pel-verdict.tidak  { color: #a52020; }
+
+    .minimal-list-card.row-male            { background: #ddeeff; border-color: rgba(70,130,180,0.25); }
+    .minimal-list-card.row-female          { background: #ffe4f0; border-color: rgba(200,100,140,0.25); }
+    .minimal-list-card.row-male-inactive   { background: linear-gradient(135deg, #888 0%, #cce6ff 100%); border-color: rgba(70,130,180,0.25); }
+    .minimal-list-card.row-female-inactive { background: linear-gradient(135deg, #888 0%, #ffd6e8 100%); border-color: rgba(200,100,140,0.25); }
+    .minimal-list-card.row-male-frozen     { background: linear-gradient(135deg, #d0d0d0 0%, #cce6ff 100%); border-color: rgba(70,130,180,0.25); }
+    .minimal-list-card.row-female-frozen   { background: linear-gradient(135deg, #d0d0d0 0%, #ffd6e8 100%); border-color: rgba(200,100,140,0.25); }
+    .minimal-list-card.row-nogender-inactive { background: linear-gradient(135deg, #888 0%, rgba(255,248,230,0.96) 100%); }
+    .minimal-list-card.row-nogender-frozen   { background: linear-gradient(135deg, #d0d0d0 0%, rgba(255,248,230,0.96) 100%); }
+    .edit-history-subtitle { font-weight: 600; margin: 0; }
+    .edit-history-list { display: grid; gap: 10px; }
+    .edit-history-entry { display: flex; align-items: flex-start; gap: 12px; padding: 10px 12px; background: rgba(91,73,57,0.05); border-radius: 8px; border: 1px solid rgba(91,73,57,0.12); }
+    .edit-history-order { min-width: 26px; height: 26px; border-radius: 50%; background: var(--accent, #c99a28); color: #fff; display: grid; place-items: center; font-size: 11px; font-weight: 700; flex-shrink: 0; }
+    .edit-history-info { display: grid; gap: 2px; }
+    .edit-history-name { font-weight: 700; font-size: 14px; }
+    .edit-history-jabatan { font-size: 12px; color: var(--muted); }
+    .edit-history-meta { font-size: 12px; color: var(--muted); }
+    .edit-history-empty { color: var(--muted); font-size: 13px; margin: 0; text-align: center; padding: 16px 0; }
+  </style>
+</head>
+<body>
+  <script src="../../shared-nav.js"></script>
+  <script src="../../shared-access.js"></script>
+  <script src="../../shared-shell.js"></script>
+  <script src="../../shared-export.js"></script>
+  <script src="../../shared-excel.js"></script>
+  <header class="app-header">
+    <div class="header-left">
+      <button class="drawer-toggle" id="navToggle" type="button" aria-label="Toggle sidebar">Menu</button>
+      <div class="header-brand">Pendataan Santri</div>
+      <div class="header-page">Rekap Zoom</div>
+    </div>
+    <div class="header-right">
+      <span class="header-chip" id="headerRole">Admin</span>
+    </div>
+  </header>
+  <div class="drawer-backdrop" id="navBackdrop"></div>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+  <main>
+    <div class="app-layout">
+      <section class="panel nav" id="nav"></section>
+      <div class="content-stack">
+        <section class="notice info" id="notice"></section>
+
+        <!-- Header panel -->
+        <section class="panel">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+            <div>
+              <h2>Rekap Zoom</h2>
+              <p style="color:var(--muted);font-size:13px;margin-top:4px;">Rekap kehadiran zoom santri per bulan dan status kunjungan penjengukan.</p>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:4px;">
+              <button id="exportPdfBtn" type="button" style="padding:9px 14px;font-size:12px;border-radius:10px;border:none;cursor:pointer;font-weight:700;background:#a55a52;color:#fff;display:flex;align-items:center;gap:6px;"><i class="fas fa-file-pdf"></i> Export PDF</button>
+              <button id="exportLaporanBtn" type="button" style="padding:9px 14px;font-size:12px;border-radius:10px;border:none;cursor:pointer;font-weight:700;background:var(--theme-gold);color:#fff;display:flex;align-items:center;gap:6px;"><i class="fas fa-file-lines"></i> Export Laporan</button>
+            </div>
+          </div>
+          <div class="filters" id="filtersPanel">
+            <label>
+              Cari Nama, Nama Orang Tua, atau Wali
+              <input id="qInput" type="search" placeholder="Ketik nama santri, ayah, ibu, atau wali...">
+            </label>
+            <label>
+              Bulan
+              <select id="bulanSel">
+                <option value="1">Januari</option><option value="2">Februari</option><option value="3">Maret</option>
+                <option value="4">April</option><option value="5">Mei</option><option value="6">Juni</option>
+                <option value="7">Juli</option><option value="8">Agustus</option><option value="9">September</option>
+                <option value="10">Oktober</option><option value="11">November</option><option value="12">Desember</option>
+              </select>
+            </label>
+            <label>
+              Tahun
+              <input id="tahunInput" type="number" min="2020" max="2099">
+            </label>
+            <label>
+              Gender
+              <select id="genderSel">
+                <option value="">Semua</option>
+                <option value="L">Laki-laki</option>
+                <option value="P">Perempuan</option>
+              </select>
+            </label>
+          </div>
+          <div class="summary-row" id="summaryRow"></div>
+        </section>
+
+        <!-- Santri list panel -->
+        <section class="panel">
+          <div id="loadingEl" style="display:none;padding:16px;opacity:0.6;font-size:14px;">Memuat data...</div>
+          <div id="emptyEl" style="display:none;" class="empty-state"><i class="fas fa-video-slash" style="font-size:32px;margin-bottom:10px;display:block;"></i>Tidak ada santri ditemukan.</div>
+          <div class="paging-host" id="pagingHostTop"></div>
+          <div class="santri-list" id="santriList"></div>
+          <div class="paging-host" id="pagingHost"></div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <dialog class="ps-floating-dialog" id="editHistoryDialog">
+    <div class="dialog-body duplicate-dialog-body ps-dialog-shell">
+      <div class="duplicate-dialog-head ps-dialog-header">
+        <div>
+          <h3>Riwayat Edit Zoom</h3>
+          <p id="editHistorySubtitle" class="edit-history-subtitle"></p>
+        </div>
+      </div>
+      <div class="edit-history-list" id="editHistoryList"></div>
+      <div class="toolbar ps-dialog-footer">
+        <button class="secondary" id="closeEditHistoryDialog" type="button">Tutup</button>
+      </div>
+    </div>
+  </dialog>
+
+  <script>
+    const API_BASE = window.location.origin + '/api';
+    const STORAGE = { token: 'ps_token', session: 'ps_session' };
+    function getToken() { return localStorage.getItem(STORAGE.token) || ''; }
+    function getStoredSession() { try { return JSON.parse(localStorage.getItem(STORAGE.session) || 'null'); } catch (_) { return null; } }
+    function toParams(d) { const p = new URLSearchParams(); Object.entries(d).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') p.append(k, String(v)); }); return p; }
+    async function api(d) { const r = await fetch(API_BASE + '?' + toParams({ ...d, token: getToken() })); const j = await r.json(); if (!j.ok) throw new Error(j.error?.message || 'Error'); return j.data; }
+    async function apiPost(d) { const r = await fetch(API_BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...d, token: getToken() }) }); const j = await r.json(); if (!j.ok) throw new Error(j.error?.message || 'Error'); return j.data; }
+
+    function createNoticeEl(text, type) {
+      const el = document.createElement('section');
+      el.className = `notice show ${type || 'info'}`; el.dataset.noticeId = `n-${Date.now()}`; el.textContent = text;
+      function dismiss() { if (!el.parentNode) return; el.classList.add('notice-dismissing'); setTimeout(() => { el.remove(); const s = document.getElementById('noticeStack'); if (s && !s.hasChildNodes() && s.matches(':popover-open')) s.hidePopover(); }, 220); }
+      el.addEventListener('click', dismiss); setTimeout(dismiss, type === 'error' ? 10000 : 5000); return el;
+    }
+    function showNotice(text, type) {
+      const el = createNoticeEl(text, type); const stack = document.getElementById('noticeStack');
+      stack.prepend(el); if (stack.matches(':popover-open')) stack.hidePopover(); stack.showPopover();
+    }
+    function esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+    function debounce(fn, ms) { let t; return function (...a) { clearTimeout(t); t = setTimeout(() => fn.apply(this, a), ms); }; }
+
+    // ── State ─────────────────────────────────────────────────────
+    const now = new Date();
+    const state = {
+      q: '', bulan: String(now.getMonth() + 1), tahun: String(now.getFullYear()),
+      gender: '', page: 1, pageSize: 20, total: 0, items: [], loading: false
+    };
+    const saveTimers = {};
+    const kameraState = {};
+
+    // Kamera: tri-state '1' (on/hijau), '0' (off/merah), '' (belum diisi/abu-abu, klik siklus antar 3 state)
+    function nextKameraValue(v) { return v === '' ? '1' : v === '1' ? '0' : ''; }
+    function kameraClass(v) { return v === '1' ? 'on' : v === '0' ? 'off' : 'dash'; }
+    function kameraLabel(v) { return v === '1' ? '<i class="fas fa-video"></i> Kamera On' : v === '0' ? '<i class="fas fa-video-slash"></i> Kamera Off' : '<i class="fas fa-video-slash"></i> Kamera -'; }
+
+    // Tampilan kamera: apa yang tertampilkan saat kamera menyala
+    const TAMPILAN_KAMERA_OPTS = [
+      ['', '— Belum Diisi —'], ['sesuai', 'Sesuai'], ['lainnya', 'Lainnya'], ['gambar', 'Gambar'],
+      ['gelap', 'Gelap'], ['dinding', 'Dinding'], ['blur', 'Blur'], ['eternit', 'Eternit'], ['pintu', 'Pintu'],
+      ['ruangan', 'Ruangan'], ['jendela', 'Jendela'], ['foto', 'Foto'], ['lantai', 'Lantai'], ['nama', 'Nama'],
+      ['kipas_angin', 'Kipas Angin'], ['gorden', 'Gorden'], ['meja', 'Meja'], ['kursi', 'Kursi'], ['lemari', 'Lemari']
+    ];
+    const KEABSAHAN_OPTS = [['', '-'], ['sah', 'Sah'], ['tidak_sah', 'Tidak Sah']];
+
+    // Pewarnaan select: hijau untuk nilai "positif" (sesuai/sah/boleh), merah untuk kebalikannya
+    function selStatusClass(v, okList, badList) {
+      if (okList.indexOf(v) !== -1) return ' select-ok';
+      if (badList && badList.indexOf(v) !== -1) return ' select-bad';
+      return '';
+    }
+    function applySelStatusClass(sel, okList, badList) {
+      sel.classList.remove('select-ok', 'select-bad');
+      const cls = selStatusClass(sel.value, okList, badList).trim();
+      if (cls) sel.classList.add(cls);
+    }
+
+    // ── Status kunjungan (manual) ─────────────────────────────────
+    function dijengukBadge(statusDijenguk) {
+      if (statusDijenguk === 'boleh') return `<span class="pill badge-jenguk" title="Boleh Dijenguk">Boleh Dijenguk</span>`;
+      if (statusDijenguk === 'tidak_boleh') return `<span class="pill badge-tidak" title="Tidak Boleh Dijenguk">Tidak Boleh Dijenguk</span>`;
+      return `<span class="pill badge-cnt" title="Status kunjungan belum ditentukan" style="opacity:0.6;">Belum Ditentukan</span>`;
+    }
+    function keluarBadge(statusDijenguk, statusKeluar) {
+      if (statusDijenguk !== 'boleh') return '';
+      if (statusKeluar === 'tidak_boleh') return `<span class="pill badge-keluar-tidak" title="Tidak boleh diajak keluar"><i class="fas fa-door-closed" style="font-size:10px;margin-right:3px;"></i>Tdk Boleh Keluar</span>`;
+      if (statusKeluar === 'boleh') return `<span class="pill badge-keluar" title="Boleh diajak keluar"><i class="fas fa-door-open" style="font-size:10px;margin-right:3px;"></i>Boleh Keluar</span>`;
+      return '';
+    }
+
+    // ── Load ──────────────────────────────────────────────────────
+    async function load() {
+      if (state.loading) return;
+      state.loading = true;
+      document.getElementById('loadingEl').style.display = 'block';
+      document.getElementById('emptyEl').style.display = 'none';
+      document.getElementById('santriList').innerHTML = '';
+      try {
+        const d = await api({ action: 'zoom.santriList', q: state.q, gender: state.gender, bulan: state.bulan, tahun: state.tahun, page: state.page, pageSize: state.pageSize });
+        state.total = d.total || 0; state.items = d.items || [];
+        renderList(); renderSummary(); renderPaging();
+      } catch (e) { showNotice(e.message, 'error'); }
+      state.loading = false;
+      document.getElementById('loadingEl').style.display = 'none';
+    }
+
+    // ── Row color helper ──────────────────────────────────────────
+    function getCardRowClass(gender, statusKey) {
+      if (statusKey === 'inactive') {
+        if (gender === 'male') return 'row-male-inactive';
+        if (gender === 'female') return 'row-female-inactive';
+        return 'row-nogender-inactive';
+      }
+      if (statusKey === 'dibekukan') {
+        if (gender === 'male') return 'row-male-frozen';
+        if (gender === 'female') return 'row-female-frozen';
+        return 'row-nogender-frozen';
+      }
+      if (gender === 'male') return 'row-male';
+      if (gender === 'female') return 'row-female';
+      return '';
+    }
+
+    // ── Render list ───────────────────────────────────────────────
+    function renderList() {
+      const el = document.getElementById('santriList');
+      el.innerHTML = '';
+      document.getElementById('emptyEl').style.display = state.items.length ? 'none' : 'block';
+      if (!state.items.length) return;
+      const offset = (state.page - 1) * state.pageSize;
+      el.innerHTML = state.items.map((s, i) => renderCard(s, offset + i + 1)).join('');
+
+      el.querySelectorAll('.santri-header').forEach(hdr => {
+        hdr.addEventListener('click', () => {
+          const body = hdr.nextElementSibling;
+          const tog = hdr.querySelector('.santri-toggle');
+          const open = body.classList.toggle('open');
+          tog.classList.toggle('open', open);
+        });
+      });
+      el.querySelectorAll('.toggle-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const { santriId, pekan } = btn.dataset;
+          const key = `${santriId}_${pekan}`;
+          kameraState[key] = nextKameraValue(kameraState[key] || '');
+          btn.className = 'toggle-btn ' + kameraClass(kameraState[key]);
+          btn.innerHTML = kameraLabel(kameraState[key]);
+          scheduleSave(santriId, pekan);
+        });
+      });
+      el.querySelectorAll('[data-auto-save]').forEach(inp => {
+        inp.addEventListener('change', () => scheduleSave(inp.dataset.santriId, inp.dataset.pekan));
+        if (inp.tagName === 'INPUT') inp.addEventListener('input', debounce(() => scheduleSave(inp.dataset.santriId, inp.dataset.pekan), 700));
+      });
+      el.querySelectorAll('[id^="sel_"]').forEach(sel => {
+        sel.addEventListener('change', () => applySelStatusClass(sel, ['hadir'], []));
+      });
+      el.querySelectorAll('[id^="tampil_"]').forEach(sel => {
+        sel.addEventListener('change', () => {
+          const lainEl = document.getElementById(`tampilLain_${sel.dataset.santriId}_${sel.dataset.pekan}`);
+          if (lainEl) lainEl.style.display = sel.value === 'lainnya' ? '' : 'none';
+          applySelStatusClass(sel, ['sesuai'], []);
+        });
+      });
+      el.querySelectorAll('[id^="sah_"]').forEach(sel => {
+        sel.addEventListener('change', () => applySelStatusClass(sel, ['sah'], ['tidak_sah']));
+      });
+      el.querySelectorAll('[data-kj]').forEach(inp => {
+        const id = inp.dataset.kj;
+        if (inp.tagName === 'SELECT') inp.addEventListener('change', () => {
+          scheduleKunjunganSave(id);
+          applySelStatusClass(inp, ['boleh'], ['tidak_boleh']);
+        });
+        if (inp.tagName === 'INPUT') inp.addEventListener('input', debounce(() => scheduleKunjunganSave(id), 700));
+      });
+      el.querySelectorAll('.btn-zoom-history').forEach(btn => {
+        btn.addEventListener('click', e => { e.stopPropagation(); showZoomHistory(btn.dataset.santriId, btn.dataset.pekan); });
+      });
+      el.querySelectorAll('.btn-kunjungan-history').forEach(btn => {
+        btn.addEventListener('click', e => { e.stopPropagation(); showKunjunganHistory(btn.dataset.santriId); });
+      });
+    }
+
+    function showKunjunganHistory(santriId) {
+      const item = state.items.find(s => s.id === santriId); if (!item) return;
+      document.getElementById('editHistorySubtitle').textContent = `${item.name || '—'} — Status Kunjungan`;
+      const history = (() => { try { return JSON.parse(item.kunjunganEditHistory || '[]'); } catch (_) { return []; } })();
+      const formatDate = iso => { if (!iso) return '-'; const d = new Date(iso); return isNaN(d) ? iso : d.toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }); };
+      const actionLabel = a => a === 'create' ? 'Dibuat' : 'Diedit';
+      const rows = history.map((entry, i) => `
+        <div class="edit-history-entry">
+          <div class="edit-history-order">#${i + 1}</div>
+          <div class="edit-history-info">
+            <div class="edit-history-name">${esc(entry.name || '-')}</div>
+            ${entry.jabatan ? `<div class="edit-history-jabatan">${esc(entry.jabatan)}</div>` : ''}
+            <div class="edit-history-meta">${actionLabel(entry.action)} &bull; ${esc(formatDate(entry.at))}</div>
+          </div>
+        </div>
+      `).join('');
+      document.getElementById('editHistoryList').innerHTML = rows || '<p class="edit-history-empty">Belum ada riwayat pengedit tersimpan.</p>';
+      document.getElementById('editHistoryDialog').showModal();
+    }
+
+    function showZoomHistory(santriId, pekan) {
+      const item = state.items.find(s => s.id === santriId); if (!item) return;
+      const pk = (item.zoom || {})[String(pekan)] || {};
+      document.getElementById('editHistorySubtitle').textContent = `${item.name || '—'} — Pekan ${pekan}`;
+      const history = (() => { try { return JSON.parse(pk.editHistory || '[]'); } catch (_) { return []; } })();
+      const formatDate = iso => { if (!iso) return '-'; const d = new Date(iso); return isNaN(d) ? iso : d.toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }); };
+      const actionLabel = a => a === 'create' ? 'Dibuat' : 'Diedit';
+      const rows = history.map((entry, i) => `
+        <div class="edit-history-entry">
+          <div class="edit-history-order">#${i + 1}</div>
+          <div class="edit-history-info">
+            <div class="edit-history-name">${esc(entry.name || '-')}</div>
+            ${entry.jabatan ? `<div class="edit-history-jabatan">${esc(entry.jabatan)}</div>` : ''}
+            <div class="edit-history-meta">${actionLabel(entry.action)} &bull; ${esc(formatDate(entry.at))}</div>
+          </div>
+        </div>
+      `).join('');
+      document.getElementById('editHistoryList').innerHTML = rows || '<p class="edit-history-empty">Belum ada riwayat pengedit tersimpan.</p>';
+      document.getElementById('editHistoryDialog').showModal();
+    }
+
+    function renderCard(s, num) {
+      const gc = s.gender === 'male' ? 'badge-gender-l' : s.gender === 'female' ? 'badge-gender-p' : '';
+      const gl = s.gender === 'male' ? 'L' : s.gender === 'female' ? 'P' : '-';
+      const rowClass = getCardRowClass(s.gender, s.statusKey);
+      return `<article class="card minimal-list-card ${rowClass}">
+        <div class="santri-header" data-santri-id="${s.id}">
+          <span class="santri-num">${num}</span>
+          <div class="santri-info">
+            <div class="santri-name">${esc(s.name)}</div>
+            <div class="santri-sub">${esc([
+              s.noInduk || '—',
+              s.ayahNama ? `Ayah: ${s.ayahNama}` : null,
+              s.ibuNama ? `Ibu: ${s.ibuNama}` : null,
+              s.waliNama ? `Wali: ${s.waliNama}` : null
+            ].filter(Boolean).join(' · '))}</div>
+          </div>
+          <div class="santri-badges" id="badges_${s.id}">
+            ${gc ? `<span class="pill ${gc}">${gl}</span>` : ''}
+            ${dijengukBadge(s.statusDijenguk)}
+            ${keluarBadge(s.statusDijenguk, s.statusKeluar)}
+            ${s.pelanggaranCount > 0 ? `<span class="pill badge-pel" title="Pelanggaran bulan ini"><i class="fas fa-exclamation-triangle" style="font-size:10px;margin-right:3px;"></i>${s.pelanggaranCount}</span>` : ''}
+            <span class="pill badge-cnt" title="Hadir zoom"><i class="fas fa-check" style="font-size:10px;margin-right:3px;"></i>${s.hadirCount}/4</span>
+          </div>
+          <i class="fas fa-chevron-down santri-toggle"></i>
+        </div>
+        <div class="santri-body">
+          <div class="pekan-grid">${[1,2,3,4,5].map(p => renderPekanRow(s, p)).join('')}</div>
+          ${renderPelanggaranSection(s)}
+          ${renderKunjunganSection(s)}
+        </div>
+      </article>`;
+    }
+
+    function renderKunjunganSection(s) {
+      const dij = s.statusDijenguk || '';
+      const kel = s.statusKeluar || '';
+      const cat = esc(s.kunjunganCatatan || '');
+      const opts = (cur) => [
+        ['', '— Belum Ditentukan —'],
+        ['boleh', 'Boleh'],
+        ['tidak_boleh', 'Tidak Boleh']
+      ].map(([v, l]) => `<option value="${v}"${cur === v ? ' selected' : ''}>${l}</option>`).join('');
+      return `<div class="pekan-row card" style="margin-top:8px;">
+        <div class="pekan-title"><i class="fas fa-users"></i> Status Kunjungan Bulan Ini
+          <span class="save-indicator" id="kjind_${s.id}"></span>
+          ${s.kunjunganHasRecord ? `<button type="button" class="secondary btn-kunjungan-history" data-santri-id="${s.id}" style="font-size:10px;padding:4px 9px;margin-left:auto;" title="Riwayat pengedit"><i class="fas fa-clock-rotate-left"></i> Riwayat</button>` : ''}
+        </div>
+        <div class="pekan-fields">
+          <label><span>Boleh Dijenguk?</span>
+            <select id="kjdij_${s.id}" data-kj="${s.id}" class="${selStatusClass(dij, ['boleh'], ['tidak_boleh']).trim()}">${opts(dij)}</select>
+          </label>
+          <label><span>Boleh Diajak Keluar?</span>
+            <select id="kjkel_${s.id}" data-kj="${s.id}" class="${selStatusClass(kel, ['boleh'], ['tidak_boleh']).trim()}">${opts(kel)}</select>
+          </label>
+          <label><span>Catatan</span>
+            <input type="text" id="kjcat_${s.id}" data-kj="${s.id}" placeholder="Opsional..." value="${cat}">
+          </label>
+        </div>
+      </div>`;
+    }
+
+    function renderPekanRow(s, pekan) {
+      const pk = (s.zoom || {})[String(pekan)] || {};
+      const statusVal = pk.status || 'tidak_ada_keterangan';
+      const jamVal = pk.jam_masuk || '';
+      const kamera = pk.kamera_on || '';
+      const key = `${s.id}_${pekan}`;
+      kameraState[key] = kamera;
+      const ketVal = pk.keterangan || '';
+      const tampilanVal = pk.tampilan_kamera || '';
+      const tampilanLainVal = pk.tampilan_kamera_lainnya || '';
+      const keabsahanVal = pk.keabsahan || '';
+      const opts = [
+        { v: 'tidak_ada_keterangan', l: 'Tidak Ada Keterangan' },
+        { v: 'hadir', l: 'Hadir' },
+        { v: 'terlambat', l: 'Terlambat' }
+      ];
+      return `<div class="pekan-row card">
+        <div class="pekan-title">
+          <i class="fas fa-calendar-week"></i> Pekan ${pekan}
+          <span class="save-indicator" id="ind_${s.id}_${pekan}"></span>
+          ${pk.id ? `<button type="button" class="secondary btn-zoom-history" data-santri-id="${s.id}" data-pekan="${pekan}" style="font-size:10px;padding:4px 9px;margin-left:auto;" title="Riwayat pengedit"><i class="fas fa-clock-rotate-left"></i> Riwayat</button>` : ''}
+        </div>
+        <div class="pekan-fields">
+          <label><span>Status</span>
+            <select data-auto-save="1" data-santri-id="${s.id}" data-pekan="${pekan}" id="sel_${s.id}_${pekan}" class="${selStatusClass(statusVal, ['hadir'], []).trim()}">
+              ${opts.map(o => `<option value="${o.v}"${statusVal === o.v ? ' selected' : ''}>${o.l}</option>`).join('')}
+            </select>
+          </label>
+          <label><span>Jam Masuk</span>
+            <input type="text" data-auto-save="1" data-santri-id="${s.id}" data-pekan="${pekan}" id="jam_${s.id}_${pekan}" placeholder="07:30" value="${esc(jamVal)}">
+          </label>
+          <div class="kamera-wrap">
+            <span>Kamera</span>
+            <button type="button" class="toggle-btn ${kameraClass(kamera)}" data-santri-id="${s.id}" data-pekan="${pekan}" id="cam_${s.id}_${pekan}">
+              ${kameraLabel(kamera)}
+            </button>
+          </div>
+          <div class="tampilan-wrap">
+            <label><span>Tampilan Kamera</span>
+              <select data-auto-save="1" data-santri-id="${s.id}" data-pekan="${pekan}" id="tampil_${s.id}_${pekan}" class="${selStatusClass(tampilanVal, ['sesuai'], []).trim()}">
+                ${TAMPILAN_KAMERA_OPTS.map(([v, l]) => `<option value="${v}"${tampilanVal === v ? ' selected' : ''}>${l}</option>`).join('')}
+              </select>
+            </label>
+            <input type="text" data-auto-save="1" data-santri-id="${s.id}" data-pekan="${pekan}" id="tampilLain_${s.id}_${pekan}" placeholder="Sebutkan tampilan lainnya..." value="${esc(tampilanLainVal)}" style="${tampilanVal === 'lainnya' ? '' : 'display:none;'}">
+          </div>
+          <label><span>Keterangan</span>
+            <input type="text" data-auto-save="1" data-santri-id="${s.id}" data-pekan="${pekan}" id="ket_${s.id}_${pekan}" placeholder="Opsional..." value="${esc(ketVal)}">
+          </label>
+          <label><span>Keabsahan</span>
+            <select data-auto-save="1" data-santri-id="${s.id}" data-pekan="${pekan}" id="sah_${s.id}_${pekan}" class="${selStatusClass(keabsahanVal, ['sah'], ['tidak_sah']).trim()}">
+              ${KEABSAHAN_OPTS.map(([v, l]) => `<option value="${v}"${keabsahanVal === v ? ' selected' : ''}>${l}</option>`).join('')}
+            </select>
+          </label>
+        </div>
+      </div>`;
+    }
+
+    function renderPelanggaranSection(s) {
+      const list = s.pelanggaranList || [];
+      const total = s.pelanggaranCount || 0;
+      const hasBerat = s.hasBerat || false;
+      let inner = '';
+      if (total === 0) {
+        inner = `<div class="pel-empty"><i class="fas fa-check-circle"></i> Tidak ada pelanggaran bulan ini</div>`;
+      } else {
+        inner = list.map(p => {
+          const kat = (p.kategori || '').toLowerCase();
+          const label = kat === 'berat' ? 'Berat' : kat === 'sedang' ? 'Sedang' : 'Ringan';
+          const nama = esc(p.jenisNama || p.deskripsi || '—');
+          const tgl = esc(p.tanggal || '');
+          return `<div class="pel-item">
+            <span class="pel-badge ${kat}">${label}</span>
+            <span class="pel-nama" title="${nama}">${nama}</span>
+            ${tgl ? `<span class="pel-tgl">${tgl}</span>` : ''}
+          </div>`;
+        }).join('');
+        if (total > 3) {
+          inner += `<div class="pel-more">...dan ${total - 3} pelanggaran lainnya</div>`;
+        }
+        const verdict = hasBerat
+          ? `<div class="pel-verdict tidak"><i class="fas fa-ban"></i> Tidak boleh dijenguk — ada pelanggaran berat</div>`
+          : `<div class="pel-verdict bisa"><i class="fas fa-check-circle"></i> Boleh dijenguk — tapi tidak boleh diajak keluar</div>`;
+        inner += verdict;
+      }
+      return `<div class="pel-section card" style="margin-top:10px;">
+        <div class="pel-section-title"><i class="fas fa-exclamation-triangle"></i> Pelanggaran Bulan Ini</div>
+        ${inner}
+      </div>`;
+    }
+
+    // ── Save ──────────────────────────────────────────────────────
+    function scheduleSave(santriId, pekan) {
+      const key = `${santriId}_${pekan}`;
+      clearTimeout(saveTimers[key]);
+      setIndicator(santriId, pekan, 'saving');
+      saveTimers[key] = setTimeout(() => doSave(santriId, pekan), 700);
+    }
+
+    async function doSave(santriId, pekan) {
+      const key = `${santriId}_${pekan}`;
+      const selEl = document.getElementById(`sel_${key}`);
+      const jamEl = document.getElementById(`jam_${key}`);
+      const ketEl = document.getElementById(`ket_${key}`);
+      const tampilEl = document.getElementById(`tampil_${key}`);
+      const tampilLainEl = document.getElementById(`tampilLain_${key}`);
+      const sahEl = document.getElementById(`sah_${key}`);
+      if (!selEl) return;
+      try {
+        await apiPost({
+          action: 'zoom.kehadiran.save',
+          santri_id: santriId, bulan: state.bulan, tahun: state.tahun, pekan: String(pekan),
+          status: selEl.value,
+          jam_masuk: jamEl ? jamEl.value.trim() : '',
+          kamera_on: kameraState[key] || '',
+          tampilan_kamera: tampilEl ? tampilEl.value : '',
+          tampilan_kamera_lainnya: tampilLainEl ? tampilLainEl.value.trim() : '',
+          keabsahan: sahEl ? sahEl.value : '',
+          keterangan: ketEl ? ketEl.value.trim() : ''
+        });
+        setIndicator(santriId, pekan, 'saved');
+        updateCardStatus(santriId);
+      } catch (e) {
+        setIndicator(santriId, pekan, 'failed');
+        showNotice('Gagal menyimpan: ' + e.message, 'error');
+        setTimeout(() => setIndicator(santriId, pekan, ''), 3000);
+        return;
+      }
+      setTimeout(() => setIndicator(santriId, pekan, ''), 1800);
+    }
+
+    function setIndicator(santriId, pekan, mode) {
+      const el = document.getElementById(`ind_${santriId}_${pekan}`);
+      if (!el) return;
+      el.className = 'save-indicator' + (mode ? ' ' + mode : '');
+      el.textContent = mode === 'saving' ? 'Menyimpan...' : mode === 'saved' ? 'Tersimpan' : mode === 'failed' ? 'Gagal' : '';
+    }
+    function setKjIndicator(santriId, mode) {
+      const el = document.getElementById(`kjind_${santriId}`);
+      if (!el) return;
+      el.className = 'save-indicator' + (mode ? ' ' + mode : '');
+      el.textContent = mode === 'saving' ? 'Menyimpan...' : mode === 'saved' ? 'Tersimpan' : mode === 'failed' ? 'Gagal' : '';
+    }
+
+    const kjTimers = {};
+    function scheduleKunjunganSave(santriId) {
+      clearTimeout(kjTimers[santriId]);
+      setKjIndicator(santriId, 'saving');
+      kjTimers[santriId] = setTimeout(() => doKunjunganSave(santriId), 700);
+    }
+    async function doKunjunganSave(santriId) {
+      const dijEl = document.getElementById(`kjdij_${santriId}`);
+      const kelEl = document.getElementById(`kjkel_${santriId}`);
+      const catEl = document.getElementById(`kjcat_${santriId}`);
+      if (!dijEl) return;
+      try {
+        await apiPost({
+          action: 'zoom.kunjungan.save',
+          santri_id: santriId,
+          bulan: state.bulan, tahun: state.tahun,
+          status_dijenguk: dijEl.value,
+          status_keluar: kelEl ? kelEl.value : '',
+          catatan: catEl ? catEl.value.trim() : ''
+        });
+        setKjIndicator(santriId, 'saved');
+        const item = state.items.find(s => s.id === santriId);
+        if (item) {
+          item.statusDijenguk = dijEl.value;
+          item.statusKeluar = kelEl ? kelEl.value : '';
+          item.kunjunganCatatan = catEl ? catEl.value.trim() : '';
+          updateCardBadges(santriId);
+        }
+      } catch (e) {
+        setKjIndicator(santriId, 'failed');
+        showNotice('Gagal menyimpan: ' + e.message, 'error');
+        setTimeout(() => setKjIndicator(santriId, ''), 3000);
+        return;
+      }
+      setTimeout(() => setKjIndicator(santriId, ''), 1800);
+    }
+
+    function updateCardStatus(santriId) {
+      const item = state.items.find(s => s.id === santriId);
+      if (!item) return;
+      if (!item.zoom) item.zoom = {};
+      let hadir = 0;
+      for (let p = 1; p <= 4; p++) {
+        const key = `${santriId}_${p}`;
+        const selEl = document.getElementById(`sel_${key}`);
+        const v = selEl ? selEl.value : ((item.zoom[String(p)] || {}).status || 'tidak_ada_keterangan');
+        if (!item.zoom[String(p)]) item.zoom[String(p)] = {};
+        item.zoom[String(p)].status = v;
+        item.zoom[String(p)].kamera_on = kameraState[key] || '';
+        if (v === 'hadir' || v === 'terlambat') hadir++;
+      }
+      item.hadirCount = hadir;
+      updateCardBadges(santriId);
+      renderSummary();
+    }
+
+    function updateCardBadges(santriId) {
+      const item = state.items.find(s => s.id === santriId);
+      if (!item) return;
+      const badgesEl = document.getElementById(`badges_${santriId}`);
+      if (!badgesEl) return;
+      const gc = item.gender === 'male' ? 'badge-gender-l' : item.gender === 'female' ? 'badge-gender-p' : '';
+      const gl = item.gender === 'male' ? 'L' : item.gender === 'female' ? 'P' : '-';
+      badgesEl.innerHTML = [
+        gc ? `<span class="pill ${gc}">${gl}</span>` : '',
+        dijengukBadge(item.statusDijenguk || ''),
+        keluarBadge(item.statusDijenguk || '', item.statusKeluar || ''),
+        item.pelanggaranCount > 0 ? `<span class="pill badge-pel" title="Pelanggaran bulan ini"><i class="fas fa-exclamation-triangle" style="font-size:10px;margin-right:3px;"></i>${item.pelanggaranCount}</span>` : '',
+        `<span class="pill badge-cnt" title="Hadir zoom"><i class="fas fa-check" style="font-size:10px;margin-right:3px;"></i>${item.hadirCount}/4</span>`
+      ].join('');
+      renderSummary();
+    }
+
+    // ── Summary ───────────────────────────────────────────────────
+    function renderSummary() {
+      const el = document.getElementById('summaryRow');
+      if (!el) return;
+      let boleh = 0, tidakBoleh = 0, tidakKeluar = 0, belum = 0;
+      state.items.forEach(s => {
+        if (s.statusDijenguk === 'boleh') {
+          boleh++;
+          if (s.statusKeluar === 'tidak_boleh') tidakKeluar++;
+        } else if (s.statusDijenguk === 'tidak_boleh') {
+          tidakBoleh++;
+        } else {
+          belum++;
+        }
+      });
+      el.innerHTML = [
+        `<span style="font-size:13px;font-weight:700;opacity:0.75;">Total: ${state.total} santri (hal. ini: ${state.items.length})</span>`,
+        `<span class="summary-chip" style="background:#3d6b3a;color:#fff;"><i class="fas fa-check-circle"></i>&ensp;${boleh} Boleh Dijenguk</span>`,
+        tidakKeluar > 0 ? `<span class="summary-chip" style="background:#854e00;color:#fff;"><i class="fas fa-door-closed"></i>&ensp;${tidakKeluar} Tdk Boleh Keluar</span>` : '',
+        `<span class="summary-chip" style="background:#852e2a;color:#fff;"><i class="fas fa-ban"></i>&ensp;${tidakBoleh} Tidak Boleh Dijenguk</span>`
+      ].join('');
+    }
+
+    // ── Paging ────────────────────────────────────────────────────
+    function renderPaging() {
+      const hosts = [document.getElementById('pagingHostTop'), document.getElementById('pagingHost')];
+      const totalPages = Math.ceil(state.total / state.pageSize) || 1;
+      if (totalPages <= 1 && state.total <= state.pageSize) {
+        hosts.forEach(h => { if (h) h.innerHTML = ''; });
+        return;
+      }
+      // Jendela maks 10 halaman di sekitar halaman aktif
+      const MAX = 10;
+      let start = Math.max(1, state.page - Math.floor(MAX / 2));
+      let end = Math.min(totalPages, start + MAX - 1);
+      if (end - start + 1 < MAX) start = Math.max(1, end - MAX + 1);
+      const pages = Array.from({ length: end - start + 1 }, (_, i) => start + i);
+      const html = `<div class="page-center" style="margin:8px 0;">
+        <div class="page-numbers">${pages.map(p => `<button class="${p === state.page ? 'primary' : ''}" data-pg="${p}">${p}</button>`).join('')}</div>
+        <div class="page-summary">Hal. ${state.page} / ${totalPages} &bull; ${state.total} santri</div>
+      </div>`;
+      hosts.forEach(h => {
+        if (!h) return;
+        h.innerHTML = html;
+        h.querySelectorAll('[data-pg]').forEach(btn => btn.addEventListener('click', () => { state.page = +btn.dataset.pg; load(); }));
+      });
+    }
+
+    // ── Export ────────────────────────────────────────────────────
+    const BULAN_LABELS = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+
+    function getFilterLabel() {
+      const parts = [];
+      if (state.gender === 'L') parts.push('Gender: Laki-laki');
+      else if (state.gender === 'P') parts.push('Gender: Perempuan');
+      if (state.q) parts.push('Cari: "' + state.q + '"');
+      return parts.length ? parts.join(', ') : 'Semua santri';
+    }
+
+    async function loadAllItems() {
+      const d = await api({ action: 'zoom.santriList', q: state.q, gender: state.gender, bulan: state.bulan, tahun: state.tahun, page: 1, pageSize: 9999 });
+      return d.items || [];
+    }
+
+    function tampilanKameraLabel(z) {
+      const v = z.tampilan_kamera || '';
+      if (!v) return '';
+      if (v === 'lainnya') return `Lainnya: ${z.tampilan_kamera_lainnya || '-'}`;
+      const found = TAMPILAN_KAMERA_OPTS.find(([ov]) => ov === v);
+      return found ? found[1] : v;
+    }
+    function keabsahanLabel(v) { return v === 'sah' ? 'Sah' : v === 'tidak_sah' ? 'Tidak Sah' : '-'; }
+
+    async function exportPDF() {
+      if (!window.PSExport) { showNotice('Library PDF belum dimuat.', 'error'); return; }
+      const btn = document.getElementById('exportPdfBtn');
+      btn.disabled = true; btn.textContent = 'Menyiapkan PDF...';
+      try {
+        const items = await loadAllItems();
+        const bulanLabel = BULAN_LABELS[parseInt(state.bulan) - 1] || state.bulan;
+        const zoomStatusLabel = st => st === 'hadir' ? 'Hadir' : st === 'terlambat' ? 'Terlambat' : st === 'tidak_ada_keterangan' ? 'Tidak Ada Keterangan' : '-';
+        const dijengukLabel = v => v === 'boleh' ? 'Boleh Dijenguk' : v === 'tidak_boleh' ? 'Tidak Boleh Dijenguk' : 'Belum Ditentukan';
+        const keluarLabel = v => v === 'boleh' ? 'Boleh' : v === 'tidak_boleh' ? 'Tidak Boleh' : 'Belum Ditentukan';
+
+        const pdfItems = items.map(s => {
+          const zoom = s.zoom || {};
+        const zoomLines = [1,2,3,4,5].map(p => {
+            const z = zoom[String(p)] || {};
+            const jam = z.jam_masuk ? ` (${z.jam_masuk})` : '';
+            const kamera = z.kamera_on === '1' ? ' [kamera on]' : z.kamera_on === '0' ? ' [kamera off]' : '';
+            const tampil = tampilanKameraLabel(z);
+            const keab = keabsahanLabel(z.keabsahan);
+            const extra = [tampil ? `Tampilan: ${tampil}` : null, keab !== '-' ? `Keabsahan: ${keab}` : null].filter(Boolean).join(', ');
+            return `Pekan ${p}: ${zoomStatusLabel(z.status)}${jam}${kamera}${extra ? ' - ' + extra : ''}`;
+          });
+          const pelKategoriLabel = k => { const kk = (k || '').toLowerCase(); return kk === 'berat' ? 'Berat' : kk === 'sedang' ? 'Sedang' : 'Ringan'; };
+          const pelLines = (s.pelanggaranList || []).slice(0,3).map(p => `- ${p.jenisNama || p.deskripsi || '—'} (${pelKategoriLabel(p.kategori)})`);
+          const accentColor = s.gender === 'male' ? [60,120,200] : s.gender === 'female' ? [180,60,110] : [110,95,80];
+          return {
+            title: s.name || '-',
+            accentColor,
+            badges: [
+              s.gender === 'male' ? 'Laki-laki' : s.gender === 'female' ? 'Perempuan' : null,
+              `Hadir ${s.hadirCount || 0}/4`,
+              dijengukLabel(s.statusDijenguk || ''),
+              s.statusDijenguk === 'boleh' && s.statusKeluar === 'tidak_boleh' ? 'Tdk Boleh Keluar' : null,
+              s.pelanggaranCount > 0 ? `${s.pelanggaranCount} Pelanggaran` : null
+            ].filter(Boolean),
+            lines: [
+              s.noInduk ? `NIS: ${s.noInduk}` : null,
+              ...zoomLines,
+              s.statusDijenguk === 'boleh' ? `Boleh Keluar: ${keluarLabel(s.statusKeluar || '')}` : null,
+              s.kunjunganCatatan ? `Catatan: ${s.kunjunganCatatan}` : null,
+              ...pelLines
+            ].filter(Boolean)
+          };
+        });
+
+        const blob = window.PSExport.buildCardSummaryPdfBlob({
+          title: `Rekap Zoom - ${bulanLabel} ${state.tahun}`,
+          subtitle: state.gender === 'L' ? 'Filter: Laki-laki' : state.gender === 'P' ? 'Filter: Perempuan' : 'Semua santri',
+          summaryText: `Total: ${items.length} santri`,
+          exportedAt: new Date().toISOString(),
+          columns: 2,
+          items: pdfItems
+        });
+        window.PSExport.downloadBlobFile(blob, `rekap-zoom-${bulanLabel}-${state.tahun}.pdf`);
+        showNotice(`PDF berhasil diekspor. ${items.length} santri.`, 'success');
+      } catch (e) { showNotice('Gagal export PDF: ' + e.message, 'error'); }
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-file-pdf"></i> Export PDF';
+    }
+
+    async function exportLaporan() {
+      if (!window.PSExcel) { showNotice('Library export belum siap.', 'error'); return; }
+      const btn = document.getElementById('exportLaporanBtn');
+      btn.disabled = true; btn.textContent = 'Menyiapkan Laporan...';
+      try {
+        const items = await loadAllItems();
+        const bulanLabel = BULAN_LABELS[parseInt(state.bulan) - 1] || state.bulan;
+        const statusLabel = v => v === 'boleh' ? 'Boleh' : v === 'tidak_boleh' ? 'Tidak Boleh' : 'Belum Ditentukan';
+        const zoomSt = (s, p) => { const z = (s.zoom || {})[String(p)] || {}; const st = z.status || ''; return st === 'hadir' ? 'Hadir' : st === 'terlambat' ? 'Terlambat' : st === 'tidak_ada_keterangan' ? 'Tidak Ada Keterangan' : ''; };
+        const tampilanCol = s => [1,2,3,4,5].map(p => {
+          const z = (s.zoom || {})[String(p)] || {};
+          const t = tampilanKameraLabel(z);
+          return t ? `P${p}: ${t}` : null;
+        }).filter(Boolean).join('; ') || '—';
+        const keabsahanCol = s => [1,2,3,4,5].map(p => {
+          const z = (s.zoom || {})[String(p)] || {};
+          return z.keabsahan ? `P${p}: ${keabsahanLabel(z.keabsahan)}` : null;
+        }).filter(Boolean).join('; ') || '—';
+
+        const columns = [
+          { key: 'no',        header: 'No',              width: 24  },
+          { key: 'nama',      header: 'Nama',            width: 120 },
+          { key: 'nis',       header: 'NIS',             width: 60  },
+          { key: 'gender',    header: 'Gender',          width: 50  },
+          { key: 'hadir',     header: 'Hadir (total)',   width: 50  },
+          { key: 'p1',        header: 'Pekan 1',         width: 55  },
+          { key: 'p2',        header: 'Pekan 2',         width: 55  },
+          { key: 'p3',        header: 'Pekan 3',         width: 55  },
+          { key: 'p4',        header: 'Pekan 4',         width: 55  },
+          { key: 'p5',        header: 'Pekan 5',         width: 55  },
+          { key: 'tampilan',  header: 'Tampilan Kamera', width: 160 },
+          { key: 'keabsahan', header: 'Keabsahan',       width: 120 },
+          { key: 'dijenguk',  header: 'Status Dijenguk', width: 90  },
+          { key: 'keluar',    header: 'Status Keluar',   width: 80  },
+          { key: 'catatan',   header: 'Catatan',         width: 100 },
+          { key: 'jmlpel',    header: 'Jml Pelanggaran', width: 60  },
+          { key: 'pel',       header: 'Pelanggaran',     width: 160 },
+        ];
+        const rows = items.map((s, i) => [
+          i + 1,
+          s.name || '—',
+          s.noInduk || '—',
+          s.gender === 'male' ? 'Laki-laki' : s.gender === 'female' ? 'Perempuan' : '—',
+          s.hadirCount || 0,
+          zoomSt(s, 1),
+          zoomSt(s, 2),
+          zoomSt(s, 3),
+          zoomSt(s, 4),
+          zoomSt(s, 5),
+          tampilanCol(s),
+          keabsahanCol(s),
+          statusLabel(s.statusDijenguk || ''),
+          s.statusDijenguk === 'boleh' ? statusLabel(s.statusKeluar || '') : '—',
+          s.kunjunganCatatan || '—',
+          s.pelanggaranCount || 0,
+          (s.pelanggaranList || []).map(p => `${p.jenisNama || p.deskripsi}(${p.kategori})`).join('; ') || '—',
+        ]);
+
+        await window.PSExcel.buildColoredTablesWorkbookAndDownload({
+          fileName: `laporan-zoom-${bulanLabel}-${state.tahun}.xlsx`,
+          tables: [{
+            title: `Zoom ${bulanLabel} ${state.tahun}`.slice(0, 31),
+            subtitle: `Periode: ${bulanLabel} ${state.tahun}  |  Filter: ${getFilterLabel()}  |  Total: ${items.length} santri`,
+            columns, rows
+          }]
+        });
+        showNotice(`Laporan Excel berhasil diunduh. ${items.length} santri.`, 'success');
+      } catch (e) { showNotice('Gagal membuat laporan: ' + e.message, 'error'); }
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-file-lines"></i> Export Laporan';
+    }
+
+    // ── Init ──────────────────────────────────────────────────────
+    window.addEventListener('DOMContentLoaded', async () => {
+      if (window.PSAccess && window.PSAccess.redirectIfForbidden(getStoredSession(), 'rekapZoom.html')) return;
+      if (window.PSShell) window.PSShell.mount({ currentPage: window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : '/pages/rekapZoom/', session: getStoredSession(), getStoredSession, storageKey: STORAGE.session });
+      // Set default bulan & tahun in UI
+      const bulanSel = document.getElementById('bulanSel');
+      bulanSel.value = state.bulan;
+      document.getElementById('tahunInput').value = state.tahun;
+      // Bind filters
+      document.getElementById('qInput').addEventListener('input', debounce(e => { state.q = e.target.value; state.page = 1; load(); }, 400));
+      bulanSel.addEventListener('change', e => { state.bulan = e.target.value; state.page = 1; load(); });
+      document.getElementById('tahunInput').addEventListener('change', e => { state.tahun = e.target.value; state.page = 1; load(); });
+      document.getElementById('genderSel').addEventListener('change', e => { state.gender = e.target.value; state.page = 1; load(); });
+      document.getElementById('exportPdfBtn').addEventListener('click', exportPDF);
+      document.getElementById('exportLaporanBtn').addEventListener('click', exportLaporan);
+      document.getElementById('closeEditHistoryDialog').addEventListener('click', () => document.getElementById('editHistoryDialog').close());
+      await load();
+    });
+  </script>
+</body>
+</html>

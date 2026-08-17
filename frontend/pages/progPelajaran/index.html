@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#9e2f22">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="../../shared-ui.css">
+  <script src="../../shared-ui.js"></script>
+  <title>Progress Pelajaran Santri</title>
+  <link rel="stylesheet" href="../../shared-shell.css">
+  <link rel="stylesheet" href="../../vendor/fontawesome/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700&display=swap');
+    :root {
+      --paper: #f6efe0; --ink: #4d4034; --muted: #7b6a58;
+      --line: rgba(91,73,57,0.15); --accent: #b97650;
+      --success: #74846c; --danger: #a55a52; --warning: #b58439;
+      --shadow: 0 18px 45px rgba(87,67,51,0.18); --radius: 24px;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; }
+    body::before { content:''; position:fixed; inset:0; pointer-events:none; opacity:0.15; mix-blend-mode:multiply; }
+    body::after  { content:''; position:fixed; inset:0; pointer-events:none; opacity:0.23; }
+    h1,h2,h3 { margin:0 0 10px; text-transform:uppercase; }
+    p { margin:0; line-height:1.65; }
+    .nav a, button { font-weight:800 !important; text-transform:uppercase; }
+    .panel { padding:22px; }
+    .toolbar { display:flex; flex-wrap:wrap; gap:10px; margin-top:16px; }
+    .filters { display:grid; gap:12px; margin-top:16px; }
+    button, input, select, textarea { font:inherit; }
+    button { padding:12px 18px; font-weight:700; cursor:pointer; }
+    .primary { box-shadow:0 14px 28px rgba(185,118,80,0.22); }
+    input, select, textarea { width:100%; padding:13px 14px; outline:none; }
+    label { display:grid; gap:7px; font-size:14px; font-weight:600; }
+    .list { display:grid; gap:12px; margin-top:16px; }
+    .pill { display:inline-flex; padding:5px 10px; font-size:12px; font-weight:700; border-radius:21px; }
+    .notice { display:none; padding:14px 16px; line-height:1.55; }
+    .notice.show { display:block; }
+    dialog { padding:0; }
+    .dialog-body { padding:22px; display:flex; flex-direction:column; gap:14px; max-height:90vh; overflow:auto; }
+    .section-head { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+    .field-grid { display:grid; gap:12px; margin-top:12px; }
+    .form-row-2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    @media(max-width:600px) { .form-row-2 { grid-template-columns:1fr; } }
+
+    /* ── Santri card (list) ── */
+    .santri-row {
+      display:flex; align-items:center; gap:14px; padding:14px 16px;
+      border-radius:16px; cursor:pointer;
+      transition:box-shadow .15s;
+    }
+    .santri-row:hover { box-shadow:var(--shadow); }
+    .santri-avatar {
+      width:42px; height:42px; border-radius:50%;
+      background:linear-gradient(135deg,#f4d978,#c99a28); color:#4a2f22;
+      display:grid; place-items:center; font-size:18px; font-weight:900; flex-shrink:0;
+    }
+    .santri-info { flex:1; min-width:0; }
+    .santri-nama { font-size:14px; font-weight:800; text-transform:uppercase; }
+    .santri-meta { font-size:12px; color:var(--muted); margin-top:3px; }
+    .santri-counts { display:flex; gap:6px; flex-shrink:0; flex-wrap:wrap; }
+
+    .pill-sedang      { background:rgba(185,118,80,0.15); color:#7a4a10; }
+    .pill-lulus       { background:rgba(116,132,108,0.15); color:#3a6040; }
+    .pill-tidak-lulus { background:rgba(165,90,82,0.12); color:#a55a52; }
+    .pill-belum   { background:rgba(91,73,57,0.08); color:var(--muted); }
+    .pill-ok      { background:rgba(116,132,108,0.15); color:#3a6040; }
+    .pill-no      { background:rgba(165,90,82,0.12); color:#a55a52; }
+
+    /* ── Dialogs ── */
+    .duplicate-dialog-head { position:sticky; top:0; z-index:2; margin:0 -22px; padding:18px 22px 14px; display:grid; gap:10px; }
+    .duplicate-dialog-title { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; width: 100%; }
+    .duplicate-close { width:46px; min-width:46px; min-height:46px; padding:0; border-radius:999px !important; font-size:24px; line-height:1; }
+    .ps-dialog-footer { position:sticky; bottom:0; margin:0 -22px -22px; padding:14px 22px; }
+    .duplicate-dialog-body { gap:16px; padding-top:0; }
+
+    .danger-dialog { width:min(480px,calc(100vw - 20px)); }
+
+    /* ── Progress detail dialog ── */
+    .det-section { display:grid; gap:10px; }
+    .det-section-title { font-size:13px; font-weight:800; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); border-bottom:1px solid var(--line); padding-bottom:6px; margin-bottom:4px; }
+
+    .entry-card { padding:12px 14px; border-radius:14px; background: rgba(242, 222, 154, 0.96) !important; }
+    .entry-header { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+    .entry-left { flex:1; min-width:0; }
+    .entry-pel { font-size:14px; font-weight:800; text-transform:uppercase; }
+    .entry-level { font-size:12px; color:var(--muted); margin-top:2px; }
+    .entry-right { display:flex; gap:8px; align-items:center; flex-shrink:0; flex-wrap:wrap; }
+    .entry-detail { font-size:12px; color:var(--muted); margin-top:8px; line-height:1.6; }
+
+    .rek-card { padding:12px 14px; border-radius:14px; background: rgba(242, 222, 154, 0.96) !important;}
+    .rek-header { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+    .rek-left { flex:1; min-width:0; }
+    .rek-pel { font-size:14px; font-weight:800; text-transform:uppercase; }
+    .rek-level { font-size:12px; color:var(--muted); margin-top:2px; }
+    .rek-right { display:flex; gap:6px; align-items:center; flex-shrink:0; flex-wrap:wrap; }
+    .rek-prasyarat { font-size:12px; color:var(--muted); margin-top:8px; }
+    .rek-pr-item { display:inline-flex; align-items:center; gap:4px; margin-right:8px; margin-top:4px; }
+    .btn-sm { padding:7px 12px !important; font-size:12px !important; }
+
+    .paging-host { display:grid; gap:8px; margin:3px 0; }
+    .paging { display:grid; grid-template-columns:auto 1fr auto; gap:12px; align-items:center; }
+    .page-center { display:grid; gap:8px; justify-items:center; margin-top: 15px;}
+    .page-numbers { display:flex; flex-wrap:wrap; justify-content:center; gap:8px; }
+    .page-summary { font-size:12px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; }
+    @media(max-width:600px) { .paging { grid-template-columns:1fr; } }
+
+    /* ── Gender coloring ── */
+    .santri-row.row-male            { background: #ddeeff; border-color: rgba(70,130,180,0.25); }
+    .santri-row.row-female          { background: #ffe4f0; border-color: rgba(200,100,140,0.25); }
+    .santri-row.row-male-inactive   { background: linear-gradient(135deg, #888 0%, #cce6ff 100%); border-color: rgba(70,130,180,0.25); }
+    .santri-row.row-female-inactive { background: linear-gradient(135deg, #888 0%, #ffd6e8 100%); border-color: rgba(200,100,140,0.25); }
+    .santri-row.row-male-frozen     { background: linear-gradient(135deg, #d0d0d0 0%, #cce6ff 100%); border-color: rgba(70,130,180,0.25); }
+    .santri-row.row-female-frozen   { background: linear-gradient(135deg, #d0d0d0 0%, #ffd6e8 100%); border-color: rgba(200,100,140,0.25); }
+    .santri-row.row-nogender-inactive { background: linear-gradient(135deg, #888 0%, rgba(255,248,230,0.96) 100%); }
+    .santri-row.row-nogender-frozen   { background: linear-gradient(135deg, #d0d0d0 0%, rgba(255,248,230,0.96) 100%); }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-left">
+      <button class="drawer-toggle" id="navToggle" type="button" aria-label="Toggle sidebar">Menu</button>
+      <div class="header-brand">Pendataan Santri</div>
+      <div class="header-page">Progress Pelajaran Santri</div>
+    </div>
+    <div class="header-right">
+      <span class="header-chip" id="headerRole"></span>
+    </div>
+  </header>
+  <div class="drawer-backdrop" id="navBackdrop"></div>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+  <main>
+    <div class="app-layout">
+      <section class="panel nav" id="nav"></section>
+      <div class="content-stack">
+        <section class="notice info" id="notice"></section>
+        <section class="panel">
+          <div class="section-head">
+            <h2>Daftar Santri</h2>
+          </div>
+          <div class="filters" id="filtersPanel">
+            <label>
+              Cari nama / no induk
+              <input type="search" id="searchInput" placeholder="Mis. Ahmad, 231...">
+            </label>
+            <label>
+              Status Santri
+              <select id="statusFilter">
+                <option value="active">Aktif</option>
+                <option value="">Semua</option>
+                <option value="dibekukan">Dibekukan</option>
+                <option value="inactive">Nonaktif</option>
+              </select>
+            </label>
+            <label>
+              Jenis Kelamin
+              <select id="genderFilter">
+                <option value="">Semua</option>
+                <option value="male">🧊 Laki-laki</option>
+                <option value="female">🌸 Perempuan</option>
+              </select>
+            </label>
+            <label>
+              Status Akad
+              <select id="statusAkadFilter">
+                <option value="">Semua</option>
+                <option value="santri_biasa">Santri Biasa</option>
+                <option value="calon_pengabdian">Calon Pengabdian</option>
+                <option value="pengabdian">Pengabdian</option>
+                <option value="selesai">Selesai</option>
+              </select>
+            </label>
+            <label>
+              Urutkan
+              <select id="sortSelect">
+                <option value="nama_asc" selected>Nama A-Z</option>
+                <option value="nama_desc">Nama Z-A</option>
+                <option value="gender_asc">Gender L-P</option>
+                <option value="gender_desc">Gender P-L</option>
+                <option value="sedang_desc">Sedang terbanyak</option>
+                <option value="lulus_desc">Lulus terbanyak</option>
+              </select>
+            </label>
+            <label>
+              Jumlah per halaman
+              <select id="pageSizeSelect">
+                <option value="10">10</option>
+                <option value="25" selected>25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </label>
+          </div>
+          <div class="toolbar">
+            <button class="secondary" id="refreshBtn" type="button">Muat Ulang</button>
+          </div>
+          <div class="paging-host" id="paginationTop"></div>
+          <div class="list" id="santriList">
+            <p style="color:var(--muted);text-align:center;padding:20px 0">Memuat data...</p>
+          </div>
+          <div class="paging-host" id="paginationBottom"></div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <!-- Dialog: Progress Detail -->
+  <dialog class="ps-floating-dialog" id="detailDialog">
+    <div class="dialog-body duplicate-dialog-body ps-dialog-shell" id="detailDialogBody" style="position:relative">
+      <div class="duplicate-dialog-head ps-dialog-header" style="
+          padding: 21px;
+      ">
+        <div class="duplicate-dialog-title">
+          <div>
+            <h3 id="detailNama">-</h3>
+            <div id="detailMeta" style="font-size:12px;color:var(--muted)"></div>
+          </div>
+          <button class="secondary duplicate-close" type="button" id="closeDetailDialog">&times;</button>
+        </div>
+      </div>
+      <div class="toolbar" style="margin-top:0">
+        <button class="primary btn-sm" type="button" id="addEntryBtn">+ Tambah Pelajaran</button>
+        <button class="secondary btn-sm" type="button" id="refreshDetailBtn">Muat Ulang</button>
+      </div>
+
+      <!-- Sedang Dipelajari -->
+      <div class="det-section" id="sedangSection" style="display:none">
+        <div class="det-section-title">Sedang Dipelajari</div>
+        <div id="sedangList" class="list" style="margin-top:0;gap:8px"></div>
+      </div>
+
+      <!-- Rekomendasi -->
+      <div class="det-section" id="rekomendasiSection" style="display:none">
+        <div class="det-section-title">Rekomendasi Selanjutnya</div>
+        <div id="rekomendasiList" class="list" style="margin-top:0;gap:8px"></div>
+      </div>
+
+      <!-- Semua Progress -->
+      <div class="det-section">
+        <div class="det-section-title">Semua Progress</div>
+        <div id="allEntriesList" class="list" style="margin-top:0;gap:8px">
+          <p style="color:var(--muted);text-align:center;padding:14px 0">Memuat...</p>
+        </div>
+      </div>
+
+      <div class="toolbar ps-dialog-footer">
+        <button class="secondary" type="button" id="closeDetailDialog2">Tutup</button>
+      </div>
+
+      <!-- Confirm Hapus Entry (overlay di dalam dialog) -->
+      <div id="confirmHapusEntryDialog" style="display:none;position:fixed;inset:0;z-index:30;background:rgba(0,0,0,0.45);align-items:center;justify-content:center;padding:24px;">
+        <div style="background:var(--paper);border-radius:16px;padding:24px;display:grid;gap:16px;width:100%;max-width:400px;">
+          <h3 style="margin:0">Hapus Data Progress</h3>
+          <p id="confirmHapusEntryMsg" style="font-size:14px;line-height:1.6;margin:0"></p>
+          <div class="toolbar" style="margin-top:0">
+            <button class="danger" type="button" id="confirmHapusEntryOk">Hapus</button>
+            <button class="secondary" type="button" id="confirmHapusEntryBatal">Batal</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit Entry (overlay di dalam detailDialog, position fixed) -->
+    <div id="entryDialog" style="display:none;position:fixed;inset:0;z-index:20;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;padding:16px;">
+      <form class="dialog-body duplicate-dialog-body ps-dialog-shell" id="entryForm" style="max-width: 520px;--ps-dialog-shell-padding-top: 0px;--ps-dialog-shell-padding-right: 22px;--ps-dialog-shell-padding-bottom: 22px;--ps-dialog-shell-padding-left: 22px;background: beige;min-height: 79%;border-radius: 21px;">
+        <div class="duplicate-dialog-head ps-dialog-header" style="
+          padding: 21px;
+      ">
+          <div class="duplicate-dialog-title">
+            <h3 id="entryDialogTitle">Tambah Pelajaran</h3>
+            <button class="secondary duplicate-close" type="button" id="closeEntryDialog">&times;</button>
+          </div>
+        </div>
+        <input type="hidden" id="entryId">
+        <input type="hidden" id="entrySantriId">
+        <div class="field-grid">
+          <label>
+            Pelajaran
+            <select id="entryPelajaran" required>
+              <option value="">-- pilih pelajaran --</option>
+            </select>
+          </label>
+          <label>
+            Level (jika ada)
+            <select id="entryLevel">
+              <option value="">-- tidak ada level / pilih pelajaran dulu --</option>
+            </select>
+          </label>
+          <label>
+            Status
+            <select id="entryStatus">
+              <option value="sedang">Sedang Dipelajari</option>
+              <option value="lulus">Lulus</option>
+              <option value="tidak_lulus">Tidak Lulus</option>
+              <option value="belum">Belum Dimulai</option>
+            </select>
+          </label>
+          <label>Nilai (0–100) <input type="number" id="entryNilai" min="0" max="100" value="0" placeholder="0"></label>
+          <div class="form-row-2">
+            <label>Tahun Ajaran <input type="text" id="entryTahun" placeholder="Mis. 2024/2025"></label>
+            <label>Semester
+              <select id="entrySemester">
+                <option value="">-</option>
+                <option value="1">Semester 1</option>
+                <option value="2">Semester 2</option>
+              </select>
+            </label>
+          </div>
+          <label>Catatan <textarea id="entryCatatan" rows="2" placeholder="Catatan tambahan..."></textarea></label>
+        </div>
+        <div class="toolbar ps-dialog-footer">
+          <button class="primary" type="submit" id="entrySaveBtn">Simpan</button>
+          <button class="secondary" type="button" id="closeEntryDialog2">Batal</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <script src="../../shared-access.js"></script>
+  <script src="../../shared-nav.js"></script>
+  <script src="../../shared-shell.js"></script>
+  <script>
+    'use strict';
+    var STORAGE = { token: 'ps_token', session: 'ps_session' };
+    function getStoredSession() { try { return JSON.parse(localStorage.getItem(STORAGE.session) || 'null'); } catch (_) { return null; } }
+    function clearSession() { localStorage.removeItem(STORAGE.session); localStorage.removeItem(STORAGE.token); }
+    function mountShell(session) { return window.PSShell.mount({ currentPage: window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : 'progPelajaran.html', session: session, getStoredSession: getStoredSession, storageKey: STORAGE.session }); }
+
+    var _session = null;
+    var _santriRows = [];       // semua hasil filter dari API
+    var _currentSantriId = null;
+    var _currentDetail = null;
+    var _allPelajaran = [];
+    var _hapusEntryId = null;
+    var _page = 1;
+    var _pageSize = 25;
+    var _total = 0;
+    var _totalPages = 1;
+
+    function api(action, payload, cb) {
+      var s = getStoredSession();
+      var method = (action.endsWith('.list') || action.endsWith('.detail')) ? 'GET' : 'POST';
+      var url = '/api?action=' + encodeURIComponent(action) + '&token=' + encodeURIComponent((s && s.token) || '');
+      if (method === 'GET' && payload) {
+        Object.keys(payload).forEach(function(k) { url += '&' + encodeURIComponent(k) + '=' + encodeURIComponent(payload[k] || ''); });
+      }
+      var opts = { method: method, credentials: 'include' };
+      if (method === 'POST') {
+        opts.headers = { 'Content-Type': 'application/json' };
+        opts.body = JSON.stringify(Object.assign({ token: (s && s.token) || '' }, payload));
+      }
+      fetch(url, opts).then(function(r) { return r.json(); }).then(cb).catch(function(e) { cb({ ok: false, error: e.message }); });
+    }
+
+    function showToast(msg, type) { if (window.showNotice) showNotice(msg, type || 'info'); }
+
+    function canManagePelajaranScoped() {
+      return !!(_session && _session.permissions && _session.permissions.canManagePelajaran);
+    }
+
+    function escHtml(s) {
+      return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function normalizeSantriGender(value) {
+      var v = String(value || '').trim().toLowerCase();
+      if (v === 'male' || v === 'l' || v === 'lk' || v === 'laki-laki' || v === 'laki' || v === 'pria') return 'male';
+      if (v === 'female' || v === 'p' || v === 'pr' || v === 'perempuan' || v === 'wanita') return 'female';
+      return '';
+    }
+
+    function getSantriStatusKey(value) {
+      var v = String(value || '').trim().toLowerCase();
+      if (v === 'dibekukan' || v === 'beku' || v === 'frozen') return 'dibekukan';
+      if (v === 'nonaktif' || v === 'inactive' || v === 'inavtive') return 'inactive';
+      return 'active';
+    }
+
+    function getCardRowClass(gender, statusKey) {
+      if (statusKey === 'inactive') {
+        if (gender === 'male') return 'row-male-inactive';
+        if (gender === 'female') return 'row-female-inactive';
+        return 'row-nogender-inactive';
+      }
+      if (statusKey === 'dibekukan') {
+        if (gender === 'male') return 'row-male-frozen';
+        if (gender === 'female') return 'row-female-frozen';
+        return 'row-nogender-frozen';
+      }
+      if (gender === 'male') return 'row-male';
+      if (gender === 'female') return 'row-female';
+      return '';
+    }
+
+    // ── Pagination helpers ──────────────────────────────────────────────────────
+    function buildPaginationList(page, totalPages) {
+      var maxNumbers = 10;
+      if (totalPages <= maxNumbers) {
+        var pages = []; for (var i = 1; i <= totalPages; i++) pages.push(i); return pages;
+      }
+      var middleSlots = maxNumbers - 2;
+      var pages = [1];
+      var start = Math.max(2, page - Math.floor(middleSlots / 2));
+      var end = start + middleSlots - 1;
+      if (end > totalPages - 1) { end = totalPages - 1; start = end - middleSlots + 1; }
+      if (start > 2) pages.push('...');
+      for (var v = start; v <= end; v++) pages.push(v);
+      if (end < totalPages - 1) pages.push('...');
+      pages.push(totalPages);
+      return pages;
+    }
+
+    function renderPagination() {
+      var markup = _total ? (
+        '<div class="paging">' +
+          '<button class="secondary" type="button" data-page="' + (_page - 1) + '"' + (_page <= 1 ? ' disabled' : '') + '>Sebelumnya</button>' +
+          '<div class="page-center">' +
+            '<div class="page-numbers">' +
+              buildPaginationList(_page, _totalPages).map(function(item) {
+                return item === '...'
+                  ? '<span class="page-summary">...</span>'
+                  : '<button class="secondary page-btn' + (item === _page ? ' active' : '') + '" type="button" data-page="' + item + '">' + item + '</button>';
+              }).join('') +
+            '</div>' +
+            '<div class="page-summary">Halaman ' + _page + ' dari ' + _totalPages + ' | total ' + _total + ' santri</div>' +
+          '</div>' +
+          '<button class="secondary" type="button" data-page="' + (_page + 1) + '"' + (_page >= _totalPages ? ' disabled' : '') + '>Berikutnya</button>' +
+        '</div>'
+      ) : '';
+      window.PSUI.syncPaginationHosts({ markup: markup, visibleCount: _santriRows.length, totalCount: _total, topId: 'paginationTop', bottomId: 'paginationBottom' });
+    }
+
+    // ── Santri list ─────────────────────────────────────────────────────────────
+    function loadSantriList() {
+      var search = document.getElementById('searchInput').value.trim();
+      var status = document.getElementById('statusFilter').value;
+      var gender = document.getElementById('genderFilter').value;
+      var statusAkad = document.getElementById('statusAkadFilter').value;
+      var sort = document.getElementById('sortSelect').value;
+      api('santriPelajaran.list', { search: search, status_santri: status, gender: gender, statusAkad: statusAkad, sort: sort }, function(res) {
+        if (!res.ok) { showToast(res.error || 'Gagal memuat data', 'error'); return; }
+        var all = res.data.items;
+        _total = all.length;
+        _totalPages = Math.max(1, Math.ceil(_total / _pageSize));
+        if (_page > _totalPages) _page = _totalPages;
+        var start = (_page - 1) * _pageSize;
+        _santriRows = all.slice(start, start + _pageSize);
+        renderSantriList();
+        renderPagination();
+      });
+    }
+
+    function renderSantriList() {
+      var el = document.getElementById('santriList');
+      if (!_santriRows.length) {
+        el.innerHTML = '<p style="color:var(--muted);text-align:center;padding:20px 0">Tidak ada santri.</p>';
+        renderPagination();
+        return;
+      }
+      el.innerHTML = _santriRows.map(function(r) {
+        var initial = (r.nama || '?').charAt(0).toUpperCase();
+        var countPills = '';
+        if (r.countSedang) countPills += '<span class="pill pill-sedang">' + r.countSedang + ' sedang</span>';
+        if (r.countLulus) countPills += '<span class="pill pill-lulus">' + r.countLulus + ' lulus</span>';
+        if (r.countTidakLulus) countPills += '<span class="pill pill-tidak-lulus">' + r.countTidakLulus + ' tidak lulus</span>';
+        if (!r.countSedang && !r.countLulus && !r.countTidakLulus) countPills = '<span class="pill pill-belum">Belum ada</span>';
+        var gender = normalizeSantriGender(r.jenisKelamin);
+        var rowClass = getCardRowClass(gender, getSantriStatusKey(r.status));
+        return '<div class="card santri-row' + (rowClass ? ' ' + rowClass : '') + '" onclick="openDetail(\'' + r.id + '\')">' +
+          '<div class="santri-avatar">' + initial + '</div>' +
+          '<div class="santri-info">' +
+            '<div class="santri-nama">' + escHtml(r.nama) + '</div>' +
+            '<div class="santri-meta">' + escHtml(r.no_induk || '-') + '</div>' +
+          '</div>' +
+          '<div class="santri-counts">' + countPills + '</div>' +
+        '</div>';
+      }).join('');
+    }
+
+    // ── Detail dialog ──────────────────────────────────────────────────────────
+    function openDetail(santriId) {
+      _currentSantriId = santriId;
+      document.getElementById('detailNama').textContent = 'Memuat...';
+      document.getElementById('detailMeta').textContent = '';
+      document.getElementById('sedangSection').style.display = 'none';
+      document.getElementById('rekomendasiSection').style.display = 'none';
+      document.getElementById('allEntriesList').innerHTML = '<p style="color:var(--muted);text-align:center;padding:14px 0">Memuat...</p>';
+      window.PSUI.applyPermissionLock(document.getElementById('addEntryBtn'), canManagePelajaranScoped(), 'Mudir hanya bisa melihat data pelajaran, tidak bisa menambah data.');
+      document.getElementById('detailDialog').showModal();
+      loadDetail(santriId);
+    }
+
+    function loadDetail(santriId) {
+      api('santriPelajaran.detail', { santri_id: santriId }, function(res) {
+        if (!res.ok) { showToast(res.error || 'Gagal memuat detail', 'error'); return; }
+        _currentDetail = res.data;
+        renderDetail();
+      });
+    }
+
+    function renderDetail() {
+      var d = _currentDetail;
+      if (!d) return;
+      document.getElementById('detailNama').textContent = d.santri.nama;
+      document.getElementById('detailMeta').textContent = d.santri.no_induk;
+
+      // Sedang dipelajari
+      var sedang = d.entries.filter(function(e) { return e.status === 'sedang'; });
+      var sedangEl = document.getElementById('sedangSection');
+      if (sedang.length) {
+        sedangEl.style.display = '';
+        document.getElementById('sedangList').innerHTML = sedang.map(function(e) { return renderEntryCard(e, true); }).join('');
+      } else {
+        sedangEl.style.display = 'none';
+      }
+
+      // Rekomendasi
+      var rek = d.rekomendasi;
+      var rekEl = document.getElementById('rekomendasiSection');
+      if (rek && rek.length) {
+        rekEl.style.display = '';
+        document.getElementById('rekomendasiList').innerHTML = rek.map(function(r) { return renderRekCard(r); }).join('');
+      } else {
+        rekEl.style.display = 'none';
+      }
+
+      // Semua progress
+      var allEl = document.getElementById('allEntriesList');
+      if (!d.entries.length) {
+        allEl.innerHTML = '<p style="color:var(--muted);text-align:center;padding:14px 0">Belum ada data pelajaran.</p>';
+      } else {
+        allEl.innerHTML = d.entries.map(function(e) { return renderEntryCard(e, false); }).join('');
+      }
+    }
+
+    function statusLabel(s) {
+      if (s === 'sedang')      return '<span class="pill pill-sedang">Sedang</span>';
+      if (s === 'lulus')       return '<span class="pill pill-lulus">Lulus</span>';
+      if (s === 'tidak_lulus') return '<span class="pill pill-tidak-lulus">Tidak Lulus</span>';
+      return '<span class="pill pill-belum">Belum</span>';
+    }
+
+    function renderEntryCard(e, compact) {
+      var detail = '';
+      if (!compact) {
+        var parts = [];
+        if (e.nilai) parts.push('Nilai: ' + e.nilai);
+        if (e.tahun_ajaran) parts.push(e.tahun_ajaran + (e.semester ? ' / Sem ' + e.semester : ''));
+        if (e.catatan) parts.push('Catatan: ' + escHtml(e.catatan));
+        if (parts.length) detail = '<div class="entry-detail">' + parts.join(' · ') + '</div>';
+      }
+      return '<div class="card entry-card">' +
+        '<div class="entry-header">' +
+          '<div class="entry-left">' +
+            '<div class="entry-pel">' + escHtml(e.pelajaran_nama) + '</div>' +
+            (e.level_nama ? '<div class="entry-level">' + escHtml(e.level_nama) + '</div>' : '') +
+          '</div>' +
+          '<div class="entry-right">' +
+            statusLabel(e.status) +
+            '<button class="secondary btn-sm" onclick="editEntry(\'' + e.id + '\')"><i class="fa-solid fa-pen"></i></button>' +
+            (canManagePelajaranScoped() ? '<button class="danger btn-sm" onclick="showConfirmHapusEntry(\'' + e.id + '\',\'' + escHtml(e.pelajaran_nama) + '\')"><i class="fa-solid fa-trash"></i></button>' : '') +
+          '</div>' +
+        '</div>' +
+        detail +
+      '</div>';
+    }
+
+    function renderRekCard(r) {
+      var prasyaratHtml = '';
+      if (r.prasyarat_detail && r.prasyarat_detail.length) {
+        prasyaratHtml = '<div class="rek-prasyarat">Prasyarat: ' +
+          r.prasyarat_detail.map(function(pr) {
+            var icon = pr.terpenuhi ? '<i class="fa-solid fa-check" style="color:var(--success)"></i>' : '<i class="fa-solid fa-xmark" style="color:var(--danger)"></i>';
+            return '<span class="rek-pr-item">' + icon + ' ' + escHtml(pr.pelajaran_nama) + ' – ' + escHtml(pr.level_nama) + '</span>';
+          }).join('') + '</div>';
+      }
+      var statusPill = r.prasyarat_terpenuhi
+        ? '<span class="pill pill-ok"><i class="fa-solid fa-check"></i> Siap</span>'
+        : '<span class="pill pill-no">Prasyarat Kurang</span>';
+      var sedangPill = r.sedang_dipelajari ? '<span class="pill pill-sedang">Sedang dipelajari</span>' : '';
+      return '<div class="card rek-card">' +
+        '<div class="rek-header">' +
+          '<div class="rek-left">' +
+            '<div class="rek-pel">' + escHtml(r.pelajaran_nama) + '</div>' +
+            '<div class="rek-level">' + escHtml(r.level_nama) + (r.pelajaran_buku ? ' · ' + escHtml(r.pelajaran_buku) : '') + '</div>' +
+          '</div>' +
+          '<div class="rek-right">' + statusPill + sedangPill +
+            '<button class="primary btn-sm" onclick="addEntryFromRek(\'' + r.pelajaran_id + '\',\'' + r.level_id + '\')">+ Input</button>' +
+          '</div>' +
+        '</div>' +
+        prasyaratHtml +
+      '</div>';
+    }
+
+    // ── Entry form ─────────────────────────────────────────────────────────────
+    function loadPelajaranOptions(cb) {
+      if (_allPelajaran.length) { cb(); return; }
+      api('pelajaran.list', { status: '' }, function(res) {
+        if (res.ok) _allPelajaran = res.data.items || [];
+        cb();
+      });
+    }
+
+    function populatePelajaranSelect(selectedId) {
+      var sel = document.getElementById('entryPelajaran');
+      sel.innerHTML = '<option value="">-- pilih pelajaran --</option>' + _allPelajaran.map(function(p) {
+        return '<option value="' + escHtml(p.id) + '"' + (p.id === selectedId ? ' selected' : '') + '>' + escHtml(p.nama) + '</option>';
+      }).join('');
+    }
+
+    function loadLevelSelect(pelajaranId, selectedLevelId) {
+      var sel = document.getElementById('entryLevel');
+      sel.innerHTML = '<option value="">-- memuat level... --</option>';
+      if (!pelajaranId) { sel.innerHTML = '<option value="">-- tidak ada level --</option>'; return; }
+      api('pelajaran.level.list', { pelajaran_id: pelajaranId }, function(res) {
+        if (!res.ok || !res.data.levels.length) { sel.innerHTML = '<option value="">-- tidak ada level --</option>'; return; }
+        sel.innerHTML = '<option value="">-- tidak ada level --</option>' + res.data.levels.map(function(l) {
+          return '<option value="' + escHtml(l.id) + '"' + (l.id === selectedLevelId ? ' selected' : '') + '>' + escHtml(l.nama_level) + '</option>';
+        }).join('');
+      });
+    }
+
+    function openAddEntry(pelajaranId, levelId) {
+      loadPelajaranOptions(function() {
+        document.getElementById('entryId').value = '';
+        document.getElementById('entrySantriId').value = _currentSantriId || '';
+        document.getElementById('entryDialogTitle').textContent = 'Tambah Pelajaran';
+        populatePelajaranSelect(pelajaranId || '');
+        document.getElementById('entryStatus').value = 'sedang';
+        document.getElementById('entryNilai').value = '0';
+        document.getElementById('entryTahun').value = '';
+        document.getElementById('entrySemester').value = '';
+        document.getElementById('entryCatatan').value = '';
+        loadLevelSelect(pelajaranId || '', levelId || '');
+        window.PSUI.applyPermissionLock(document.getElementById('entrySaveBtn'), canManagePelajaranScoped(), 'Mudir hanya bisa melihat data pelajaran, tidak bisa menyimpan perubahan.');
+        document.getElementById('entryDialog').style.display = 'flex';
+      });
+    }
+
+    function addEntryFromRek(pelajaranId, levelId) {
+      openAddEntry(pelajaranId, levelId);
+    }
+
+    function editEntry(entryId) {
+      if (!_currentDetail) return;
+      var e = _currentDetail.entries.find(function(x) { return x.id === entryId; });
+      if (!e) return;
+      loadPelajaranOptions(function() {
+        document.getElementById('entryId').value = e.id;
+        document.getElementById('entrySantriId').value = _currentSantriId || '';
+        document.getElementById('entryDialogTitle').textContent = 'Edit Pelajaran';
+        populatePelajaranSelect(e.pelajaran_id);
+        document.getElementById('entryStatus').value = e.status || 'sedang';
+        document.getElementById('entryNilai').value = e.nilai || '0';
+        document.getElementById('entryTahun').value = e.tahun_ajaran || '';
+        document.getElementById('entrySemester').value = e.semester || '';
+        document.getElementById('entryCatatan').value = e.catatan || '';
+        loadLevelSelect(e.pelajaran_id, e.level_id);
+        window.PSUI.applyPermissionLock(document.getElementById('entrySaveBtn'), canManagePelajaranScoped(), 'Mudir hanya bisa melihat data pelajaran, tidak bisa menyimpan perubahan.');
+        document.getElementById('entryDialog').style.display = 'flex';
+      });
+    }
+
+    document.getElementById('entryPelajaran').addEventListener('change', function() {
+      loadLevelSelect(this.value, '');
+    });
+
+    document.getElementById('entryForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      var payload = {
+        id: document.getElementById('entryId').value.trim(),
+        santri_id: document.getElementById('entrySantriId').value,
+        pelajaran_id: document.getElementById('entryPelajaran').value,
+        level_id: document.getElementById('entryLevel').value,
+        status: document.getElementById('entryStatus').value,
+        nilai: document.getElementById('entryNilai').value,
+        tahun_ajaran: document.getElementById('entryTahun').value.trim(),
+        semester: document.getElementById('entrySemester').value,
+        catatan: document.getElementById('entryCatatan').value.trim()
+      };
+      if (!payload.pelajaran_id) { showToast('Pilih pelajaran terlebih dahulu', 'error'); return; }
+      document.getElementById('entrySaveBtn').disabled = true;
+      api('santriPelajaran.save', payload, function(res) {
+        document.getElementById('entrySaveBtn').disabled = false;
+        if (!res.ok) { showToast(res.error || 'Gagal menyimpan', 'error'); return; }
+        document.getElementById('entryDialog').style.display = 'none';
+        showToast('Data tersimpan', 'success');
+        loadDetail(_currentSantriId);
+        loadSantriList();
+      });
+    });
+
+    // ── Hapus entry ─────────────────────────────────────────────────────────────
+    function showConfirmHapusEntry(entryId, pelNama) {
+      _hapusEntryId = entryId;
+      document.getElementById('confirmHapusEntryMsg').textContent = 'Hapus data pelajaran "' + pelNama + '"? Tindakan ini tidak dapat dibatalkan.';
+      document.getElementById('confirmHapusEntryDialog').style.display = 'flex';
+    }
+
+    document.getElementById('confirmHapusEntryOk').addEventListener('click', function() {
+      if (!_hapusEntryId) return;
+      api('santriPelajaran.delete', { id: _hapusEntryId }, function(res) {
+        document.getElementById('confirmHapusEntryDialog').style.display = 'none';
+        if (!res.ok) { showToast(res.error || 'Gagal menghapus', 'error'); return; }
+        showToast('Data dihapus', 'success');
+        _hapusEntryId = null;
+        loadDetail(_currentSantriId);
+        loadSantriList();
+      });
+    });
+
+    // ── Event bindings ─────────────────────────────────────────────────────────
+    document.getElementById('closeDetailDialog').addEventListener('click', function() { document.getElementById('detailDialog').close(); });
+    document.getElementById('closeDetailDialog2').addEventListener('click', function() { document.getElementById('detailDialog').close(); });
+    document.getElementById('closeEntryDialog').addEventListener('click', function() { document.getElementById('entryDialog').style.display = 'none'; });
+    document.getElementById('closeEntryDialog2').addEventListener('click', function() { document.getElementById('entryDialog').style.display = 'none'; });
+    document.getElementById('confirmHapusEntryBatal').addEventListener('click', function() { document.getElementById('confirmHapusEntryDialog').style.display = 'none'; });
+
+    document.getElementById('addEntryBtn').addEventListener('click', function() { openAddEntry('', ''); });
+    document.getElementById('refreshDetailBtn').addEventListener('click', function() { if (_currentSantriId) loadDetail(_currentSantriId); });
+    document.getElementById('refreshBtn').addEventListener('click', function() { _page = 1; loadSantriList(); });
+    document.getElementById('searchInput').addEventListener('input', function() { _page = 1; loadSantriList(); });
+    document.getElementById('statusFilter').addEventListener('change', function() { _page = 1; loadSantriList(); });
+    document.getElementById('genderFilter').addEventListener('change', function() { _page = 1; loadSantriList(); });
+    document.getElementById('statusAkadFilter').addEventListener('change', function() { _page = 1; loadSantriList(); });
+    document.getElementById('sortSelect').addEventListener('change', function() { _page = 1; loadSantriList(); });
+    document.getElementById('pageSizeSelect').addEventListener('change', function() { _pageSize = parseInt(this.value) || 25; _page = 1; loadSantriList(); });
+    document.addEventListener('click', function(e) {
+      var btn = e.target.closest('[data-page]');
+      if (!btn) return;
+      var next = parseInt(btn.getAttribute('data-page'));
+      if (!next || next < 1 || next > _totalPages || next === _page) return;
+      _page = next;
+      loadSantriList();
+    });
+
+    var _initSession = getStoredSession();
+    if (!_initSession) { clearSession(); window.location.replace('/pages/login/'); }
+    else if (window.PSAccess && window.PSAccess.redirectIfForbidden(_initSession, 'progPelajaran.html')) { /* redirected */ }
+    else {
+      _session = window.PSAccess ? window.PSAccess.getScopedSession(_initSession) : _initSession;
+      mountShell(_initSession);
+      loadSantriList();
+    }
+  </script>
+</body>
+</html>

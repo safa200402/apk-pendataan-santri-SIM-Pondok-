@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#9e2f22">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="../../shared-ui.css">
+  <script src="../../shared-ui.js"></script>
+  <title>Kelola Audit</title>
+  <link rel="stylesheet" href="../../shared-shell.css">
+  <link rel="stylesheet" href="../../vendor/fontawesome/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700&display=swap');
+    :root {
+      --paper: #f6efe0; --ink: #4d4034; --muted: #7b6a58;
+      --line: rgba(91,73,57,0.15); --accent: #b97650;
+      --success: #74846c; --danger: #a55a52; --warning: #b58439;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; }
+    body::before { content: ''; position: fixed; inset: 0; pointer-events: none; opacity: 0.15; mix-blend-mode: multiply; }
+    body::after  { content: ''; position: fixed; inset: 0; pointer-events: none; opacity: 0.23; }
+    h1, h2, h3 { margin: 0 0 10px; text-transform: uppercase; }
+    p { margin: 0; line-height: 1.65; }
+    .nav a, button { font-weight: 800 !important; text-transform: uppercase; }
+    .panel { padding: 22px; }
+    .card { padding: 16px; }
+    button { font: inherit; padding: 12px 18px; font-weight: 700; cursor: pointer; }
+    .notice { display: none; padding: 14px 16px; line-height: 1.55; }
+    .notice.show { display: block; }
+    .empty-state { padding: 36px 20px; text-align: center; color: var(--muted); font-size: 14px; }
+
+    .audit-list { display: grid; gap: 12px; margin-top: 16px; }
+    .audit-card { padding: 16px 18px; border-radius: 14px; display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; background: rgba(242, 222, 154, 0.96) !important; flex-wrap: wrap; }
+    .audit-card-body { flex: 1; min-width: 220px; }
+    .audit-title { font-weight: 700; font-size: 15px; text-transform: uppercase; letter-spacing: 0.04em; display: flex; align-items: center; gap: 8px; }
+    .audit-desc { font-size: 12.5px; color: var(--ink); margin-top: 6px; line-height: 1.6; }
+    .audit-meta { font-size: 11px; color: var(--muted); margin-top: 8px; }
+    .audit-target { font-size: 11.5px; font-weight: 700; color: var(--accent); margin-top: 6px; display: flex; align-items: center; gap: 6px; text-transform: uppercase; letter-spacing: 0.03em; }
+    .status-chip { display: inline-flex; padding: 3px 10px; font-size: 11px; font-weight: 700; border-radius: 999px; text-transform: uppercase; }
+    .status-chip.on { background: rgba(116,132,108,0.18); color: #3a5a30; }
+    .status-chip.off { background: rgba(165,90,82,0.18); color: var(--danger); }
+    .audit-actions { flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+    .audit-number-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+    .audit-number-row label { font-size: 12px; font-weight: 600; color: var(--ink); }
+    .audit-number-row input[type="number"] { width: 64px; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line); font: inherit; font-size: 13px; }
+    .audit-number-row button { padding: 6px 12px; font-size: 11px; }
+    .audit-blocks-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 12px; font-weight: 600; color: var(--ink); cursor: pointer; }
+    .audit-blocks-row input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
+
+    .cutoff-panel { padding: 14px 16px; border-radius: 14px; background: rgba(242, 222, 154, 0.5) !important; margin: 14px 0; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+    .cutoff-panel label { font-size: 12.5px; font-weight: 700; color: var(--ink); }
+    .cutoff-panel input[type="number"] { width: 72px; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line); font: inherit; font-size: 13px; }
+    .cutoff-panel button { padding: 6px 12px; font-size: 11px; }
+    .cutoff-panel .cutoff-hint { font-size: 11.5px; color: var(--muted); width: 100%; }
+
+    .page-center { display: grid; gap: 8px; justify-items: center; }
+    .page-numbers { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+    .page-summary { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <script src="../../shared-nav.js"></script>
+  <script src="../../shared-access.js"></script>
+  <script src="../../shared-shell.js"></script>
+  <header class="app-header">
+    <div class="header-left">
+      <button class="drawer-toggle" id="navToggle" type="button" aria-label="Toggle sidebar">Menu</button>
+      <div class="header-brand">Pendataan Santri</div>
+      <div class="header-page">Kelola Audit</div>
+    </div>
+    <div class="header-right">
+      <span class="header-chip" id="headerRole">Admin</span>
+    </div>
+  </header>
+  <div class="drawer-backdrop" id="navBackdrop"></div>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+  <main>
+    <div class="app-layout">
+      <section class="panel nav" id="nav"></section>
+      <div class="content-stack">
+
+        <section class="panel">
+          <div>
+            <h2>Kelola Audit</h2>
+            <p style="color:var(--muted);font-size:13px;margin-top:4px;">Popup peringatan otomatis yang mengingatkan pengampu halaqoh/pengajar kelas/pembina regu kalau ada hari atau pekan yang belum diisi (absensi halaqoh/kelas/regu, hafalan harian, atau perkembangan santri). Matikan di sini kalau sedang tidak ingin popup ini muncul untuk jenis tertentu.</p>
+          </div>
+
+          <div class="card cutoff-panel">
+            <label for="cutoffOffsetDays">Anggap "bolong" kalau belum diisi sampai</label>
+            <input type="number" id="cutoffOffsetDays" min="0" max="3650" value="1">
+            <span id="cutoffOffsetLabel" style="font-size:12.5px;font-weight:600;color:var(--muted);"></span>
+            <button class="secondary" id="btnSaveCutoffOffset" type="button">Simpan</button>
+            <div class="cutoff-hint">Berlaku untuk audit backlog harian/pekanan (absensi halaqoh/kelas/regu, hafalan, perkembangan, tasmi') di halaman ini maupun di "Kelola Audit Bawahan" &amp; broadcast WhatsApp-nya. Isi <strong>0</strong> = sampai hari ini, <strong>1</strong> = sampai kemarin (default), <strong>5</strong> = sampai 5 hari sebelum hari ini, dst. Tidak berlaku untuk Audit Jurnal SDM (selalu hari ini) maupun Audit Nilai Ujian Wajib/keanggotaan santri (tidak berbasis tanggal).</div>
+          </div>
+
+          <div class="filters" id="filtersPanel">
+            <label>
+              Cari nama audit
+              <input type="search" id="filterNama" placeholder="Mis. hafalan, absensi, tasmi'">
+            </label>
+            <label>
+              Ditujukan untuk (jabatan)
+              <select id="filterTarget">
+                <option value="">Semua jabatan</option>
+              </select>
+            </label>
+            <label>
+              Status
+              <select id="filterStatus">
+                <option value="">Semua</option>
+                <option value="active">Aktif</option>
+                <option value="inactive">Nonaktif</option>
+              </select>
+            </label>
+            <label>
+              Kategori
+              <select id="filterKategori">
+                <option value="">Semua kategori</option>
+                <option value="harian">Backlog Harian</option>
+                <option value="keanggotaan">Keanggotaan Santri 💠</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="paging-host" id="paginationTop"></div>
+
+          <div class="audit-list" id="auditList">
+            <div class="empty-state">Memuat pengaturan...</div>
+          </div>
+
+          <div class="paging-host" id="paginationBottom"></div>
+        </section>
+
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const API_BASE = window.location.origin + '/api';
+    const STORAGE = { token: 'ps_token', session: 'ps_session' };
+
+    function getToken() { return localStorage.getItem(STORAGE.token) || ''; }
+    function getStoredSession() { try { return JSON.parse(localStorage.getItem(STORAGE.session) || 'null'); } catch (_) { return null; } }
+    function getScopedSession() { return window.PSAccess && typeof window.PSAccess.getScopedSession === 'function' ? window.PSAccess.getScopedSession(getStoredSession()) : getStoredSession(); }
+    function canManage() { const s = getScopedSession(); return !!(s && s.permissions && (s.permissions.isAdmin || s.permissions.isSuperAdmin || s.permissions.isMudir)); }
+
+    async function api(d) { const p = new URLSearchParams({ ...d, token: getToken() }); const r = await fetch(API_BASE + '?' + p); const j = await r.json(); if (!j.ok) throw new Error(j.error?.message || 'Error'); return j.data; }
+    async function apiPost(d) { const r = await fetch(API_BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...d, token: getToken() }) }); const j = await r.json(); if (!j.ok) throw new Error(j.error?.message || 'Error'); return j.data; }
+
+    const uiState = { counter: 0, shownAt: 0, pending: null, currentId: '' };
+    function createNoticeEl(text, type) {
+      const el = document.createElement('section');
+      el.className = `notice show ${type || 'info'}`; el.dataset.noticeId = `n-${Date.now()}-${uiState.counter += 1}`; el.textContent = text;
+      function dismiss() { if (!el.parentNode) return; el.classList.add('notice-dismissing'); setTimeout(() => { el.remove(); const s = document.getElementById('noticeStack'); if (s && !s.hasChildNodes() && s.matches(':popover-open')) s.hidePopover(); }, 220); }
+      el.addEventListener('click', dismiss); setTimeout(dismiss, type === 'error' ? 10000 : 5000); return el;
+    }
+    function showNotice(text, type) {
+      if (uiState.pending) { clearTimeout(uiState.pending); uiState.pending = null; }
+      const elapsed = Date.now() - uiState.shownAt;
+      if (elapsed < 2000 && uiState.currentId) { uiState.pending = setTimeout(() => { uiState.pending = null; showNotice(text, type); }, 2000 - elapsed); return; }
+      const el = createNoticeEl(text, type); const stack = document.getElementById('noticeStack');
+      stack.prepend(el); uiState.currentId = el.dataset.noticeId; uiState.shownAt = Date.now();
+      if (stack.matches(':popover-open')) stack.hidePopover(); stack.showPopover();
+    }
+    function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
+    const AUDIT_KINDS = [
+      { key: 'halaqoh', field: 'halaqohActive', payloadKey: 'halaqoh_active', blocksJurnalField: 'halaqohBlocksJurnal', blocksJurnalPayloadKey: 'halaqoh_blocks_jurnal', title: 'Audit Absensi Halaqoh', target: 'Pengampu Halaqoh', desc: 'Popup untuk pengampu halaqoh kalau ada hari absensi halaqoh yang belum diisi.' },
+      { key: 'kelas', field: 'kelasActive', payloadKey: 'kelas_active', blocksJurnalField: 'kelasBlocksJurnal', blocksJurnalPayloadKey: 'kelas_blocks_jurnal', title: 'Audit Absensi Kelas', target: 'Pengajar Kelas Siang', desc: 'Popup untuk pengajar kelas siang kalau ada hari absensi kelas yang belum diisi.' },
+      { key: 'regu', field: 'reguActive', payloadKey: 'regu_active', blocksJurnalField: 'reguBlocksJurnal', blocksJurnalPayloadKey: 'regu_blocks_jurnal', title: 'Audit Absensi Regu', target: 'Pembina Regu', desc: 'Popup untuk pembina regu kalau ada hari absensi regu yang belum diisi.' },
+      { key: 'hafalan', field: 'hafalanActive', payloadKey: 'hafalan_active', blocksJurnalField: 'hafalanBlocksJurnal', blocksJurnalPayloadKey: 'hafalan_blocks_jurnal', title: 'Audit Hafalan Harian', target: 'Pengampu Halaqoh', desc: 'Popup untuk pengampu halaqoh kalau ada santri di rosternya yang di suatu hari (Senin–Jumat, Sabtu & Ahad libur) belum punya entri Ziyadah/Ziyadah Ulang/Muroja’ah (bukan Sabaqi/Manzili)/Iqro’/Talaqqi/Tilawah/Tahsin ataupun Catatan, dari awal tahun ajaran sampai batas tanggal yang diatur di atas.' },
+      {
+        key: 'perkembangan', field: 'perkembanganActive', payloadKey: 'perkembangan_active', blocksJurnalField: 'perkembanganBlocksJurnal', blocksJurnalPayloadKey: 'perkembangan_blocks_jurnal', title: 'Audit Perkembangan Santri', target: 'Pembina Regu',
+        desc: 'Popup untuk pembina regu kalau ada santri di rosternya yang belum dapat cukup input perkembangan dalam 1 pekan (Senin-Ahad, dinilai setelah pekan itu selesai).',
+        numberField: { field: 'perkembanganMinPerWeek', payloadKey: 'perkembangan_min_per_week', label: 'Minimal input per santri per pekan', min: 1, max: 14 }
+      },
+      { key: 'tasmi', field: 'tasmiActive', payloadKey: 'tasmi_active', blocksJurnalField: 'tasmiBlocksJurnal', blocksJurnalPayloadKey: 'tasmi_blocks_jurnal', title: 'Audit Setoran Tasmi\'', target: 'Pengampu Halaqoh', desc: 'Popup untuk pengampu halaqoh kalau ada santri di rosternya yang status tasmi\'-nya belum diisi hari Sabtu, atau statusnya "Tidak Tasmi\'" tapi catatan alasannya belum diisi.' },
+      { key: 'jurnal', field: 'jurnalActive', payloadKey: 'jurnal_active', blocksJurnalField: 'jurnalBlocksJurnal', blocksJurnalPayloadKey: 'jurnal_blocks_jurnal', title: 'Audit Jurnal SDM', target: 'Semua Pengurus', desc: 'Popup pengingat untuk SEMUA pengurus (kecuali Super Admin) kalau belum ada entri Jurnal SDM hari ini. Beda dari 6 audit lain: hanya mengecek hari berjalan (bukan backlog sejak awal tahun ajaran), otomatis hilang begitu diisi. Kalau ini satu-satunya item yang tersisa di popup, tampilannya hijau (pengingat), bukan merah (pelanggaran).' },
+      {
+        key: 'akademikKelas', field: 'akademikKelasActive', payloadKey: 'akademik_kelas_active', blocksJurnalField: 'akademikKelasBlocksJurnal', blocksJurnalPayloadKey: 'akademik_kelas_blocks_jurnal', title: 'Audit Santri Aktif Tidak Tepat 3 Kelas Siang', target: 'Akademik',
+        desc: 'Popup untuk pengurus bagian Akademik kalau ada santri aktif yang jumlah kelas siang aktifnya kurang atau lebih dari 3. Beda dari audit lain: bukan soal 1 entitas milik pengurus tertentu, jadi ditagih ke siapa pun yang punya akses ke Dashboard Akademik, bukan berdasar kecocokan ID pengajar.',
+        boolField: { field: 'akademikKelasDibekukanWajib', payloadKey: 'akademik_kelas_dibekukan_wajib', label: 'Santri dibekukan wajib punya 3 kelas siang' }
+      },
+      {
+        key: 'akademikHalaqoh', field: 'akademikHalaqohActive', payloadKey: 'akademik_halaqoh_active', blocksJurnalField: 'akademikHalaqohBlocksJurnal', blocksJurnalPayloadKey: 'akademik_halaqoh_blocks_jurnal', title: 'Audit Santri Aktif Tidak Tepat 1 Halaqoh', target: 'Koordinator Halaqoh',
+        desc: 'Popup untuk pengurus bagian Koordinator Halaqoh kalau ada santri aktif yang tidak di halaqoh manapun, atau di lebih dari 1 halaqoh aktif. Ditagih ke siapa pun yang punya akses ke Dashboard Koordinator Halaqoh, bukan berdasar kecocokan ID pengampu.',
+        boolField: { field: 'akademikHalaqohDibekukanWajib', payloadKey: 'akademik_halaqoh_dibekukan_wajib', label: 'Santri dibekukan wajib punya 1 halaqoh' }
+      },
+      {
+        key: 'akademikRegu', field: 'akademikReguActive', payloadKey: 'akademik_regu_active', blocksJurnalField: 'akademikReguBlocksJurnal', blocksJurnalPayloadKey: 'akademik_regu_blocks_jurnal', title: 'Audit Santri Aktif Tidak Tepat 1 Regu', target: 'Kesantrian',
+        desc: 'Popup untuk pengurus bagian Kesantrian kalau ada santri aktif yang tidak di regu manapun, atau di lebih dari 1 regu aktif. Ditagih ke siapa pun yang punya akses ke Dashboard Kesantrian, bukan berdasar kecocokan ID pembina.',
+        boolField: { field: 'akademikReguDibekukanWajib', payloadKey: 'akademik_regu_dibekukan_wajib', label: 'Santri dibekukan wajib punya 1 regu' }
+      },
+      { key: 'nilaiWajib', field: 'nilaiWajibActive', payloadKey: 'nilai_wajib_active', blocksJurnalField: 'nilaiWajibBlocksJurnal', blocksJurnalPayloadKey: 'nilai_wajib_blocks_jurnal', title: 'Audit Nilai Ujian Wajib', target: 'Pengajar Kelas Siang', desc: '2 tahap untuk pengajar kelas siang (pengajar utama atau badal), soal aturan nilai wajib yang diatur Akademik di halaman Nilai Kelas: (1) begitu masuk tanggal ujian yang ditetapkan, popup pengingat langsung muncul kalau masih ada santri kosong nilainya -- TIDAK PERNAH memblokir Jurnal SDM di tahap ini, apa pun toggle di bawah; (2) begitu lewat tanggal maksimal terlambat, popup baru ikut toggle blokir di bawah ini.' },
+      { key: 'silabus', field: 'silabusActive', payloadKey: 'silabus_active', blocksJurnalField: 'silabusBlocksJurnal', blocksJurnalPayloadKey: 'silabus_blocks_jurnal', title: 'Audit Materi Silabus Kelas', target: 'Pengajar Kelas Siang', desc: 'Popup untuk pengajar kelas siang (pengajar utama atau badal) kalau ada materi di Daftar Materi Silabus kelasnya yang sudah lewat tanggal batas akhir tapi belum dicentang selesai di dialog Absensi Kelas.' }
+    ];
+
+    const AUDIT_TARGETS = [...new Set(AUDIT_KINDS.map(k => k.target))];
+    const auditFilters = { nama: '', target: '', status: '', kategori: '' };
+    const PAGE_SIZE = 11;
+    const PAGE_MAX_NUMBERS = 11;
+    let currentPage = 1;
+
+    // 3 audit akademik baru (soal jumlah keanggotaan santri) dikasih simbol 💠 di sebelah
+    // judulnya, biar beda sekilas dari 7 audit "lama" (backlog harian per entitas) yang
+    // dibiarkan polos tanpa penanda tambahan. Keputusan user 2026-08-03 (awalnya coba
+    // pewarnaan biru, lalu label teks "(Penting)", akhirnya simbol saja).
+    const AUDIT_NEW_KINDS = new Set(['akademikKelas', 'akademikHalaqoh', 'akademikRegu']);
+
+    let auditSettings = {
+      halaqohActive: true, halaqohBlocksJurnal: true,
+      kelasActive: true, kelasBlocksJurnal: true,
+      reguActive: true, reguBlocksJurnal: true,
+      hafalanActive: true, hafalanBlocksJurnal: true,
+      perkembanganActive: true, perkembanganMinPerWeek: 2, perkembanganBlocksJurnal: true,
+      tasmiActive: true, tasmiBlocksJurnal: true,
+      jurnalActive: true, jurnalBlocksJurnal: false,
+      akademikKelasActive: true, akademikKelasBlocksJurnal: true, akademikKelasDibekukanWajib: false,
+      akademikHalaqohActive: true, akademikHalaqohBlocksJurnal: true, akademikHalaqohDibekukanWajib: false,
+      akademikReguActive: true, akademikReguBlocksJurnal: true, akademikReguDibekukanWajib: false,
+      nilaiWajibActive: true, nilaiWajibBlocksJurnal: true,
+      silabusActive: true, silabusBlocksJurnal: true,
+      auditCutoffOffsetDays: 1,
+      setBy: '', setAt: ''
+    };
+
+    function getFilteredAuditKinds() {
+      const nama = auditFilters.nama.trim().toLowerCase();
+      return AUDIT_KINDS.filter(kind => {
+        if (nama && !kind.title.toLowerCase().includes(nama) && !kind.desc.toLowerCase().includes(nama)) return false;
+        if (auditFilters.target && kind.target !== auditFilters.target) return false;
+        const active = !!auditSettings[kind.field];
+        if (auditFilters.status === 'active' && !active) return false;
+        if (auditFilters.status === 'inactive' && active) return false;
+        const isNewKind = AUDIT_NEW_KINDS.has(kind.key);
+        if (auditFilters.kategori === 'keanggotaan' && !isNewKind) return false;
+        if (auditFilters.kategori === 'harian' && isNewKind) return false;
+        return true;
+      });
+    }
+
+    function renderPaging(page, totalPages) {
+      const start = Math.max(1, Math.min(page - 5, totalPages - (PAGE_MAX_NUMBERS - 1)));
+      const end = Math.min(totalPages, start + (PAGE_MAX_NUMBERS - 1));
+      let html = '';
+      for (let p = start; p <= end; p++) {
+        html += `<button ${p === page ? 'class="active"' : ''} data-page="${p}">${p}</button>`;
+      }
+      return html;
+    }
+
+    // minimumCount: 0 -- pagination tetap tampil (atas & bawah) walau itemnya cuma 1
+    // (keputusan user 2026-08-05; awalnya minimumCount: PAGE_SIZE, jadi baru muncul kalau
+    // item lebih dari 11).
+    function renderPagination(total, totalPages) {
+      const markup = total
+        ? `<div class="page-center">
+            <div class="page-numbers">${renderPaging(currentPage, totalPages)}</div>
+            <div class="page-summary">Halaman ${currentPage} dari ${totalPages} | total ${total} audit</div>
+          </div>`
+        : '';
+      window.PSUI.syncPaginationHosts({ markup, visibleCount: total, totalCount: total, minimumCount: 0, topId: 'paginationTop', bottomId: 'paginationBottom' });
+    }
+
+    function cutoffOffsetLabelText(days) {
+      if (days === 0) return '→ hari ini';
+      if (days === 1) return '→ kemarin (default)';
+      return `→ ${days} hari sebelum hari ini`;
+    }
+
+    function renderCutoffPanel() {
+      const manage = canManage();
+      const input = document.getElementById('cutoffOffsetDays');
+      const value = Number.isFinite(auditSettings.auditCutoffOffsetDays) ? auditSettings.auditCutoffOffsetDays : 1;
+      input.value = value;
+      input.disabled = !manage;
+      document.getElementById('cutoffOffsetLabel').textContent = cutoffOffsetLabelText(value);
+      document.getElementById('btnSaveCutoffOffset').style.display = manage ? '' : 'none';
+    }
+
+    async function saveCutoffOffset() {
+      const input = document.getElementById('cutoffOffsetDays');
+      const value = parseInt(input.value, 10);
+      if (!Number.isFinite(value) || value < 0 || value > 3650) {
+        showNotice('Nilai harus angka antara 0 dan 3650.', 'error');
+        return;
+      }
+      try {
+        auditSettings = await apiPost({ action: 'audit.settings.set', audit_cutoff_offset_days: value });
+        showNotice('Batas cutoff audit disimpan.');
+        renderCutoffPanel();
+      } catch (e) { showNotice(e.message, 'error'); }
+    }
+
+    function renderAuditList() {
+      renderCutoffPanel();
+      const list = document.getElementById('auditList');
+      const manage = canManage();
+      const filtered = getFilteredAuditKinds();
+      const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+      if (currentPage > totalPages) currentPage = totalPages;
+      if (currentPage < 1) currentPage = 1;
+      renderPagination(filtered.length, totalPages);
+      if (!filtered.length) {
+        list.innerHTML = '<div class="empty-state">Tidak ada audit yang cocok dengan filter.</div>';
+        return;
+      }
+      const pageItems = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+      list.innerHTML = pageItems.map(kind => {
+        const active = !!auditSettings[kind.field];
+        const blocksJurnal = !!auditSettings[kind.blocksJurnalField];
+        const numberHtml = kind.numberField ? `<div class="audit-number-row">
+            <label for="num-${esc(kind.key)}">${esc(kind.numberField.label)}</label>
+            <input type="number" id="num-${esc(kind.key)}" min="${kind.numberField.min}" max="${kind.numberField.max}" value="${esc(auditSettings[kind.numberField.field])}" ${manage ? '' : 'disabled'}>
+            ${manage ? `<button class="secondary btn-save-number" data-key="${esc(kind.key)}" type="button">Simpan</button>` : ''}
+          </div>` : '';
+        const blocksJurnalHtml = `<label class="audit-blocks-row">
+            <input type="checkbox" class="chk-blocks-jurnal" data-key="${esc(kind.key)}" ${blocksJurnal ? 'checked' : ''} ${manage ? '' : 'disabled'}>
+            Blokir akses halaman Jurnal SDM selama item ini masih ada
+          </label>`;
+        const boolFieldHtml = kind.boolField ? `<label class="audit-blocks-row">
+            <input type="checkbox" class="chk-bool-field" data-key="${esc(kind.key)}" ${auditSettings[kind.boolField.field] ? 'checked' : ''} ${manage ? '' : 'disabled'}>
+            ${esc(kind.boolField.label)}
+          </label>` : '';
+        const isNewKind = AUDIT_NEW_KINDS.has(kind.key);
+        return `<div class="card audit-card">
+          <div class="audit-card-body">
+            <div class="audit-title">${esc(kind.title)}${isNewKind ? ' 💠' : ''}<span class="status-chip ${active ? 'on' : 'off'}">${active ? 'Aktif' : 'Nonaktif'}</span></div>
+            <div class="audit-target"><i class="fa-solid fa-user-tag"></i>Ditujukan untuk: ${esc(kind.target)}</div>
+            <div class="audit-desc">${esc(kind.desc)}</div>
+            ${numberHtml}
+            ${blocksJurnalHtml}
+            ${boolFieldHtml}
+            ${auditSettings.setAt ? `<div class="audit-meta">Terakhir diubah: ${esc(auditSettings.setBy || '-')} &middot; ${esc(auditSettings.setAt)}</div>` : ''}
+          </div>
+          ${manage ? `<div class="audit-actions">
+            <button class="secondary btn-toggle-audit" data-key="${esc(kind.key)}" data-active="${active ? '1' : '0'}" type="button"><i class="fa-solid ${active ? 'fa-toggle-on' : 'fa-toggle-off'}"></i>&ensp;${active ? 'Nonaktifkan' : 'Aktifkan'}</button>
+          </div>` : ''}
+        </div>`;
+      }).join('');
+      list.querySelectorAll('.btn-toggle-audit').forEach(b => b.addEventListener('click', () => toggleAudit(b.dataset.key, b.dataset.active === '1')));
+      list.querySelectorAll('.btn-save-number').forEach(b => b.addEventListener('click', () => saveNumberField(b.dataset.key)));
+      list.querySelectorAll('.chk-blocks-jurnal').forEach(c => c.addEventListener('change', () => toggleBlocksJurnal(c.dataset.key, c.checked)));
+      list.querySelectorAll('.chk-bool-field').forEach(c => c.addEventListener('change', () => toggleBoolField(c.dataset.key, c.checked)));
+    }
+
+    async function loadAuditSettings() {
+      try { auditSettings = await api({ action: 'audit.settings.get' }); } catch (_) { }
+      renderAuditList();
+    }
+
+    async function toggleAudit(key, active) {
+      const kind = AUDIT_KINDS.find(k => k.key === key);
+      if (!kind) return;
+      try {
+        auditSettings = await apiPost({ action: 'audit.settings.set', [kind.payloadKey]: !active });
+        showNotice(active ? `${kind.title} dinonaktifkan.` : `${kind.title} diaktifkan.`);
+        renderAuditList();
+      } catch (e) { showNotice(e.message, 'error'); }
+    }
+
+    async function toggleBlocksJurnal(key, checked) {
+      const kind = AUDIT_KINDS.find(k => k.key === key);
+      if (!kind) return;
+      try {
+        auditSettings = await apiPost({ action: 'audit.settings.set', [kind.blocksJurnalPayloadKey]: checked });
+        showNotice(checked ? `${kind.title}: sekarang memblokir akses Jurnal SDM kalau ada item.` : `${kind.title}: tidak lagi memblokir akses Jurnal SDM.`);
+        renderAuditList();
+      } catch (e) { showNotice(e.message, 'error'); renderAuditList(); }
+    }
+
+    async function toggleBoolField(key, checked) {
+      const kind = AUDIT_KINDS.find(k => k.key === key);
+      if (!kind || !kind.boolField) return;
+      try {
+        auditSettings = await apiPost({ action: 'audit.settings.set', [kind.boolField.payloadKey]: checked });
+        showNotice(`${kind.title}: pengaturan disimpan.`);
+        renderAuditList();
+      } catch (e) { showNotice(e.message, 'error'); renderAuditList(); }
+    }
+
+    async function saveNumberField(key) {
+      const kind = AUDIT_KINDS.find(k => k.key === key);
+      if (!kind || !kind.numberField) return;
+      const input = document.getElementById(`num-${key}`);
+      const value = parseInt(input.value, 10);
+      if (!Number.isFinite(value) || value < kind.numberField.min || value > kind.numberField.max) {
+        showNotice(`Nilai harus angka antara ${kind.numberField.min} dan ${kind.numberField.max}.`, 'error');
+        return;
+      }
+      try {
+        auditSettings = await apiPost({ action: 'audit.settings.set', [kind.numberField.payloadKey]: value });
+        showNotice(`${kind.title}: pengaturan disimpan.`);
+        renderAuditList();
+      } catch (e) { showNotice(e.message, 'error'); }
+    }
+
+    function applyFilterAndReset(fn) {
+      return e => { fn(e); currentPage = 1; renderAuditList(); };
+    }
+
+    function initFilters() {
+      document.getElementById('btnSaveCutoffOffset').addEventListener('click', saveCutoffOffset);
+      const targetSelect = document.getElementById('filterTarget');
+      targetSelect.insertAdjacentHTML('beforeend', AUDIT_TARGETS.map(t => `<option value="${esc(t)}">${esc(t)}</option>`).join(''));
+      document.getElementById('filterNama').addEventListener('input', applyFilterAndReset(e => { auditFilters.nama = e.target.value; }));
+      targetSelect.addEventListener('change', applyFilterAndReset(e => { auditFilters.target = e.target.value; }));
+      document.getElementById('filterStatus').addEventListener('change', applyFilterAndReset(e => { auditFilters.status = e.target.value; }));
+      document.getElementById('filterKategori').addEventListener('change', applyFilterAndReset(e => { auditFilters.kategori = e.target.value; }));
+      document.addEventListener('click', event => {
+        const page = event.target.getAttribute('data-page');
+        if (!page) return;
+        const nextPage = Number(page);
+        if (!nextPage || nextPage === currentPage) return;
+        currentPage = nextPage;
+        renderAuditList();
+      });
+    }
+
+    window.addEventListener('DOMContentLoaded', async () => {
+      if (window.PSAccess && window.PSAccess.redirectIfForbidden(getStoredSession(), 'kelolaAudit.html')) return;
+      if (window.PSShell) window.PSShell.mount({ currentPage: window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : '/pages/kelolaAudit/', session: getStoredSession(), getStoredSession, storageKey: STORAGE.session });
+      initFilters();
+      await loadAuditSettings();
+    });
+  </script>
+</body>
+</html>

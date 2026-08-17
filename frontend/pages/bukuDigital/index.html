@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#9e2f22">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="../../shared-ui.css">
+  <script src="../../shared-ui.js"></script>
+  <title>Perpustakaan Digital</title>
+  <link rel="stylesheet" href="../../shared-shell.css">
+  <link rel="stylesheet" href="../../vendor/fontawesome/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700&display=swap');
+    :root {
+      --paper: #f6efe0; --ink: #4d4034; --muted: #7b6a58;
+      --line: rgba(91,73,57,0.15); --accent: #b97650;
+      --success: #74846c; --danger: #a55a52; --warning: #b58439;
+      --shadow: 0 18px 45px rgba(87,67,51,0.18); --radius: 24px;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; }
+    body::before { content:''; position:fixed; inset:0; pointer-events:none; opacity:0.15; mix-blend-mode:multiply; }
+    body::after  { content:''; position:fixed; inset:0; pointer-events:none; opacity:0.23; }
+    h1,h2,h3 { margin:0 0 10px; text-transform:uppercase; }
+    p { margin:0; line-height:1.65; }
+    .nav a, button { font-weight:800 !important; text-transform:uppercase; }
+    .panel { padding:22px; }
+    .card  { padding:16px; }
+    .toolbar { display:flex; flex-wrap:wrap; gap:10px; margin-top:16px; }
+    .filters { display:grid; gap:12px; margin-top:16px; }
+    button, input, select, textarea { font:inherit; }
+    button { padding:12px 18px; font-weight:700; cursor:pointer; }
+    .primary { box-shadow:0 14px 28px rgba(185,118,80,0.22); }
+    input, select, textarea { width:100%; padding:13px 14px; outline:none; }
+    label { display:grid; gap:7px; font-size:14px; font-weight:600; }
+    .list { display:grid; grid-template-columns:1fr; gap:14px; margin-top:16px; }
+    .pill { display:inline-flex; padding:7px 11px; font-size:12px; font-weight:700; border-radius: 21px; }
+    .notice { display:none; padding:14px 16px; line-height:1.55; }
+    .notice.show { display:block; }
+    dialog { padding:0; }
+    .dialog-body { padding:22px; display:flex; flex-direction:column; gap:14px; max-height:90vh; overflow:auto; }
+    .section-head { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+    .field-grid { display:grid; gap:12px; margin-top:12px; }
+    .form-row-2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    @media(max-width:600px) { .form-row-2 { grid-template-columns:1fr; } }
+
+    /* ── Pill warna ── */
+    .pill-pdf     { background:rgba(200,60,60,.1);   color:#b83030; }
+    .pill-docx    { background:rgba(30,100,200,.1);  color:#1e64c8; }
+    .pill-doc     { background:rgba(30,100,200,.1);  color:#1e64c8; }
+    .pill-quill   { background:rgba(80,160,80,.1);   color:#3a8a3a; }
+    .pill-semua   { background:rgba(116,132,108,.1); color:#4a6040; }
+    .pill-terbatas{ background:rgba(181,132,57,.14); color:#7a5a0a; }
+    .pill-dikunci { background:rgba(165,90,82,.14);  color:#8a3a30; }
+    .pill-pelajaran{ background:rgba(185,118,80,.12);color:#7a4a20; }
+
+    /* ── Buku card ── */
+    .buku-card { padding:16px 18px; border-radius:18px; border: 1px solid black;}
+    .buku-card-header {
+      display:flex; align-items:center; justify-content:space-between;
+      gap:10px; flex-wrap:wrap; cursor:pointer; user-select:none;padding: 11px;
+    }
+    .buku-header-left { display:flex; align-items:center; gap:12px; flex:1; min-width:0; }
+    .buku-icon {
+      font-size:28px; flex-shrink:0; width:44px; height:44px;
+      display:flex; align-items:center; justify-content:center;
+      border-radius:12px; background:rgba(91,73,57,.07);
+    }
+    .buku-icon.locked { position:relative; }
+    .buku-icon.locked::after {
+      content:'\f023'; font-family:'Font Awesome 6 Free'; font-weight:900;
+      position:absolute; bottom:-2px; right:-4px; font-size:11px;
+      background:var(--danger); color:#fff; border-radius:50%;
+      width:16px; height:16px; display:flex; align-items:center; justify-content:center;
+      line-height:16px; text-align:center;
+    }
+    .buku-title { font-size:15px; font-weight:800; text-transform:uppercase; line-height:1.2; }
+    .buku-meta  { font-size:12px; color:var(--muted); margin-top:3px; }
+    .buku-header-right {
+      display:flex; align-items:center; gap:8px; flex-shrink:0; flex-wrap:wrap;
+    }
+    .buku-chevron { font-size:11px; color:var(--muted); transition:transform .2s; margin-left:4px; }
+    .buku-card.expanded .buku-chevron { transform:rotate(180deg); }
+
+    .buku-body { display:none; margin-top:12px; padding-top:12px; border-top:1px solid var(--line); }
+    .buku-card.expanded .buku-body { display:block;padding: 16px; }
+    .buku-deskripsi { font-size:13px; color:var(--muted); line-height:1.6; margin-bottom:12px; }
+    .buku-footer {
+      display:flex; align-items:center; justify-content:space-between;
+      gap:10px; flex-wrap:wrap;
+    }
+    .buku-footer-meta { font-size:11px; color:var(--muted); }
+    .buku-footer-actions { display:flex; gap:8px; flex-wrap:wrap; }
+    .buku-footer-actions button { padding:8px 14px; font-size:12px; }
+
+    /* Tombol aksi di header card */
+    .buku-action-btn { padding:8px 14px !important; font-size:12px; }
+
+    /* ── Upload zone ── */
+    .upload-zone {
+      border:2px dashed var(--line); border-radius:12px; padding:22px;
+      text-align:center; cursor:pointer; transition:border-color .15s, background .15s;
+      position:relative; margin-top:4px;
+    }
+    .upload-zone:hover, .upload-zone.drag-over { border-color:var(--accent); background:rgba(185,118,80,.04); }
+    .upload-zone i { font-size:26px; color:var(--accent); margin-bottom:8px; display:block; }
+    .upload-zone p { font-size:13px; color:var(--muted); margin:0; }
+    .upload-zone input[type="file"] { position:absolute; inset:0; opacity:0; cursor:pointer; }
+    .upload-file-info { font-size:12px; color:var(--success); font-weight:700; margin-top:6px; }
+    .upload-progress { height:4px; background:var(--line); border-radius:2px; overflow:hidden; display:none; margin-top:8px; }
+    .upload-progress-bar { height:100%; background:var(--accent); width:0%; transition:width .3s; }
+
+    /* ── Radio/toggle ── */
+    .radio-group { display:flex; gap:10px; flex-wrap:wrap; margin-top:4px; }
+    .radio-label {
+      display:flex; align-items:center; gap:7px; cursor:pointer; font-size:13px;
+      font-weight:600 !important; text-transform:none !important;
+      padding:9px 14px; border:1.5px solid var(--line); border-radius:10px;
+    }
+    .radio-label:has(input:checked) { border-color:var(--accent); background:rgba(185,118,80,.08); }
+    .radio-label input { accent-color:var(--accent); width:auto; padding:0; }
+
+    /* ── Quill editor ── */
+    .quill-editor-wrap { border:1px solid var(--line); border-radius:10px; overflow:hidden; margin-top:4px; }
+    #quillEditor { min-height:200px; font-family:'Poppins',sans-serif; font-size:14px; }
+    .ql-toolbar { border:none !important; border-bottom:1px solid var(--line) !important; }
+    .ql-container { border:none !important; }
+
+    /* ── Empty state ── */
+    .empty-state { padding:40px 20px; text-align:center; color:var(--muted); font-size:14px; }
+    .empty-state i { font-size:44px; margin-bottom:14px; opacity:.3; display:block; }
+
+    /* ── Dialog Baca Quill ── */
+    #quillViewDialog { max-width:700px; width:calc(100vw - 24px); }
+    .quill-view-body { padding:20px 22px; max-height:70vh; overflow-y:auto; }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-left">
+      <button class="drawer-toggle" id="navToggle" type="button" aria-label="Toggle sidebar">Menu</button>
+      <div class="header-brand">Pendataan Santri</div>
+      <div class="header-page">Perpustakaan Digital</div>
+    </div>
+    <div class="header-right">
+      <span class="header-chip" id="headerRole">Admin</span>
+    </div>
+  </header>
+  <div class="drawer-backdrop" id="navBackdrop"></div>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+
+  <main>
+    <div class="app-layout">
+      <section class="panel nav" id="nav"></section>
+      <div class="content-stack">
+        <section class="notice info" id="notice"></section>
+
+        <section class="panel">
+          <div class="section-head">
+            <div>
+              <h2>Perpustakaan Digital</h2>
+              <p style="color:var(--muted);font-size:13px;margin-top:4px;" id="libSubtitle">Memuat buku...</p>
+            </div>
+          </div>
+
+          <div class="toolbar" id="actionToolbar">
+            <button class="primary" id="btnUploadBuku" type="button" style="display:none;">
+              <i class="fa-solid fa-upload"></i>&ensp;Upload Buku
+            </button>
+            <button class="secondary" id="btnRefresh" type="button">
+              <i class="fa-solid fa-rotate-right"></i>&ensp;Muat Ulang
+            </button>
+          </div>
+
+          <div class="filters" id="filtersPanel">
+            <label>
+              Cari judul, penulis, pelajaran
+              <input type="search" id="searchBuku" placeholder="Ketik untuk mencari...">
+            </label>
+            <label>
+              Mata Pelajaran
+              <select id="filterPelajaran">
+                <option value="">Semua Pelajaran</option>
+              </select>
+            </label>
+            <label>
+              Level Akses
+              <select id="filterAkses">
+                <option value="">Semua Akses</option>
+                <option value="semua">Terbuka</option>
+                <option value="terbatas">Terbatas</option>
+                <option value="dikunci">Dikunci</option>
+              </select>
+            </label>
+            <label>
+              Format File
+              <select id="filterJenis">
+                <option value="">Semua Format</option>
+                <option value="pdf">PDF</option>
+                <option value="docx">Word (DOCX)</option>
+                <option value="quill">Artikel / Modul</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="list" id="bukuList"></div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <!-- ── Dialog: Tambah / Edit Buku ── -->
+  <div id="dialogRoot">
+  <dialog class="ps-floating-dialog" id="bukuDialog">
+    <div class="dialog-body ps-dialog-shell">
+      <div class="ps-dialog-header">
+        <h3 id="dialogTitle">Tambah Buku</h3>
+        <p id="dialogSubtitle" style="font-size:13px;color:var(--muted);margin-top:4px;font-weight:400;text-transform:none;"></p>
+      </div>
+
+      <div id="fileTypeRow">
+        <label>Format / Jenis</label>
+        <div class="radio-group" id="fileTypeGroup">
+          <label class="radio-label">
+            <input type="radio" name="fileType" value="pdf" checked>
+            <i class="fa-solid fa-file-pdf" style="color:#c83c3c;"></i> PDF
+          </label>
+          <label class="radio-label">
+            <input type="radio" name="fileType" value="docx">
+            <i class="fa-solid fa-file-word" style="color:#1e64c8;"></i> Word (DOCX)
+          </label>
+          <label class="radio-label">
+            <input type="radio" name="fileType" value="quill">
+            <i class="fa-solid fa-pen-nib" style="color:#3a8a3a;"></i> Artikel / Modul
+          </label>
+        </div>
+      </div>
+
+      <label>
+        Judul <span style="color:var(--danger)">*</span>
+        <input type="text" id="inputJudul" placeholder="Judul buku atau modul" maxlength="200">
+      </label>
+
+      <label>
+        Penulis / Pengarang
+        <input type="text" id="inputPenulis" placeholder="Nama penulis" maxlength="150">
+      </label>
+
+      <label>
+        Mata Pelajaran / Kategori
+        <input type="text" id="inputPelajaran" placeholder="contoh: Fiqih, Nahwu, Hadits" maxlength="100" list="pelajaranList">
+        <datalist id="pelajaranList"></datalist>
+      </label>
+
+      <label>
+        Deskripsi
+        <textarea id="inputDeskripsi" placeholder="Keterangan singkat buku..." maxlength="500" rows="3" style="resize:vertical;"></textarea>
+      </label>
+
+      <!-- Upload file (PDF / DOCX) -->
+      <div id="uploadFileRow">
+        <label>File <span id="fileTypeLabel" style="color:var(--accent);font-weight:700;">(PDF)</span></label>
+        <div class="upload-zone" id="uploadZone">
+          <i class="fa-solid fa-cloud-arrow-up"></i>
+          <p id="uploadHint">Klik atau seret file PDF ke sini (maks 50 MB)</p>
+          <p class="upload-file-info" id="uploadFileInfo" style="display:none;"></p>
+          <input type="file" id="fileInput" accept=".pdf,.doc,.docx">
+        </div>
+        <div class="upload-progress" id="uploadProgress">
+          <div class="upload-progress-bar" id="uploadProgressBar"></div>
+        </div>
+        <p style="font-size:11px;color:var(--muted);margin-top:4px;" id="existingFileInfo"></p>
+      </div>
+
+      <!-- Quill editor -->
+      <div id="quillRow" style="display:none;">
+        <label>Konten Artikel / Modul</label>
+        <div class="quill-editor-wrap">
+          <div id="quillEditor"></div>
+        </div>
+      </div>
+
+      <div>
+        <label>Level Akses</label>
+        <div class="radio-group">
+          <label class="radio-label">
+            <input type="radio" name="akses" value="semua" checked>
+            <i class="fa-solid fa-earth-asia" style="color:var(--success);"></i> Semua Pengurus
+          </label>
+          <label class="radio-label">
+            <input type="radio" name="akses" value="terbatas">
+            <i class="fa-solid fa-user-shield" style="color:var(--warning);"></i> Terbatas
+          </label>
+          <label class="radio-label">
+            <input type="radio" name="akses" value="dikunci">
+            <i class="fa-solid fa-lock" style="color:var(--danger);"></i> Dikunci
+          </label>
+        </div>
+      </div>
+
+      <label class="radio-label" style="width:fit-content;border:none;padding:0;">
+        <input type="checkbox" id="checkCanDownload" style="width:auto;padding:0;">
+        Izinkan download
+      </label>
+
+      <p id="dialogError" style="color:var(--danger);font-size:13px;display:none;font-weight:600;"></p>
+
+      <div class="toolbar ps-dialog-footer">
+        <button class="primary" type="button" id="btnDialogSave">
+          <i class="fa-solid fa-floppy-disk"></i>&ensp;Simpan
+        </button>
+        <button class="secondary" type="button" id="btnDialogCancel">Batal</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- ── Dialog: Baca Artikel Quill ── -->
+  <dialog id="quillViewDialog">
+    <div class="dialog-body ps-dialog-shell">
+      <div class="ps-dialog-header">
+        <h3 id="quillViewTitle">Baca Modul</h3>
+      </div>
+      <div class="quill-view-body" id="quillViewBody"></div>
+      <div class="toolbar ps-dialog-footer">
+        <button class="secondary" type="button" id="btnQuillViewClose">Tutup</button>
+      </div>
+    </div>
+  </dialog>
+  </div>
+
+  <script src="../../shared-access.js"></script>
+  <script src="../../shared-nav.js"></script>
+  <script src="../../shared-shell.js"></script>
+  <script src="../../vendor/quill/quill.js" onerror="window.__quillMissing=true"></script>
+  <link rel="stylesheet" href="../../vendor/quill/quill.snow.css">
+  <script>
+    var STORAGE = window.PS_STORAGE || { session: 'ps_session' };
+    function getStoredSession() {
+      try { return JSON.parse(localStorage.getItem(STORAGE.session) || 'null'); } catch { return null; }
+    }
+    function getToken() { var s = getStoredSession(); return (s && s.token) || ''; }
+
+    var state = { items: [], pelajaranList: [], editingId: null, quillInstance: null };
+    var canManage = false;
+
+    async function api(action, payload) {
+      var session = getStoredSession();
+      var body = Object.assign({ action: action, token: session && session.token }, payload);
+      var r = await fetch('/api', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+      var json = await r.json();
+      if (!json.ok) throw new Error((json.error && json.error.message) || 'Gagal.');
+      return json.data;
+    }
+
+    function esc(s) {
+      return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function showNotice(text, type) {
+      var stack = document.getElementById('noticeStack');
+      if (!stack) return;
+      var el = document.createElement('section');
+      el.className = 'notice show ' + (type || 'info');
+      el.textContent = text;
+      stack.prepend(el);
+      if (stack.matches(':popover-open')) stack.hidePopover();
+      stack.showPopover();
+      setTimeout(function() {
+        el.classList.add('notice-dismissing');
+        setTimeout(function() {
+          el.remove();
+          if (!stack.hasChildNodes() && stack.matches(':popover-open')) stack.hidePopover();
+        }, 220);
+      }, type === 'error' ? 8000 : 4000);
+    }
+
+    var FILE_ICONS = { pdf:'📕', docx:'📘', doc:'📘', quill:'📗' };
+
+    function aksesLabel(akses) {
+      if (akses === 'terbatas') return '<span class="pill pill-terbatas"><i class="fa-solid fa-user-shield"></i>&ensp;TERBATAS</span>';
+      if (akses === 'dikunci')  return '<span class="pill pill-dikunci"><i class="fa-solid fa-lock"></i>&ensp;DIKUNCI</span>';
+      return '';
+    }
+
+    function formatLabel(ft) {
+      var map = { pdf:'pill-pdf', docx:'pill-docx', doc:'pill-doc', quill:'pill-quill' };
+      var cls = map[ft] || 'pill-pdf';
+      return '<span class="pill ' + cls + '">' + esc((ft||'pdf').toUpperCase()) + '</span>';
+    }
+
+    function renderList(items) {
+      var el = document.getElementById('bukuList');
+      if (!items.length) {
+        el.innerHTML = '<div class="empty-state"><i class="fa-solid fa-book-open"></i><p>Belum ada buku. ' + (canManage ? 'Klik <strong>Upload Buku</strong> untuk menambahkan.' : 'Hubungi admin untuk menambahkan buku.') + '</p></div>';
+        return;
+      }
+      el.innerHTML = items.map(function(b) {
+        var icon = FILE_ICONS[b.fileType] || '📄';
+        var locked = !b.canOpen;
+        var ft = b.fileType || 'pdf';
+        var metaParts = [];
+        if (b.penulis) metaParts.push(esc(b.penulis));
+        if (b.pelajaran) metaParts.push(esc(b.pelajaran));
+        var meta = metaParts.join(' &bull; ');
+        return '<div class="minimal-list-card buku-card" data-id="' + esc(b.id) + '">' +
+          '<div class="buku-card-header" data-toggle="' + esc(b.id) + '">' +
+            '<div class="buku-header-left">' +
+              '<div class="buku-icon' + (locked ? ' locked' : '') + '">' + icon + '</div>' +
+              '<div>' +
+                '<div class="buku-title">' + esc(b.judul) + '</div>' +
+                (meta ? '<div class="buku-meta">' + meta + '</div>' : '') +
+              '</div>' +
+            '</div>' +
+            '<div class="buku-header-right">' +
+              formatLabel(ft) +
+              (b.pelajaran ? '<span class="pill pill-pelajaran" style="display:none;">' + esc(b.pelajaran) + '</span>' : '') +
+              aksesLabel(b.akses) +
+              ((!locked) ? '<button class="secondary buku-action-btn" data-open="' + esc(b.id) + '" type="button"><i class="fa-solid ' + (ft==='quill'?'fa-book-open':'fa-eye') + '"></i>&ensp;' + (ft==='quill'?'Baca':'Buka') + '</button>' : '<button class="secondary buku-action-btn" disabled title="Akses terbatas" type="button"><i class="fa-solid fa-lock"></i>&ensp;Terkunci</button>') +
+              (b.canDownload && !locked ? '<button class="secondary buku-action-btn" data-download="' + esc(b.id) + '" type="button"><i class="fa-solid fa-download"></i>&ensp;Unduh</button>' : '') +
+              '<i class="fa-solid fa-chevron-down buku-chevron"></i>' +
+            '</div>' +
+          '</div>' +
+          '<div class="buku-body">' +
+            (b.deskripsi ? '<p class="buku-deskripsi">' + esc(b.deskripsi) + '</p>' : '<p class="buku-deskripsi" style="color:var(--muted);font-style:italic;">Tidak ada deskripsi.</p>') +
+            '<div class="buku-footer">' +
+              '<span class="buku-footer-meta">' +
+                (b.uploadedByNama ? 'Diunggah oleh: <strong>' + esc(b.uploadedByNama) + '</strong>' : '') +
+                (b.fileSize ? ' &bull; ' + fileSizeLabel(b.fileSize) : '') +
+              '</span>' +
+              (canManage ? '<div class="buku-footer-actions">' +
+                '<button class="secondary buku-action-btn" data-edit="' + esc(b.id) + '" type="button"><i class="fa-solid fa-pen"></i>&ensp;Edit</button>' +
+                '<button class="danger buku-action-btn" data-delete="' + esc(b.id) + '" type="button"><i class="fa-solid fa-trash"></i>&ensp;Hapus</button>' +
+              '</div>' : '') +
+            '</div>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+
+      el.querySelectorAll('[data-toggle]').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+          if (e.target.closest('button[data-open], button[data-download], button[data-edit], button[data-delete]')) return;
+          var id = this.dataset.toggle;
+          var card = el.querySelector('.buku-card[data-id="' + id + '"]');
+          if (card) card.classList.toggle('expanded');
+        });
+      });
+      el.querySelectorAll('[data-open]').forEach(function(btn) {
+        btn.addEventListener('click', function(e) { e.stopPropagation(); openBuku(this.dataset.open); });
+      });
+      el.querySelectorAll('[data-download]').forEach(function(btn) {
+        btn.addEventListener('click', function(e) { e.stopPropagation(); downloadBuku(this.dataset.download); });
+      });
+      el.querySelectorAll('[data-edit]').forEach(function(btn) {
+        btn.addEventListener('click', function(e) { e.stopPropagation(); openDialog(this.dataset.edit); });
+      });
+      el.querySelectorAll('[data-delete]').forEach(function(btn) {
+        btn.addEventListener('click', function(e) { e.stopPropagation(); deleteBuku(this.dataset.delete); });
+      });
+    }
+
+    function fileSizeLabel(bytes) {
+      if (!bytes) return '';
+      var n = Number(bytes);
+      if (n >= 1024*1024) return (n/1024/1024).toFixed(1) + ' MB';
+      if (n >= 1024) return (n/1024).toFixed(0) + ' KB';
+      return n + ' B';
+    }
+
+    function applyFilters() {
+      var q = document.getElementById('searchBuku').value.toLowerCase();
+      var pelajaran = document.getElementById('filterPelajaran').value;
+      var akses = document.getElementById('filterAkses').value;
+      var jenis = document.getElementById('filterJenis').value;
+      var filtered = state.items.filter(function(b) {
+        if (pelajaran && b.pelajaran !== pelajaran) return false;
+        if (akses && b.akses !== akses) return false;
+        if (jenis && b.fileType !== jenis) return false;
+        if (q) {
+          var hay = [b.judul, b.penulis, b.pelajaran, b.deskripsi].join(' ').toLowerCase();
+          if (hay.indexOf(q) === -1) return false;
+        }
+        return true;
+      });
+      document.getElementById('libSubtitle').textContent = filtered.length + ' dari ' + state.items.length + ' buku';
+      renderList(filtered);
+    }
+
+    async function loadBuku() {
+      document.getElementById('libSubtitle').textContent = 'Memuat buku...';
+      try {
+        var data = await api('buku.list', {});
+        state.items = data.items || [];
+        state.pelajaranList = data.pelajaranList || [];
+        var sel = document.getElementById('filterPelajaran');
+        sel.innerHTML = '<option value="">Semua Pelajaran</option>' +
+          state.pelajaranList.map(function(p) { return '<option value="' + esc(p) + '">' + esc(p) + '</option>'; }).join('');
+        var dl = document.getElementById('pelajaranList');
+        dl.innerHTML = state.pelajaranList.map(function(p) { return '<option value="' + esc(p) + '">'; }).join('');
+        applyFilters();
+      } catch(e) {
+        document.getElementById('libSubtitle').textContent = '';
+        document.getElementById('bukuList').innerHTML = '<div class="empty-state"><i class="fa-solid fa-circle-exclamation"></i><p>' + esc(e.message) + '</p></div>';
+      }
+    }
+
+    function openBuku(id) {
+      var b = state.items.find(function(x) { return x.id === id; });
+      if (!b) return;
+      if (b.fileType === 'quill') {
+        var dialog = document.getElementById('quillViewDialog');
+        document.getElementById('quillViewTitle').textContent = b.judul;
+        var bodyEl = document.getElementById('quillViewBody');
+        if (b.quillContent && window.Quill) {
+          var tmp = document.createElement('div');
+          tmp.style.cssText = 'position:absolute;left:-9999px;visibility:hidden;';
+          document.body.appendChild(tmp);
+          try {
+            var q = new Quill(tmp, { modules:{ toolbar:false } });
+            q.setContents(JSON.parse(b.quillContent));
+            bodyEl.innerHTML = '<div class="ql-editor" style="padding:0;">' + q.root.innerHTML + '</div>';
+          } catch(_) { bodyEl.textContent = 'Gagal memuat konten.'; }
+          finally { document.body.removeChild(tmp); }
+        } else {
+          bodyEl.innerHTML = '<p style="color:var(--muted)">Konten belum diisi.</p>';
+        }
+        dialog.showModal();
+        return;
+      }
+      window.open('/api/buku/file?id=' + encodeURIComponent(id) + '&token=' + encodeURIComponent(getToken()) + '&mode=view', '_blank');
+    }
+
+    function downloadBuku(id) {
+      var url = '/api/buku/file?id=' + encodeURIComponent(id) + '&token=' + encodeURIComponent(getToken()) + '&mode=download';
+      var a = document.createElement('a'); a.href = url; a.download = ''; a.style.display = 'none';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    }
+
+    async function deleteBuku(id) {
+      var b = state.items.find(function(x) { return x.id === id; });
+      if (!b) return;
+      if (!confirm('Hapus buku "' + b.judul + '"? Tindakan ini tidak dapat dibatalkan.')) return;
+      try {
+        await api('buku.delete', { id: id });
+        showNotice('Buku berhasil dihapus.', 'success');
+        await loadBuku();
+      } catch(e) { showNotice('Gagal menghapus: ' + e.message, 'error'); }
+    }
+
+    /* ── Dialog ── */
+    var _selectedFile = null;
+    var _quillEditor = null;
+    var QUILL_TOOLBAR_FULL = [
+      [{ header: [1, 2, 3, 4, false] }],
+      [{ font: [] }, { size: ['small', false, 'large', 'huge'] }],
+      ['bold', 'italic', 'underline', 'strike'],
+      [{ color: [] }, { background: [] }],
+      [{ script: 'sub' }, { script: 'super' }],
+      [{ list: 'ordered' }, { list: 'bullet' }, { indent: '-1' }, { indent: '+1' }],
+      [{ align: [] }, { direction: 'rtl' }],
+      ['blockquote', 'code-block', 'link', 'image', 'video'],
+      ['clean']
+    ];
+
+    function getSelectedFileType() {
+      var checked = document.querySelector('input[name="fileType"]:checked');
+      return checked ? checked.value : 'pdf';
+    }
+
+    function updateDialogMode() {
+      var ft = getSelectedFileType();
+      var isQuill = ft === 'quill';
+      document.getElementById('uploadFileRow').style.display = isQuill ? 'none' : '';
+      document.getElementById('quillRow').style.display = isQuill ? '' : 'none';
+      var acceptMap  = { pdf:'.pdf', docx:'.docx,.doc' };
+      var hintMap    = { pdf:'Klik atau seret file PDF ke sini (maks 50 MB)', docx:'Klik atau seret file DOCX ke sini (maks 50 MB)' };
+      var labelMap   = { pdf:'(PDF)', docx:'(Word / DOCX)' };
+      document.getElementById('fileInput').accept = acceptMap[ft] || '.pdf';
+      document.getElementById('uploadHint').textContent = hintMap[ft] || hintMap.pdf;
+      document.getElementById('fileTypeLabel').textContent = labelMap[ft] || '';
+      if (isQuill && !_quillEditor && window.Quill) {
+        _quillEditor = new Quill('#quillEditor', { theme:'snow', placeholder:'Tulis konten artikel atau modul di sini...', modules:{ toolbar: QUILL_TOOLBAR_FULL } });
+        state.quillInstance = _quillEditor;
+      }
+    }
+
+    function openDialog(editId) {
+      state.editingId = editId || null;
+      _selectedFile = null;
+      var isEdit = !!editId;
+      var b = isEdit ? state.items.find(function(x) { return x.id === editId; }) : null;
+      document.getElementById('dialogTitle').textContent = isEdit ? 'Edit Buku' : 'Tambah Buku';
+      document.getElementById('dialogSubtitle').textContent = isEdit && b ? b.judul : '';
+      document.getElementById('fileTypeRow').style.display = isEdit ? 'none' : '';
+      document.getElementById('dialogError').style.display = 'none';
+      document.getElementById('uploadFileInfo').style.display = 'none';
+      document.getElementById('uploadFileInfo').textContent = '';
+      document.getElementById('existingFileInfo').textContent = '';
+      document.getElementById('uploadProgressBar').style.width = '0%';
+      document.getElementById('uploadProgress').style.display = 'none';
+
+      if (b) {
+        document.getElementById('inputJudul').value = b.judul || '';
+        document.getElementById('inputPenulis').value = b.penulis || '';
+        document.getElementById('inputPelajaran').value = b.pelajaran || '';
+        document.getElementById('inputDeskripsi').value = b.deskripsi || '';
+        var aksesEl = document.querySelector('input[name="akses"][value="' + (b.akses||'semua') + '"]');
+        if (aksesEl) aksesEl.checked = true;
+        document.getElementById('checkCanDownload').checked = !!b.canDownload;
+        var ft = b.fileType || 'pdf';
+        document.querySelectorAll('input[name="fileType"]').forEach(function(r) { r.checked = r.value === ft; });
+        if (b.hasFile) {
+          document.getElementById('existingFileInfo').textContent = 'File saat ini: ' + (b.fileName || 'ada') + ' — upload baru untuk mengganti';
+        }
+        if (ft === 'quill') {
+          document.getElementById('uploadFileRow').style.display = 'none';
+          document.getElementById('quillRow').style.display = '';
+          if (!_quillEditor && window.Quill) {
+            _quillEditor = new Quill('#quillEditor', { theme:'snow', placeholder:'Tulis konten artikel atau modul di sini...', modules:{ toolbar: QUILL_TOOLBAR_FULL } });
+            state.quillInstance = _quillEditor;
+          }
+          if (_quillEditor && b.quillContent) {
+            try { _quillEditor.setContents(JSON.parse(b.quillContent)); } catch(_) { _quillEditor.setText(''); }
+          } else if (_quillEditor) {
+            _quillEditor.setText('');
+          }
+        }
+      } else {
+        document.getElementById('inputJudul').value = '';
+        document.getElementById('inputPenulis').value = '';
+        document.getElementById('inputPelajaran').value = '';
+        document.getElementById('inputDeskripsi').value = '';
+        var semua = document.querySelector('input[name="akses"][value="semua"]');
+        if (semua) semua.checked = true;
+        document.getElementById('checkCanDownload').checked = true;
+        document.querySelectorAll('input[name="fileType"]').forEach(function(r) { r.checked = r.value === 'pdf'; });
+        if (_quillEditor) _quillEditor.setText('');
+      }
+      updateDialogMode();
+      document.getElementById('bukuDialog').showModal();
+    }
+
+    async function saveDialog() {
+      var isEdit = !!state.editingId;
+      var judul   = document.getElementById('inputJudul').value.trim();
+      var penulis = document.getElementById('inputPenulis').value.trim();
+      var pelajaran = document.getElementById('inputPelajaran').value.trim();
+      var deskripsi = document.getElementById('inputDeskripsi').value.trim();
+      var aksesEl = document.querySelector('input[name="akses"]:checked');
+      var akses = aksesEl ? aksesEl.value : 'semua';
+      var canDownload = document.getElementById('checkCanDownload').checked;
+      var existingBuku = isEdit ? state.items.find(function(x) { return x.id === state.editingId; }) : null;
+      var fileType = isEdit && existingBuku ? (existingBuku.fileType || 'pdf') : getSelectedFileType();
+      var errEl = document.getElementById('dialogError');
+      errEl.style.display = 'none';
+
+      if (!judul) { errEl.textContent = 'Judul wajib diisi.'; errEl.style.display = ''; return; }
+
+      var btn = document.getElementById('btnDialogSave');
+      btn.disabled = true; btn.textContent = 'Menyimpan...';
+
+      try {
+        var bukuId = state.editingId;
+        if (!isEdit) {
+          var saved = await api('buku.save', { judul, penulis, pelajaran, deskripsi, akses, canDownload, fileType });
+          bukuId = saved.id;
+        } else {
+          await api('buku.update', { id: bukuId, judul, penulis, pelajaran, deskripsi, akses, canDownload });
+        }
+        if (fileType !== 'quill' && _selectedFile) {
+          await uploadFile(bukuId, _selectedFile);
+        }
+        if (fileType === 'quill' && _quillEditor) {
+          await api('buku.quill.save', { id: bukuId, quillContent: JSON.stringify(_quillEditor.getContents()) });
+        }
+        document.getElementById('bukuDialog').close();
+        showNotice(isEdit ? 'Buku berhasil diperbarui.' : 'Buku berhasil ditambahkan.', 'success');
+        await loadBuku();
+      } catch(e) {
+        errEl.textContent = e.message;
+        errEl.style.display = '';
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i>&ensp;Simpan';
+      }
+    }
+
+    async function uploadFile(bukuId, file) {
+      var prog = document.getElementById('uploadProgress');
+      var bar  = document.getElementById('uploadProgressBar');
+      prog.style.display = ''; bar.style.width = '10%';
+      var url = '/api/buku/upload?token=' + encodeURIComponent(getToken()) +
+        '&id=' + encodeURIComponent(bukuId) +
+        '&filename=' + encodeURIComponent(file.name);
+      return new Promise(function(resolve, reject) {
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', url, true);
+        xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+        xhr.upload.onprogress = function(e) {
+          if (e.lengthComputable) bar.style.width = Math.round(70 * e.loaded / e.total + 10) + '%';
+        };
+        xhr.onload = function() {
+          bar.style.width = '100%';
+          try {
+            var resp = JSON.parse(xhr.responseText);
+            if (resp.ok) resolve(resp.data);
+            else reject(new Error((resp.error && resp.error.message) || 'Upload gagal.'));
+          } catch(_) { reject(new Error('Respons upload tidak valid.')); }
+        };
+        xhr.onerror = function() { reject(new Error('Koneksi gagal saat upload.')); };
+        xhr.send(file);
+      });
+    }
+
+    function selectFile(file) {
+      _selectedFile = file;
+      var info = document.getElementById('uploadFileInfo');
+      info.textContent = file.name + ' (' + (file.size/1024/1024).toFixed(2) + ' MB)';
+      info.style.display = '';
+    }
+
+    window.addEventListener('DOMContentLoaded', async function() {
+      if (window.PSAccess && window.PSAccess.redirectIfForbidden(getStoredSession(), 'bukuDigital.html')) return;
+      if (window.PSShell) window.PSShell.mount({
+        currentPage: window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : '/pages/bukuDigital/',
+        session: getStoredSession(), getStoredSession, storageKey: STORAGE.session
+      });
+
+      var session = getStoredSession();
+      var scopedSession = (window.PSAccess && window.PSAccess.getScopedSession)
+        ? window.PSAccess.getScopedSession(session) : session;
+      var perms = scopedSession && scopedSession.permissions;
+      canManage = !!(perms && perms.canManageBuku);
+      if (canManage) document.getElementById('btnUploadBuku').style.display = '';
+
+      document.getElementById('btnUploadBuku').addEventListener('click', function() { openDialog(null); });
+      document.getElementById('btnRefresh').addEventListener('click', loadBuku);
+      document.getElementById('btnDialogClose') && document.getElementById('btnDialogClose').addEventListener('click', function() { document.getElementById('bukuDialog').close(); });
+      document.getElementById('btnDialogCancel').addEventListener('click', function() { document.getElementById('bukuDialog').close(); });
+      document.getElementById('btnDialogSave').addEventListener('click', saveDialog);
+      document.getElementById('btnQuillViewClose').addEventListener('click', function() { document.getElementById('quillViewDialog').close(); });
+
+      document.querySelectorAll('input[name="fileType"]').forEach(function(r) {
+        r.addEventListener('change', updateDialogMode);
+      });
+
+      document.getElementById('fileInput').addEventListener('change', function() {
+        if (this.files && this.files[0]) selectFile(this.files[0]);
+      });
+      var zone = document.getElementById('uploadZone');
+      zone.addEventListener('dragover', function(e) { e.preventDefault(); zone.classList.add('drag-over'); });
+      zone.addEventListener('dragleave', function() { zone.classList.remove('drag-over'); });
+      zone.addEventListener('drop', function(e) {
+        e.preventDefault(); zone.classList.remove('drag-over');
+        if (e.dataTransfer.files[0]) selectFile(e.dataTransfer.files[0]);
+      });
+
+      ['searchBuku','filterPelajaran','filterAkses','filterJenis'].forEach(function(id) {
+        document.getElementById(id).addEventListener('input', applyFilters);
+        document.getElementById(id).addEventListener('change', applyFilters);
+      });
+
+      await loadBuku();
+    });
+  </script>
+</body>
+</html>

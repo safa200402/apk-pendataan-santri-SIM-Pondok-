@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#9e2f22">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="../../shared-ui.css">
+  <script src="../../shared-ui.js"></script>
+  <title>Kelola Audit Bawahan</title>
+  <link rel="stylesheet" href="../../shared-shell.css">
+  <link rel="stylesheet" href="../../vendor/fontawesome/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700&display=swap');
+    :root {
+      --paper: #f6efe0; --ink: #4d4034; --muted: #7b6a58;
+      --line: rgba(91,73,57,0.15); --accent: #b97650;
+      --success: #74846c; --danger: #a55a52; --warning: #b58439;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; }
+    body::before { content: ''; position: fixed; inset: 0; pointer-events: none; opacity: 0.15; mix-blend-mode: multiply; }
+    body::after  { content: ''; position: fixed; inset: 0; pointer-events: none; opacity: 0.23; }
+    h1, h2, h3 { margin: 0 0 10px; text-transform: uppercase; }
+    p { margin: 0; line-height: 1.65; }
+    .nav a, button { font-weight: 800 !important; text-transform: uppercase; }
+    .panel { padding: 22px; }
+    .card { padding: 16px; }
+    button { font: inherit; padding: 12px 18px; font-weight: 700; cursor: pointer; }
+    .notice { display: none; padding: 14px 16px; line-height: 1.55; }
+    .notice.show { display: block; }
+    .empty-state { padding: 36px 20px; text-align: center; color: var(--muted); font-size: 14px; }
+
+    .audit-list { display: grid; gap: 12px; margin-top: 16px; }
+    .audit-card { padding: 16px 18px; border-radius: 14px; display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; background: rgba(242, 222, 154, 0.96) !important; flex-wrap: wrap; }
+    .audit-card-body { flex: 1; min-width: 220px; }
+    .audit-title { font-weight: 700; font-size: 15px; text-transform: uppercase; letter-spacing: 0.04em; display: flex; align-items: center; gap: 8px; }
+    .audit-desc { font-size: 12.5px; color: var(--ink); margin-top: 6px; line-height: 1.6; }
+    .audit-meta { font-size: 11px; color: var(--muted); margin-top: 8px; }
+    .audit-target { font-size: 11.5px; font-weight: 700; color: var(--accent); margin-top: 6px; display: flex; align-items: center; gap: 6px; text-transform: uppercase; letter-spacing: 0.03em; }
+    .status-chip { display: inline-flex; padding: 3px 10px; font-size: 11px; font-weight: 700; border-radius: 999px; text-transform: uppercase; }
+    .status-chip.on { background: rgba(116,132,108,0.18); color: #3a5a30; }
+    .status-chip.off { background: rgba(165,90,82,0.18); color: var(--danger); }
+    .audit-actions { flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+
+    .audit-audience-extra { margin-top: 10px; border-top: 1px dashed var(--line); padding-top: 8px; }
+    .audit-audience-extra summary { cursor: pointer; font-size: 11.5px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.03em; }
+    .audit-audience-extra-body { margin-top: 10px; }
+    .audit-audience-extra-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 6px 12px; }
+    .audit-audience-extra-opt { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; cursor: pointer; }
+    .audit-audience-extra-opt input { width: 15px; height: 15px; accent-color: var(--accent); cursor: pointer; }
+    .btn-save-audience { margin-top: 10px; padding: 8px 14px; font-size: 12px; }
+
+    .page-center { display: grid; gap: 8px; justify-items: center; }
+    .page-numbers { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+    .page-summary { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+
+    /* ── dialog Sambungkan WhatsApp (#waPanelDlg) ── */
+    /* dialog di app ini di-"floating-dialog"-kan otomatis oleh shared-ui.js (dialog.ps-floating-dialog
+       jadi ~95% lebar viewport, .dialog-body ikut dilebarkan 100% lewat .ps-dialog-shell) -- SAMA
+       persis kayak waQrDlg/waGroupDlg di bawah. Jangan lawan itu dgn kasih width tetap ke
+       .dialog-body sendiri (pernah dicoba -- hasilnya dialog luarnya tetap selebar 95vw tapi
+       isinya nyempil sekotak kecil di kiri atas, sisanya kosong menganga). Yang dibatasi &
+       ditengahkan cuma baris2 form-nya (below), biar tetap nyaman dibaca walau dialognya lebar;
+       head & toolbar sengaja dibiarkan full-bleed spt bawaan (ada garis pembatas atas/bawah).
+       Baris2 wa-* juga sengaja TIDAK boleh punya margin-top -- jaraknya cukup dari gap flex
+       .dialog-body bawaan, biar tidak dobel.
+    */
+    #waPanelDlg .wa-status-row,
+    #waPanelDlg .wa-actions,
+    #waPanelDlg .wa-group-row,
+    #waPanelDlg .wa-schedule-row,
+    #waPanelDlg .wa-test-row { width: 100%; max-width: 620px; margin-left: auto; margin-right: auto; }
+    .wa-status-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .status-chip.connecting { background: rgba(181,132,57,0.18); color: var(--warning); }
+    .wa-actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+    .wa-toggle-label { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 13px; cursor: pointer; }
+    .wa-toggle-label input { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
+    .wa-group-row, .wa-schedule-row, .wa-test-row { padding-top: 16px; border-top: 1px dashed var(--line); }
+    .wa-group-row label, .wa-schedule-row label, .wa-test-row label { display: block; font-size: 12px; font-weight: 600; color: var(--ink); margin-bottom: 6px; }
+    .wa-group-row input[type="text"], .wa-test-row input[type="text"] { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); font: inherit; font-size: 13px; }
+    .wa-group-actions { display: flex; gap: 8px; margin-top: 10px; }
+    .wa-test-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; }
+    .wa-test-row label { flex: 1; min-width: 220px; }
+    .wa-target-list { display: flex; flex-wrap: wrap; gap: 8px; }
+    .wa-target-chip { display: inline-flex; align-items: center; gap: 8px; padding: 6px 8px 6px 12px; border-radius: 999px; background: rgba(185,118,80,0.12); border: 1px solid var(--line); font-size: 12px; }
+    .wa-target-chip .wa-chip-type { font-size: 10px; opacity: 0.65; text-transform: uppercase; }
+    .wa-target-chip button { padding: 2px 7px; font-size: 12px; border-radius: 999px; border: none; background: rgba(165,90,82,0.18); color: var(--danger); cursor: pointer; line-height: 1; }
+    .wa-add-number-row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+    .wa-add-number-row input { padding: 9px 12px; border-radius: 8px; border: 1px solid var(--line); font: inherit; font-size: 13px; }
+    .wa-add-number-row input[type="text"] { flex: 1; min-width: 220px; }
+    .wa-schedule-list { display: flex; flex-wrap: wrap; gap: 8px; }
+    .wa-schedule-chip { display: inline-flex; align-items: center; gap: 8px; padding: 6px 8px 6px 12px; border-radius: 999px; background: rgba(116,132,108,0.14); border: 1px solid var(--line); font-size: 13px; font-weight: 700; }
+    .wa-schedule-chip button { padding: 2px 7px; font-size: 12px; border-radius: 999px; border: none; background: rgba(165,90,82,0.18); color: var(--danger); cursor: pointer; line-height: 1; }
+    .wa-send-now-btn { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+    /* ── dialog QR & daftar grup ── */
+    .wa-group-list { max-height: 320px; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; margin-top: 10px; }
+    .wa-group-row-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; cursor: pointer; border-bottom: 1px solid var(--line); }
+    .wa-group-row-item:last-child { border-bottom: none; }
+    .wa-group-row-item:hover { background: rgba(185,118,80,0.1); }
+    .wa-group-row-item.selected { background: rgba(116,132,108,0.18); }
+    .wa-group-row-name { font-weight: 600; font-size: 13px; }
+    .wa-group-row-meta { font-size: 11px; color: var(--muted); }
+    .wa-group-pagination { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-top: 10px; }
+    .wa-group-pagination button { padding: 5px 10px; font-size: 12px; border-radius: 6px; border: 1px solid var(--line); background: #fff; cursor: pointer; }
+    .wa-group-pagination button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  </style>
+</head>
+<body>
+  <script src="../../shared-nav.js"></script>
+  <script src="../../shared-access.js"></script>
+  <script src="../../shared-shell.js"></script>
+  <header class="app-header">
+    <div class="header-left">
+      <button class="drawer-toggle" id="navToggle" type="button" aria-label="Toggle sidebar">Menu</button>
+      <div class="header-brand">Pendataan Santri</div>
+      <div class="header-page">Kelola Audit Bawahan</div>
+    </div>
+    <div class="header-right">
+      <span class="header-chip" id="headerRole">Admin</span>
+    </div>
+  </header>
+  <div class="drawer-backdrop" id="navBackdrop"></div>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+  <main>
+    <div class="app-layout">
+      <section class="panel nav" id="nav"></section>
+      <div class="content-stack">
+
+        <section class="panel">
+          <div>
+            <h2>Kelola Audit Bawahan</h2>
+            <p style="color:var(--muted);font-size:13px;margin-top:4px;">Tombol pojok kanan-bawah yang menampilkan daftar bawahan yang belum menyelesaikan tugasnya. Beda dari Kelola Audit: ini murni informasi buat atasan menindaklanjuti langsung — tidak memblokir/mengunci akses apa pun. Matikan di sini kalau sedang tidak ingin item tertentu dipantau.</p>
+          </div>
+
+          <div class="filters" id="filtersPanel">
+            <label>
+              Cari nama audit
+              <input type="search" id="filterNama" placeholder="Mis. hafalan, absensi">
+            </label>
+            <label>
+              Ditujukan untuk (jabatan)
+              <select id="filterAudience">
+                <option value="">Semua jabatan</option>
+              </select>
+            </label>
+            <label>
+              Status
+              <select id="filterStatus">
+                <option value="">Semua</option>
+                <option value="active">Aktif</option>
+                <option value="inactive">Nonaktif</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="wa-open-row" style="margin-top:14px;">
+            <button class="secondary" id="waOpenDialogBtn" type="button"><i class="fa-brands fa-whatsapp"></i>&ensp;Sambungkan WhatsApp</button>
+          </div>
+
+          <div class="paging-host" id="paginationTop"></div>
+
+          <div class="audit-list" id="auditList">
+            <div class="empty-state">Memuat pengaturan...</div>
+          </div>
+
+          <div class="paging-host" id="paginationBottom"></div>
+        </section>
+
+      </div>
+    </div>
+  </main>
+
+  <dialog id="waPanelDlg">
+    <div class="dialog-body duplicate-dialog-body">
+      <div class="duplicate-dialog-head">
+        <div>
+          <h3 class="dialog-title">Sambungkan WhatsApp</h3>
+          <p class="dialog-sub">Hubungkan 1 akun WhatsApp (scan QR sekali) supaya server bisa mengirim pesan ke grup WA tertentu. Hanya Admin/Super Admin yang bisa mengatur ini. Fitur ini pakai koneksi tidak resmi (library Baileys) -- pemakaian berlebihan/spam berisiko akun WA-nya diblokir oleh WhatsApp, di luar kendali aplikasi ini.</p>
+        </div>
+      </div>
+      <div class="wa-status-row">
+        <span class="status-chip off" id="waStatusChip">Memuat...</span>
+        <span id="waStatusDetail" style="font-size:12px;color:var(--muted);"></span>
+      </div>
+      <div id="waNoAccessNote" class="empty-state" style="display:none;">Hanya Admin/Super Admin yang dapat mengatur koneksi WhatsApp.</div>
+      <div class="wa-actions" id="waActionsRow" style="display:none;">
+        <label class="wa-toggle-label">
+          <input type="checkbox" id="waEnableToggle"> Aktifkan fitur WhatsApp
+        </label>
+        <button class="secondary" id="waConnectBtn" type="button" style="display:none;"><i class="fa-solid fa-qrcode"></i>&ensp;Sambungkan (Scan QR)</button>
+        <button class="secondary" id="waLogoutBtn" type="button" style="display:none;"><i class="fa-solid fa-plug-circle-xmark"></i>&ensp;Putuskan / Ganti Akun</button>
+      </div>
+      <div class="wa-group-row" id="waGroupRow" style="display:none;">
+        <label style="margin-bottom:6px;">Tujuan pengiriman (grup dan/atau nomor WA, boleh lebih dari satu)</label>
+        <div id="waTargetList" class="wa-target-list"></div>
+        <div class="wa-group-actions">
+          <button class="secondary" id="waCheckGroupBtn" type="button"><i class="fa-solid fa-users"></i>&ensp;Tambah dari Grup</button>
+        </div>
+        <div class="wa-add-number-row">
+          <input type="text" id="waNumberInput" placeholder="Tambah nomor WA, mis. 0812xxxxxxxx">
+          <button class="secondary" id="waAddNumberBtn" type="button">Tambah Nomor</button>
+        </div>
+      </div>
+      <div class="wa-schedule-row" id="waScheduleRow" style="display:none;">
+        <label style="margin-bottom:6px;">Jadwal kirim otomatis (bisa lebih dari 1 jam per hari)</label>
+        <div id="waScheduleList" class="wa-schedule-list"></div>
+        <div class="wa-add-number-row">
+          <input type="time" id="waScheduleTimeInput">
+          <button class="secondary" id="waAddScheduleBtn" type="button">Tambah Jam</button>
+        </div>
+        <p style="font-size:11px;color:var(--muted);margin-top:6px;">Setiap jam yang ditambahkan, sistem otomatis mengirim rekap SEMUA audit (nama-nama yang belum mengisi, dari semua jenis yang aktif di atas) ke semua tujuan di atas, setiap hari.</p>
+      </div>
+      <div class="wa-test-row" id="waSendNowRow" style="display:none;">
+        <div>
+          <button class="secondary wa-send-now-btn" id="waSendNowBtn" type="button"><i class="fa-solid fa-paper-plane"></i>&ensp;Kirim Audit Sekarang</button>
+          <p style="font-size:11px;color:var(--muted);margin-top:6px;max-width:420px;">Langsung kirim rekap semua audit (sama isinya dengan jadwal otomatis) ke semua tujuan di atas, tanpa perlu menunggu jamnya.</p>
+        </div>
+      </div>
+      <div class="wa-test-row" id="waTestRow" style="display:none;">
+        <label>Pesan uji coba
+          <input type="text" id="waTestMessageInput" placeholder="Tes koneksi WhatsApp dari Pendataan Santri.">
+        </label>
+        <button class="secondary" id="waSendTestBtn" type="button">Kirim Pesan Uji Coba</button>
+      </div>
+      <div class="toolbar">
+        <button class="secondary" id="waPanelDlgCloseBtn" type="button">Tutup</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="waQrDlg">
+    <div class="dialog-body duplicate-dialog-body">
+      <div class="duplicate-dialog-head">
+        <div>
+          <h3 class="dialog-title">Scan QR WhatsApp</h3>
+          <p class="dialog-sub">Buka WhatsApp di HP &rarr; Perangkat Tertaut &rarr; Tautkan Perangkat, lalu scan kode di bawah ini.</p>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:center;padding:12px 0;">
+        <img id="waQrImage" src="" alt="QR WhatsApp" style="width:260px;height:260px;object-fit:contain;border-radius:8px;background:#fff;padding:8px;">
+      </div>
+      <div id="waQrStatusText" style="text-align:center;font-size:13px;color:var(--muted);"></div>
+      <div class="toolbar">
+        <button class="secondary" id="waQrCloseBtn" type="button">Tutup</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="waGroupDlg">
+    <div class="dialog-body duplicate-dialog-body">
+      <div class="duplicate-dialog-head">
+        <div>
+          <h3 class="dialog-title">Pilih Grup WhatsApp</h3>
+          <p class="dialog-sub">Klik salah satu grup untuk memilihnya sebagai tujuan pengiriman pesan.</p>
+        </div>
+      </div>
+      <label>Cari grup
+        <input type="search" id="waGroupSearchInput" placeholder="Ketik nama grup...">
+      </label>
+      <div id="waGroupList" class="wa-group-list"></div>
+      <div id="waGroupPagination" class="wa-group-pagination"></div>
+      <div class="toolbar">
+        <button class="secondary" id="waGroupDlgCloseBtn" type="button">Tutup</button>
+      </div>
+    </div>
+  </dialog>
+
+  <script>
+    const API_BASE = window.location.origin + '/api';
+    const STORAGE = { token: 'ps_token', session: 'ps_session' };
+
+    function getToken() { return localStorage.getItem(STORAGE.token) || ''; }
+    function getStoredSession() { try { return JSON.parse(localStorage.getItem(STORAGE.session) || 'null'); } catch (_) { return null; } }
+    function getScopedSession() { return window.PSAccess && typeof window.PSAccess.getScopedSession === 'function' ? window.PSAccess.getScopedSession(getStoredSession()) : getStoredSession(); }
+    function canManage() { const s = getScopedSession(); return !!(s && s.permissions && (s.permissions.isAdmin || s.permissions.isSuperAdmin)); }
+
+    async function api(d) { const p = new URLSearchParams({ ...d, token: getToken() }); const r = await fetch(API_BASE + '?' + p); const j = await r.json(); if (!j.ok) throw new Error(j.error?.message || 'Error'); return j.data; }
+    async function apiPost(d) { const r = await fetch(API_BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...d, token: getToken() }) }); const j = await r.json(); if (!j.ok) throw new Error(j.error?.message || 'Error'); return j.data; }
+
+    const uiState = { counter: 0, shownAt: 0, pending: null, currentId: '' };
+    function createNoticeEl(text, type) {
+      const el = document.createElement('section');
+      el.className = `notice show ${type || 'info'}`; el.dataset.noticeId = `n-${Date.now()}-${uiState.counter += 1}`; el.textContent = text;
+      function dismiss() { if (!el.parentNode) return; el.classList.add('notice-dismissing'); setTimeout(() => { el.remove(); const s = document.getElementById('noticeStack'); if (s && !s.hasChildNodes() && s.matches(':popover-open')) s.hidePopover(); }, 220); }
+      el.addEventListener('click', dismiss); setTimeout(dismiss, type === 'error' ? 10000 : 5000); return el;
+    }
+    function showNotice(text, type) {
+      if (uiState.pending) { clearTimeout(uiState.pending); uiState.pending = null; }
+      const elapsed = Date.now() - uiState.shownAt;
+      if (elapsed < 2000 && uiState.currentId) { uiState.pending = setTimeout(() => { uiState.pending = null; showNotice(text, type); }, 2000 - elapsed); return; }
+      const el = createNoticeEl(text, type); const stack = document.getElementById('noticeStack');
+      stack.prepend(el); uiState.currentId = el.dataset.noticeId; uiState.shownAt = Date.now();
+      if (stack.matches(':popover-open')) stack.hidePopover(); stack.showPopover();
+    }
+    function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
+    // 7 item (Akademik → pengajar kelas siang, 2 item: absensi & nilai ujian wajib;
+    // Koordinator Halaqoh → pengampu halaqoh, 3 item: absensi, hafalan harian, & tasmi';
+    // Kesantrian → pembina regu, 2 item: absensi & perkembangan santri, ditambah 2026-08-08).
+    // Struktur per-kind disiapkan supaya gampang nambah item lain
+    // nanti, tanpa perlu ubah struktur halaman. HALAMAN INI SENDIRI (buka & toggle on/off)
+    // HANYA Admin/Super Admin (dipersempit 2026-08-08, lihat canManage()) -- audience di
+    // bawah cuma soal SIAPA YANG DAPAT POPUP NOTIFIKASINYA, bukan soal siapa yang bisa
+    // mengatur halaman ini. Tiap item
+    // cuma ditagih ke jabatan terkait (bukan ke Admin/Super Admin, walau mereka tetap bisa
+    // buka halaman ini & toggle ON/OFF -- lihat canManageAuditBawahan_ di backend).
+    // `target` = role BAWAHAN yang dipantau (dipakai backend & teks di dalam popup, mis.
+    // "3 Pengajar Kelas Siang belum menyelesaikan tugas"). `audience` = role ATASAN yang
+    // menerima popup-nya, HANYA dipakai label "Ditujukan untuk" di halaman ini (2026-08-05,
+    // permintaan user: label itu awalnya salah kaprah nampilin role bawahan, padahal
+    // maksudnya "audit ini ditujukan/muncul UNTUK siapa" = atasannya).
+    // baseRoleKey = permKey asli di backend (AUDIT_BAWAHAN_KINDS_), dipakai buat menyaring
+    // opsi "jabatan tambahan" (biar jabatan aslinya sendiri tidak nongol dobel di checklist).
+    const AUDIT_KINDS = [
+      { key: 'akademik', field: 'akademikActive', payloadKey: 'akademik_active', baseRoleKey: 'isAcademic', title: 'Audit Absensi Kelas Siang', target: 'Pengajar Kelas Siang', audience: 'Akademik', desc: 'Daftar pengajar kelas siang yang punya hari absensi kelas belum diisi (definisi bolong sama dengan Audit Absensi Kelas di Kelola Audit). Ditampilkan ke Akademik lewat popup pojok kanan-bawah, tanpa memblokir akses apa pun.' },
+      { key: 'koordHalaqohAbsensi', field: 'koordHalaqohAbsensiActive', payloadKey: 'koord_halaqoh_absensi_active', baseRoleKey: 'isHalaqohCoordinator', title: 'Audit Absensi Halaqoh', target: 'Pengampu Halaqoh', audience: 'Koordinator Halaqoh', desc: 'Daftar pengampu halaqoh yang punya hari absensi halaqoh belum diisi (definisi bolong sama dengan Audit Absensi Halaqoh di Kelola Audit). Ditampilkan ke Koordinator Halaqoh lewat popup pojok kanan-bawah, tanpa memblokir akses apa pun.' },
+      { key: 'koordHalaqohHafalan', field: 'koordHalaqohHafalanActive', payloadKey: 'koord_halaqoh_hafalan_active', baseRoleKey: 'isHalaqohCoordinator', title: 'Audit Hafalan Harian', target: 'Pengampu Halaqoh', audience: 'Koordinator Halaqoh', desc: 'Daftar pengampu halaqoh yang punya santri di rosternya belum lengkap entri hafalan harian (definisi bolong sama dengan Audit Hafalan Harian di Kelola Audit). Ditampilkan ke Koordinator Halaqoh lewat popup pojok kanan-bawah, tanpa memblokir akses apa pun.' },
+      { key: 'koordHalaqohTasmi', field: 'koordHalaqohTasmiActive', payloadKey: 'koord_halaqoh_tasmi_active', baseRoleKey: 'isHalaqohCoordinator', title: 'Audit Setoran Tasmi\'', target: 'Pengampu Halaqoh', audience: 'Koordinator Halaqoh', desc: 'Daftar pengampu halaqoh yang punya santri di rosternya yang status tasmi\'-nya belum lengkap hari Sabtu (definisi bolong sama dengan Audit Setoran Tasmi\' di Kelola Audit). Ditampilkan ke Koordinator Halaqoh lewat popup pojok kanan-bawah, tanpa memblokir akses apa pun.' },
+      { key: 'akademikNilaiWajib', field: 'akademikNilaiWajibActive', payloadKey: 'akademik_nilai_wajib_active', baseRoleKey: 'isAcademic', title: 'Audit Nilai Ujian Wajib', target: 'Pengajar Kelas Siang', audience: 'Akademik', desc: 'Daftar pengajar kelas siang (pengajar utama atau badal) yang di kelasnya masih ada santri belum dinilai untuk aturan nilai wajib yang sudah masuk tanggal ujiannya (gabungan tahap "sudah tanggal ujian" & "terlambat" -- lihat Audit Nilai Ujian Wajib di Kelola Audit). Ditampilkan ke Akademik lewat popup pojok kanan-bawah, tanpa memblokir akses apa pun.' },
+      { key: 'akademikSilabus', field: 'akademikSilabusActive', payloadKey: 'akademik_silabus_active', baseRoleKey: 'isAcademic', title: 'Audit Materi Silabus Kelas', target: 'Pengajar Kelas Siang', audience: 'Akademik', desc: 'Daftar pengajar kelas siang (pengajar utama atau badal) yang di kelasnya masih ada materi silabus sudah lewat tanggal batas akhir tapi belum dicentang selesai (definisi sama dengan Audit Materi Silabus Kelas di Kelola Audit). Ditampilkan ke Akademik lewat popup pojok kanan-bawah, tanpa memblokir akses apa pun.' },
+      { key: 'kesantrianReguAbsensi', field: 'kesantrianReguAbsensiActive', payloadKey: 'kesantrian_regu_absensi_active', baseRoleKey: 'isKsantrian', title: 'Audit Absensi Regu', target: 'Pembina Regu', audience: 'Kesantrian', desc: 'Daftar pembina regu (utama atau badal) yang punya hari absensi regu belum diisi (definisi bolong sama dengan Audit Absensi Regu di Kelola Audit). Ditampilkan ke Kesantrian lewat popup pojok kanan-bawah, tanpa memblokir akses apa pun.' },
+      { key: 'kesantrianReguPerkembangan', field: 'kesantrianReguPerkembanganActive', payloadKey: 'kesantrian_regu_perkembangan_active', baseRoleKey: 'isKsantrian', title: 'Audit Perkembangan Santri', target: 'Pembina Regu', audience: 'Kesantrian', desc: 'Daftar pembina regu (utama atau badal) yang punya santri di rosternya belum lengkap entri perkembangan santri untuk pekan yang sudah selesai (definisi bolong sama dengan Audit Perkembangan Santri di Kelola Audit). Ditampilkan ke Kesantrian lewat popup pojok kanan-bawah, tanpa memblokir akses apa pun.' },
+      // 3 item "Santri Aktif Tidak Tepat ..." (2026-08-15): beda dari 8 item di atas, target
+      // di sini beneran SANTRI (bukan pengurus) -- yang bermasalah adalah jumlah keanggotaan
+      // santrinya, bukan tugas seorang pengurus yang belum diselesaikan. Definisi "salah
+      // jumlah"-nya ikut persis setting Kelola Audit (termasuk toggle "santri dibekukan wajib
+      // punya ..." di sana) -- item ini murni tambahan audiens (lewat "Jabatan tambahan" di
+      // bawah, termasuk Admin/Super Admin), TIDAK mengubah siapa yang dapat popup utama di
+      // Kelola Audit.
+      { key: 'akademikKelas', field: 'akademikKelasBawahanActive', payloadKey: 'akademik_kelas_bawahan_active', baseRoleKey: 'isAcademic', title: 'Audit Santri Aktif Tidak Tepat 3 Kelas Siang', target: 'Santri', audience: 'Akademik', desc: 'Daftar santri aktif yang jumlah kelas siang aktifnya kurang/lebih dari 3 (definisi sama dengan Audit Santri Aktif Tidak Tepat 3 Kelas Siang \u{1F4A0} di Kelola Audit). Ditampilkan ke Akademik lewat popup pojok kanan-bawah, tanpa memblokir akses apa pun. Pakai "Jabatan tambahan" di bawah kalau mau audit ini juga muncul ke jabatan lain, termasuk Admin/Super Admin.' },
+      { key: 'akademikHalaqoh', field: 'akademikHalaqohBawahanActive', payloadKey: 'akademik_halaqoh_bawahan_active', baseRoleKey: 'isHalaqohCoordinator', title: 'Audit Santri Aktif Tidak Tepat 1 Halaqoh', target: 'Santri', audience: 'Koordinator Halaqoh', desc: 'Daftar santri aktif yang tidak di halaqoh manapun atau di lebih dari 1 halaqoh aktif (definisi sama dengan Audit Santri Aktif Tidak Tepat 1 Halaqoh \u{1F4A0} di Kelola Audit). Ditampilkan ke Koordinator Halaqoh lewat popup pojok kanan-bawah, tanpa memblokir akses apa pun. Pakai "Jabatan tambahan" di bawah kalau mau audit ini juga muncul ke jabatan lain, termasuk Admin/Super Admin.' },
+      { key: 'akademikRegu', field: 'akademikReguBawahanActive', payloadKey: 'akademik_regu_bawahan_active', baseRoleKey: 'isKsantrian', title: 'Audit Santri Aktif Tidak Tepat 1 Regu', target: 'Santri', audience: 'Kesantrian', desc: 'Daftar santri aktif yang tidak di regu manapun atau di lebih dari 1 regu aktif (definisi sama dengan Audit Santri Aktif Tidak Tepat 1 Regu \u{1F4A0} di Kelola Audit). Ditampilkan ke Kesantrian lewat popup pojok kanan-bawah, tanpa memblokir akses apa pun. Pakai "Jabatan tambahan" di bawah kalau mau audit ini juga muncul ke jabatan lain, termasuk Admin/Super Admin.' }
+    ];
+
+    let auditSettings = { akademikActive: true, koordHalaqohAbsensiActive: true, koordHalaqohHafalanActive: true, koordHalaqohTasmiActive: true, akademikNilaiWajibActive: true, akademikSilabusActive: true, kesantrianReguAbsensiActive: true, kesantrianReguPerkembanganActive: true, akademikKelasBawahanActive: true, akademikHalaqohBawahanActive: true, akademikReguBawahanActive: true, extraAudiences: {}, roleOptions: [], setBy: '', setAt: '' };
+    // Set of kind.key yang lagi dibuka (details terbuka) -- dipakai buat pertahankan status
+    // buka/tutup panel "jabatan tambahan" tiap kali list di-render ulang (mis. setelah simpan).
+    const openAudienceDetails = new Set();
+
+    const AUDIT_AUDIENCES = [...new Set(AUDIT_KINDS.map(k => k.audience))];
+    const auditFilters = { nama: '', audience: '', status: '' };
+    const PAGE_SIZE = 11;
+    const PAGE_MAX_NUMBERS = 11;
+    let currentPage = 1;
+
+    function getFilteredAuditKinds() {
+      const nama = auditFilters.nama.trim().toLowerCase();
+      return AUDIT_KINDS.filter(kind => {
+        if (nama && !kind.title.toLowerCase().includes(nama) && !kind.desc.toLowerCase().includes(nama)) return false;
+        if (auditFilters.audience && kind.audience !== auditFilters.audience) return false;
+        const active = !!auditSettings[kind.field];
+        if (auditFilters.status === 'active' && !active) return false;
+        if (auditFilters.status === 'inactive' && active) return false;
+        return true;
+      });
+    }
+
+    function renderPaging(page, totalPages) {
+      const start = Math.max(1, Math.min(page - 5, totalPages - (PAGE_MAX_NUMBERS - 1)));
+      const end = Math.min(totalPages, start + (PAGE_MAX_NUMBERS - 1));
+      let html = '';
+      for (let p = start; p <= end; p++) {
+        html += `<button ${p === page ? 'class="active"' : ''} data-page="${p}">${p}</button>`;
+      }
+      return html;
+    }
+
+    // minimumCount: 0 -- pagination tetap tampil (atas & bawah) walau itemnya cuma 1, beda
+    // dari kelolaAudit yg awalnya minimumCount: PAGE_SIZE (baru muncul kalau item lebih dari
+    // 11) -- keputusan user 2026-08-05, berlaku jg utk kelolaAudit sendiri (lihat di sana).
+    function renderPagination(total, totalPages) {
+      const markup = total
+        ? `<div class="page-center">
+            <div class="page-numbers">${renderPaging(currentPage, totalPages)}</div>
+            <div class="page-summary">Halaman ${currentPage} dari ${totalPages} | total ${total} audit</div>
+          </div>`
+        : '';
+      window.PSUI.syncPaginationHosts({ markup, visibleCount: total, totalCount: total, minimumCount: 0, topId: 'paginationTop', bottomId: 'paginationBottom' });
+    }
+
+    function renderAuditList() {
+      const list = document.getElementById('auditList');
+      const manage = canManage();
+      const filtered = getFilteredAuditKinds();
+      const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+      if (currentPage > totalPages) currentPage = totalPages;
+      if (currentPage < 1) currentPage = 1;
+      renderPagination(filtered.length, totalPages);
+      if (!filtered.length) {
+        list.innerHTML = '<div class="empty-state">Tidak ada audit yang cocok dengan filter.</div>';
+        return;
+      }
+      const pageItems = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+      list.innerHTML = pageItems.map(kind => {
+        const active = !!auditSettings[kind.field];
+        const extraRoles = (auditSettings.extraAudiences && auditSettings.extraAudiences[kind.key]) || [];
+        const extraLabels = extraRoles.map(r => (auditSettings.roleOptions.find(o => o.key === r) || {}).label).filter(Boolean);
+        return `<div class="card audit-card">
+          <div class="audit-card-body">
+            <div class="audit-title">${esc(kind.title)}<span class="status-chip ${active ? 'on' : 'off'}">${active ? 'Aktif' : 'Nonaktif'}</span></div>
+            <div class="audit-target"><i class="fa-solid fa-user-tag"></i>Ditujukan untuk: ${esc(kind.audience)}${extraLabels.length ? ' + ' + esc(extraLabels.join(', ')) : ''}</div>
+            <div class="audit-desc">${esc(kind.desc)}</div>
+            ${auditSettings.setAt ? `<div class="audit-meta">Terakhir diubah: ${esc(auditSettings.setBy || '-')} &middot; ${esc(auditSettings.setAt)}</div>` : ''}
+            ${manage ? renderAudienceExtra(kind, extraRoles) : ''}
+          </div>
+          ${manage ? `<div class="audit-actions">
+            <button class="secondary btn-toggle-audit" data-key="${esc(kind.key)}" data-active="${active ? '1' : '0'}" type="button"><i class="fa-solid ${active ? 'fa-toggle-on' : 'fa-toggle-off'}"></i>&ensp;${active ? 'Nonaktifkan' : 'Aktifkan'}</button>
+          </div>` : ''}
+        </div>`;
+      }).join('');
+      list.querySelectorAll('.btn-toggle-audit').forEach(b => b.addEventListener('click', () => toggleAudit(b.dataset.key, b.dataset.active === '1')));
+      initAudienceExtraHandlers(list);
+    }
+
+    // Panel "jabatan tambahan" per item -- checklist semua jabatan di sistem (kecuali jabatan
+    // asli item ini sendiri, sudah tertagih lewat `audience`), boleh pilih lebih dari satu.
+    function renderAudienceExtra(kind, extraRoles) {
+      const options = (auditSettings.roleOptions || []).filter(o => o.key !== kind.baseRoleKey);
+      const isOpen = openAudienceDetails.has(kind.key);
+      return `<details class="audit-audience-extra" data-audience-kind="${esc(kind.key)}" ${isOpen ? 'open' : ''}>
+        <summary>Jabatan tambahan${extraRoles.length ? ` (${extraRoles.length})` : ''}</summary>
+        <div class="audit-audience-extra-body">
+          <div class="audit-audience-extra-grid">
+            ${options.map(o => `<label class="audit-audience-extra-opt">
+              <input type="checkbox" value="${esc(o.key)}" ${extraRoles.includes(o.key) ? 'checked' : ''}>
+              ${esc(o.label)}
+            </label>`).join('')}
+          </div>
+          <button class="secondary btn-save-audience" type="button" data-key="${esc(kind.key)}">Simpan Jabatan Tambahan</button>
+        </div>
+      </details>`;
+    }
+
+    function initAudienceExtraHandlers(list) {
+      list.querySelectorAll('.audit-audience-extra').forEach(el => {
+        el.addEventListener('toggle', () => {
+          const key = el.dataset.audienceKind;
+          if (el.open) openAudienceDetails.add(key); else openAudienceDetails.delete(key);
+        });
+      });
+      list.querySelectorAll('.btn-save-audience').forEach(btn => {
+        btn.addEventListener('click', () => saveAudienceExtra(btn.dataset.key, btn.closest('.audit-audience-extra')));
+      });
+    }
+
+    async function saveAudienceExtra(kindKey, detailsEl) {
+      const roles = Array.from(detailsEl.querySelectorAll('input[type="checkbox"]:checked')).map(i => i.value);
+      try {
+        auditSettings = await apiPost({ action: 'auditBawahan.settings.setAudiences', kind: kindKey, roles });
+        showNotice('Jabatan tambahan disimpan.', 'success');
+        renderAuditList();
+      } catch (e) { showNotice(e.message, 'error'); }
+    }
+
+    function applyFilterAndReset(fn) {
+      return e => { fn(e); currentPage = 1; renderAuditList(); };
+    }
+
+    function initFilters() {
+      const audienceSelect = document.getElementById('filterAudience');
+      audienceSelect.insertAdjacentHTML('beforeend', AUDIT_AUDIENCES.map(a => `<option value="${esc(a)}">${esc(a)}</option>`).join(''));
+      document.getElementById('filterNama').addEventListener('input', applyFilterAndReset(e => { auditFilters.nama = e.target.value; }));
+      audienceSelect.addEventListener('change', applyFilterAndReset(e => { auditFilters.audience = e.target.value; }));
+      document.getElementById('filterStatus').addEventListener('change', applyFilterAndReset(e => { auditFilters.status = e.target.value; }));
+      document.addEventListener('click', event => {
+        const page = event.target.getAttribute('data-page');
+        if (!page) return;
+        const nextPage = Number(page);
+        if (!nextPage || nextPage === currentPage) return;
+        currentPage = nextPage;
+        renderAuditList();
+      });
+    }
+
+    async function loadAuditSettings() {
+      try { auditSettings = await api({ action: 'auditBawahan.settings.get' }); } catch (_) { }
+      renderAuditList();
+    }
+
+    async function toggleAudit(key, active) {
+      const kind = AUDIT_KINDS.find(k => k.key === key);
+      if (!kind) return;
+      try {
+        auditSettings = await apiPost({ action: 'auditBawahan.settings.set', [kind.payloadKey]: !active });
+        showNotice(active ? `${kind.title} dinonaktifkan.` : `${kind.title} diaktifkan.`);
+        renderAuditList();
+      } catch (e) { showNotice(e.message, 'error'); }
+    }
+
+    // ── Sambungkan WhatsApp (backend/whatsapp.js, router terpisah /api/whatsapp/*) ──
+    // Router terpisah = URL-nya BUKAN `${API_BASE}?action=...` spt actions lain di halaman
+    // ini, tapi path REST sendiri (mis. `${API_BASE}/whatsapp/status`) -- sama pola dgn
+    // /api/nilaiwajib/* di pages/nilaiUjian.
+    async function waApi(path, payload = {}, method = 'GET') {
+      const token = getToken();
+      const qs = new URLSearchParams();
+      qs.append('token', token);
+      if (method === 'GET') Object.entries(payload).forEach(([k, v]) => qs.append(k, v));
+      // cache: 'no-store' + parameter _t (cache-buster) -- lapisan pertahanan KEDUA di sisi
+      // browser/proxy, selain header Cache-Control/Surrogate-Control yg sudah dipasang server
+      // (lihat noStoreMiddleware_ di backend/whatsapp.js). Status koneksi WA berubah tiap
+      // detik, GET /status TIDAK BOLEH kena cache sama sekali di lapisan mana pun.
+      if (method === 'GET') qs.append('_t', Date.now());
+      const url = `${API_BASE}/whatsapp/${path}?${qs.toString()}`;
+      const resp = method === 'GET'
+        ? await fetch(url, { cache: 'no-store' })
+        : await fetch(url, { method, cache: 'no-store', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token, ...payload }) });
+      const json = await resp.json();
+      if (!json.ok) throw new Error(json.error?.message || 'Gagal.');
+      return json.data;
+    }
+
+    // Koneksi WA itu infrastruktur server-wide -- sengaja HANYA Admin/Super Admin (beda dari
+    // canManage() halaman ini sendiri yg lebih longgar, ikut Akademik/Koordinator Halaqoh),
+    // sama pola gerbang dgn canManageWa_ di backend/whatsapp.js.
+    // PENTING: pakai rawPermissions (hak akses ASLI akun) dari session TERSIMPAN, BUKAN
+    // getScopedSession().permissions -- yang terakhir ikut mengecil kalau akun ybs lagi
+    // di-scope ke jabatan lain di UI (fitur ganti scope jabatan), walau akun aslinya tetap
+    // Admin/Super Admin. Sama pola dgn canManageAuditBawahan_ di backend/server.js.
+    function canManageWa() {
+      const stored = getStoredSession();
+      const perms = (stored && (stored.rawPermissions || stored.permissions)) || {};
+      const result = !!(perms.isAdmin || perms.isSuperAdmin);
+      console.log('[canManageWa] usingRawPermissions=', !!(stored && stored.rawPermissions), '| isAdmin=', perms.isAdmin, '| isSuperAdmin=', perms.isSuperAdmin, '| hasil=', result);
+      return result;
+    }
+
+    const waState = { enabled: false, status: 'disconnected', targets: [], scheduleTimes: [], groups: [], groupFilter: '', groupPage: 1 };
+    const WA_GROUP_PAGE_SIZE = 10;
+    let waPollTimer = null;
+
+    function waStatusLabel(status) {
+      if (status === 'connected') return { text: 'Terhubung', cls: 'on' };
+      if (status === 'qr') return { text: 'Menunggu Scan QR', cls: 'connecting' };
+      if (status === 'connecting') return { text: 'Menyambungkan...', cls: 'connecting' };
+      return { text: 'Belum Terhubung', cls: 'off' };
+    }
+
+    function renderWaPanel() {
+      const manage = canManageWa();
+      document.getElementById('waNoAccessNote').style.display = manage ? 'none' : 'block';
+      document.getElementById('waActionsRow').style.display = manage ? 'flex' : 'none';
+      document.getElementById('waGroupRow').style.display = manage ? 'block' : 'none';
+      document.getElementById('waScheduleRow').style.display = manage ? 'block' : 'none';
+
+      const label = waStatusLabel(waState.status);
+      const chip = document.getElementById('waStatusChip');
+      chip.textContent = label.text;
+      chip.className = `status-chip ${label.cls}`;
+      document.getElementById('waStatusDetail').textContent = waState.status === 'connected' && waState.connectedNumber
+        ? `Nomor: ${waState.connectedNumber}`
+        : (waState.lastError ? `Error: ${waState.lastError}` : '');
+
+      if (!manage) return;
+      document.getElementById('waEnableToggle').checked = !!waState.enabled;
+      document.getElementById('waConnectBtn').style.display = waState.enabled && waState.status !== 'connected' ? 'inline-flex' : 'none';
+      document.getElementById('waLogoutBtn').style.display = waState.status === 'connected' || waState.enabled ? 'inline-flex' : 'none';
+      renderWaTargetList();
+      renderWaScheduleChips();
+      const canSend = waState.status === 'connected' && waState.targets.length;
+      document.getElementById('waSendNowRow').style.display = canSend ? 'flex' : 'none';
+      document.getElementById('waTestRow').style.display = canSend ? 'flex' : 'none';
+
+      // Dialog QR: auto-update gambar & auto-tutup begitu status jadi 'connected'.
+      const qrDlg = document.getElementById('waQrDlg');
+      if (qrDlg.open) {
+        if (waState.status === 'connected') {
+          showNotice('WhatsApp berhasil tersambung.', 'success');
+          qrDlg.close();
+        } else if (waState.status === 'qr' && waState.qrDataUrl) {
+          document.getElementById('waQrImage').src = waState.qrDataUrl;
+          document.getElementById('waQrStatusText').textContent = 'Menunggu di-scan...';
+        } else {
+          document.getElementById('waQrStatusText').textContent = 'Menyiapkan QR...';
+        }
+      }
+    }
+
+    async function refreshWaStatus() {
+      try {
+        const data = await waApi('status');
+        Object.assign(waState, data);
+        renderWaPanel();
+      } catch (e) { /* silent -- kalau bukan Admin/SuperAdmin, cukup sembunyikan panel */ }
+    }
+
+    function startWaPolling() {
+      if (waPollTimer) return;
+      waPollTimer = setInterval(refreshWaStatus, 2500);
+    }
+
+    async function handleWaEnableToggle(checked) {
+      try {
+        await waApi('enable', { enabled: checked }, 'POST');
+        showNotice(checked ? 'Fitur WhatsApp diaktifkan.' : 'Fitur WhatsApp dinonaktifkan.');
+        await refreshWaStatus();
+      } catch (e) { showNotice(e.message, 'error'); await refreshWaStatus(); }
+    }
+
+    async function handleWaConnectClick() {
+      if (!waState.enabled) await handleWaEnableToggle(true);
+      const dlg = document.getElementById('waQrDlg');
+      document.getElementById('waQrImage').src = waState.qrDataUrl || '';
+      document.getElementById('waQrStatusText').textContent = 'Menyiapkan QR...';
+      dlg.showModal();
+      await refreshWaStatus();
+    }
+
+    async function handleWaLogoutClick() {
+      if (!confirm('Putuskan koneksi WhatsApp ini? Kalau mau dipakai lagi nanti, harus scan QR ulang dari HP.')) return;
+      try {
+        const data = await waApi('logout', {}, 'POST');
+        showNotice(data.message || 'WhatsApp diputus.');
+        await refreshWaStatus();
+      } catch (e) { showNotice(e.message, 'error'); }
+    }
+
+    function renderWaTargetList() {
+      const list = document.getElementById('waTargetList');
+      if (!waState.targets.length) { list.innerHTML = '<div class="empty-state">Belum ada grup/nomor tujuan.</div>'; return; }
+      list.innerHTML = waState.targets.map(t => `
+        <span class="wa-target-chip">
+          <span class="wa-chip-type">${t.type === 'number' ? 'Nomor' : 'Grup'}</span>
+          <span>${esc(t.name)}</span>
+          <button type="button" data-wa-target-remove="${esc(t.id)}" aria-label="Hapus">&times;</button>
+        </span>`).join('');
+      list.querySelectorAll('[data-wa-target-remove]').forEach(btn => {
+        btn.addEventListener('click', () => handleWaTargetRemove(btn.dataset.waTargetRemove));
+      });
+    }
+
+    async function handleWaTargetAdd(id, name, type) {
+      try {
+        await waApi('target/add', { id, name, type }, 'POST');
+        showNotice(`${type === 'number' ? 'Nomor' : 'Grup'} ditambahkan sebagai tujuan.`, 'success');
+        await refreshWaStatus();
+      } catch (e) { showNotice(e.message, 'error'); }
+    }
+
+    async function handleWaTargetRemove(id) {
+      try {
+        await waApi('target/remove', { id }, 'POST');
+        showNotice('Tujuan dihapus.');
+        await refreshWaStatus();
+      } catch (e) { showNotice(e.message, 'error'); }
+    }
+
+    async function handleWaAddNumber() {
+      const input = document.getElementById('waNumberInput');
+      const raw = input.value.trim();
+      if (!raw) { showNotice('Nomor WA wajib diisi.', 'error'); return; }
+      await handleWaTargetAdd(raw, raw, 'number');
+      input.value = '';
+    }
+
+    function renderWaScheduleChips() {
+      const list = document.getElementById('waScheduleList');
+      if (!waState.scheduleTimes.length) { list.innerHTML = '<div class="empty-state">Belum ada jadwal.</div>'; return; }
+      list.innerHTML = waState.scheduleTimes.map(t => `
+        <span class="wa-schedule-chip">
+          <span>${esc(t)}</span>
+          <button type="button" data-wa-schedule-remove="${esc(t)}" aria-label="Hapus">&times;</button>
+        </span>`).join('');
+      list.querySelectorAll('[data-wa-schedule-remove]').forEach(btn => {
+        btn.addEventListener('click', () => handleWaScheduleSave(waState.scheduleTimes.filter(t => t !== btn.dataset.waScheduleRemove)));
+      });
+    }
+
+    async function handleWaScheduleSave(times) {
+      try {
+        await waApi('schedule/save', { times }, 'POST');
+        showNotice('Jadwal disimpan.', 'success');
+        await refreshWaStatus();
+      } catch (e) { showNotice(e.message, 'error'); }
+    }
+
+    async function handleWaAddSchedule() {
+      const input = document.getElementById('waScheduleTimeInput');
+      const time = input.value;
+      if (!time) { showNotice('Pilih jam dulu.', 'error'); return; }
+      if (waState.scheduleTimes.includes(time)) { showNotice('Jam itu sudah ada di jadwal.', 'error'); return; }
+      await handleWaScheduleSave([...waState.scheduleTimes, time]);
+      input.value = '';
+    }
+
+    async function handleWaSendTest() {
+      const text = document.getElementById('waTestMessageInput').value.trim();
+      const btn = document.getElementById('waSendTestBtn');
+      btn.disabled = true;
+      try {
+        await waApi('send-test', { text }, 'POST');
+        showNotice('Pesan uji coba terkirim.', 'success');
+      } catch (e) { showNotice(e.message, 'error'); }
+      finally { btn.disabled = false; }
+    }
+
+    // Kirim langsung (tanpa nunggu jadwal) -- pesan sungguhan yg keliatan di grup/nomor asli,
+    // jadi wajib konfirmasi dulu (beda dari toggle/simpan pengaturan biasa yg tidak perlu).
+    async function handleWaSendNow() {
+      const targetCount = waState.targets.length;
+      if (!confirm(`Kirim rekap semua audit sekarang ke ${targetCount} tujuan (grup/nomor) yang tersimpan?`)) return;
+      const btn = document.getElementById('waSendNowBtn');
+      btn.disabled = true;
+      try {
+        const data = await waApi('broadcast/send-now', {}, 'POST');
+        showNotice(data.message || 'Audit terkirim.', 'success');
+      } catch (e) { showNotice(e.message, 'error'); }
+      finally { btn.disabled = false; }
+    }
+
+    function getFilteredWaGroups() {
+      const q = waState.groupFilter.trim().toLowerCase();
+      if (!q) return waState.groups;
+      return waState.groups.filter(g => (g.name || '').toLowerCase().includes(q) || (g.id || '').toLowerCase().includes(q));
+    }
+
+    function renderWaGroupPagination(total, totalPages) {
+      const host = document.getElementById('waGroupPagination');
+      if (total <= 0) { host.innerHTML = ''; return; }
+      const maxBtn = 9;
+      let start = Math.max(1, Math.min(waState.groupPage - Math.floor(maxBtn / 2), totalPages - maxBtn + 1));
+      let end = Math.min(totalPages, start + maxBtn - 1);
+      start = Math.max(1, end - maxBtn + 1);
+      let html = '';
+      for (let p = start; p <= end; p++) {
+        html += `<button ${p === waState.groupPage ? 'class="active"' : ''} data-wa-group-page="${p}">${p}</button>`;
+      }
+      host.innerHTML = html;
+    }
+
+    function renderWaGroupList() {
+      const filtered = getFilteredWaGroups();
+      const totalPages = Math.max(1, Math.ceil(filtered.length / WA_GROUP_PAGE_SIZE));
+      if (waState.groupPage > totalPages) waState.groupPage = totalPages;
+      if (waState.groupPage < 1) waState.groupPage = 1;
+      const pageItems = filtered.slice((waState.groupPage - 1) * WA_GROUP_PAGE_SIZE, waState.groupPage * WA_GROUP_PAGE_SIZE);
+      const list = document.getElementById('waGroupList');
+      const selectedIds = new Set(waState.targets.filter(t => t.type === 'group').map(t => t.id));
+      list.innerHTML = pageItems.length ? pageItems.map(g => `
+        <div class="wa-group-row-item ${selectedIds.has(g.id) ? 'selected' : ''}" data-wa-group-id="${esc(g.id)}" data-wa-group-name="${esc(g.name)}">
+          <span class="wa-group-row-name">${esc(g.name)}${selectedIds.has(g.id) ? ' &check; sudah ditambahkan' : ''}</span>
+          <span class="wa-group-row-meta">${g.participants ?? '-'} anggota</span>
+        </div>`).join('') : '<div class="empty-state">Tidak ada grup yang cocok.</div>';
+      list.querySelectorAll('[data-wa-group-id]').forEach(row => {
+        row.addEventListener('click', async () => {
+          const id = row.dataset.waGroupId, name = row.dataset.waGroupName;
+          if (selectedIds.has(id)) await handleWaTargetRemove(id);
+          else await handleWaTargetAdd(id, name, 'group');
+          renderWaGroupList();
+        });
+      });
+      renderWaGroupPagination(filtered.length, totalPages);
+    }
+
+    async function handleWaCheckGroupClick() {
+      if (waState.status !== 'connected') { showNotice('Sambungkan WhatsApp dulu sebelum cek grup.', 'error'); return; }
+      const dlg = document.getElementById('waGroupDlg');
+      document.getElementById('waGroupList').innerHTML = '<div class="empty-state">Memuat daftar grup...</div>';
+      document.getElementById('waGroupPagination').innerHTML = '';
+      dlg.showModal();
+      try {
+        const data = await waApi('groups');
+        waState.groups = data.groups || [];
+        waState.groupPage = 1;
+        renderWaGroupList();
+      } catch (e) {
+        document.getElementById('waGroupList').innerHTML = `<div class="empty-state">${esc(e.message)}</div>`;
+      }
+    }
+
+    function initWaPanel() {
+      document.getElementById('waOpenDialogBtn').addEventListener('click', () => { document.getElementById('waPanelDlg').showModal(); refreshWaStatus(); });
+      document.getElementById('waPanelDlgCloseBtn').addEventListener('click', () => document.getElementById('waPanelDlg').close());
+      document.getElementById('waEnableToggle').addEventListener('change', e => handleWaEnableToggle(e.target.checked));
+      document.getElementById('waConnectBtn').addEventListener('click', handleWaConnectClick);
+      document.getElementById('waLogoutBtn').addEventListener('click', handleWaLogoutClick);
+      document.getElementById('waQrCloseBtn').addEventListener('click', () => document.getElementById('waQrDlg').close());
+      document.getElementById('waCheckGroupBtn').addEventListener('click', handleWaCheckGroupClick);
+      document.getElementById('waGroupDlgCloseBtn').addEventListener('click', () => document.getElementById('waGroupDlg').close());
+      document.getElementById('waAddNumberBtn').addEventListener('click', handleWaAddNumber);
+      document.getElementById('waNumberInput').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); handleWaAddNumber(); } });
+      document.getElementById('waAddScheduleBtn').addEventListener('click', handleWaAddSchedule);
+      document.getElementById('waSendNowBtn').addEventListener('click', handleWaSendNow);
+      document.getElementById('waSendTestBtn').addEventListener('click', handleWaSendTest);
+      document.getElementById('waGroupSearchInput').addEventListener('input', e => {
+        waState.groupFilter = e.target.value; waState.groupPage = 1; renderWaGroupList();
+      });
+      document.addEventListener('click', event => {
+        const page = event.target.getAttribute('data-wa-group-page');
+        if (!page) return;
+        waState.groupPage = Number(page);
+        renderWaGroupList();
+      });
+      refreshWaStatus();
+      startWaPolling();
+    }
+
+    window.addEventListener('DOMContentLoaded', async () => {
+      if (window.PSAccess && window.PSAccess.redirectIfForbidden(getStoredSession(), 'kelolaAuditBawahan.html')) return;
+      if (window.PSShell) window.PSShell.mount({ currentPage: window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : '/pages/kelolaAuditBawahan/', session: getStoredSession(), getStoredSession, storageKey: STORAGE.session });
+      initFilters();
+      await loadAuditSettings();
+      initWaPanel();
+    });
+  </script>
+</body>
+</html>

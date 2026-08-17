@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#9e2f22">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="../../shared-ui.css">
+  <script src="../../shared-ui.js"></script>
+  <title>Kelola Survey</title>
+  <link rel="stylesheet" href="../../shared-shell.css">
+  <link rel="stylesheet" href="../../vendor/fontawesome/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700&display=swap');
+    :root {
+      --paper: #f6efe0; --ink: #4d4034; --muted: #7b6a58;
+      --line: rgba(91,73,57,0.15); --accent: #b97650;
+      --success: #74846c; --danger: #a55a52; --warning: #b58439;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; }
+    body::before { content: ''; position: fixed; inset: 0; pointer-events: none; opacity: 0.15; mix-blend-mode: multiply; }
+    body::after  { content: ''; position: fixed; inset: 0; pointer-events: none; opacity: 0.23; }
+    h1, h2, h3 { margin: 0 0 10px; text-transform: uppercase; }
+    p { margin: 0; line-height: 1.65; }
+    .nav a, button { font-weight: 800 !important; text-transform: uppercase; }
+    .panel { padding: 22px; }
+    .card { padding: 16px; }
+    button, input, select, textarea { font: inherit; }
+    button { padding: 12px 18px; font-weight: 700; cursor: pointer; }
+    .primary { box-shadow: 0 14px 28px rgba(185,118,80,0.22); }
+    input, select, textarea { width: 100%; padding: 13px 14px; outline: none; }
+    label { display: grid; gap: 7px; font-size: 14px; font-weight: 600; }
+    .notice { display: none; padding: 14px 16px; line-height: 1.55; }
+    .notice.show { display: block; }
+    .toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+    .field-grid { display: grid; gap: 12px; margin-top: 12px; }
+    .form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: end; }
+    @media (max-width: 600px) { .form-row-2 { grid-template-columns: 1fr; } }
+    .section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .section-head-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .empty-state { padding: 36px 20px; text-align: center; color: var(--muted); font-size: 14px; }
+
+    .survey-list { display: grid; gap: 8px; margin-top: 14px; }
+    .survey-card { padding: 12px 16px; border-radius: 14px; display: flex; align-items: flex-start; gap: 10px; background: rgba(242, 222, 154, 0.96) !important; }
+    .survey-card-body { flex: 1; min-width: 0; }
+    .survey-title { font-weight: 700; font-size: 14px; text-transform: uppercase; letter-spacing: 0.04em; }
+    .survey-desc { font-size: 12.5px; color: var(--ink); margin-top: 4px; white-space: pre-wrap; }
+    .survey-meta { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+    .survey-meta-row { display: flex; flex-wrap: wrap; gap: 6px; }
+    .survey-meta-row:empty { display: none; }
+    .jab-chip { display: inline-flex; padding: 3px 9px; font-size: 11px; font-weight: 700; border-radius: 999px; background: rgba(185,118,80,0.14); color: var(--accent); text-transform: uppercase; }
+    .jab-chip-toggle, .jab-chip-collapse { padding: 3px 9px; font-size: 11px; font-weight: 700; border-radius: 999px; background: rgba(185,118,80,0.14); color: var(--accent); border: none; cursor: pointer; }
+    .jab-chip-extra, .jab-chip-collapse { display: none; }
+    .jab-chip-toggle { display: inline-flex; }
+    .survey-meta-row.show-all-jabatan .jab-chip-extra { display: inline-flex; }
+    .survey-meta-row.show-all-jabatan .jab-chip-toggle { display: none; }
+    .survey-meta-row.show-all-jabatan .jab-chip-collapse { display: inline-flex; }
+    .count-chip { display: inline-flex; padding: 3px 9px; font-size: 11px; font-weight: 700; border-radius: 999px; background: rgba(116,132,108,0.14); color: #3a5a30; text-transform: uppercase; }
+    .survey-actions { display: flex; gap: 6px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; max-width: 160px; }
+
+    .respon-item { padding: 10px 12px; border-radius: 10px; background: rgba(255,255,255,0.55); border: 1px solid var(--line); }
+    .respon-item-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+    .respon-item-name { font-weight: 700; font-size: 12.5px; }
+    .respon-item-time { font-size: 11px; color: var(--muted); }
+    .respon-item-delete { font-size: 10px; padding: 3px 9px; min-height: 0; }
+    .respon-tab-panel-actions { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
+    .respon-search-input { flex: 1 1 180px; min-width: 140px; padding: 8px 10px; font-size: 12px; }
+    .respon-mini-paging { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 4px; margin: 10px 0; }
+    .respon-mini-paging button { padding: 5px 10px; font-size: 11px; min-height: 0; }
+    .respon-mini-paging button.active { background: var(--accent); color: #fff; }
+
+    .jabatan-checklist { display: grid; gap: 6px; max-height: 220px; overflow: auto; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; background: rgba(255,255,255,0.5); }
+    .jabatan-checklist label { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; text-transform: none; }
+    .jabatan-checklist input[type="checkbox"] { width: auto; padding: 0; }
+    .jabatan-checklist label[hidden] { display: none; }
+    .selector-group { display: grid; gap: 8px; }
+    .selector-hint { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+
+    .question-list { display: grid; gap: 12px; margin-top: 10px; }
+    .question-block { border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; background: rgba(255,255,255,0.55); display: grid; gap: 10px; }
+    .question-block-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .question-block-head strong { font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--accent); }
+    .question-type-row { display: flex; gap: 14px; align-items: center; font-size: 13px; font-weight: 600; text-transform: none; }
+    .question-type-row label { display: flex; align-items: center; gap: 6px; font-weight: 600; text-transform: none; }
+    .question-type-row input[type="radio"] { width: auto; }
+    .mc-option-list { display: grid; gap: 10px; }
+    .mc-option-row { display: flex; align-items: center; gap: 8px; }
+    .mc-option-row input[type="radio"] { width: auto; flex-shrink: 0; }
+    .mc-option-row input[type="text"] { flex: 1; padding: 8px 10px; font-size: 13px; }
+    .mc-option-row button { flex-shrink: 0; padding: 6px 10px; font-size: 11px; min-height: 0; }
+    .question-mode-tabs { display: flex; gap: 8px; }
+    .question-mode-btn { padding: 7px 12px; font-size: 11px; opacity: 0.6; }
+    .question-mode-btn.active { opacity: 1; box-shadow: inset 0 -3px 0 var(--accent); }
+    #questionBulkText { min-height: 320px; font-family: ui-monospace, "Cascadia Code", "Consolas", monospace; font-size: 13px; line-height: 1.7; }
+    .btn-remove-question { font-size: 11px; padding: 5px 10px; min-height: 0; }
+  </style>
+</head>
+<body>
+  <script src="../../shared-nav.js"></script>
+  <script src="../../shared-access.js"></script>
+  <script src="../../shared-shell.js"></script>
+  <header class="app-header">
+    <div class="header-left">
+      <button class="drawer-toggle" id="navToggle" type="button" aria-label="Toggle sidebar">Menu</button>
+      <div class="header-brand">Pendataan Santri</div>
+      <div class="header-page">Kelola Survey</div>
+    </div>
+    <div class="header-right">
+      <span class="header-chip" id="headerRole">Admin</span>
+    </div>
+  </header>
+  <div class="drawer-backdrop" id="navBackdrop"></div>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+  <main>
+    <div class="app-layout">
+      <section class="panel nav" id="nav"></section>
+      <div class="content-stack">
+
+        <section class="panel">
+          <div class="section-head">
+            <div>
+              <h2>Kelola Survey</h2>
+              <p style="color:var(--muted);font-size:13px;margin-top:4px;">Survey wajib untuk jabatan tertentu. Beda dari pengumuman, popup survey TIDAK BISA ditutup sebelum semua pertanyaan terjawab benar -- yang salah akan diulang lagi di akhir dengan pilihan ganda diacak ulang. Begitu semua benar, survey itu selesai permanen untuk akun tsb (tidak muncul lagi).</p>
+            </div>
+            <div class="section-head-actions">
+              <button class="primary" type="button" id="btnTambahSurvey"><i class="fa-solid fa-plus"></i>&ensp;Tambah Survey</button>
+            </div>
+          </div>
+
+          <div class="paging-host" id="paginationTop" style="margin-top:16px;"></div>
+          <div class="survey-list" id="surveyList" style="margin-top:16px;"></div>
+          <div class="paging-host" id="paginationBottom" style="margin-top:16px;"></div>
+        </section>
+
+      </div>
+    </div>
+  </main>
+
+  <dialog class="ps-floating-dialog" id="surveyDialog">
+    <form class="dialog-body duplicate-dialog-body ps-dialog-shell" id="surveyForm" method="dialog">
+      <div class="duplicate-dialog-head ps-dialog-header">
+        <div>
+          <h3 id="surveyDialogTitle">Tambah survey</h3>
+        </div>
+      </div>
+      <input type="hidden" id="surveyEditId">
+      <label>Judul <span style="color:var(--danger)">*</span>
+        <input type="text" id="surveyTitle" placeholder="Judul survey">
+      </label>
+      <label>Deskripsi / pengantar (opsional)
+        <textarea id="surveyDescription" rows="3" placeholder="Teks pengantar sebelum pertanyaan dimulai..."></textarea>
+      </label>
+      <label>Target Jabatan <span style="color:var(--danger)">*</span>
+        <div class="selector-group">
+          <input type="search" data-selector-target="surveyJabatanChecklist" placeholder="Cari jabatan...">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+            <div class="selector-hint" data-selector-count="surveyJabatanChecklist">Belum ada dipilih</div>
+            <div style="display:flex;gap:4px;flex-shrink:0">
+              <button type="button" class="secondary" style="font-size:11px;padding:2px 10px;min-height:0;white-space:nowrap" onclick="window.PSUI.selectAllVisible('surveyJabatanChecklist')">Pilih semua</button>
+              <button type="button" class="secondary" style="font-size:11px;padding:2px 10px;min-height:0;white-space:nowrap" onclick="window.PSUI.deselectAllVisible('surveyJabatanChecklist')">Batalkan semua</button>
+            </div>
+          </div>
+          <div class="jabatan-checklist" id="surveyJabatanChecklist"></div>
+        </div>
+      </label>
+      <div class="form-row-2">
+        <label>Tanggal mulai (opsional)
+          <input type="date" id="surveyStartDate">
+        </label>
+        <label>Tanggal berakhir (opsional)
+          <input type="date" id="surveyEndDate">
+        </label>
+      </div>
+      <div>
+        <div class="section-head">
+          <h3 style="margin:0;font-size:14px;">Pertanyaan <span style="color:var(--danger)">*</span></h3>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <div class="question-mode-tabs">
+              <button type="button" class="secondary question-mode-btn" data-mode="form">Mode Form</button>
+              <button type="button" class="secondary question-mode-btn" data-mode="text">Mode Teks</button>
+            </div>
+            <button class="secondary" type="button" id="btnTambahPertanyaan" style="padding:8px 14px;font-size:12px;"><i class="fa-solid fa-plus"></i>&ensp;Tambah Pertanyaan</button>
+          </div>
+        </div>
+        <p style="color:var(--muted);font-size:11.5px;margin-top:6px;">Mode Teks: baris pertama = teks pertanyaan, baris berikutnya = opsi/jawaban, pisahkan tiap pertanyaan dengan 1 baris kosong. Tandai jawaban benar dengan &#9989; di akhir baris. Kalau cuma ada 1 baris jawaban (tanpa opsi lain), otomatis dianggap Isian Singkat. Mode Form &amp; Mode Teks saling sinkron -- pindah tab utk sinkronkan.</p>
+        <div id="questionFormMode">
+          <div class="respon-mini-paging" id="questionPaging"></div>
+          <div class="question-list" id="questionList"></div>
+        </div>
+        <div id="questionTextMode" style="display:none;margin-top:10px;">
+          <textarea id="questionBulkText" placeholder="Apa itu ayam?&#10;Ayam adalah ... ✅&#10;acac&#10;caac&#10;ac&#10;aa&#10;&#10;Apa itu sapi&#10;ckakanc ✅"></textarea>
+        </div>
+      </div>
+      <div class="toolbar ps-dialog-footer">
+        <button class="primary" type="submit" id="btnSurveySave"><i class="fa-solid fa-floppy-disk"></i>&ensp;Simpan</button>
+        <button class="secondary" type="button" id="btnSurveyCancel">Batal</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="ps-floating-dialog" id="surveyCompletionDialog">
+    <div class="dialog-body duplicate-dialog-body ps-dialog-shell">
+      <div class="duplicate-dialog-head ps-dialog-header">
+        <div>
+          <h3 id="surveyCompletionDialogTitle">Hasil survey</h3>
+        </div>
+      </div>
+      <div class="respon-tab-panel-actions">
+        <input type="search" id="completionSearchInput" class="respon-search-input" placeholder="Cari nama...">
+        <button class="danger" type="button" id="btnHapusSemuaCompletion" style="font-size:11px;padding:6px 12px;">Hapus Semua</button>
+      </div>
+      <div class="respon-mini-paging" id="completionPaginationTop"></div>
+      <div class="pengumuman-respon-list" id="surveyCompletionList" style="display:grid;gap:8px;max-height:45vh;overflow:auto;"></div>
+      <div class="respon-mini-paging" id="completionPaginationBottom"></div>
+      <div class="toolbar ps-dialog-footer">
+        <button class="secondary" type="button" id="btnSurveyCompletionClose">Tutup</button>
+      </div>
+    </div>
+  </dialog>
+
+  <script>
+    const API_BASE = window.location.origin + '/api';
+    const STORAGE = { token: 'ps_token', session: 'ps_session' };
+
+    function getToken() { return localStorage.getItem(STORAGE.token) || ''; }
+    function getStoredSession() { try { return JSON.parse(localStorage.getItem(STORAGE.session) || 'null'); } catch (_) { return null; } }
+    function getScopedSession() { return window.PSAccess && typeof window.PSAccess.getScopedSession === 'function' ? window.PSAccess.getScopedSession(getStoredSession()) : getStoredSession(); }
+    function canManage() { const s = getScopedSession(); return !!(s && s.permissions && (s.permissions.isAdmin || s.permissions.isSuperAdmin || s.permissions.isMudir)); }
+    function canDelete() { const s = getScopedSession(); return !!(s && s.permissions && s.permissions.canDelete); }
+
+    function toParams(d) { const p = new URLSearchParams(); Object.entries(d).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') p.append(k, typeof v === 'object' ? JSON.stringify(v) : String(v)); }); return p; }
+    async function api(d) { const r = await fetch(API_BASE + '?' + toParams({ ...d, token: getToken() })); const j = await r.json(); if (!j.ok) throw new Error(j.error?.message || 'Error'); return j.data; }
+    async function apiPost(d) { const r = await fetch(API_BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...d, token: getToken() }) }); const j = await r.json(); if (!j.ok) throw new Error(j.error?.message || 'Error'); return j.data; }
+
+    const uiState = { counter: 0, shownAt: 0, pending: null, currentId: '' };
+    function relocateNoticeStack() {
+      const stack = document.getElementById('noticeStack');
+      const openDialog = document.querySelector('dialog[open]');
+      if (openDialog) {
+        if (stack.parentNode !== openDialog) openDialog.appendChild(stack);
+      } else if (stack.parentNode !== document.body) {
+        document.body.prepend(stack);
+      }
+    }
+    function createNoticeEl(text, type) {
+      const el = document.createElement('section');
+      el.className = `notice show ${type || 'info'}`; el.dataset.noticeId = `n-${Date.now()}-${uiState.counter += 1}`; el.textContent = text;
+      function dismiss() { if (!el.parentNode) return; el.classList.add('notice-dismissing'); setTimeout(() => { el.remove(); const s = document.getElementById('noticeStack'); if (s && !s.hasChildNodes() && s.matches(':popover-open')) s.hidePopover(); }, 220); }
+      el.addEventListener('click', dismiss); setTimeout(dismiss, type === 'error' ? 10000 : 5000); return el;
+    }
+    function showNotice(text, type) {
+      if (uiState.pending) { clearTimeout(uiState.pending); uiState.pending = null; }
+      const elapsed = Date.now() - uiState.shownAt;
+      if (elapsed < 2000 && uiState.currentId) { uiState.pending = setTimeout(() => { uiState.pending = null; showNotice(text, type); }, 2000 - elapsed); return; }
+      const el = createNoticeEl(text, type); const stack = document.getElementById('noticeStack');
+      relocateNoticeStack();
+      stack.prepend(el); uiState.currentId = el.dataset.noticeId; uiState.shownAt = Date.now();
+      if (stack.matches(':popover-open')) stack.hidePopover(); stack.showPopover();
+    }
+    function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
+    let surveyItems = [];
+    let jabatanRefs = [];
+    const state = { page: 1, pageSize: 10, totalPages: 1 };
+
+    async function loadRefs() {
+      try {
+        const refs = await api({ action: 'references', sheetKey: 'pengurus' });
+        jabatanRefs = refs.jabatan || [];
+      } catch (_) { jabatanRefs = []; }
+      renderJabatanChecklist([]);
+    }
+
+    function renderJabatanChecklist(selectedIds) {
+      const selected = new Set(selectedIds || []);
+      const el = document.getElementById('surveyJabatanChecklist');
+      if (!jabatanRefs.length) { el.innerHTML = '<span style="font-size:12px;color:var(--muted);">Belum ada data jabatan.</span>'; return; }
+      el.innerHTML = jabatanRefs.map((j, index) => `
+        <label data-item-index="${index}">
+          <input type="checkbox" value="${esc(j.id)}" ${selected.has(String(j.id)) ? 'checked' : ''}>
+          <span>${esc(j.name)}${j.level ? ` (Level ${esc(j.level)})` : ''}</span>
+        </label>
+      `).join('');
+      updateChecklistHint('surveyJabatanChecklist');
+    }
+
+    function getSelectedJabatanIds() {
+      return Array.from(document.querySelectorAll('#surveyJabatanChecklist input:checked')).map(i => i.value);
+    }
+
+    function updateChecklistHint(targetId) {
+      const count = document.querySelectorAll(`#${targetId} input:checked`).length;
+      const hint = document.querySelector(`[data-selector-count="${targetId}"]`);
+      if (!hint) return;
+      hint.textContent = count ? `${count} dipilih` : 'Belum ada dipilih';
+    }
+
+    function applyChecklistFilter(targetId, query) {
+      const normalized = query.trim().toLowerCase();
+      const container = document.getElementById(targetId);
+      if (!container) return;
+      const labels = Array.from(container.querySelectorAll('label'));
+      if (!normalized) {
+        labels.sort((a, b) => {
+          const ac = !!a.querySelector('input[type="checkbox"]:checked');
+          const bc = !!b.querySelector('input[type="checkbox"]:checked');
+          if (ac !== bc) return ac ? -1 : 1;
+          return Number(a.dataset.itemIndex || 0) - Number(b.dataset.itemIndex || 0);
+        });
+        labels.forEach(label => { label.hidden = false; container.appendChild(label); });
+        return;
+      }
+      labels.forEach(label => {
+        label.hidden = !label.textContent.toLowerCase().includes(normalized);
+      });
+    }
+
+    function resetChecklistFilters() {
+      document.querySelectorAll('[data-selector-target]').forEach(input => {
+        input.value = '';
+        applyChecklistFilter(input.dataset.selectorTarget, '');
+      });
+    }
+
+    // ── Question builder ────────────────────────────────────────────────────────
+    // Pagination angka SAJA (maks 31 tombol sebelum di-"...", reuse buildPaginationList
+    // dgn parameter max terpisah dari list utama/mini-paging yg maks 10) -- tiap
+    // halaman cuma nampilin 1 pertanyaan, bukan semuanya sekaligus.
+    const QUESTION_PAGING_MAX = 31;
+    let questionDrafts = [];
+    let questionCounter = 0;
+    let questionPage = 1;
+
+    function addQuestionDraft(initial) {
+      questionCounter += 1;
+      questionDrafts.push(Object.assign({
+        draftId: 'd' + questionCounter,
+        id: '',
+        type: 'mc',
+        text: '',
+        options: ['', ''],
+        correctIndex: 0,
+        correctAnswer: ''
+      }, initial || {}));
+      questionPage = questionDrafts.length;
+      renderQuestionList();
+    }
+
+    function removeQuestionDraft(draftId) {
+      questionDrafts = questionDrafts.filter(q => q.draftId !== draftId);
+      renderQuestionList();
+    }
+
+    function renderQuestionPaging() {
+      const pagingEl = document.getElementById('questionPaging');
+      if (questionDrafts.length <= 1) { pagingEl.innerHTML = ''; return; }
+      const pages = buildPaginationList(questionPage, questionDrafts.length, QUESTION_PAGING_MAX);
+      pagingEl.innerHTML = pages.map(p => p === '...'
+        ? '<span class="page-summary">...</span>'
+        : `<button type="button" class="secondary page-btn ${p === questionPage ? 'active' : ''}" data-question-page="${p}">${p}</button>`
+      ).join('');
+      pagingEl.querySelectorAll('[data-question-page]').forEach(b => b.addEventListener('click', () => {
+        questionPage = Number(b.dataset.questionPage);
+        renderQuestionList();
+      }));
+    }
+
+    function renderQuestionList() {
+      const list = document.getElementById('questionList');
+      if (!questionDrafts.length) {
+        list.innerHTML = '<div class="empty-state">Belum ada pertanyaan. Klik "Tambah Pertanyaan".</div>';
+        document.getElementById('questionPaging').innerHTML = '';
+        return;
+      }
+      if (questionPage > questionDrafts.length) questionPage = questionDrafts.length;
+      if (questionPage < 1) questionPage = 1;
+      renderQuestionPaging();
+
+      const index = questionPage - 1;
+      const q = questionDrafts[index];
+      list.innerHTML = `
+        <div class="question-block" data-draft-id="${esc(q.draftId)}">
+          <div class="question-block-head">
+            <strong>Pertanyaan #${index + 1} dari ${questionDrafts.length}</strong>
+            <button type="button" class="danger btn-remove-question" data-draft-id="${esc(q.draftId)}">Hapus</button>
+          </div>
+          <div class="question-type-row">
+            <label><input type="radio" name="qtype_${esc(q.draftId)}" value="mc" data-qtype="${esc(q.draftId)}" ${q.type === 'mc' ? 'checked' : ''}> Pilihan Ganda</label>
+            <label><input type="radio" name="qtype_${esc(q.draftId)}" value="short" data-qtype="${esc(q.draftId)}" ${q.type === 'short' ? 'checked' : ''}> Isian Singkat</label>
+          </div>
+          <label>Teks pertanyaan
+            <textarea rows="2" data-qtext="${esc(q.draftId)}" placeholder="Tulis pertanyaan...">${esc(q.text)}</textarea>
+          </label>
+          <div data-qbody="${esc(q.draftId)}"></div>
+        </div>
+      `;
+
+      list.querySelectorAll('.btn-remove-question').forEach(b => b.addEventListener('click', () => removeQuestionDraft(b.dataset.draftId)));
+      list.querySelectorAll('[data-qtext]').forEach(t => t.addEventListener('input', () => {
+        const dq = questionDrafts.find(x => x.draftId === t.dataset.qtext);
+        if (dq) dq.text = t.value;
+      }));
+      list.querySelectorAll('[data-qtype]').forEach(r => r.addEventListener('change', () => {
+        const dq = questionDrafts.find(x => x.draftId === r.dataset.qtype);
+        if (dq && r.checked) { dq.type = r.value; renderQuestionBody(dq.draftId); }
+      }));
+      renderQuestionBody(q.draftId);
+    }
+
+    function renderQuestionBody(draftId) {
+      const q = questionDrafts.find(x => x.draftId === draftId);
+      const holder = document.querySelector(`[data-qbody="${CSS.escape(draftId)}"]`);
+      if (!q || !holder) return;
+      if (q.type === 'mc') {
+        holder.innerHTML = `
+          <div class="mc-option-list" data-mc-options="${esc(draftId)}">
+            ${q.options.map((opt, idx) => `
+              <div class="mc-option-row">
+                <input type="radio" name="correct_${esc(draftId)}" value="${idx}" ${q.correctIndex === idx ? 'checked' : ''} data-mc-correct="${esc(draftId)}">
+                <input type="text" value="${esc(opt)}" placeholder="Opsi ${idx + 1}" data-mc-text="${esc(draftId)}" data-mc-index="${idx}">
+                <button type="button" class="secondary" data-mc-remove="${esc(draftId)}" data-mc-index="${idx}" ${q.options.length <= 2 ? 'disabled' : ''}>Hapus</button>
+              </div>
+            `).join('')}
+          </div>
+          <button type="button" class="secondary" style="margin-top:8px;font-size:12px;padding:7px 12px;" data-mc-add="${esc(draftId)}">+ Tambah Opsi</button>
+        `;
+        holder.querySelectorAll('[data-mc-text]').forEach(inp => inp.addEventListener('input', () => {
+          q.options[Number(inp.dataset.mcIndex)] = inp.value;
+        }));
+        holder.querySelectorAll('[data-mc-correct]').forEach(r => r.addEventListener('change', () => {
+          if (r.checked) q.correctIndex = Number(r.value);
+        }));
+        holder.querySelectorAll('[data-mc-remove]').forEach(b => b.addEventListener('click', () => {
+          if (q.options.length <= 2) return;
+          const idx = Number(b.dataset.mcIndex);
+          q.options.splice(idx, 1);
+          if (q.correctIndex >= q.options.length) q.correctIndex = q.options.length - 1;
+          else if (q.correctIndex > idx) q.correctIndex -= 1;
+          renderQuestionBody(draftId);
+        }));
+        const addBtn = holder.querySelector('[data-mc-add]');
+        if (addBtn) addBtn.addEventListener('click', () => { q.options.push(''); renderQuestionBody(draftId); });
+      } else {
+        holder.innerHTML = `
+          <label>Kunci jawaban (cocok persis, huruf besar/kecil diabaikan)
+            <input type="text" value="${esc(q.correctAnswer)}" placeholder="Jawaban benar..." data-short-answer="${esc(draftId)}">
+          </label>
+        `;
+        holder.querySelector('[data-short-answer]').addEventListener('input', e => { q.correctAnswer = e.target.value; });
+      }
+    }
+
+    document.getElementById('btnTambahPertanyaan').addEventListener('click', () => addQuestionDraft());
+
+    // ── Mode Teks: format ringkas "baris 1 = pertanyaan, baris berikutnya = opsi/
+    // jawaban, ✅ menandai yang benar, baris kosong pisah antar-pertanyaan" -- saling
+    // sinkron dengan Mode Form (disinkronkan tiap kali tab dipindah, bukan live per
+    // keystroke, supaya tidak berantakan pas teksnya lagi belum lengkap/valid).
+    const CORRECT_MARK = '✅';
+
+    function serializeQuestionsToText(drafts) {
+      return drafts.map(q => {
+        if (q.type === 'mc') {
+          const lines = q.options.map((opt, idx) => idx === q.correctIndex ? `${opt} ${CORRECT_MARK}` : opt);
+          return [q.text, ...lines].join('\n');
+        }
+        return [q.text, `${q.correctAnswer} ${CORRECT_MARK}`].join('\n');
+      }).join('\n\n');
+    }
+
+    function parseTextToQuestionDrafts(text) {
+      const blocks = text.split(/\n\s*\n/).map(b => b.trim()).filter(Boolean);
+      let counter = 0;
+      return blocks.map(block => {
+        const lines = block.split('\n').map(l => l.trim()).filter(l => l !== '');
+        const questionText = lines[0] || '';
+        const answerLines = lines.slice(1);
+        counter += 1;
+        const draftId = 'd' + Date.now() + '_' + counter;
+        const stripMark = l => l.replace(new RegExp('\\s*' + CORRECT_MARK + '\\s*$'), '').trim();
+        if (answerLines.length <= 1) {
+          const only = answerLines[0] || '';
+          return { draftId, id: '', type: 'short', text: questionText, options: ['', ''], correctIndex: 0, correctAnswer: stripMark(only) };
+        }
+        let correctIndex = answerLines.findIndex(l => l.includes(CORRECT_MARK));
+        if (correctIndex === -1) correctIndex = 0;
+        const options = answerLines.map(stripMark);
+        return { draftId, id: '', type: 'mc', text: questionText, options, correctIndex, correctAnswer: '' };
+      });
+    }
+
+    // Cuma ganti tampilan tab (tanpa sentuh data) -- dipakai pas reset/buka dialog,
+    // supaya tidak ke-trigger parse teks kosong yg bisa menghapus questionDrafts.
+    function setQuestionModeUI(mode) {
+      document.querySelectorAll('.question-mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+      document.getElementById('questionFormMode').style.display = mode === 'text' ? 'none' : 'block';
+      document.getElementById('questionTextMode').style.display = mode === 'text' ? 'block' : 'none';
+    }
+
+    // Ganti tab SEKALIGUS sinkronkan data dari mode yg baru saja ditinggalkan -- ini
+    // yg dipanggil pas tombol tab benar-benar diklik user (bukan pas reset/buka dialog).
+    function switchQuestionMode(mode) {
+      if (mode === 'text') {
+        document.getElementById('questionBulkText').value = serializeQuestionsToText(questionDrafts);
+      } else {
+        const parsed = parseTextToQuestionDrafts(document.getElementById('questionBulkText').value);
+        // Pertahankan id soal lama kalau teksnya masih sama persis di posisi yg sama,
+        // supaya edit teks kecil-kecilan tidak menghapus id soal yg sudah tersimpan.
+        questionDrafts = parsed.map((p, idx) => Object.assign(p, questionDrafts[idx] && questionDrafts[idx].text === p.text ? { id: questionDrafts[idx].id } : {}));
+        questionCounter += questionDrafts.length;
+        questionPage = 1;
+        renderQuestionList();
+      }
+      setQuestionModeUI(mode);
+    }
+
+    document.querySelectorAll('.question-mode-btn').forEach(b => b.addEventListener('click', () => switchQuestionMode(b.dataset.mode)));
+
+    function buildQuestionsPayload() {
+      return questionDrafts.map(q => {
+        if (q.type === 'mc') {
+          return { id: q.id, type: 'mc', text: q.text.trim(), options: q.options.map(o => o.trim()), correctIndex: q.correctIndex };
+        }
+        return { id: q.id, type: 'short', text: q.text.trim(), correctAnswer: q.correctAnswer.trim() };
+      });
+    }
+
+    // ── List & pagination utama ─────────────────────────────────────────────────
+    async function loadSurvey() {
+      try { const d = await api({ action: 'survey.list' }); surveyItems = d.items || []; } catch (_) { surveyItems = []; }
+      renderSurveyList();
+    }
+
+    function buildPaginationList(page, totalPages, max = 10) {
+      if (totalPages <= max) return Array.from({ length: totalPages }, (_, i) => i + 1);
+      const mid = max - 2;
+      const pages = [1];
+      let start = Math.max(2, page - Math.floor(mid / 2));
+      let end = start + mid - 1;
+      if (end > totalPages - 1) { end = totalPages - 1; start = end - mid + 1; }
+      if (start > 2) pages.push('...');
+      for (let v = start; v <= end; v++) pages.push(v);
+      if (end < totalPages - 1) pages.push('...');
+      pages.push(totalPages);
+      return pages;
+    }
+
+    function renderPaging(total) {
+      const pg = state.page, totalPages = Math.max(1, Math.ceil(total / state.pageSize));
+      state.totalPages = totalPages;
+      const markup = total ? `
+        <div class="paging">
+          <button class="secondary" type="button" data-page="${pg - 1}" ${pg <= 1 ? 'disabled' : ''}>Sebelumnya</button>
+          <div class="page-center">
+            <div class="page-numbers">
+              ${buildPaginationList(pg, totalPages).map(item =>
+                item === '...'
+                  ? '<span class="page-summary">...</span>'
+                  : `<button class="secondary page-btn ${item === pg ? 'active' : ''}" type="button" data-page="${item}">${item}</button>`
+              ).join('')}
+            </div>
+            <div class="page-summary">Halaman ${pg} dari ${totalPages} &nbsp;|&nbsp; Total ${total} data</div>
+          </div>
+          <button class="secondary" type="button" data-page="${pg + 1}" ${pg >= totalPages ? 'disabled' : ''}>Berikutnya</button>
+        </div>
+      ` : '';
+      window.PSUI.syncPaginationHosts({ markup, visibleCount: total ? Math.min(state.pageSize, total) : 0, totalCount: total, topId: 'paginationTop', bottomId: 'paginationBottom' });
+    }
+
+    function renderSurveyList() {
+      const list = document.getElementById('surveyList');
+      const manage = canManage();
+      const del = canDelete();
+      const totalPages = Math.max(1, Math.ceil(surveyItems.length / state.pageSize));
+      if (state.page > totalPages) state.page = totalPages;
+      if (!surveyItems.length) {
+        list.innerHTML = '<div class="empty-state">Belum ada survey.</div>';
+        renderPaging(0);
+        return;
+      }
+      const pageItems = surveyItems.slice((state.page - 1) * state.pageSize, state.page * state.pageSize);
+      let html = '';
+      pageItems.forEach(s => {
+        const inactive = !s.active;
+        html += `<div class="card survey-card" style="${inactive ? 'opacity:0.55;' : ''}">
+          <div class="survey-card-body">
+            <div class="survey-title">${esc(s.title)}${inactive ? ' <em style="font-size:10px;font-weight:400;text-transform:none;">(Nonaktif)</em>' : ''}</div>
+            ${s.description ? `<div class="survey-desc">${esc(s.description)}</div>` : ''}
+            <div class="survey-meta">
+              <div class="survey-meta-row">
+                ${(s.targetJabatanLabels || []).slice(0, 4).map(l => `<span class="jab-chip">${esc(l)}</span>`).join('')}
+                ${(s.targetJabatanLabels || []).length > 4 ? `
+                  ${(s.targetJabatanLabels || []).slice(4).map(l => `<span class="jab-chip jab-chip-extra">${esc(l)}</span>`).join('')}
+                  <button class="jab-chip-toggle" type="button" data-jab-toggle>+${s.targetJabatanLabels.length - 4}</button>
+                  <button class="jab-chip-collapse" type="button" data-jab-collapse>&minus;</button>
+                ` : ''}
+              </div>
+              <div class="survey-meta-row">
+                <span class="count-chip">${s.questionCount} pertanyaan</span>
+                <span class="count-chip">${Number(s.completionCount || 0)} selesai</span>
+                ${s.startDate || s.endDate ? `<span class="count-chip">${esc(s.startDate || '...')} s/d ${esc(s.endDate || '...')}</span>` : ''}
+              </div>
+            </div>
+          </div>
+          <div class="survey-actions">
+            ${manage ? `<button class="secondary btn-hasil-survey" data-id="${esc(s.id)}" data-title="${esc(s.title)}" type="button" style="padding:8px 12px;" title="Lihat siapa saja yang sudah selesai"><i class="fa-solid fa-list-check"></i>&ensp;${Number(s.completionCount || 0)}</button>
+            <button class="secondary btn-edit-survey" data-id="${esc(s.id)}" type="button" style="padding:8px 12px;" title="Edit"><i class="fa-solid fa-pen"></i></button>
+            <button class="secondary btn-toggle-survey" data-id="${esc(s.id)}" data-active="${s.active ? '1' : '0'}" type="button" style="padding:8px 12px;" title="${inactive ? 'Aktifkan' : 'Nonaktifkan'}"><i class="fa-solid ${inactive ? 'fa-toggle-off' : 'fa-toggle-on'}"></i></button>` : ''}
+            ${del ? `<button class="danger btn-delete-survey" data-id="${esc(s.id)}" type="button" style="padding:8px 12px;" title="Hapus"><i class="fa-solid fa-trash"></i></button>` : ''}
+          </div>
+        </div>`;
+      });
+      list.innerHTML = html;
+      list.querySelectorAll('.btn-hasil-survey').forEach(b => b.addEventListener('click', () => openSurveyCompletionDialog(b.dataset.id, b.dataset.title)));
+      list.querySelectorAll('.btn-edit-survey').forEach(b => b.addEventListener('click', () => openSurveyEdit(b.dataset.id)));
+      list.querySelectorAll('.btn-toggle-survey').forEach(b => b.addEventListener('click', () => toggleSurvey(b.dataset.id, b.dataset.active === '1')));
+      list.querySelectorAll('.btn-delete-survey').forEach(b => b.addEventListener('click', () => deleteSurvey(b.dataset.id)));
+      list.querySelectorAll('[data-jab-toggle]').forEach(b => b.addEventListener('click', () => b.closest('.survey-meta-row').classList.add('show-all-jabatan')));
+      list.querySelectorAll('[data-jab-collapse]').forEach(b => b.addEventListener('click', () => b.closest('.survey-meta-row').classList.remove('show-all-jabatan')));
+      renderPaging(surveyItems.length);
+    }
+
+    document.addEventListener('click', e => {
+      const b = e.target.closest('[data-page]');
+      if (!b || b.disabled) return;
+      const p = parseInt(b.dataset.page, 10);
+      if (!p || p < 1 || p > state.totalPages || p === state.page) return;
+      state.page = p;
+      renderSurveyList();
+    });
+
+    function openSurveyEdit(id) {
+      const item = surveyItems.find(s => s.id === id); if (!item) return;
+      document.getElementById('surveyDialogTitle').textContent = 'Edit survey';
+      document.getElementById('surveyEditId').value = item.id;
+      document.getElementById('surveyTitle').value = item.title || '';
+      document.getElementById('surveyDescription').value = item.description || '';
+      document.getElementById('surveyStartDate').value = item.startDate || '';
+      document.getElementById('surveyEndDate').value = item.endDate || '';
+      questionDrafts = [];
+      questionCounter = 0;
+      (item.questions || []).forEach(q => addQuestionDraft(q.type === 'mc'
+        ? { id: q.id, type: 'mc', text: q.text, options: (q.options || ['', '']).slice(), correctIndex: q.correctIndex || 0 }
+        : { id: q.id, type: 'short', text: q.text, correctAnswer: q.correctAnswer || '' }));
+      questionPage = 1;
+      renderQuestionList();
+      setQuestionModeUI('form');
+      resetChecklistFilters();
+      renderJabatanChecklist(item.targetJabatanIds || []);
+      document.getElementById('surveyDialog').showModal();
+      document.getElementById('surveyTitle').focus();
+    }
+
+    async function toggleSurvey(id, active) {
+      try {
+        await apiPost({ action: 'survey.toggle', id, active: !active });
+        showNotice(active ? 'Survey dinonaktifkan.' : 'Survey diaktifkan.');
+        await loadSurvey();
+      } catch (e) { showNotice(e.message, 'error'); }
+    }
+
+    async function deleteSurvey(id) {
+      const item = surveyItems.find(s => s.id === id);
+      if (!confirm(`Hapus permanen survey "${item ? item.title : ''}"? Tindakan ini tidak bisa dibatalkan.`)) return;
+      try {
+        await apiPost({ action: 'survey.delete', id });
+        showNotice('Survey dihapus.');
+        await loadSurvey();
+      } catch (e) { showNotice(e.message, 'error'); }
+    }
+
+    function resetForm() {
+      const dlg = document.getElementById('surveyDialog');
+      if (dlg.open) dlg.close();
+      document.getElementById('surveyForm').reset();
+      document.getElementById('surveyEditId').value = '';
+      document.getElementById('surveyStartDate').value = '';
+      document.getElementById('surveyEndDate').value = '';
+      questionDrafts = [];
+      questionCounter = 0;
+      questionPage = 1;
+      renderQuestionList();
+      setQuestionModeUI('form');
+      resetChecklistFilters();
+      renderJabatanChecklist([]);
+    }
+
+    document.getElementById('btnTambahSurvey').addEventListener('click', () => {
+      resetForm();
+      document.getElementById('surveyDialogTitle').textContent = 'Tambah survey';
+      addQuestionDraft();
+      document.getElementById('surveyDialog').showModal();
+      document.getElementById('surveyTitle').focus();
+    });
+    document.getElementById('btnSurveyCancel').addEventListener('click', () => document.getElementById('surveyDialog').close());
+    document.getElementById('surveyDialog').addEventListener('close', relocateNoticeStack);
+    document.getElementById('surveyCompletionDialog').addEventListener('close', relocateNoticeStack);
+    document.querySelectorAll('[data-selector-target]').forEach(input => {
+      input.addEventListener('input', event => applyChecklistFilter(event.target.dataset.selectorTarget, event.target.value));
+    });
+    document.getElementById('surveyJabatanChecklist').addEventListener('change', event => {
+      window.PSUI.handleChecklistItemCheck(event, 'surveyJabatanChecklist');
+      updateChecklistHint('surveyJabatanChecklist');
+    });
+    document.getElementById('surveyForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      // Kalau lagi di Mode Teks, sinkronkan dulu ke questionDrafts sebelum divalidasi/
+      // disimpan -- supaya isi textarea yg belum sempat dipindah ke Mode Form tidak hilang.
+      if (document.getElementById('questionTextMode').style.display !== 'none') {
+        switchQuestionMode('form');
+      }
+      const id = document.getElementById('surveyEditId').value.trim();
+      const title = document.getElementById('surveyTitle').value.trim();
+      const description = document.getElementById('surveyDescription').value.trim();
+      const targetJabatanIds = getSelectedJabatanIds();
+      const startDate = document.getElementById('surveyStartDate').value;
+      const endDate = document.getElementById('surveyEndDate').value;
+      if (!title) { showNotice('Judul wajib diisi.', 'error'); return; }
+      if (!targetJabatanIds.length) { showNotice('Pilih minimal satu jabatan target.', 'error'); return; }
+      if (startDate && endDate && startDate > endDate) { showNotice('Tanggal mulai tidak boleh setelah tanggal berakhir.', 'error'); return; }
+      if (!questionDrafts.length) { showNotice('Tambahkan minimal 1 pertanyaan.', 'error'); return; }
+      for (let i = 0; i < questionDrafts.length; i++) {
+        const q = questionDrafts[i];
+        if (!q.text.trim()) { showNotice(`Pertanyaan #${i + 1}: teks pertanyaan wajib diisi.`, 'error'); return; }
+        if (q.type === 'mc') {
+          const filledOptions = q.options.filter(o => o.trim());
+          if (filledOptions.length < 2) { showNotice(`Pertanyaan #${i + 1}: pilihan ganda butuh minimal 2 opsi terisi.`, 'error'); return; }
+          if (!q.options[q.correctIndex] || !q.options[q.correctIndex].trim()) { showNotice(`Pertanyaan #${i + 1}: pilih opsi yang terisi sebagai jawaban benar.`, 'error'); return; }
+        } else if (!q.correctAnswer.trim()) { showNotice(`Pertanyaan #${i + 1}: kunci jawaban wajib diisi.`, 'error'); return; }
+      }
+      const btn = document.getElementById('btnSurveySave'); btn.disabled = true;
+      try {
+        await apiPost({ action: 'survey.save', id, title, description, target_jabatan_ids: targetJabatanIds, start_date: startDate, end_date: endDate, questions: buildQuestionsPayload() });
+        showNotice(id ? 'Survey diperbarui.' : 'Survey ditambahkan.');
+        resetForm();
+        await loadSurvey();
+      } catch (e) { showNotice(e.message, 'error'); } finally { btn.disabled = false; }
+    });
+
+    // ── Dialog Hasil (completion list) — search + pagination angka saja, tampil di atas & bawah ──
+    let surveyCompletionTargetId = '';
+    const completionTabState = { items: [], page: 1, pageSize: 10, search: '' };
+
+    function filterByName(items, search) {
+      const q = search.trim().toLowerCase();
+      if (!q) return items;
+      return items.filter(item => (item.pengurusName || '').toLowerCase().includes(q));
+    }
+
+    function renderMiniPagination(containerIds, pState, totalFiltered, onPageChange) {
+      const totalPages = Math.max(1, Math.ceil(totalFiltered / pState.pageSize));
+      if (pState.page > totalPages) pState.page = totalPages;
+      const pages = buildPaginationList(pState.page, totalPages);
+      const html = pages.map(p => p === '...'
+        ? '<span class="page-summary">...</span>'
+        : `<button class="secondary page-btn ${p === pState.page ? 'active' : ''}" type="button" data-mini-page="${p}">${p}</button>`
+      ).join('');
+      containerIds.forEach(containerId => {
+        const el = document.getElementById(containerId);
+        el.innerHTML = html;
+        el.querySelectorAll('[data-mini-page]').forEach(b => b.addEventListener('click', () => {
+          const p = parseInt(b.dataset.miniPage, 10);
+          if (!p || p < 1 || p > totalPages || p === pState.page) return;
+          pState.page = p;
+          onPageChange();
+        }));
+      });
+    }
+
+    function renderCompletionList() {
+      const listEl = document.getElementById('surveyCompletionList');
+      const filtered = filterByName(completionTabState.items, completionTabState.search);
+      const totalPages = Math.max(1, Math.ceil(filtered.length / completionTabState.pageSize));
+      if (completionTabState.page > totalPages) completionTabState.page = totalPages;
+      const pageItems = filtered.slice((completionTabState.page - 1) * completionTabState.pageSize, completionTabState.page * completionTabState.pageSize);
+      if (!filtered.length) {
+        listEl.innerHTML = `<div class="empty-state">${completionTabState.search ? 'Tidak ada nama yang cocok.' : 'Belum ada yang menyelesaikan survey ini.'}</div>`;
+      } else {
+        listEl.innerHTML = pageItems.map(c => `
+          <div class="respon-item">
+            <div class="respon-item-head">
+              <span class="respon-item-name">${esc(c.pengurusName)} <span class="count-chip">${Number(c.wrongCount || 0)}x salah</span></span>
+              <span class="respon-item-time">${esc(c.completedAt)}</span>
+              <button type="button" class="danger respon-item-delete btn-delete-completion-item" data-id="${esc(c.id)}">Hapus</button>
+            </div>
+          </div>
+        `).join('');
+        listEl.querySelectorAll('.btn-delete-completion-item').forEach(b => b.addEventListener('click', () => deleteCompletionItem(b.dataset.id)));
+      }
+      renderMiniPagination(['completionPaginationTop', 'completionPaginationBottom'], completionTabState, filtered.length, renderCompletionList);
+    }
+
+    async function loadCompletionList() {
+      const listEl = document.getElementById('surveyCompletionList');
+      listEl.innerHTML = '<div class="empty-state">Memuat data...</div>';
+      try {
+        const d = await api({ action: 'survey.completionList', id: surveyCompletionTargetId });
+        completionTabState.items = d.items || [];
+        completionTabState.page = 1;
+        renderCompletionList();
+      } catch (e) {
+        listEl.innerHTML = `<div class="empty-state">${esc(e.message)}</div>`;
+      }
+    }
+
+    async function openSurveyCompletionDialog(id, title) {
+      surveyCompletionTargetId = id;
+      document.getElementById('surveyCompletionDialogTitle').textContent = `Hasil — ${title || ''}`;
+      completionTabState.search = ''; completionTabState.page = 1;
+      document.getElementById('completionSearchInput').value = '';
+      document.getElementById('surveyCompletionDialog').showModal();
+      await loadCompletionList();
+    }
+
+    document.getElementById('completionSearchInput').addEventListener('input', e => {
+      completionTabState.search = e.target.value;
+      completionTabState.page = 1;
+      renderCompletionList();
+    });
+
+    async function deleteCompletionItem(id) {
+      if (!confirm('Hapus data ini? Akun ini akan ditawarkan survey ini lagi. Tindakan ini tidak bisa dibatalkan.')) return;
+      try {
+        await apiPost({ action: 'survey.completion.delete', id });
+        showNotice('Data dihapus.');
+        await loadCompletionList();
+      } catch (e) { showNotice(e.message, 'error'); }
+    }
+
+    document.getElementById('btnHapusSemuaCompletion').addEventListener('click', async () => {
+      if (!confirm('Hapus SEMUA data penyelesaian untuk survey ini? Semua akun target akan ditawarkan survey ini lagi. Tindakan ini tidak bisa dibatalkan.')) return;
+      try {
+        await apiPost({ action: 'survey.completion.deleteAll', id: surveyCompletionTargetId });
+        showNotice('Semua data penyelesaian dihapus.');
+        await loadCompletionList();
+      } catch (e) { showNotice(e.message, 'error'); }
+    });
+
+    document.getElementById('btnSurveyCompletionClose').addEventListener('click', () => document.getElementById('surveyCompletionDialog').close());
+
+    window.addEventListener('DOMContentLoaded', async () => {
+      if (window.PSAccess && window.PSAccess.redirectIfForbidden(getStoredSession(), 'survey.html')) return;
+      if (window.PSShell) window.PSShell.mount({ currentPage: window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : '/pages/survey/', session: getStoredSession(), getStoredSession, storageKey: STORAGE.session });
+      if (!canManage()) document.getElementById('btnTambahSurvey').hidden = true;
+      await loadRefs();
+      await loadSurvey();
+    });
+  </script>
+</body>
+</html>

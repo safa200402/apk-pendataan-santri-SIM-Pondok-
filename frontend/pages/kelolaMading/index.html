@@ -1,0 +1,636 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#c99a28">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="../../shared-ui.css">
+  <script src="../../shared-ui.js"></script>
+  <link rel="stylesheet" href="../../shared-shell.css">
+  <link rel="stylesheet" href="../../vendor/quill/quill.snow.css">
+  <title>Kelola Mading</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700&display=swap');
+    * { box-sizing: border-box; }
+
+    body { margin: 0; font-family: 'Poppins', sans-serif !important; }
+
+    button { font: inherit; font-weight: 700; }
+
+    code, kbd, pre, samp { font-family: 'Poppins', sans-serif; }
+
+    .panel { padding: 22px; }
+    .hero { margin-bottom: 15px; }
+
+    .hero h1, .section-head h2, h3 { margin: 0 0 10px; 
+      /* text-transform: uppercase;  */
+    }
+
+    .hero p, .section-head p { margin: 0; line-height: 1.6; }
+
+    .toolbar, .nav-links { display: flex; gap: 12px; flex-wrap: wrap; justify-content: flex-end;
+        margin-top: 15px;
+    }
+
+    #actionToolbar > .btn {
+      text-transform: uppercase;
+      font-weight: 800;
+    }
+
+    .btn, .nav-links a {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 46px;
+      padding: 0 18px;
+      font-weight: 700;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    #dialogRoot .btn {
+      min-height: 36px;
+      font-weight: 700;
+    }
+
+    .editor-head {
+      padding: 5px;
+      margin-top: 5px;
+      margin-bottom: 5px;
+    }
+
+    .list { display: grid; gap: 14px; }
+
+    .card { padding: 18px; }
+
+    .pill { display: inline-flex; align-items: center; min-height: 34px; padding: 0 12px; font-size: 13px; font-weight: 700; }
+
+    .notice { padding: 14px 16px; line-height: 1.55; }
+    .notice.show { display: block; }
+
+    dialog { padding: 0; }
+
+    .dialog-body { width: min(920px, calc(100vw - 32px)); display: grid; gap: 14px; padding: 22px; 
+      width: 100%;
+      height: 100%;
+      max-height: none;;
+    }
+    label { display: grid; gap: 8px; font-weight: 700; }
+
+    input, select, textarea {
+      width: 100%;
+      min-height: 48px;
+      padding: 12px 14px;
+      font: inherit;
+    }
+
+    .field-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+
+    .field-grid .field-span-full { grid-column: 1 / -1; }
+
+    .editor-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .editor-shell {
+      overflow: hidden;
+    }
+
+    .editor-shell .ql-container.ql-snow {
+      font: inherit;
+      min-height: 320px;
+    }
+
+    .ql-container.is-fullscreen {
+      background-color: aliceblue;
+    }
+
+    .ql-editor { min-height: 320px; font-size: 15px; line-height: 1.65; }
+
+    .editor-shell.is-fullscreen {
+      position: fixed !important;
+      background: #333 !important;
+      top: 0px !important;
+      right: 0px !important;
+      width: 100% !important;
+      height: 100% !important;
+      z-index: 888 !important;
+      display: flex !important;
+      flex-direction: column !important;
+      justify-content: center !important;
+      padding: 2%;
+    }
+
+    .editor-shell .ql-toolbar {
+      background: aliceblue !important;
+      font-family: 'Poppins', sans-serif !important;
+    }
+
+    .editor-shell .ql-toolbar button,
+    .editor-shell .ql-toolbar span,
+    .editor-shell .ql-toolbar .ql-picker {
+      font-family: 'Poppins', sans-serif !important;
+    }
+
+    .editor-shell .ql-editor {
+      background: aliceblue !important;
+      font-family: 'Poppins', sans-serif !important;
+    }
+
+    .editor-shell.is-fullscreen #editor {
+      padding: 10px !important;
+      height: 100vh !important;
+    }
+
+    .editor-shell .ql-toolbar.is-fullscreen {
+      margin-bottom: 5px;
+    }
+
+    
+    .editor-shell.is-fullscreen .editor-head strong {
+      visibility: hidden !important;
+    }
+
+    .minimal-list-card-head { display: flex; gap: 12px; align-items: flex-start; }
+
+    .minimal-list-card-main { flex: 1; min-width: 0; }
+
+    .minimal-list-card-name { display: block; font-size: 18px; }
+
+    .minimal-list-card-summary p { margin: 0 0 10px; line-height: 1.6; }
+
+    .minimal-list-card-meta, .minimal-list-card-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+
+    .minimal-list-card-toggle { min-width: 46px; padding: 0; }
+    .minimal-list-card-head { cursor: pointer; }
+
+    .minimal-list-card-detail { display: none; margin-top: 14px; gap: 12px; }
+
+    .minimal-list-card.is-expanded .minimal-list-card-detail { display: grid; }
+
+    @media (max-width: 900px) {
+      .field-grid { grid-template-columns: 1fr; }
+
+    .dialog-body { width: calc(100vw - 20px); }
+    }
+
+    
+  </style>
+</head>
+<body>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+  <main>
+
+    <section class="panel">
+      <div class="nav-links" id="nav"></div>
+    </section>
+    <section class="panel">
+      <div class="section-head">
+        <div>
+          <h2>Daftar konten</h2>
+          <p>Export dan import Excel di halaman ini khusus Super Admin untuk dataset content.</p>
+        </div>
+      </div>
+      <div class="toolbar" id="actionToolbar">
+        <button class="btn primary" id="addButton" type="button">Tambah Konten</button>
+        <button class="btn" id="refreshButton" type="button">Muat Ulang</button>
+        <button class="btn" id="toggleExpandButton" type="button" data-expand-state="collapsed">Buka Semua</button>
+        <button class="btn ghost" id="exportButton" type="button" hidden>Export Excel</button>
+        <button class="btn ghost" id="importButton" type="button" hidden>Import Excel</button>
+      </div>
+      <input id="importInput" type="file" accept=".xlsx,.xls" hidden>
+      <div class="list" id="list"></div>
+    </section>
+  </main>
+
+  <div id="dialogRoot">
+  <dialog class="ps-floating-dialog" id="dialog">
+    <form class="dialog-body duplicate-dialog-body ps-dialog-shell" id="form" method="dialog">
+      <div class="duplicate-dialog-head ps-dialog-header section-head">
+        <div>
+          <h3 id="dialogTitle">Tambah Konten</h3>
+          <p>Status <code>Published</code> akan tampil di halaman yang sesuai target role.</p>
+        </div>
+      </div>
+      <div>  
+        <input type="hidden" name="id">
+        <div class="field-grid">
+          <label>Judul
+            <input type="text" name="title" required>
+          </label>
+          <label>Slug
+            <input type="text" name="slug" placeholder="opsional">
+          </label>
+          <label class="field-span-full">Ringkasan
+            <textarea name="summary" rows="4" placeholder="Ringkasan singkat"></textarea>
+          </label>
+          <label>Target Role
+            <select name="target_role">
+              <option value="pengurus">pengurus</option>
+              <option value="umum">umum</option>
+              <option value="santri">santri</option>
+            </select>
+          </label>
+          <label>Tanggal Publish
+            <input type="date" name="published_at">
+          </label>
+          <label>Status
+            <select name="status">
+              <option value="Draft">Draft</option>
+              <option value="Published">Published</option>
+            </select>
+          </label>
+        </div>
+        <div class="editor-shell">
+          <div class="editor-head">
+            <strong>Isi Konten</strong>
+            <button type="button" id="editorFullscreenToggle" class="btn ghost" style="padding:2px 10px;font-size:0.8em;">⛶ Perluas</button>
+          </div>
+          <div id="editor"></div>
+        </div>
+      <div>
+      <div class="toolbar ps-dialog-footer">
+        <button class="btn primary" type="submit">Simpan</button>
+        <button class="btn" id="closeDialog" type="button">Batal</button>
+      </div>
+    </form>
+  </dialog>
+
+  </div>
+
+  <script src="../../shared-access.js"></script>
+  <script src="../../shared-nav.js"></script>
+  <script src="../../shared-shell.js"></script>
+  <script src="../../shared-excel.js"></script>
+  <script src="../../vendor/quill/quill.js"></script>
+  <script>
+    const API_BASE = window.location.origin + '/api';
+    const STORAGE = { apiBase: 'ps_api_base', token: 'ps_token', session: 'ps_session' };
+    localStorage.setItem(STORAGE.apiBase, API_BASE);
+
+    const state = { items: [], expandedIds: new Set() };
+    let noticeId = '';
+    let noticeCounter = 0;
+    let contentEditor = null;
+
+    function getToken() { return localStorage.getItem(STORAGE.token) || ''; }
+    function clearSession() { localStorage.removeItem(STORAGE.token); localStorage.removeItem(STORAGE.session); }
+    function getStoredSession() {
+      try { return JSON.parse(localStorage.getItem(STORAGE.session) || 'null'); }
+      catch (error) { return null; }
+    }
+    function canDeleteRecords() {
+      const session = window.PSAccess && typeof window.PSAccess.getScopedSession === 'function'
+        ? window.PSAccess.getScopedSession(getStoredSession())
+        : getStoredSession();
+      return !!(session && session.permissions && session.permissions.canDelete);
+    }
+    function canUseExcelTools() {
+      if (window.PSAccess && typeof window.PSAccess.canUseExcelTools === 'function') {
+        return window.PSAccess.canUseExcelTools(getStoredSession());
+      }
+      return false;
+    }
+    function syncRestrictedActions() {
+      const canUseExcel = canUseExcelTools();
+      document.getElementById('exportButton').hidden = !canUseExcel;
+      document.getElementById('importButton').hidden = !canUseExcel;
+    }
+    function createNotice(text, type) {
+      const element = document.createElement('div');
+      element.className = `notice show ${type || ''}`.trim();
+      element.dataset.noticeId = `notice-${Date.now()}-${noticeCounter += 1}`;
+      element.textContent = text;
+      function dismiss() {
+        if (!element.parentNode) return;
+        element.classList.add('notice-dismissing');
+        window.setTimeout(() => {
+          element.remove();
+          const stack = document.getElementById('noticeStack');
+          if (stack && !stack.hasChildNodes() && stack.matches(':popover-open')) stack.hidePopover();
+        }, 220);
+      }
+      element.addEventListener('click', dismiss);
+      window.setTimeout(dismiss, type === 'error' ? 10000 : 6000);
+      return element;
+    }
+    function showNotice(text, type) {
+      if (noticeId) {
+        const existing = document.querySelector(`[data-notice-id="${noticeId}"]`);
+        if (existing) existing.remove();
+      }
+      const element = createNotice(text, type);
+      const stack = document.getElementById('noticeStack');
+      stack.prepend(element);
+      noticeId = element.dataset.noticeId;
+      if (stack.matches(':popover-open')) stack.hidePopover();
+      stack.showPopover();
+    }
+    function clearNotice() {
+      if (!noticeId) return;
+      const existing = document.querySelector(`[data-notice-id="${noticeId}"]`);
+      if (existing) existing.remove();
+      noticeId = '';
+    }
+    function toParams(data) {
+      const params = new URLSearchParams();
+      Object.entries(data).forEach(([key, value]) => {
+        if (value === undefined || value === null) return;
+        params.append(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
+      });
+      return params;
+    }
+    async function api(action, payload = {}, method = 'GET') {
+      const token = getToken();
+      if (!token) {
+        clearSession();
+        window.location.replace('/pages/login/');
+        throw new Error('Sesi tidak ditemukan.');
+      }
+      const response = method === 'GET'
+        ? await fetch(`${API_BASE}?${toParams({ action, token, ...payload }).toString()}`)
+        : await fetch(API_BASE, { method, body: toParams({ action, token, ...payload }) });
+      const json = await response.json();
+      if (!json.ok) {
+        const error = new Error(json.error?.message ? `Server mengatakan: ${json.error.message}` : 'Permintaan gagal.');
+        error.code = json.error?.code || response.status || 500;
+        if (error.code === 401) {
+          clearSession();
+          window.location.replace('/pages/login/');
+        }
+        throw error;
+      }
+      return json.data;
+    }
+    function mountShell(session) {
+      return window.PSShell.mount({
+        currentPage: window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : '/pages/kelolaMading/',
+        session,
+        getStoredSession,
+        storageKey: STORAGE.session
+      });
+    }
+    function toPlainText(html) {
+      const holder = document.createElement('div');
+      holder.innerHTML = html || '';
+      return (holder.textContent || holder.innerText || '').trim();
+    }
+    function initEditor() {
+      if (contentEditor) return;
+      contentEditor = new Quill('#editor', {
+        theme: 'snow',
+        modules: {
+          toolbar: [
+            [{ header: [1, 2, 3, 4, false] }],
+            [{ font: [] }, { size: ['small', false, 'large', 'huge'] }],
+            ['bold', 'italic', 'underline', 'strike'],
+            [{ color: [] }, { background: [] }],
+            [{ script: 'sub' }, { script: 'super' }],
+            [{ list: 'ordered' }, { list: 'bullet' }, { indent: '-1' }, { indent: '+1' }],
+            [{ align: [] }, { direction: 'rtl' }],
+            ['blockquote', 'code-block', 'link', 'image', 'video'],
+            ['clean']
+          ]
+        }
+      });
+    }
+    function isItemExpanded(id) {
+      return state.expandedIds.has(id);
+    }
+    function pruneExpandedIds() {
+      const visibleIds = new Set(state.items.map(item => item.id));
+      Array.from(state.expandedIds).forEach(id => {
+        if (!visibleIds.has(id)) state.expandedIds.delete(id);
+      });
+    }
+    function syncExpandToggleButton() {
+      const button = document.getElementById('toggleExpandButton');
+      const hasItems = state.items.length > 0;
+      const allExpanded = hasItems && state.items.every(item => state.expandedIds.has(item.id));
+      button.disabled = !hasItems;
+      button.dataset.expandState = allExpanded ? 'expanded' : 'collapsed';
+      button.textContent = allExpanded ? 'Tutup Semua' : 'Buka Semua';
+    }
+    function toggleExpandedList() {
+      const allExpanded = state.items.length > 0 && state.items.every(item => state.expandedIds.has(item.id));
+      if (allExpanded) {
+        state.expandedIds.clear();
+      } else {
+        state.items.forEach(item => state.expandedIds.add(item.id));
+      }
+      renderList();
+    }
+    function toggleItemExpanded(id) {
+      if (!id) return;
+      if (state.expandedIds.has(id)) state.expandedIds.delete(id);
+      else state.expandedIds.add(id);
+      renderList();
+    }
+    function renderList() {
+      const target = document.getElementById('list');
+      if (!state.items.length) {
+        target.innerHTML = `<article class="card"><h3>Belum ada konten</h3><p>Tambahkan konten pertama untuk pengurus, umum, atau santri.</p></article>`;
+        syncExpandToggleButton();
+        return;
+      }
+      target.innerHTML = state.items.map(item => `
+        <article class="card minimal-list-card ${isItemExpanded(item.id) ? 'is-expanded' : ''}">
+          <div class="minimal-list-card-head" data-collapse="${item.id}" aria-expanded="${isItemExpanded(item.id) ? 'true' : 'false'}">
+            <span class="pill">Target ${item.targetRole || '-'}</span>
+            <div class="minimal-list-card-main">
+              <strong class="minimal-list-card-name">${item.title || '-'}</strong>
+              <span class="muted">${item.slug || '-'}</span>
+            </div>
+            <button class="btn minimal-list-card-toggle" type="button" data-edit="${item.id}">Edit</button>
+            </div>
+            <div class="minimal-list-card-detail">
+              <div class="minimal-list-card-summary">
+              <p>${toPlainText(item.summary || '') || toPlainText(item.body || '-') || '-'}</p>
+              <p>${toPlainText(item.body || '').slice(0, 220) || '-'}</p>
+            </div>
+            <div class="minimal-list-card-meta">
+              <span class="pill">${item.status || '-'}</span>
+              <span class="pill">${item.publishedAt || '-'}</span>
+            </div>
+            <div class="toolbar minimal-list-card-actions">
+              <button class="btn" type="button" data-edit="${item.id}">Edit</button>
+              <button class="btn" type="button" data-toggle="${item.id}">${item.status === 'Published' ? 'Jadikan Draft' : 'Publish'}</button>
+              ${canDeleteRecords() ? `<button class="btn" type="button" data-delete="${item.id}">Hapus</button>` : ''}
+            </div>
+          </div>
+        </article>
+      `).join('');
+      syncExpandToggleButton();
+      window.PSUI.syncScrollButtons();
+    }
+    async function loadData() {
+      clearNotice();
+      showNotice('Memuat konten...', '');
+      try {
+        state.items = (await api('content.list')).items || [];
+        pruneExpandedIds();
+        renderList();
+        clearNotice();
+      } catch (error) {
+        showNotice(error.message || 'Gagal memuat konten.', 'error');
+      }
+    }
+    function openDialog(item) {
+      initEditor();
+      const record = item || {};
+      const form = document.getElementById('form').elements;
+      document.getElementById('dialogTitle').textContent = record.id ? 'Edit Konten' : 'Tambah Konten';
+      form.namedItem('id').value = record.id || '';
+      form.namedItem('title').value = record.title || '';
+      form.namedItem('slug').value = record.slug || '';
+      form.namedItem('summary').value = record.summary || '';
+      form.namedItem('target_role').value = record.targetRole || 'pengurus';
+      form.namedItem('published_at').value = record.publishedAt || '';
+      form.namedItem('status').value = record.status || 'Draft';
+      contentEditor.setContents([]);
+      if (record.body) {
+        contentEditor.clipboard.dangerouslyPasteHTML(record.body);
+      }
+      document.getElementById('dialog').showModal();
+    }
+    async function saveForm(event) {
+      event.preventDefault();
+      const fields = event.currentTarget.elements;
+      const bodyHtml = contentEditor.root.innerHTML.trim();
+      const bodyText = contentEditor.getText().trim();
+      if (!bodyText) {
+        showNotice('Isi konten wajib diisi.', 'error');
+        return;
+      }
+      const record = {
+        id: fields.namedItem('id').value.trim(),
+        title: fields.namedItem('title').value.trim(),
+        slug: fields.namedItem('slug').value.trim(),
+        summary: fields.namedItem('summary').value.trim(),
+        body: bodyHtml,
+        target_role: fields.namedItem('target_role').value,
+        published_at: fields.namedItem('published_at').value,
+        status: fields.namedItem('status').value
+      };
+      try {
+        await api('content.save', { record }, 'POST');
+        document.getElementById('dialog').close();
+        await loadData();
+      } catch (error) {
+        showNotice(error.message || 'Gagal menyimpan konten.', 'error');
+      }
+    }
+    async function toggleItem(id) {
+      const item = state.items.find(entry => entry.id === id);
+      if (!item) return;
+      try {
+        await api('content.toggle', { id, active: item.status !== 'Published' }, 'POST');
+        await loadData();
+      } catch (error) {
+        showNotice(error.message || 'Gagal mengubah status konten.', 'error');
+      }
+    }
+    async function deleteItem(id) {
+      const item = state.items.find(entry => entry.id === id);
+      if (!item) return;
+      if (!confirm(`Hapus konten "${item.title}"?`)) return;
+      try {
+        await api('content.delete', { id }, 'POST');
+        await loadData();
+      } catch (error) {
+        showNotice(error.message || 'Gagal menghapus konten.', 'error');
+      }
+    }
+    async function exportContent() {
+      try {
+        await window.PSExcel.exportDatasets(api, ['content'], 'content.xlsx');
+      } catch (error) {
+        showNotice(error.message || 'Gagal export content.', 'error');
+      }
+    }
+    async function importContentFile(event) {
+      const file = event.target.files && event.target.files[0];
+      event.target.value = '';
+      if (!file) return;
+      try {
+        showNotice('Mengimpor content...', '');
+        await window.PSExcel.importDataset(api, 'content', file, {
+          onProgress(done, total) {
+            showNotice(`Import content ${done}/${total}...`, '');
+          }
+        });
+        await loadData();
+      } catch (error) {
+        showNotice(error.message || 'Gagal import content.', 'error');
+      }
+    }
+
+    const session = getStoredSession();
+    if (!session) {
+      clearSession();
+      window.location.replace('/pages/login/');
+    } else if (window.PSAccess && window.PSAccess.redirectIfForbidden(session, '/pages/kelolaMading/')) {
+      // redirected
+    } else {
+      mountShell(session);
+      syncRestrictedActions();
+      syncExpandToggleButton();
+      document.getElementById('addButton').addEventListener('click', () => openDialog());
+      document.getElementById('refreshButton').addEventListener('click', loadData);
+      document.getElementById('toggleExpandButton').addEventListener('click', toggleExpandedList);
+      document.getElementById('exportButton').addEventListener('click', exportContent);
+      document.getElementById('importButton').addEventListener('click', () => document.getElementById('importInput').click());
+      document.getElementById('importInput').addEventListener('change', importContentFile);
+      document.getElementById('editorFullscreenToggle').addEventListener('click', () => {
+        const shell = document.querySelector('.editor-shell');
+        const isNowFull = shell.classList.toggle('is-fullscreen');
+        document.getElementById('editorFullscreenToggle').textContent = isNowFull ? '✕ Perkecil' : '⛶ Perluas';
+        const qlToolbar = document.querySelector('.editor-shell .ql-toolbar');
+        if (qlToolbar) qlToolbar.classList.toggle('is-fullscreen', isNowFull);
+        const qlToolbar2 = document.querySelector('.ql-container');
+        if (qlToolbar2) qlToolbar2.classList.toggle('is-fullscreen', isNowFull);
+      });
+      document.getElementById('closeDialog').addEventListener('click', () => {
+        const shell = document.querySelector('.editor-shell');
+        shell.classList.remove('is-fullscreen');
+        const qlToolbar = document.querySelector('.editor-shell .ql-toolbar');
+        if (qlToolbar) qlToolbar.classList.remove('is-fullscreen');
+        const qlToolbar2 = document.querySelector('.ql-container');
+        if (qlToolbar2) qlToolbar2.classList.remove('is-fullscreen');
+        document.getElementById('editorFullscreenToggle').textContent = '⛶ Perluas';
+        document.getElementById('dialog').close();
+      });
+      document.getElementById('form').addEventListener('submit', saveForm);
+      document.getElementById('list').addEventListener('click', event => {
+        const actionButton = event.target.closest('[data-edit], [data-toggle], [data-delete]');
+        const collapseEl = event.target.closest('[data-collapse]');
+        const collapseId = collapseEl && !actionButton ? collapseEl.getAttribute('data-collapse') : '';
+        const editId = actionButton ? actionButton.getAttribute('data-edit') : '';
+        const toggleId = actionButton ? actionButton.getAttribute('data-toggle') : '';
+        const deleteId = actionButton ? actionButton.getAttribute('data-delete') : '';
+        if (collapseId) return toggleItemExpanded(collapseId);
+        if (editId) {
+          const item = state.items.find(entry => entry.id === editId);
+          if (item) openDialog(item);
+        }
+        if (toggleId) toggleItem(toggleId);
+        if (deleteId) deleteItem(deleteId);
+      });
+      window.addEventListener('load', () => {
+        initEditor();
+        loadData();
+      });
+    }
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
+    }
+  </script>
+</body>
+</html>

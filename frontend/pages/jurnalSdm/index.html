@@ -1,0 +1,1605 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#9e2f22">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="../../shared-ui.css">
+  <script src="../../shared-ui.js"></script>
+  <title>Jurnal &amp; Jam Kerja Pengurus</title>
+  <link rel="stylesheet" href="../../shared-shell.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700&display=swap');
+    :root {
+      --paper: #f6efe0;
+      --ink: #4d4034;
+      --muted: #7b6a58;
+      --line: rgba(91, 73, 57, 0.15);
+      --accent: #b97650;
+      --success: #74846c;
+      --danger: #a55a52;
+      --warning: #b58439;
+      --shadow: 0 18px 45px rgba(87, 67, 51, 0.18);
+      --radius: 24px;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; }
+    body::before { content: ''; position: fixed; inset: 0; pointer-events: none; opacity: 0.15 !important; mix-blend-mode: multiply; }
+    body::after { content: ''; position: fixed; inset: 0; pointer-events: none; opacity: 0.23; }
+
+    .panel { padding: 22px; }
+    h1, h2, h3 { margin: 0 0 10px; text-transform: uppercase; }
+    p { margin: 0; line-height: 1.65; }
+    .nav { display: grid; gap: 10px; }
+    .nav a { padding: 12px 14px; text-decoration: none; }
+    .nav a, button { font-weight: 800 !important; text-transform: uppercase; }
+    .toolbar, .meta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+    button, input, select, textarea { font: inherit; }
+    button { padding: 12px 18px; font-weight: 700; cursor: pointer; }
+    .primary { box-shadow: 0 14px 28px rgba(185, 118, 80, 0.22); }
+    input, select, textarea { width: 100%; padding: 13px 14px; outline: none; }
+    label { display: grid; gap: 7px; font-size: 14px; font-weight: 600; }
+
+    .filters { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; margin-top: 16px; }
+    .filters > label { flex: 0 0 auto; margin: 0; }
+    .filter-search { flex: 1 1 220px; max-width: 360px; }
+    .filter-select { flex: 0 1 150px; min-width: 130px; }
+    @media (max-width: 640px) {
+      .filter-search, .filter-select { flex: 1 1 100%; max-width: none; }
+    }
+    .list { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+    @media (max-width: 960px) { .list { grid-template-columns: 1fr; } }
+    .card { padding: 16px; }
+    .pill { display: inline-flex; padding: 7px 11px; font-size: 12px; font-weight: 700; }
+
+    .notice { display: none; padding: 14px 16px; line-height: 1.55; }
+    .notice.show { display: block; }
+
+    .paging-host { display: grid; gap: 8px; margin: 16px 0; }
+    .paging { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; }
+    .page-center { display: grid; gap: 8px; justify-items: center; }
+    .page-numbers { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+    .page-summary { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+    @media (max-width: 960px) { .paging { grid-template-columns: 1fr; } }
+
+    .empty-state { padding: 32px 0; text-align: center; color: var(--muted); font-size: 14px; text-transform: uppercase; letter-spacing: .06em; }
+    .loading-state { padding: 20px 0; text-align: center; color: var(--muted); font-size: 13px; }
+
+    /* Pengurus Gender & Status Styling */
+    .minimal-list-card.row-male            { background: #ddeeff; border-color: rgba(70,130,180,0.25); }
+    .minimal-list-card.row-female          { background: #ffe4f0; border-color: rgba(200,100,140,0.25); }
+    .minimal-list-card.row-male-inactive   { background: linear-gradient(135deg, #888 0%, #cce6ff 100%); border-color: rgba(70,130,180,0.25); }
+    .minimal-list-card.row-female-inactive { background: linear-gradient(135deg, #888 0%, #ffd6e8 100%); border-color: rgba(200,100,140,0.25); }
+    .minimal-list-card.row-male-frozen     { background: linear-gradient(135deg, #d0d0d0 0%, #cce6ff 100%); border-color: rgba(70,130,180,0.25); }
+    .minimal-list-card.row-female-frozen   { background: linear-gradient(135deg, #d0d0d0 0%, #ffd6e8 100%); border-color: rgba(200,100,140,0.25); }
+    .minimal-list-card.row-nogender-inactive { background: linear-gradient(135deg, #888 0%, rgba(255,248,230,0.96) 100%); }
+    .minimal-list-card.row-nogender-frozen   { background: linear-gradient(135deg, #d0d0d0 0%, rgba(255,248,230,0.96) 100%); }
+
+    /* ════════════ DIALOG LEVEL 1: Kalender Bulanan (88×88) ════════════ */
+    dialog.ps-floating-dialog.rekap-detail-dialog {
+      width: 88% !important; min-width: 88% !important; max-width: 88% !important;
+      height: 88%; min-height: 88%; max-height: 88%;
+    }
+    .rekap-detail-dialog .dialog-body {
+      padding: 22px; display: flex; flex-direction: column; gap: 0;
+      height: 100% !important; max-height: 100%; overflow: auto;
+      justify-content: flex-start !important;
+    }
+
+    /* ════════════ Popup lanjutan: DIV overlay di dalam dialog yang sama (bukan dialog bersarang) ════════════ */
+    .rekap-detail-dialog { position: relative; }
+    .overlay-layer { position: absolute; inset: 0; z-index: 10; }
+    .overlay-layer[hidden] { display: none; }
+    .overlay-scrim { position: absolute; inset: 0; background: rgba(30,22,15,0.5); }
+    .overlay-card {
+      position: absolute; inset: 3%; background: var(--paper); border-radius: var(--radius);
+      box-shadow: var(--shadow); overflow: hidden; display: flex; flex-direction: column;
+    }
+    .overlay-card-inner { flex: 1; overflow: auto; padding: 20px 22px; }
+    /* Tambah/Edit Kegiatan & Sahkan/Tinjau tampil sebagai popup lebih kecil, di atas popup detail hari */
+    #entryFormOverlay, #pengesahanOverlay, #izinFormOverlay { z-index: 11; }
+    #entryFormOverlay .overlay-card, #pengesahanOverlay .overlay-card, #izinFormOverlay .overlay-card {
+      inset: auto; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      width: min(640px, 92%); max-height: 86%;
+    }
+    @media (max-width: 640px) {
+      .overlay-card { inset: 1.5%; }
+      #entryFormOverlay .overlay-card, #pengesahanOverlay .overlay-card, #izinFormOverlay .overlay-card { width: 95%; }
+    }
+
+    .pengurus-strip {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+      padding: 16px 18px;
+      /* border: 1.5px solid var(--line); */
+      /* border-radius: var(--radius); */
+      background: rgb(235 246 255);
+      position: sticky;
+      top: -22px;
+      z-index: 3;
+    }
+    .pengurus-strip-body { flex: 1; min-width: 0; }
+    .pengurus-strip-label { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 3px; }
+    .pengurus-strip-name { font-size: clamp(18px,3vw,26px); font-weight: 900; font-family: 'Playfair Display', serif; text-transform: uppercase; margin: 0 0 2px; color: var(--ink); line-height: 1.15; }
+    .pengurus-strip-jabatan { font-size: 13px; color: var(--muted); margin: 0; }
+    .dialog-close { width: 46px; min-width: 46px; min-height: 46px; padding: 0; border-radius: 999px !important; font-size: 24px; line-height: 1; flex-shrink: 0; }
+
+    .month-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 16px; margin-bottom: 4px; }
+    .month-row input[type=month] { width: auto; min-width: 155px; padding: 12px 14px; }
+    .month-row .month-label { font-size: 15px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: var(--ink); font-family: 'Poppins', sans-serif; }
+
+    .stats-strip { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; margin-bottom: 4px; }
+    .stat-tile { flex: 1 1 100px; min-width: 100px; background: rgba(255,251,243,0.88); border: 1.5px solid var(--line); border-radius: 18px; padding: 14px 12px; text-align: center; display: grid; gap: 4px; }
+    .stat-tile-num { font-size: 26px; font-weight: 800; line-height: 1; font-family: 'Poppins', sans-serif; }
+    .stat-tile-lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+    .c-jam { color: var(--accent); } .c-sah { color: #5a7a52; } .c-tidaksah { color: var(--danger); } .c-belum { color: #b08030; } .c-izin { color: #54719c; }
+
+    /* Calendar */
+    .cal-section-title { margin-top: 22px; margin-bottom: 10px; font-size: 13px; }
+    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+    .cal-head-row { margin-bottom: 6px; }
+    .cal-head-cell { text-align: center; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: 6px 0; }
+    .cal-head-cell.ch-fri { color: var(--success); }
+    .cal-cell { min-height: 86px; border: 1.5px solid var(--line); border-radius: 14px; padding: 8px 9px; display: flex; flex-direction: column; gap: 3px; position: relative; background: rgba(255,251,243,0.7); overflow: hidden; cursor: pointer; }
+    .cal-cell:hover { box-shadow: 0 4px 12px rgba(87,67,51,0.15); }
+    .cal-empty { border: none; background: transparent; cursor: default; }
+    .cal-empty:hover { box-shadow: none; }
+    .cal-day { font-size: 17px; font-weight: 800; font-family: 'Poppins', sans-serif; line-height: 1; }
+    .cal-status { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .03em; }
+    .cal-count { font-size: 11px; font-weight: 800; color: var(--accent); margin-top: auto; }
+    .cal-today { outline: 2.5px solid var(--accent); outline-offset: -1px; }
+    .cal-warn { position: absolute; top: 6px; right: 8px; font-size: 13px; color: var(--danger); }
+    .cal-izin-pills { display: flex; gap: 3px; flex-wrap: wrap; }
+    .cal-izin-pill { display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 800; letter-spacing: .02em; padding: 1px 5px; border-radius: 999px; line-height: 1.5; }
+    .cip-sakit { background: rgba(84,113,160,.18); color: #2e4a7a; }
+    .cip-th { background: rgba(181,132,57,.18); color: #7a5010; }
+    .cal-kosong    { }
+    .cal-lengkap        { background: rgba(116,132,108,.16); border-color: rgba(116,132,108,.42); }
+    .cal-lengkap        .cal-status { color: #3d5236; }
+    .cal-perlu-tinjau   { background: rgba(181,132,57,.16);  border-color: rgba(181,132,57,.48); }
+    .cal-perlu-tinjau   .cal-status { color: #7a5010; }
+    .cal-ada-tidak-sah  { background: rgba(165,90,82,.16);   border-color: rgba(165,90,82,.48); }
+    .cal-ada-tidak-sah  .cal-status { color: #7a2820; }
+    .cal-future    { background: rgba(255,251,243,.4); border-style: dashed; cursor: default; }
+    .cal-future    .cal-day { color: rgba(91,73,57,.25); }
+    @media (max-width: 720px) {
+      .cal-cell { min-height: 60px; padding: 5px 6px; gap: 2px; }
+      .cal-day { font-size: 14px; } .cal-status { font-size: 8px; }
+      .cal-head-cell { font-size: 9px; padding: 4px 0; } .cal-grid { gap: 4px; }
+      .cal-izin-pill { font-size: 8px; padding: 0px 4px; }
+    }
+
+    .legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; padding: 12px 14px; border: 1px dashed rgba(91,73,57,.18); border-radius: 14px; background: rgba(255,251,243,.72); }
+    .legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+    .legend-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+    .ld-lengkap { background: #74846c; } .ld-tinjau { background: #c8993a; } .ld-tidaksah { background: var(--danger); }
+    .ld-kosong { background: rgba(91,73,57,.2); }
+
+    /* Dialog Level 2: header hari */
+    .hari-strip {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+      padding: 16px 18px; border: 1.5px solid var(--line); border-radius: var(--radius);
+      background: rgba(255,251,243,0.82); position: sticky; top: -20px; z-index: 3;
+    }
+    .hari-strip-body { flex: 1; min-width: 0; }
+    .hari-strip-label { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 3px; }
+    .hari-strip-title { font-size: clamp(16px,2.6vw,22px); font-weight: 900; font-family: 'Playfair Display', serif; text-transform: uppercase; margin: 0; color: var(--ink); line-height: 1.2; }
+
+    .section-block { margin-top: 20px; border: 1.5px solid var(--line); border-radius: 20px; padding: 16px 18px; background: rgba(255,251,243,0.6); }
+    .section-block-title { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--ink); margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+
+    .entry-card { border: 1.5px solid var(--line); border-radius: 16px; padding: 14px 16px; margin-bottom: 10px; background: rgba(255,255,255,0.55); }
+    .entry-card.sah-1 { border-color: rgba(116,132,108,.5); background: rgba(116,132,108,.08); }
+    .entry-card.sah-0 { border-color: rgba(165,90,82,.5); background: rgba(165,90,82,.08); }
+    .entry-card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+    .entry-jenis { font-weight: 800; text-transform: uppercase; font-size: 13px; color: var(--ink); }
+    .entry-jam { font-family: monospace; font-weight: 700; font-size: 13px; color: var(--muted); }
+    .entry-jurnal { font-size: 13px; color: var(--ink); margin-top: 8px; white-space: pre-wrap; word-break: break-word; }
+    .entry-meta { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+    .entry-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+    .entry-actions button { padding: 8px 12px; font-size: 11px; border-radius: 10px; }
+    .entry-alasan { font-size: 12px; color: var(--muted); margin-top: 6px; font-style: italic; }
+
+    .sbadge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; }
+    .sbadge-sah { background: rgba(116,132,108,.18); color: #3d5236; }
+    .sbadge-tidaksah { background: rgba(165,90,82,.18); color: #7a2820; }
+    .sbadge-belum { background: rgba(181,132,57,.18); color: #7a5010; }
+    .pbadge-ok { background: rgba(116,132,108,.18); color: #3d5236; }
+    .pbadge-terlambat { background: rgba(181,132,57,.18); color: #7a5010; }
+    .pbadge-belum { background: rgba(165,90,82,.18); color: #7a2820; }
+    .pbadge-menunggu { background: rgba(84,113,160,.16); color: #2e4a7a; }
+
+    .inline-form { border: 1.5px dashed rgba(111,87,69,.3); border-radius: 18px; padding: 16px; margin-top: 14px; background: rgba(255,255,255,0.55); display: grid; gap: 12px; }
+    .inline-form-row { display: grid; gap: 12px; grid-template-columns: 1fr 1fr; }
+    @media (max-width: 640px) { .inline-form-row { grid-template-columns: 1fr; } }
+    .inline-form-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+    .kv-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 13px; color: var(--muted); margin-bottom: 10px; }
+    .kv-row strong { color: var(--ink); }
+
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-left">
+      <button class="drawer-toggle" id="navToggle" type="button" aria-label="Toggle sidebar">Menu</button>
+      <div class="header-brand">Pendataan Santri</div>
+      <div class="header-page">Jurnal &amp; Jam Kerja Pengurus</div>
+    </div>
+    <div class="header-right">
+      <span class="header-chip" id="headerRole">Admin</span>
+    </div>
+  </header>
+  <div class="drawer-backdrop" id="navBackdrop"></div>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+  <main>
+    <div class="app-layout">
+      <section class="panel nav" id="nav"></section>
+      <div class="content-stack">
+        <section id="pageConceptPanel" style="display:none; padding:18px 20px; border-radius:18px; background:linear-gradient(135deg, #2b1e14, #19120c); color:#f3e9d8; box-shadow:0 14px 32px rgba(0,0,0,0.35);">
+          <span style="display:inline-block; padding:5px 12px; border-radius:999px; background:rgba(185,118,80,0.25); color:#e8b98f; font-size:11px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:10px;">Konsep Halaman &middot; Terlihat hanya untuk Super Admin</span>
+          <ul style="margin:0; padding-left:18px; display:grid; gap:8px; font-size:13px; line-height:1.6;">
+            <li style="color:#e6d9c4;"><strong style="color:#f6d9b8;">Admin, Super Admin, dan Bagian SDM</strong> bisa mengelola PENUH data siapa saja: tambah/edit kegiatan, sahkan/tinjau, isi fingerprint &amp; data lapangan.</li>
+            <li style="color:#e6d9c4;"><strong style="color:#f6d9b8;">Mudir/Mudiroh</strong> bisa lihat data SEMUA pengurus (read-only — fingerprint, data lapangan, status pengesahan), tapi cuma boleh menambah/mengedit kegiatan miliknya sendiri, dan cuma untuk <strong style="color:#f6d9b8;">hari ini</strong> (lihat poin tanggal di bawah). Tidak bisa mengesahkan atau mengisi fingerprint/data lapangan sama sekali, termasuk untuk kegiatan miliknya sendiri.</li>
+            <li style="color:#e6d9c4;"><strong style="color:#f6d9b8;">Pengurus lainnya</strong> hanya bisa mengakses &amp; mengisi jurnal kegiatan miliknya sendiri (tidak bisa lihat data pengurus lain), boleh diedit selama status masih <strong style="color:#f6d9b8;">Belum Dinilai</strong> — begitu disahkan, terkunci dari sisi pengurus. Tidak bisa mengesahkan atau mengisi fingerprint/data lapangan.</li>
+            <li style="color:#e6d9c4;">Selain Admin/Super Admin/Bagian SDM, tambah &amp; edit kegiatan cuma boleh untuk <strong style="color:#f6d9b8;">tanggal hari ini</strong> — begitu tanggalnya berlalu (hari sebelumnya), kegiatan itu terkunci dari sisi pengurus/Mudir, cuma bisa ditinjau/disahkan oleh Admin/Super Admin/Bagian SDM. Ini berlaku terpisah dari &amp; tambahan atas kunci status <strong style="color:#f6d9b8;">Belum Dinilai</strong>.</li>
+            <li style="color:#e6d9c4;">Pengesahan (<strong style="color:#f6d9b8;">Sah</strong> / <strong style="color:#f6d9b8;">Tidak Sah</strong>) berlaku <strong style="color:#f6d9b8;">per-kegiatan</strong>, bukan per-hari — satu hari bisa ada beberapa kegiatan dengan status berbeda-beda, dan tetap bisa dilakukan Admin/SDM kapan saja (tidak terikat batas hari ini). Alasan wajib diisi kalau kegiatan dinyatakan tidak sah.</li>
+            <li style="color:#e6d9c4;">Menghapus kegiatan/fingerprint/data lapangan hanya bisa dilakukan <strong style="color:#f6d9b8;">Super Admin</strong> — pengguna lain hanya bisa menambah &amp; mengedit.</li>
+            <li style="color:#e6d9c4;">Data <strong style="color:#f6d9b8;">Fingerprint</strong> &amp; <strong style="color:#f6d9b8;">Data Lapangan</strong> berlaku per-KEGIATAN (satu entry jurnal), bukan per-hari — input-nya sengaja diletakkan di dalam popup <strong style="color:#f6d9b8;">Sahkan Kegiatan</strong> supaya jadi bahan pertimbangan langsung untuk kegiatan yang sedang disahkan.</li>
+            <li style="color:#e6d9c4;">Jam Aktif bulanan yang direkap = total jam dari kegiatan yang sudah dinyatakan <strong style="color:#f6d9b8;">Sah</strong> saja.</li>
+          </ul>
+          <p style="margin:14px 0 6px;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#e8b98f;">Arti warna &amp; pill di kalender</p>
+          <ul style="margin:0; padding-left:18px; display:grid; gap:8px; font-size:13px; line-height:1.6;">
+            <li style="color:#e6d9c4;">Warna kotak tanggal menandai status hari itu: <strong style="color:#f6d9b8;">hijau</strong> = semua kegiatan sudah sah, <strong style="color:#f6d9b8;">kuning</strong> = ada kegiatan yang belum dinilai (perlu ditinjau), <strong style="color:#f6d9b8;">merah</strong> = ada kegiatan yang dinyatakan tidak sah, polos = belum ada jurnal sama sekali.</li>
+            <li style="color:#e6d9c4;">Ikon &#x26A0; muncul kalau ada kegiatan halaqoh/kelas yang absensinya bermasalah: <strong style="color:#f6d9b8;">Menunggu Absensi</strong> (masih dalam batas jam 22:00), <strong style="color:#f6d9b8;">Absensi Belum Diisi</strong> (lewat jam 22:00 tapi belum ada input sama sekali), atau <strong style="color:#f6d9b8;">Terlambat Mengisi Absensi</strong> (baru diisi setelah jam 22:00). Kegiatan jenis "Lainnya" tidak dicek absensinya.</li>
+          </ul>
+        </section>
+        <section id="auditLockPanel" class="panel" style="display:none; text-align:center; padding:40px 24px;">
+          <div style="font-size:32px;">&#128274;</div>
+          <h2 style="margin-top:10px;">Halaman Terkunci</h2>
+          <p style="color:var(--muted);font-size:13px;max-width:520px;margin:10px auto 0;line-height:1.7;">Masih ada tugas audit yang belum diselesaikan (absensi halaqoh/kelas/regu, hafalan harian, perkembangan santri, atau setoran tasmi'). Selesaikan dulu semuanya lewat popup <strong>Audit</strong> yang muncul di pojok kiri bawah halaman (klik tombol "Bereskan" di tiap item), baru halaman Jurnal SDM ini bisa diakses.</p>
+        </section>
+        <section id="mainContentPanel" class="panel">
+          <div class="section-head">
+            <h2>Jurnal &amp; Jam Kerja Pengurus</h2>
+          </div>
+          <p style="color:var(--muted);font-size:13px;margin-top:6px;">Klik kartu pengurus untuk membuka kalender jurnal kegiatan satu bulan, lalu klik satu tanggal untuk input/tinjau jurnal, data fingerprint, data lapangan, dan pengesahan kegiatan. Pengurus biasa hanya melihat namanya sendiri di daftar ini.</p>
+          <div class="toolbar" id="actionToolbar">
+            <button class="secondary" id="refreshButton" type="button">Muat ulang</button>
+            <button class="secondary" id="toggleExpandButton" type="button" data-expand-state="collapsed">Buka semua</button>
+          </div>
+          <div class="filters" id="filtersPanel">
+            <label class="filter-search">
+              Cari nama, email, jabatan
+              <input type="search" id="searchInput" placeholder="Mis. fauzan, mudir, email">
+            </label>
+            <label class="filter-select">
+              Status
+              <select id="statusFilter">
+                <option value="">Semua</option>
+                <option value="active" selected>Aktif</option>
+                <option value="dibekukan">Dibekukan</option>
+                <option value="inactive">Nonaktif</option>
+              </select>
+            </label>
+            <label class="filter-select">
+              Jenis
+              <select id="jenisFilter">
+                <option value="">Pengabdian &amp; Normal</option>
+                <option value="normal">Bukan Pengabdian</option>
+                <option value="pengabdian">Pengabdian</option>
+              </select>
+            </label>
+            <label class="filter-select">
+              Urutkan
+              <select id="sortSelect">
+                <option value="updated_desc">Edit terbaru</option>
+                <option value="name_asc" selected>Nama A-Z</option>
+                <option value="name_desc">Nama Z-A</option>
+                <option value="id_asc">ID kecil-besar</option>
+                <option value="id_desc">ID besar-kecil</option>
+              </select>
+            </label>
+            <label class="filter-select">
+              Tampilkan
+              <select id="pageSizeSelect">
+                <option value="10">10</option>
+                <option value="25" selected>25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </label>
+          </div>
+          <div class="paging-host" id="paginationTop"></div>
+          <div class="list" id="list"></div>
+          <div class="paging-host" id="paginationBottom"></div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <!-- ═══ Dialog Level 1: Kalender Bulanan (88×88) ═══════════════════════════════ -->
+  <dialog class="ps-floating-dialog rekap-detail-dialog" id="detailDialog">
+    <div class="dialog-body">
+      <div class="pengurus-strip ps-none" id="pengurusStrip">
+        <div class="pengurus-strip-body">
+          <p class="pengurus-strip-label">Kelola Jurnal</p>
+          <h2 class="pengurus-strip-name" id="detailNama">&mdash;</h2>
+          <p class="pengurus-strip-jabatan" id="detailJabatan"></p>
+        </div>
+        <button type="button" class="secondary dialog-close" id="btnTutupDialog" aria-label="Tutup">&times;</button>
+      </div>
+
+      <div class="month-row">
+        <button type="button" class="secondary" id="btnPrevBulan" style="padding:12px 16px;">&#8249;</button>
+        <input type="month" id="inputBulan">
+        <button type="button" class="secondary" id="btnNextBulan" style="padding:12px 16px;">&#8250;</button>
+        <span class="month-label" id="bulanLabel"></span>
+      </div>
+
+      <div class="stats-strip" id="statsStrip"></div>
+
+      <h3 class="cal-section-title">Kalender Jurnal &mdash; <span id="calMonthLabel"></span></h3>
+      <div class="cal-grid cal-head-row">
+        <div class="cal-head-cell">Sen</div>
+        <div class="cal-head-cell">Sel</div>
+        <div class="cal-head-cell">Rab</div>
+        <div class="cal-head-cell">Kam</div>
+        <div class="cal-head-cell ch-fri">Jum</div>
+        <div class="cal-head-cell">Sab</div>
+        <div class="cal-head-cell">Ahad</div>
+      </div>
+      <div class="cal-grid" id="calGrid">
+        <div class="loading-state" style="grid-column:1/-1;">Memuat kalender&hellip;</div>
+      </div>
+
+      <div class="legend">
+        <span class="legend-item"><span class="legend-dot ld-lengkap"></span>Semua Kegiatan Sah</span>
+        <span class="legend-item"><span class="legend-dot ld-tinjau"></span>Perlu Ditinjau</span>
+        <span class="legend-item"><span class="legend-dot ld-tidaksah"></span>Ada Kegiatan Tidak Sah</span>
+        <span class="legend-item"><span class="legend-dot ld-kosong"></span>Belum Ada Jurnal</span>
+        <span class="legend-item">N = jumlah kegiatan</span>
+        <span class="legend-item">&#x26A0; = absensi belum/terlambat diisi</span>
+        <span class="legend-item"><span class="cal-izin-pill cip-sakit">S</span> = ada izin sakit</span>
+        <span class="legend-item"><span class="cal-izin-pill cip-th">TH</span> = ada izin tidak hadir</span>
+      </div>
+    </div>
+
+    <!-- ═══ Popup Detail Harian (div overlay di dalam dialog yang sama, bukan dialog baru) ═══ -->
+    <div class="overlay-layer" id="hariOverlay" hidden>
+      <div class="overlay-scrim" data-overlay-close="hariOverlay"></div>
+      <div class="overlay-card">
+        <div class="overlay-card-inner">
+          <div class="hari-strip">
+            <div class="hari-strip-body">
+              <p class="hari-strip-label" id="hariStripPengurus">&mdash;</p>
+              <h2 class="hari-strip-title" id="hariStripTanggal">&mdash;</h2>
+            </div>
+            <button type="button" class="secondary dialog-close" id="btnTutupHariOverlay" aria-label="Kembali ke kalender">&times;</button>
+          </div>
+
+          <div class="section-block">
+            <div class="section-block-title">
+              <span>Jurnal Kegiatan</span>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <button type="button" class="primary" id="btnTambahKegiatan" style="padding:9px 14px;font-size:12px;">+ Tambah Kegiatan</button>
+                <button type="button" class="secondary" id="btnIzinSakit" style="padding:9px 14px;font-size:12px;">Izin Sakit</button>
+                <button type="button" class="secondary" id="btnIzinTidakHadir" style="padding:9px 14px;font-size:12px;">Izin Tidak Hadir</button>
+              </div>
+            </div>
+            <div id="entryList"><div class="loading-state">Memuat kegiatan&hellip;</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ Popup Tambah/Edit Kegiatan (bertumpuk di atas popup detail hari) ═══ -->
+    <div class="overlay-layer" id="entryFormOverlay" hidden>
+      <div class="overlay-scrim" data-overlay-close="entryFormOverlay"></div>
+      <div class="overlay-card">
+        <div class="overlay-card-inner">
+          <div class="section-block-title"><span id="entryFormTitle">Tambah Kegiatan</span></div>
+          <input type="hidden" id="entryId" value="">
+          <div class="inline-form" style="border:none;padding:0;margin-top:0;background:transparent;">
+            <label>
+              Jenis Kegiatan
+              <select id="entryJenis">
+                <option value="halaqoh">Mengajar Halaqoh</option>
+                <option value="kelas">Mengajar Kelas</option>
+                <option value="lainnya">Lainnya</option>
+              </select>
+            </label>
+            <label id="entryRefWrap">
+              <span id="entryRefLabel">Pilih Halaqoh</span>
+              <select id="entryRefSelect"><option value="">&mdash; pilih &mdash;</option></select>
+            </label>
+            <label id="entryNamaLainnyaWrap" style="display:none;">
+              Nama Kegiatan
+              <input type="text" id="entryNamaLainnya" placeholder="Mis. Rapat Koordinasi, Piket Malam">
+            </label>
+            <div class="inline-form-row">
+              <label>
+                Jam Mulai
+                <input type="time" id="entryJamMulai">
+              </label>
+              <label>
+                Jam Selesai
+                <input type="time" id="entryJamSelesai">
+              </label>
+            </div>
+            <label>
+              Jurnal / Catatan Kegiatan
+              <textarea id="entryJurnalText" rows="3" placeholder="Ceritakan kegiatan yang dilakukan..."></textarea>
+            </label>
+            <div class="inline-form-actions">
+              <button type="button" class="primary" id="btnSimpanEntry">Simpan Kegiatan</button>
+              <button type="button" class="secondary" id="btnBatalEntry">Batal</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ Popup Izin Sakit / Izin Tidak Hadir (bertumpuk di atas popup detail hari) ═══ -->
+    <div class="overlay-layer" id="izinFormOverlay" hidden>
+      <div class="overlay-scrim" data-overlay-close="izinFormOverlay"></div>
+      <div class="overlay-card">
+        <div class="overlay-card-inner">
+          <div class="section-block-title"><span id="izinFormTitle">Izin Sakit</span></div>
+          <input type="hidden" id="izinEntryId" value="">
+          <div class="inline-form" style="border:none;padding:0;margin-top:0;background:transparent;">
+            <label>
+              Jenis Izin
+              <select id="izinJenisSelect">
+                <option value="sakit">Izin Sakit</option>
+                <option value="tidak_hadir">Izin Tidak Hadir</option>
+              </select>
+            </label>
+            <div class="inline-form-row" id="izinRangeRow">
+              <label>
+                Dari Tanggal
+                <input type="date" id="izinTanggalMulai">
+              </label>
+              <label>
+                Sampai Tanggal
+                <input type="date" id="izinTanggalSelesai">
+              </label>
+            </div>
+            <label id="izinTanggalTampilWrap" style="display:none;">
+              Tanggal
+              <input type="text" id="izinTanggalTampil" disabled>
+            </label>
+            <label>
+              Catatan
+              <textarea id="izinCatatan" rows="3" placeholder="Ceritakan alasan izin secara singkat..."></textarea>
+            </label>
+            <p style="font-size:11px;color:var(--muted);margin:0;line-height:1.5;">Jangan lupa segera koordinasikan dengan pengurus lain untuk mencari badal (pengganti) selama masa izin ini.</p>
+            <div class="inline-form-actions">
+              <button type="button" class="primary" id="btnSimpanIzin">Ajukan Izin</button>
+              <button type="button" class="secondary" id="btnBatalIzin">Batal</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ Popup Sahkan/Tinjau Kegiatan (bertumpuk di atas popup detail hari) ═══ -->
+    <div class="overlay-layer" id="pengesahanOverlay" hidden>
+      <div class="overlay-scrim" data-overlay-close="pengesahanOverlay"></div>
+      <div class="overlay-card">
+        <div class="overlay-card-inner">
+          <div class="section-block-title"><span id="pengesahanTitle">Sahkan Kegiatan</span></div>
+          <input type="hidden" id="pengesahanEntryId" value="">
+          <div class="entry-card" id="pengesahanEntryRef" style="margin-bottom:14px;">
+            <div class="entry-card-head">
+              <span class="entry-jenis" id="pengesahanRefJenis">&mdash;</span>
+              <span class="entry-jam" id="pengesahanRefJam">&mdash;</span>
+            </div>
+            <p class="entry-jurnal" id="pengesahanRefJurnal"></p>
+          </div>
+
+          <div class="section-block" style="margin-top:12px;">
+            <div class="section-block-title"><span>Data Fingerprint (Input Manual)</span></div>
+            <div class="inline-form-row">
+              <label>
+                Jam Masuk (Fingerprint)
+                <input type="time" id="fpJamMasuk">
+              </label>
+              <label>
+                Catatan
+                <input type="text" id="fpCatatan" placeholder="Opsional">
+              </label>
+            </div>
+            <div class="inline-form-actions" style="margin-top:12px;">
+              <button type="button" class="primary" id="btnSimpanFp" style="padding:9px 14px;font-size:12px;">Simpan Data Fingerprint</button>
+            </div>
+          </div>
+
+          <div class="section-block">
+            <div class="section-block-title"><span>Data Lapangan (Staff SDM / Pengawas)</span></div>
+            <div class="inline-form-row">
+              <label>
+                Jam Masuk (Laporan Lapangan)
+                <input type="time" id="lpJamMasuk">
+              </label>
+              <label>
+                Catatan
+                <input type="text" id="lpCatatan" placeholder="Opsional">
+              </label>
+            </div>
+            <p class="kv-row" id="lpMeta" style="margin-top:8px;"></p>
+            <div class="inline-form-actions">
+              <button type="button" class="primary" id="btnSimpanLp" style="padding:9px 14px;font-size:12px;">Simpan Data Lapangan</button>
+            </div>
+          </div>
+
+          <div class="section-block">
+            <div class="section-block-title"><span>Jadwal Harian Pengurus</span></div>
+            <div class="kv-row" id="jhpKvRow" style="margin-bottom:0;"></div>
+          </div>
+
+          <div class="section-block">
+            <div class="section-block-title"><span id="pengesahanFormTitle">Sahkan Kegiatan Ini</span></div>
+            <div class="inline-form-row">
+              <label>
+                <select id="pengesahanSah">
+                  <option value="1">Sah</option>
+                  <option value="0">Tidak Sah</option>
+                </select>
+              </label>
+              <label>
+                Alasan (wajib kalau Tidak Sah)
+                <input type="text" id="pengesahanAlasan" placeholder="Alasan pengesahan">
+              </label>
+            </div>
+            <div class="inline-form-actions">
+              <button type="button" class="primary" id="btnSimpanPengesahan" style="padding:9px 14px;font-size:12px;">Simpan Pengesahan</button>
+              <button type="button" class="secondary" id="btnBatalPengesahan" style="padding:9px 14px;font-size:12px;">Batal</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <script src="../../shared-audit.js"></script>
+  <script src="../../shared-access.js"></script>
+  <script src="../../shared-nav.js"></script>
+  <script src="../../shared-shell.js"></script>
+  <script>
+    const API_BASE = window.location.origin + '/api';
+    const STORAGE = { apiBase: 'ps_api_base', token: 'ps_token', session: 'ps_session' };
+    localStorage.setItem(STORAGE.apiBase, API_BASE);
+
+    const BULAN_NAMES  = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+    const HARI_LABEL   = { senin:'Senin', selasa:'Selasa', rabu:'Rabu', kamis:'Kamis', jumat:'Jumat', sabtu:'Sabtu', ahad:'Ahad' };
+    const HARI_ORDER   = ['senin','selasa','rabu','kamis','jumat','sabtu','ahad'];
+    const DAY_STATUS_LABEL = { kosong: 'Belum Ada Jurnal', lengkap: 'Semua Sah', 'ada-tidak-sah': 'Ada Tidak Sah', 'perlu-tinjau': 'Perlu Ditinjau' };
+    const JENIS_LABEL = { halaqoh: 'Mengajar Halaqoh', kelas: 'Mengajar Kelas', lainnya: 'Lainnya', izin_sakit: 'Izin Sakit', izin_tidak_hadir: 'Izin Tidak Hadir' };
+    const IZIN_JENIS = ['izin_sakit', 'izin_tidak_hadir'];
+    const SAH_LABEL = { '1': 'Sah', '0': 'Tidak Sah', '': 'Belum Dinilai' };
+    const PILL_LABEL = { ok: 'Absensi OK', terlambat: 'Terlambat Mengisi Absensi', belum: 'Absensi Belum Diisi', menunggu: 'Menunggu Absensi' };
+    const JHP_FIELD_DEFS = [
+      { key: 'jam_tetap_shubuh', label: 'Jam Tetap Shubuh' },
+      { key: 'jam_hadir_shubuh', label: 'Jam Hadir Shubuh' },
+      { key: 'jam_0800', label: '08:00' },
+      { key: 'jam_0900', label: '09:00' },
+      { key: 'jam_1000', label: '10:00' },
+      { key: 'jam_1300', label: '13:00' },
+      { key: 'jam_1400', label: '14:00' },
+      { key: 'jam_tetap_isya', label: "Jam Tetap Isya'" },
+      { key: 'jam_hadir_isya', label: "Jam Hadir Isya'" }
+    ];
+
+    const state = {
+      items: [], page: 1, pageSize: 25, totalPages: 1, total: 0,
+      expandedIds: new Set(),
+      activePengurus: null, bulan: '',
+      monthData: null,
+      activeDay: null,
+      pilihanKegiatanCache: {}
+    };
+
+    /* ── Helpers ────────────────────────────────────────────────────── */
+    function escapeHtml(text) {
+      return String(text == null ? '' : text)
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    }
+    function bulanStr(ym) {
+      if (!ym) return '';
+      const p = ym.split('-');
+      return BULAN_NAMES[parseInt(p[1],10)-1] + ' ' + p[0];
+    }
+    function tanggalLengkap(dateStr) {
+      if (!dateStr) return '';
+      const p = dateStr.split('-');
+      const d = new Date(parseInt(p[0],10), parseInt(p[1],10)-1, parseInt(p[2],10));
+      const hariNama = ['Ahad','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'][d.getDay()];
+      return hariNama + ', ' + parseInt(p[2],10) + ' ' + BULAN_NAMES[parseInt(p[1],10)-1] + ' ' + p[0];
+    }
+    function todayStr() {
+      const n = new Date();
+      return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0');
+    }
+    function normalizeLookupValue(value) {
+      const text = String(value == null ? '' : value);
+      const normalized = typeof text.normalize === 'function' ? text.normalize('NFD').replace(/[̀-ͯ]/g, '') : text;
+      return normalized.toLowerCase().replace(/[^0-9a-z\s]/g, ' ').replace(/\s+/g, ' ').trim();
+    }
+    function getPengurusStatusKey(value) {
+      const n = normalizeLookupValue(value);
+      if (n === 'inactive' || n === 'nonaktif') return 'inactive';
+      if (n === 'dibekukan' || n === 'frozen' || n === 'beku') return 'dibekukan';
+      return 'active';
+    }
+    function getPengurusStatusPillClass(value) {
+      const k = getPengurusStatusKey(value);
+      return k === 'inactive' ? 'inactive' : k === 'dibekukan' ? 'warn' : '';
+    }
+    function genderStripClass(gender) {
+      const g = normalizeLookupValue(gender);
+      return g === 'male' ? 'ps-male' : g === 'female' ? 'ps-female' : 'ps-none';
+    }
+    function isPengurusBaru(item) {
+      const createdAt = item?.record?.created_at;
+      if (!createdAt) return false;
+      const created = new Date(createdAt);
+      if (isNaN(created)) return false;
+      const oneMonthLater = new Date(created);
+      oneMonthLater.setMonth(oneMonthLater.getMonth() + 1);
+      return new Date() < oneMonthLater;
+    }
+    function getCardRowClass(gender, statusKey) {
+      if (statusKey === 'inactive') {
+        if (gender === 'male') return 'row-male-inactive';
+        if (gender === 'female') return 'row-female-inactive';
+        return 'row-nogender-inactive';
+      }
+      if (statusKey === 'dibekukan') {
+        if (gender === 'male') return 'row-male-frozen';
+        if (gender === 'female') return 'row-female-frozen';
+        return 'row-nogender-frozen';
+      }
+      if (gender === 'male') return 'row-male';
+      if (gender === 'female') return 'row-female';
+      return '';
+    }
+
+    /* ── Auth / API ─────────────────────────────────────────────────── */
+    function getApiBase() { return localStorage.getItem(STORAGE.apiBase) || ''; }
+    function getToken() { return localStorage.getItem(STORAGE.token) || ''; }
+    function clearSession() { localStorage.removeItem(STORAGE.token); localStorage.removeItem(STORAGE.session); }
+    function getStoredSession() { try { return JSON.parse(localStorage.getItem(STORAGE.session) || 'null'); } catch (_) { return null; } }
+
+    /* ── Peran akses halaman ini (SELALU pakai scope aktif, bukan jabatan mentah) ───────
+       - Full manager (Admin/SDM): kelola siapa saja, penuh (sahkan/fingerprint/lapangan/hapus utk Super Admin).
+       - View-all (Mudir): lihat siapa saja (read-only), tapi cuma boleh isi kegiatan miliknya sendiri.
+       - Self-only (pengurus biasa): cuma bisa lihat & isi kegiatan miliknya sendiri, tanpa pengesahan.
+       Misal Super Admin sedang scope ke "Bagian SDM" -> diperlakukan sebagai SDM biasa (bukan super admin). */
+    function getScopedSession() {
+      return window.PSAccess && typeof window.PSAccess.getScopedSession === 'function'
+        ? window.PSAccess.getScopedSession(getStoredSession()) : getStoredSession();
+    }
+    function sessionPermissions() { const s = getScopedSession(); return (s && s.permissions) || {}; }
+    function isFullManager() { return !!sessionPermissions().canManageSdmJurnalAll; }
+    function isViewAll() { return !!sessionPermissions().canViewSdmJurnalAll; }
+    function isSelfOnlyRole() { return !isFullManager() && !isViewAll(); }
+    function mySelfId() { const s = getStoredSession(); return s ? String(s.id) : ''; }
+    function isViewingSelf() { return !!(state.activePengurus && String(state.activePengurus.id) === mySelfId()); }
+    // Boleh buka form tambah/edit kegiatan utk pengurus yg sedang dibuka kalendernya. Full manager
+    // boleh kapan saja; selain itu (self-only & Mudir mengisi miliknya sendiri) cuma boleh utk HARI INI —
+    // hari-hari sebelumnya terkunci dari sisi pengurus, cuma bisa ditinjau/disahkan oleh Admin/SDM.
+    function canFillKegiatanHere() {
+      if (isFullManager()) return true;
+      return isViewingSelf() && state.activeDay === todayStr();
+    }
+    // Boleh edit satu entry spesifik: full manager selalu boleh; selain itu cuma pemilik, masih
+    // "Belum Dinilai", DAN tanggal kegiatannya hari ini (bukan hari sebelumnya). Entry izin
+    // sakit/tidak hadir langsung final (tidak ada status "Belum Dinilai" utk dijadikan patokan),
+    // jadi patokannya beda: full manager selalu boleh; selain itu cuma pemilik & cuma selama
+    // tanggal izinnya belum lewat (hari ini/ke depan) — begitu tanggalnya lewat, terkunci dari
+    // sisi pengurus sama seperti kegiatan biasa.
+    function canEditEntry(entry) {
+      if (IZIN_JENIS.indexOf(entry.jenisKegiatan) !== -1) {
+        if (isFullManager()) return true;
+        return isViewingSelf() && state.activeDay >= todayStr();
+      }
+      if (isFullManager()) return true;
+      return isViewingSelf() && entry.sah === '' && state.activeDay === todayStr();
+    }
+    // Boleh ajukan izin sakit/tidak hadir utk pengurus yg sedang dibuka kalendernya: full manager
+    // kapan saja; selain itu cuma boleh utk dirinya sendiri (tanggalnya diatur lewat popup, bukan
+    // terikat hari yang lagi dibuka di kalender — beda dari canFillKegiatanHere).
+    function canAjukanIzinHere() {
+      return isFullManager() || isViewingSelf();
+    }
+
+    function toParams(data) {
+      const params = new URLSearchParams();
+      Object.entries(data).forEach(([key, value]) => {
+        if (value === undefined || value === null) return;
+        params.append(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
+      });
+      return params;
+    }
+    async function api(action, payload = {}) {
+      const apiBase = getApiBase(), token = getToken();
+      if (!apiBase || !token) { clearSession(); window.location.replace('/pages/login/'); throw new Error('Sesi tidak ditemukan.'); }
+      const scopeLabel = window.PSAccess && typeof window.PSAccess.getActiveRoleScopeLabel === 'function'
+        ? window.PSAccess.getActiveRoleScopeLabel(getStoredSession()) : '';
+      const params = toParams({ action, token, scopeLabel, ...payload });
+      const response = await fetch(`${apiBase}?${params.toString()}`);
+      const json = await response.json();
+      if (!json.ok) {
+        const error = new Error(json.error && json.error.message ? json.error.message : 'Permintaan gagal.');
+        error.code = (json.error && json.error.code) || response.status || 500;
+        if (error.code === 401) { clearSession(); window.location.replace('/pages/login/'); }
+        throw error;
+      }
+      return json.data;
+    }
+
+    /* ── Notice (floating toast, pojok kanan atas) ─────────────────────
+       Sama seperti pola di riwayatPindahHalaqoh/riwayatPindahRegu: satu notice aktif
+       pada satu waktu, auto-hilang (5 detik / 9 detik utk error), atau langsung hilang
+       kalau diklik. Dipakai untuk semua notice di halaman ini (list, kalender, hari,
+       pengesahan, form kegiatan) supaya selalu tampil di tempat yang sama & konsisten. */
+    let noticeId = '', noticeCounter = 0;
+    // Dialog utama halaman ini modal (showModal()), yang membuat SEMUA elemen di luar dialog
+    // itu "inert" (tak bisa diklik) — termasuk popover #noticeStack walau tampil di atas
+    // secara visual. Jadi selama dialog terbuka, pindahkan #noticeStack jadi ANAK LANGSUNG
+    // dialog itu supaya ikut dianggap bagian dialog (bisa diklik), lalu kembalikan ke <body>
+    // saat dialog tertutup.
+    function getNoticeHost() {
+      const dialog = document.getElementById('detailDialog');
+      return (dialog && dialog.open) ? dialog : document.body;
+    }
+    function showNotice(text, type) {
+      const stack = document.getElementById('noticeStack');
+      if (!stack) return;
+      clearNotice();
+      const host = getNoticeHost();
+      if (stack.parentElement !== host) {
+        if (stack.matches(':popover-open')) stack.hidePopover();
+        host.appendChild(stack);
+      }
+      const el = document.createElement('div');
+      el.className = `notice show ${type || 'info'}`.trim();
+      el.dataset.noticeId = `n-${Date.now()}-${noticeCounter += 1}`;
+      el.textContent = text;
+      el.addEventListener('click', () => dismissNotice(el.dataset.noticeId));
+      setTimeout(() => dismissNotice(el.dataset.noticeId), type === 'error' ? 9000 : 5000);
+      stack.prepend(el);
+      noticeId = el.dataset.noticeId;
+      if (stack.matches(':popover-open')) stack.hidePopover();
+      stack.showPopover();
+    }
+    function dismissNotice(id) {
+      if (!id) return;
+      const el = document.querySelector(`[data-notice-id="${id}"]`);
+      if (el) el.remove();
+      if (noticeId === id) noticeId = '';
+    }
+    function clearNotice() { dismissNotice(noticeId); }
+
+    /* ── Pagination ─────────────────────────────────────────────────── */
+    function renderPaging(currentPage, totalPages) {
+      const start = Math.max(1, Math.min(currentPage - 4, totalPages - 9));
+      const end = Math.min(totalPages, start + 9);
+      let html = '';
+      for (let p = start; p <= end; p++) {
+        html += `<button ${p === currentPage ? 'class="active"' : ''} data-page="${p}">${p}</button>`;
+      }
+      return html;
+    }
+    function renderPagination() {
+      const markup = state.total ? `
+        <div class="paging">
+          <div class="page-center">
+            <div class="page-numbers">
+              ${renderPaging(state.page, state.totalPages)}
+            </div>
+            <div class="page-summary">Halaman ${state.page} dari ${state.totalPages} | total ${state.total} data</div>
+          </div>
+        </div>` : '';
+      window.PSUI.syncPaginationHosts({ markup, visibleCount: state.items.length, totalCount: state.total, topId: 'paginationTop', bottomId: 'paginationBottom' });
+    }
+
+    /* ── Expand ─────────────────────────────────────────────────────── */
+    function isItemExpanded(id) { return state.expandedIds.has(id); }
+    function pruneExpandedIds() {
+      const visible = new Set(state.items.map(i => i.id));
+      Array.from(state.expandedIds).forEach(id => { if (!visible.has(id)) state.expandedIds.delete(id); });
+    }
+    function syncExpandToggleButton() {
+      const button = document.getElementById('toggleExpandButton');
+      const hasItems = state.items.length > 0;
+      const allExpanded = hasItems && state.items.every(i => state.expandedIds.has(i.id));
+      button.disabled = !hasItems;
+      button.dataset.expandState = allExpanded ? 'expanded' : 'collapsed';
+      button.textContent = allExpanded ? 'Tutup semua' : 'Buka semua';
+    }
+    function toggleExpandedList() {
+      const allExpanded = state.items.length > 0 && state.items.every(i => state.expandedIds.has(i.id));
+      if (allExpanded) state.expandedIds.clear();
+      else state.items.forEach(i => state.expandedIds.add(i.id));
+      renderList();
+    }
+    function toggleItemExpanded(id) {
+      if (!id) return;
+      if (state.expandedIds.has(id)) state.expandedIds.delete(id);
+      else state.expandedIds.add(id);
+      renderList();
+    }
+
+    /* ── List pengurus ───────────────────────────────────────────────── */
+    async function loadData() {
+      clearNotice();
+      showNotice('Memuat pengurus…', 'info');
+      try {
+        // Pengurus biasa (bukan Admin/SDM/Mudir) cuma boleh lihat namanya sendiri di daftar ini.
+        if (isSelfOnlyRole()) {
+          const me = await api('account.self');
+          state.items = me && me.account && me.account.item ? [me.account.item] : [];
+          state.page = 1;
+          state.totalPages = 1;
+          state.total = state.items.length;
+        } else {
+          const list = await api('pengurus.list', {
+            page: state.page, pageSize: state.pageSize,
+            q: document.getElementById('searchInput').value.trim(),
+            status: document.getElementById('statusFilter').value,
+            jenis: document.getElementById('jenisFilter').value,
+            sort: document.getElementById('sortSelect').value
+          });
+          state.items = list.items || [];
+          state.page = list.page || 1;
+          state.pageSize = list.pageSize || state.pageSize;
+          state.totalPages = list.totalPages || 1;
+          state.total = list.total || 0;
+        }
+        pruneExpandedIds();
+        clearNotice();
+        renderList();
+      } catch (error) {
+        state.items = [];
+        state.total = 0;
+        state.totalPages = 1;
+        renderList();
+        showNotice(error.message || 'Gagal memuat pengurus.', 'error');
+      }
+    }
+
+    function renderList() {
+      const target = document.getElementById('list');
+      const items = state.items;
+      if (!items.length) {
+        target.innerHTML = `<p class="empty-state">Belum ada pengurus yang cocok dengan filter.</p>`;
+      } else {
+        target.innerHTML = items.map(item => {
+          const genderNorm = normalizeLookupValue(item.gender);
+          const genderKey = genderNorm === 'male' ? 'male' : genderNorm === 'female' ? 'female' : '';
+          const statusKey = getPengurusStatusKey(item.status);
+          const rowClass = getCardRowClass(genderKey, statusKey);
+          return `
+          <article class="card minimal-list-card ${isItemExpanded(item.id) ? 'is-expanded' : ''} ${rowClass}">
+            <div class="minimal-list-card-head">
+              <div class="minimal-list-card-main" data-collapse="${item.id}" role="button" tabindex="0" aria-expanded="${isItemExpanded(item.id) ? 'true' : 'false'}" aria-label="Buka detail pengurus ${escapeHtml(item.name || '-')}">
+                <div class="minimal-list-card-title-row">
+                  ${isPengurusBaru(item) ? `<span style="display:inline-flex;align-items:center;padding:2px 8px;border-radius:99px;font-size:10.5px;font-weight:800;letter-spacing:.03em;background:#dff5df;color:#1e7e34;">NEW</span>` : ''}
+                  <strong class="minimal-list-card-name">${escapeHtml(item.name || '-')}</strong>
+                  ${item.jenisPengurus === 'pengabdian' ? '<span style="color:#1565c0;font-weight:800;font-size:11px;letter-spacing:.03em;text-transform:uppercase;">(Pengabdian)</span>' : ''}
+                </div>
+                <span class="minimal-list-card-hint">${escapeHtml(item.email || 'Tanpa email')} &nbsp;·&nbsp; ${escapeHtml(item.noHp || 'Tanpa nomor HP')} &nbsp;·&nbsp; ${escapeHtml(item.primaryJabatanLabel || 'Tanpa jabatan utama')}</span>
+              </div>
+              <button class="primary minimal-list-card-toggle" type="button" data-cek="${item.id}" aria-label="Kelola jurnal ${escapeHtml(item.name || '-')}">Kelola Jurnal</button>
+            </div>
+            <div class="minimal-list-card-detail">
+              <div class="minimal-list-card-meta">
+                <span class="pill ${getPengurusStatusPillClass(item.status)}">${escapeHtml(item.status || '-')}</span>
+                ${item.gender ? `<span class="pill">${escapeHtml(item.gender)}</span>` : ''}
+                <span class="pill">Jabatan ${Number(item.jabatanCount || 0)}</span>
+              </div>
+              <div class="minimal-list-card-summary">
+                <p><strong>Email:</strong> ${escapeHtml(item.email || '-')}</p>
+                <p><strong>No HP:</strong> ${escapeHtml(item.noHp || '-')}</p>
+                <p><strong>Jabatan:</strong> ${escapeHtml((item.jabatanLabels || []).length ? item.jabatanLabels.join(', ') : '-')}</p>
+                <p><strong>Jabatan utama:</strong> ${escapeHtml(item.primaryJabatanLabel || '-')}</p>
+              </div>
+              <div class="toolbar minimal-list-card-actions">
+                <button class="primary" type="button" data-cek="${item.id}">Kelola Jurnal Bulan Ini</button>
+              </div>
+            </div>
+          </article>`;
+        }).join('');
+      }
+      renderPagination();
+      syncExpandToggleButton();
+      if (window.PSUI && window.PSUI.syncScrollButtons) window.PSUI.syncScrollButtons();
+    }
+
+    /* ── Dialog Level 1: Kalender bulanan ──────────────────────────────── */
+    function openDetailDialog(item) {
+      if (!item) return;
+      state.activePengurus = {
+        id: item.id, name: item.name,
+        jabatan: (item.jabatanLabels || []).length ? item.jabatanLabels.join(', ') : (item.primaryJabatanLabel || ''),
+        gender: item.gender
+      };
+      const strip = document.getElementById('pengurusStrip');
+      strip.className = 'pengurus-strip ' + genderStripClass(item.gender);
+      document.getElementById('detailNama').textContent = item.name || '—';
+      document.getElementById('detailJabatan').textContent = state.activePengurus.jabatan || 'Tanpa jabatan';
+
+      clearNotice();
+      document.getElementById('statsStrip').innerHTML = '';
+      document.getElementById('calGrid').innerHTML = '<div class="loading-state" style="grid-column:1/-1;">Memuat kalender…</div>';
+
+      const dialog = document.getElementById('detailDialog');
+      if (!dialog.open) dialog.showModal();
+      loadDetailBulan();
+    }
+
+    async function loadDetailBulan() {
+      if (!state.activePengurus) return;
+      clearNotice();
+      document.getElementById('calMonthLabel').textContent = bulanStr(state.bulan);
+      document.getElementById('calGrid').innerHTML = '<div class="loading-state" style="grid-column:1/-1;">Memuat ' + escapeHtml(bulanStr(state.bulan)) + '…</div>';
+      try {
+        const data = await api('sdm.jurnal.bulan.detail', { pengurusId: state.activePengurus.id, bulan: state.bulan });
+        state.monthData = data;
+        renderDetailBulan(data);
+      } catch (e) {
+        showNotice(e.message || 'Gagal memuat data jurnal.', 'error');
+        document.getElementById('calGrid').innerHTML = '';
+      }
+    }
+
+    function mkStatTile(num, lbl, cls) {
+      return '<div class="stat-tile"><span class="stat-tile-num '+(cls||'')+'">' + escapeHtml(String(num)) + '</span><span class="stat-tile-lbl">' + escapeHtml(lbl) + '</span></div>';
+    }
+
+    function renderDetailBulan(data) {
+      const s = data.stats;
+      document.getElementById('statsStrip').innerHTML =
+        mkStatTile(s.totalJamAktif + ' jam', 'Jam Aktif (Sah)', 'c-jam') +
+        mkStatTile(s.totalJamBelumDinilai + ' jam', 'Jam Belum Dinilai', 'c-belum') +
+        mkStatTile(s.kegiatanSah, 'Kegiatan Sah', 'c-sah') +
+        mkStatTile(s.kegiatanTidakSah, 'Kegiatan Tidak Sah', 'c-tidaksah') +
+        mkStatTile(s.kegiatanBelumDinilai, 'Kegiatan Belum Dinilai', 'c-belum') +
+        mkStatTile(s.kegiatanIzin || 0, 'Izin Sakit/Tidak Hadir', 'c-izin');
+      renderCalendar(data.detail || []);
+    }
+
+    function renderCalendar(rows) {
+      const grid = document.getElementById('calGrid');
+      if (!rows.length) { grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1;">Tidak ada data</div>'; return; }
+      const today = todayStr();
+      let firstCol = HARI_ORDER.indexOf(rows[0].hariNama);
+      if (firstCol < 0) firstCol = 0;
+      let cells = '';
+      for (let i = 0; i < firstCol; i++) cells += '<div class="cal-cell cal-empty"></div>';
+      rows.forEach(row => {
+        const cls = row.isFuture ? 'cal-future' : 'cal-' + (row.dayStatus || 'kosong');
+        const dayNo = parseInt(row.tanggal.split('-')[2], 10);
+        const label = DAY_STATUS_LABEL[row.dayStatus] || row.dayStatus;
+        const isToday = row.tanggal === today;
+        const entries = row.entries || [];
+        const hasSakit = entries.some(e => e.jenisKegiatan === 'izin_sakit');
+        const hasTidakHadir = entries.some(e => e.jenisKegiatan === 'izin_tidak_hadir');
+        const izinPills = (hasSakit ? '<span class="cal-izin-pill cip-sakit" title="Ada izin sakit">S</span>' : '') +
+          (hasTidakHadir ? '<span class="cal-izin-pill cip-th" title="Ada izin tidak hadir">TH</span>' : '');
+        cells += '<div class="cal-cell ' + cls + (isToday ? ' cal-today' : '') + '" data-tanggal="' + row.tanggal + '">' +
+          '<span class="cal-day">' + dayNo + '</span>' +
+          (izinPills ? '<span class="cal-izin-pills">' + izinPills + '</span>' : '') +
+          (row.isFuture ? '' : '<span class="cal-status">' + escapeHtml(label) + '</span>') +
+          (row.entries && row.entries.length ? '<span class="cal-count">' + row.entries.length + ' kegiatan</span>' : '') +
+          (row.hasWarning ? '<span class="cal-warn" title="Ada absensi yang belum/terlambat diisi">&#x26A0;</span>' : '') +
+        '</div>';
+      });
+      grid.innerHTML = cells;
+    }
+
+    /* ── Popup (div overlay): Detail harian ────────────────────────────── */
+    function findDayData(tanggal) {
+      if (!state.monthData) return null;
+      return (state.monthData.detail || []).filter(d => d.tanggal === tanggal)[0] || null;
+    }
+
+    function showOverlay(id) { document.getElementById(id).hidden = false; }
+    function hideOverlayEl(id) { document.getElementById(id).hidden = true; }
+    function topmostOpenOverlay() {
+      if (!document.getElementById('entryFormOverlay').hidden) return 'entryFormOverlay';
+      if (!document.getElementById('izinFormOverlay').hidden) return 'izinFormOverlay';
+      if (!document.getElementById('pengesahanOverlay').hidden) return 'pengesahanOverlay';
+      if (!document.getElementById('hariOverlay').hidden) return 'hariOverlay';
+      return null;
+    }
+    function stepBackOverlay(layerId) {
+      if (layerId === 'entryFormOverlay') return hideEntryForm();
+      if (layerId === 'izinFormOverlay') return hideIzinForm();
+      if (layerId === 'pengesahanOverlay') return hidePengesahanForm();
+      if (layerId === 'hariOverlay') return closeHariOverlay();
+    }
+
+    function openHariDialog(tanggal) {
+      const day = findDayData(tanggal);
+      if (!day || day.isFuture) return;
+      state.activeDay = tanggal;
+      document.getElementById('hariStripPengurus').textContent = state.activePengurus ? state.activePengurus.name : '';
+      document.getElementById('hariStripTanggal').textContent = tanggalLengkap(tanggal);
+      document.getElementById('btnTambahKegiatan').hidden = !canFillKegiatanHere();
+      document.getElementById('btnIzinSakit').hidden = !canAjukanIzinHere();
+      document.getElementById('btnIzinTidakHadir').hidden = !canAjukanIzinHere();
+      clearNotice();
+      if (!isFullManager() && isViewingSelf() && tanggal !== todayStr()) {
+        showNotice('Hari sebelumnya sudah terkunci — tambah/edit kegiatan cuma bisa untuk hari ini. Kegiatan yang sudah ada di sini hanya bisa dilihat, menunggu ditinjau/disahkan Admin atau SDM.', 'info');
+      }
+      hideEntryForm();
+      hideIzinForm();
+      hidePengesahanForm();
+      renderHariDialogContent(day);
+      showOverlay('hariOverlay');
+    }
+
+    function closeHariOverlay() {
+      hideEntryForm();
+      hideIzinForm();
+      hidePengesahanForm();
+      hideOverlayEl('hariOverlay');
+      state.activeDay = null;
+    }
+
+    function renderHariDialogContent(day) {
+      renderEntryList(day.entries || []);
+    }
+
+    // Fingerprint & Data Lapangan input-nya ada di dalam popup Sahkan Kegiatan, berlaku
+    // per-KEGIATAN (satu entry jurnal) — disinkron tiap popup itu dibuka/di-refresh.
+    function syncPengesahanFpLp() {
+      const entryId = document.getElementById('pengesahanEntryId').value;
+      const day = findDayData(state.activeDay);
+      const entry = day && (day.entries || []).find(e => e.id === entryId);
+      const fp = entry && entry.fingerprint;
+      const lp = entry && entry.dataLapangan;
+      document.getElementById('fpJamMasuk').value = fp ? (fp.jamMasuk || '') : '';
+      document.getElementById('fpCatatan').value = fp ? (fp.catatan || '') : '';
+      document.getElementById('lpJamMasuk').value = lp ? (lp.jamMasuk || '') : '';
+      document.getElementById('lpCatatan').value = lp ? (lp.catatan || '') : '';
+      document.getElementById('lpMeta').textContent = lp && lp.dilaporkanOlehNama ? ('Terakhir dilaporkan oleh: ' + lp.dilaporkanOlehNama) : '';
+    }
+
+    function pillBadgeClass(pill) {
+      if (pill === 'ok') return 'pbadge-ok';
+      if (pill === 'terlambat') return 'pbadge-terlambat';
+      if (pill === 'belum') return 'pbadge-belum';
+      if (pill === 'menunggu') return 'pbadge-menunggu';
+      return '';
+    }
+
+    function renderEntryList(entries) {
+      const target = document.getElementById('entryList');
+      const isSuperAdmin = !!sessionPermissions().isSuperAdmin;
+      if (!entries.length) {
+        target.innerHTML = '<p class="empty-state" style="padding:16px 0;">Belum ada kegiatan pada tanggal ini.</p>';
+        return;
+      }
+      target.innerHTML = entries.map(e => {
+        const isIzin = IZIN_JENIS.indexOf(e.jenisKegiatan) !== -1;
+        const sahClass = 'sah-' + (e.sah === '' ? 'x' : e.sah);
+        const sahBadge = isIzin ? '<span class="sbadge sbadge-belum" style="background:rgba(84,113,160,.16);color:#2e4a7a;">Izin (Otomatis)</span>'
+          : e.sah === '1' ? '<span class="sbadge sbadge-sah">Sah</span>' : e.sah === '0' ? '<span class="sbadge sbadge-tidaksah">Tidak Sah</span>' : '<span class="sbadge sbadge-belum">Belum Dinilai</span>';
+        const pillBadge = e.absensiPill ? `<span class="sbadge ${pillBadgeClass(e.absensiPill)}">${escapeHtml(PILL_LABEL[e.absensiPill] || e.absensiPill)}</span>` : '';
+        return `<div class="entry-card ${sahClass}" data-entry-id="${e.id}">
+          <div class="entry-card-head">
+            <span class="entry-jenis">${escapeHtml(JENIS_LABEL[e.jenisKegiatan] || e.jenisKegiatan)}${e.refNama ? ' &mdash; ' + escapeHtml(e.refNama) : ''}</span>
+            ${isIzin ? '' : '<span class="entry-jam">' + escapeHtml(e.jamMulai) + '&ndash;' + escapeHtml(e.jamSelesai) + ' (' + e.durasiJam + ' jam)</span>'}
+          </div>
+          <div class="entry-meta">${sahBadge}${pillBadge}</div>
+          ${e.jurnalText ? '<p class="entry-jurnal">' + escapeHtml(e.jurnalText) + '</p>' : ''}
+          ${(!isIzin && e.sah !== '') ? '<p class="entry-alasan">' + (e.disahkanOlehNama ? 'Disahkan oleh ' + escapeHtml(e.disahkanOlehNama) + '. ' : '') + (e.alasan ? 'Alasan: ' + escapeHtml(e.alasan) : '') + '</p>' : ''}
+          <div class="entry-actions">
+            ${canEditEntry(e) ? `<button type="button" class="secondary" data-edit-entry="${e.id}">Edit</button>` : ''}
+            ${isIzin ? '' : `<button type="button" class="secondary" data-sahkan-entry="${e.id}">${isFullManager() ? 'Sahkan / Tinjau' : 'Lihat Detail'}</button>`}
+            ${isSuperAdmin ? `<button type="button" class="danger" data-hapus-entry="${e.id}">Hapus</button>` : ''}
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    /* ── Popup: tambah/edit kegiatan ───────────────────────────────────── */
+    function showEntryForm() {
+      document.getElementById('entryFormTitle').textContent = document.getElementById('entryId').value ? 'Edit Kegiatan' : 'Tambah Kegiatan';
+      clearNotice();
+      showOverlay('entryFormOverlay');
+    }
+    function hideEntryForm() {
+      hideOverlayEl('entryFormOverlay');
+      document.getElementById('entryId').value = '';
+      document.getElementById('entryJenis').value = 'halaqoh';
+      document.getElementById('entryNamaLainnya').value = '';
+      document.getElementById('entryJamMulai').value = '';
+      document.getElementById('entryJamSelesai').value = '';
+      document.getElementById('entryJurnalText').value = '';
+      syncEntryJenisUi();
+    }
+    function syncEntryJenisUi() {
+      const jenis = document.getElementById('entryJenis').value;
+      const refWrap = document.getElementById('entryRefWrap');
+      const namaWrap = document.getElementById('entryNamaLainnyaWrap');
+      if (jenis === 'lainnya') {
+        refWrap.style.display = 'none';
+        namaWrap.style.display = '';
+      } else {
+        refWrap.style.display = '';
+        namaWrap.style.display = 'none';
+        document.getElementById('entryRefLabel').textContent = jenis === 'halaqoh' ? 'Pilih Halaqoh' : 'Pilih Kelas';
+        loadPilihanKegiatan(jenis);
+      }
+    }
+    async function loadPilihanKegiatan(jenis, selectedId) {
+      const select = document.getElementById('entryRefSelect');
+      if (!state.activePengurus) return;
+      const cacheKey = state.activePengurus.id + ':' + jenis;
+      select.innerHTML = '<option value="">Memuat…</option>';
+      try {
+        let items = state.pilihanKegiatanCache[cacheKey];
+        if (!items) {
+          const data = await api('sdm.jurnal.pilihanKegiatan', { pengurusId: state.activePengurus.id, jenis });
+          items = data.items || [];
+          state.pilihanKegiatanCache[cacheKey] = items;
+        }
+        select.innerHTML = '<option value="">&mdash; pilih &mdash;</option>' + items.map(it => `<option value="${escapeHtml(it.id)}">${escapeHtml(it.nama)}</option>`).join('');
+        if (!items.length) select.innerHTML = '<option value="">Tidak ada ' + (jenis === 'halaqoh' ? 'halaqoh' : 'kelas') + ' yang diampu pengurus ini</option>';
+        if (selectedId) select.value = selectedId;
+      } catch (e) {
+        select.innerHTML = '<option value="">Gagal memuat</option>';
+      }
+    }
+
+    function openEntryFormForAdd() {
+      hideEntryForm();
+      showEntryForm();
+    }
+    function openEntryFormForEdit(entry) {
+      hideEntryForm();
+      document.getElementById('entryId').value = entry.id;
+      document.getElementById('entryJenis').value = entry.jenisKegiatan;
+      document.getElementById('entryJamMulai').value = entry.jamMulai || '';
+      document.getElementById('entryJamSelesai').value = entry.jamSelesai || '';
+      document.getElementById('entryJurnalText').value = entry.jurnalText || '';
+      if (entry.jenisKegiatan === 'lainnya') {
+        document.getElementById('entryNamaLainnya').value = entry.refNama || '';
+      }
+      showEntryForm();
+      if (entry.jenisKegiatan === 'lainnya') {
+        document.getElementById('entryRefWrap').style.display = 'none';
+        document.getElementById('entryNamaLainnyaWrap').style.display = '';
+      } else {
+        document.getElementById('entryRefWrap').style.display = '';
+        document.getElementById('entryNamaLainnyaWrap').style.display = 'none';
+        document.getElementById('entryRefLabel').textContent = entry.jenisKegiatan === 'halaqoh' ? 'Pilih Halaqoh' : 'Pilih Kelas';
+        loadPilihanKegiatan(entry.jenisKegiatan, entry.idRef);
+      }
+    }
+
+    async function saveEntry() {
+      if (!state.activePengurus || !state.activeDay) return;
+      const jenis = document.getElementById('entryJenis').value;
+      const payload = {
+        id: document.getElementById('entryId').value || undefined,
+        pengurusId: state.activePengurus.id,
+        tanggal: state.activeDay,
+        jenisKegiatan: jenis,
+        jamMulai: document.getElementById('entryJamMulai').value,
+        jamSelesai: document.getElementById('entryJamSelesai').value,
+        jurnalText: document.getElementById('entryJurnalText').value
+      };
+      if (jenis === 'lainnya') {
+        payload.refNama = document.getElementById('entryNamaLainnya').value.trim();
+      } else {
+        payload.idRef = document.getElementById('entryRefSelect').value;
+      }
+      try {
+        await api('sdm.jurnal.entry.save', payload);
+        hideEntryForm();
+        await refreshAfterChange();
+      } catch (e) {
+        showNotice(e.message || 'Gagal menyimpan kegiatan.', 'error');
+      }
+    }
+
+    async function deleteEntry(id) {
+      if (!confirm('Hapus kegiatan ini? Tindakan ini hanya untuk Super Admin.')) return;
+      try {
+        await api('sdm.jurnal.entry.delete', { id });
+        await refreshAfterChange();
+      } catch (e) {
+        showNotice(e.message || 'Gagal menghapus kegiatan.', 'error');
+      }
+    }
+
+    /* ── Popup: izin sakit / izin tidak hadir ───────────────────────────
+       Beda dari Tambah Kegiatan: boleh untuk RENTANG tanggal sekaligus (bukan cuma tanggal yang
+       lagi dibuka di kalender), dan langsung final begitu diajukan (tidak lewat proses Sahkan/
+       Tinjau). Selain Admin/SDM, tanggal mulai tidak boleh tanggal yang sudah lewat — tapi boleh
+       hari ini s/d beberapa hari ke depan, supaya sempat dicarikan badal sebelum harinya tiba. */
+    function openIzinForm(jenis) {
+      hideEntryForm();
+      hidePengesahanForm();
+      document.getElementById('izinEntryId').value = '';
+      document.getElementById('izinJenisSelect').value = jenis;
+      document.getElementById('izinFormTitle').textContent = jenis === 'sakit' ? 'Izin Sakit' : 'Izin Tidak Hadir';
+      document.getElementById('izinRangeRow').style.display = '';
+      document.getElementById('izinTanggalTampilWrap').style.display = 'none';
+      const today = todayStr();
+      const mulaiInput = document.getElementById('izinTanggalMulai');
+      const selesaiInput = document.getElementById('izinTanggalSelesai');
+      const defaultTanggal = (state.activeDay && state.activeDay >= today) ? state.activeDay : today;
+      mulaiInput.value = defaultTanggal;
+      selesaiInput.value = defaultTanggal;
+      if (isFullManager()) {
+        mulaiInput.removeAttribute('min');
+        selesaiInput.removeAttribute('min');
+      } else {
+        mulaiInput.setAttribute('min', today);
+        selesaiInput.setAttribute('min', today);
+      }
+      document.getElementById('izinCatatan').value = '';
+      clearNotice();
+      showOverlay('izinFormOverlay');
+    }
+    // Edit cuma boleh utk catatan/jenis satu entry izin yg SUDAH ADA (tanggalnya tetap, tidak
+    // bisa digeser lewat sini — lihat canEditEntry). Beda dari openIzinForm (mode tambah/rentang).
+    function openIzinFormForEdit(entry) {
+      hideEntryForm();
+      hidePengesahanForm();
+      document.getElementById('izinEntryId').value = entry.id;
+      document.getElementById('izinJenisSelect').value = entry.jenisKegiatan === 'izin_sakit' ? 'sakit' : 'tidak_hadir';
+      document.getElementById('izinFormTitle').textContent = 'Edit Izin';
+      document.getElementById('izinRangeRow').style.display = 'none';
+      document.getElementById('izinTanggalTampilWrap').style.display = '';
+      document.getElementById('izinTanggalTampil').value = tanggalLengkap(state.activeDay);
+      document.getElementById('izinCatatan').value = entry.jurnalText || '';
+      clearNotice();
+      showOverlay('izinFormOverlay');
+    }
+    function hideIzinForm() {
+      hideOverlayEl('izinFormOverlay');
+      document.getElementById('izinEntryId').value = '';
+    }
+    // Setelah berhasil ajukan izin (mode tambah), pindahkan tampilan popup hari ke tanggal MULAI
+    // izinnya (geser bulan kalender juga kalau beda bulan) supaya entry yang baru dibuat langsung
+    // kelihatan — sebelumnya popup tetap menampilkan tanggal lama yang lagi dibuka, jadi entry baru
+    // "hilang" dari pandangan kalau rentang izinnya beda hari dari tanggal yang sedang dibuka.
+    async function jumpToDayAndRefresh(tanggal) {
+      const bulanTujuan = tanggal.slice(0, 7);
+      if (bulanTujuan !== state.bulan) setBulan(bulanTujuan);
+      state.activeDay = tanggal;
+      await loadDetailBulan();
+      document.getElementById('hariStripTanggal').textContent = tanggalLengkap(tanggal);
+      document.getElementById('btnTambahKegiatan').hidden = !canFillKegiatanHere();
+      document.getElementById('btnIzinSakit').hidden = !canAjukanIzinHere();
+      document.getElementById('btnIzinTidakHadir').hidden = !canAjukanIzinHere();
+      const day = findDayData(tanggal);
+      if (day) renderHariDialogContent(day);
+    }
+    async function saveIzin() {
+      if (!state.activePengurus) return;
+      const entryId = document.getElementById('izinEntryId').value;
+      const jenisIzin = document.getElementById('izinJenisSelect').value;
+      const catatan = document.getElementById('izinCatatan').value.trim();
+      if (!catatan) { showNotice('Catatan izin wajib diisi.', 'error'); return; }
+      try {
+        if (entryId) {
+          const result = await api('sdm.jurnal.izin.entry.update', { id: entryId, jenisIzin, catatan });
+          hideIzinForm();
+          await refreshAfterChange();
+          showNotice((result && result.message) || 'Izin berhasil diperbarui.', 'success');
+        } else {
+          const tanggalMulai = document.getElementById('izinTanggalMulai').value;
+          const tanggalSelesai = document.getElementById('izinTanggalSelesai').value;
+          if (!tanggalMulai || !tanggalSelesai) { showNotice('Tanggal mulai dan selesai wajib diisi.', 'error'); return; }
+          if (tanggalSelesai < tanggalMulai) { showNotice('Tanggal selesai tidak boleh sebelum tanggal mulai.', 'error'); return; }
+          const result = await api('sdm.jurnal.izin.save', {
+            pengurusId: state.activePengurus.id,
+            jenisIzin, tanggalMulai, tanggalSelesai, catatan
+          });
+          hideIzinForm();
+          await jumpToDayAndRefresh(tanggalMulai);
+          showNotice((result && result.message) || 'Izin berhasil diajukan. Lihat kartu kegiatan di tanggal ' + tanggalLengkap(tanggalMulai) + '.', 'success');
+        }
+      } catch (e) {
+        showNotice(e.message || 'Gagal menyimpan izin.', 'error');
+      }
+    }
+
+    /* ── Popup: pengesahan kegiatan (+ input Fingerprint & Data Lapangan hari itu) ──── */
+    function showPengesahanForm(entryId) {
+      const readOnly = !isFullManager();
+      document.getElementById('pengesahanEntryId').value = entryId;
+      clearNotice();
+      const day = findDayData(state.activeDay);
+      const entry = day && (day.entries || []).find(e => e.id === entryId);
+      document.getElementById('pengesahanSah').value = entry && entry.sah ? entry.sah : '1';
+      document.getElementById('pengesahanAlasan').value = entry ? (entry.alasan || '') : '';
+      document.getElementById('pengesahanRefJenis').textContent = entry
+        ? (JENIS_LABEL[entry.jenisKegiatan] || entry.jenisKegiatan) + (entry.refNama ? ' — ' + entry.refNama : '')
+        : '—';
+      document.getElementById('pengesahanRefJam').textContent = entry
+        ? entry.jamMulai + '–' + entry.jamSelesai + ' (' + entry.durasiJam + ' jam)'
+        : '—';
+      document.getElementById('pengesahanRefJurnal').textContent = entry && entry.jurnalText ? entry.jurnalText : '(Tidak ada catatan jurnal)';
+
+      document.getElementById('pengesahanTitle').textContent = readOnly ? 'Detail Kegiatan' : 'Sahkan Kegiatan';
+      document.getElementById('pengesahanFormTitle').textContent = readOnly ? 'Status Pengesahan' : 'Sahkan Kegiatan Ini';
+      ['pengesahanSah', 'pengesahanAlasan', 'fpJamMasuk', 'fpCatatan', 'lpJamMasuk', 'lpCatatan'].forEach(id => {
+        document.getElementById(id).disabled = readOnly;
+      });
+      document.getElementById('btnSimpanPengesahan').hidden = readOnly;
+      document.getElementById('btnSimpanFp').hidden = readOnly;
+      document.getElementById('btnSimpanLp').hidden = readOnly;
+
+      syncPengesahanFpLp();
+      loadJhpForPengesahan();
+      showOverlay('pengesahanOverlay');
+    }
+
+    // Info Jadwal Harian Pengurus (read-only) untuk pengurus & tanggal yang sedang dibuka
+    // di popup ini -- datanya per HARI (bukan per-kegiatan), jadi sama persis di semua
+    // popup kegiatan pada tanggal yang sama.
+    async function loadJhpForPengesahan() {
+      const row = document.getElementById('jhpKvRow');
+      row.innerHTML = '<span style="color:var(--muted)">Memuat…</span>';
+      if (!state.activePengurus || !state.activeDay) { row.innerHTML = '<span>-</span>'; return; }
+      try {
+        const data = await api('jadwalHarianPengurus.forJurnal', {
+          pengurusId: state.activePengurus.id,
+          tanggal: state.activeDay
+        });
+        const entry = data && data.entry;
+        row.innerHTML = JHP_FIELD_DEFS.map(f =>
+          `<span><strong>${f.label}:</strong> ${escapeHtml(entry && entry[f.key] ? entry[f.key] : '-')}</span>`
+        ).join('');
+      } catch (e) {
+        row.innerHTML = `<span style="color:var(--danger)">${escapeHtml(e.message || 'Gagal memuat data.')}</span>`;
+      }
+    }
+
+    function hidePengesahanForm() {
+      hideOverlayEl('pengesahanOverlay');
+      document.getElementById('pengesahanEntryId').value = '';
+    }
+    async function savePengesahan() {
+      const id = document.getElementById('pengesahanEntryId').value;
+      if (!id) return;
+      const sah = document.getElementById('pengesahanSah').value;
+      const alasan = document.getElementById('pengesahanAlasan').value.trim();
+      if (sah === '0' && !alasan) { showNotice('Alasan wajib diisi kalau kegiatan dinyatakan tidak sah.', 'error'); return; }
+      try {
+        await api('sdm.jurnal.entry.pengesahan', { id, sah, alasan });
+        hidePengesahanForm();
+        await refreshAfterChange();
+      } catch (e) {
+        showNotice(e.message || 'Gagal menyimpan pengesahan.', 'error');
+      }
+    }
+
+    /* ── Fingerprint & data lapangan (input per-kegiatan, di dalam popup Sahkan Kegiatan) ── */
+    async function saveFingerprint() {
+      const idJurnal = document.getElementById('pengesahanEntryId').value;
+      if (!idJurnal) return;
+      try {
+        await api('sdm.fingerprint.save', {
+          idJurnal,
+          jamMasuk: document.getElementById('fpJamMasuk').value,
+          catatan: document.getElementById('fpCatatan').value
+        });
+        await refreshAfterChange();
+        syncPengesahanFpLp();
+        showNotice('Data fingerprint disimpan.', 'success');
+      } catch (e) {
+        showNotice(e.message || 'Gagal menyimpan data fingerprint.', 'error');
+      }
+    }
+    async function saveDataLapangan() {
+      const idJurnal = document.getElementById('pengesahanEntryId').value;
+      if (!idJurnal) return;
+      try {
+        await api('sdm.dataLapangan.save', {
+          idJurnal,
+          jamMasuk: document.getElementById('lpJamMasuk').value,
+          catatan: document.getElementById('lpCatatan').value
+        });
+        await refreshAfterChange();
+        syncPengesahanFpLp();
+        showNotice('Data lapangan disimpan.', 'success');
+      } catch (e) {
+        showNotice(e.message || 'Gagal menyimpan data lapangan.', 'error');
+      }
+    }
+
+    /* ── Refresh terpadu setelah perubahan ──────────────────────────────── */
+    async function refreshAfterChange() {
+      await loadDetailBulan();
+      if (state.activeDay) {
+        const day = findDayData(state.activeDay);
+        if (day) renderHariDialogContent(day);
+      }
+    }
+
+    /* ── Month nav ──────────────────────────────────────────────────────── */
+    function setBulan(ym) {
+      state.bulan = ym;
+      document.getElementById('inputBulan').value = ym;
+      document.getElementById('bulanLabel').textContent = bulanStr(ym);
+    }
+    function shiftBulan(delta) {
+      const p = state.bulan.split('-');
+      const d = new Date(parseInt(p[0],10), parseInt(p[1],10)-1+delta, 1);
+      setBulan(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'));
+      if (state.activePengurus) loadDetailBulan();
+    }
+
+    /* ── Events ─────────────────────────────────────────────────────────── */
+    const currentPage = window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : '/pages/jurnalSdm/';
+    const initialSession = getStoredSession();
+    if (!initialSession) { clearSession(); window.location.replace('/pages/login/'); }
+
+    function syncConceptPanel() {
+      const panel = document.getElementById('pageConceptPanel');
+      if (panel) panel.style.display = !!sessionPermissions().isSuperAdmin ? 'block' : 'none';
+    }
+
+    if (!(window.PSAccess && window.PSAccess.redirectIfForbidden(initialSession, currentPage))) {
+      if (window.PSShell) {
+        window.PSShell.mount({ currentPage, session: getStoredSession(), getStoredSession, storageKey: STORAGE.session });
+      }
+      syncConceptPanel();
+      document.getElementById('refreshButton').addEventListener('click', loadData);
+      document.getElementById('toggleExpandButton').addEventListener('click', toggleExpandedList);
+      document.getElementById('searchInput').addEventListener('input', () => { state.page = 1; loadData(); });
+      document.getElementById('statusFilter').addEventListener('change', () => { state.page = 1; loadData(); });
+      document.getElementById('jenisFilter').addEventListener('change', () => { state.page = 1; loadData(); });
+      document.getElementById('sortSelect').addEventListener('change', () => { state.page = 1; loadData(); });
+      document.getElementById('pageSizeSelect').addEventListener('change', event => { state.pageSize = Number(event.target.value); state.page = 1; loadData(); });
+
+      document.getElementById('list').addEventListener('click', event => {
+        const cekButton = event.target.closest('[data-cek]');
+        const collapseButton = event.target.closest('[data-collapse]');
+        if (cekButton) {
+          const item = state.items.find(i => i.id === cekButton.getAttribute('data-cek'));
+          if (item) openDetailDialog(item);
+          return;
+        }
+        if (collapseButton) { toggleItemExpanded(collapseButton.getAttribute('data-collapse')); }
+      });
+      document.getElementById('list').addEventListener('keydown', event => {
+        const collapseTarget = event.target.closest('[data-collapse]');
+        if (!collapseTarget || (event.key !== 'Enter' && event.key !== ' ')) return;
+        event.preventDefault();
+        toggleItemExpanded(collapseTarget.getAttribute('data-collapse'));
+      });
+
+      document.getElementById('btnTutupDialog').addEventListener('click', () => {
+        state.activePengurus = null;
+        state.monthData = null;
+        const dialog = document.getElementById('detailDialog');
+        if (dialog.open) dialog.close();
+      });
+      document.getElementById('detailDialog').addEventListener('cancel', event => {
+        const topLayer = topmostOpenOverlay();
+        if (topLayer) { event.preventDefault(); stepBackOverlay(topLayer); return; }
+        state.activePengurus = null;
+        state.monthData = null;
+      });
+      // Dialog yang tertutup jadi display:none, ikut menyembunyikan #noticeStack kalau masih
+      // jadi anaknya (lihat getNoticeHost) — pindahkan balik ke <body> supaya notice yang lagi
+      // tampil tetap kelihatan/tetap bisa diklik walau dialognya sudah ditutup.
+      document.getElementById('detailDialog').addEventListener('close', () => {
+        const stack = document.getElementById('noticeStack');
+        if (stack && stack.parentElement !== document.body) document.body.appendChild(stack);
+      });
+      document.querySelectorAll('.overlay-scrim').forEach(scrim => {
+        scrim.addEventListener('click', () => {
+          const layer = scrim.closest('.overlay-layer');
+          if (layer) stepBackOverlay(layer.id);
+        });
+      });
+      document.getElementById('inputBulan').addEventListener('change', function() {
+        if (this.value) { setBulan(this.value); if (state.activePengurus) loadDetailBulan(); }
+      });
+      document.getElementById('btnPrevBulan').addEventListener('click', () => shiftBulan(-1));
+      document.getElementById('btnNextBulan').addEventListener('click', () => shiftBulan(1));
+
+      document.getElementById('calGrid').addEventListener('click', event => {
+        const cell = event.target.closest('[data-tanggal]');
+        if (!cell) return;
+        openHariDialog(cell.getAttribute('data-tanggal'));
+      });
+
+      document.getElementById('btnTutupHariOverlay').addEventListener('click', closeHariOverlay);
+
+      document.getElementById('btnTambahKegiatan').addEventListener('click', openEntryFormForAdd);
+      document.getElementById('btnBatalEntry').addEventListener('click', hideEntryForm);
+      document.getElementById('btnSimpanEntry').addEventListener('click', saveEntry);
+      document.getElementById('entryJenis').addEventListener('change', syncEntryJenisUi);
+
+      document.getElementById('btnIzinSakit').addEventListener('click', () => openIzinForm('sakit'));
+      document.getElementById('btnIzinTidakHadir').addEventListener('click', () => openIzinForm('tidak_hadir'));
+      document.getElementById('btnBatalIzin').addEventListener('click', hideIzinForm);
+      document.getElementById('btnSimpanIzin').addEventListener('click', saveIzin);
+
+      document.getElementById('entryList').addEventListener('click', event => {
+        const editBtn = event.target.closest('[data-edit-entry]');
+        const sahkanBtn = event.target.closest('[data-sahkan-entry]');
+        const hapusBtn = event.target.closest('[data-hapus-entry]');
+        if (editBtn) {
+          const day = findDayData(state.activeDay);
+          const entry = day && (day.entries || []).find(e => e.id === editBtn.getAttribute('data-edit-entry'));
+          if (entry) {
+            if (IZIN_JENIS.indexOf(entry.jenisKegiatan) !== -1) openIzinFormForEdit(entry);
+            else openEntryFormForEdit(entry);
+          }
+          return;
+        }
+        if (sahkanBtn) { showPengesahanForm(sahkanBtn.getAttribute('data-sahkan-entry')); return; }
+        if (hapusBtn) { deleteEntry(hapusBtn.getAttribute('data-hapus-entry')); return; }
+      });
+
+      document.getElementById('btnSimpanPengesahan').addEventListener('click', savePengesahan);
+      document.getElementById('btnBatalPengesahan').addEventListener('click', hidePengesahanForm);
+      document.getElementById('btnSimpanFp').addEventListener('click', saveFingerprint);
+      document.getElementById('btnSimpanLp').addEventListener('click', saveDataLapangan);
+    }
+
+    document.addEventListener('click', event => {
+      const page = event.target.getAttribute && event.target.getAttribute('data-page');
+      if (!page) return;
+      const nextPage = Number(page);
+      if (!nextPage || nextPage < 1 || nextPage > state.totalPages || nextPage === state.page) return;
+      state.page = nextPage;
+      loadData();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
+    // Terkunci kalau masih ada audit pending (absensi/hafalan/perkembangan/tasmi) DAN
+    // bukan Super Admin (Super Admin dikecualikan -- keputusan 2026-07-28). Dicek lewat
+    // action 'absensi.owed' yang sama dipakai popup audit di shared-shell.js. Item dengan
+    // blocksJurnal === false (mis. "belum isi jurnal hari ini" sendiri) sengaja tidak
+    // dihitung -- sama seperti gate assertNoPendingAudit_ di backend -- supaya tidak
+    // jadi paradoks: audit itu justru mengunci satu-satunya halaman tempat mengisinya.
+    async function checkAuditLock() {
+      if (sessionPermissions().isSuperAdmin) return false;
+      try {
+        const data = await api('absensi.owed');
+        const items = (data && data.items) || [];
+        return items.some(item => item.blocksJurnal !== false);
+      } catch (_) {
+        return false; // gagal cek -> jangan blokir (fail-open, bukan fail-closed)
+      }
+    }
+
+    window.addEventListener('load', async () => {
+      if (window.PSAccess && window.PSAccess.redirectIfForbidden(getStoredSession(), currentPage)) return;
+      const locked = await checkAuditLock();
+      document.getElementById('auditLockPanel').style.display = locked ? '' : 'none';
+      document.getElementById('mainContentPanel').style.display = locked ? 'none' : '';
+      if (locked) return;
+      document.getElementById('pageSizeSelect').value = String(state.pageSize);
+      const now = new Date();
+      setBulan(now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0'));
+      await loadData();
+    });
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
+    }
+  </script>
+</body>
+</html>

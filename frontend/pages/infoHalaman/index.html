@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="../../shared-ui.css">
+  <link rel="stylesheet" href="../../shared-shell.css">
+  <script src="../../shared-ui.js"></script>
+  <title>Info Halaman & Panduan Sistem</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700&display=swap');
+
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: 'Poppins', sans-serif; }
+    .panel { padding: 22px; }
+    h1, h2, h3 { margin: 0; }
+    p { margin: 0; line-height: 1.65; }
+
+    /* ── Tabs ── */
+    .tab-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+    .tab-btn {
+      padding: 8px 18px; font-size: 13px; font-weight: 700; cursor: pointer;
+      border-radius: 999px; border: 2px solid transparent;
+      font-family: inherit; text-transform: uppercase; letter-spacing: 0.05em;
+      background: rgba(0,0,0,0.06); color: inherit;
+      transition: background 0.15s;
+    }
+    .tab-btn.active { background: #4a2f22; color: #f4d978; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: flex; flex-direction: column; gap: 10px; }
+
+    /* ── Page cards ── */
+    .page-group { display: flex; flex-direction: column; gap: 8px; }
+    .group-title {
+      font-size: 11px; font-weight: 800; text-transform: uppercase;
+      letter-spacing: 0.12em; opacity: 0.45; padding: 8px 0 4px;
+      border-bottom: 1px solid rgba(0,0,0,0.08); margin-bottom: 2px;
+    }
+    details.page-card { border-radius: 14px; overflow: hidden; }
+    details.page-card > summary {
+      display: flex; align-items: center; gap: 12px;
+      padding: 14px 16px; cursor: pointer; list-style: none;
+      font-weight: 700; font-size: 14px;
+    }
+    details.page-card > summary::-webkit-details-marker { display: none; }
+    details.page-card > summary .chevron {
+      margin-left: auto; font-size: 11px; opacity: 0.4;
+      transition: transform 0.2s;
+    }
+    details.page-card[open] > summary .chevron { transform: rotate(90deg); }
+    .card-body { padding: 4px 16px 16px; display: grid; gap: 12px; }
+
+    /* ── Akses badge ── */
+    .akses-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+    .akses-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; opacity: 0.5; }
+    .role-pill {
+      display: inline-flex; align-items: center;
+      padding: 3px 10px; border-radius: 999px;
+      font-size: 11px; font-weight: 700;
+      background: rgba(74,47,34,0.08); color: #4a2f22;
+    }
+    .role-pill.all { background: rgba(74,132,108,0.12); color: #1f6b52; }
+    .role-pill.super { background: rgba(165,90,82,0.14); color: #7a2f28; }
+    .role-pill.santri { background: rgba(91,33,182,0.1); color: #5b21b6; }
+
+    /* ── Fitur list ── */
+    .fitur-list { display: grid; gap: 4px; }
+    .fitur-list li {
+      font-size: 13px; padding: 3px 0 3px 14px;
+      position: relative; opacity: 0.85; line-height: 1.5;
+    }
+    .fitur-list li::before {
+      content: '–'; position: absolute; left: 0; opacity: 0.45;
+    }
+
+    /* ── Keterangan sub-label ── */
+    .sub-label {
+      font-size: 10px; font-weight: 800; text-transform: uppercase;
+      letter-spacing: 0.1em; opacity: 0.45; margin-bottom: 4px;
+    }
+
+    /* ── Color swatches ── */
+    .swatch-grid { display: flex; flex-direction: column; gap: 6px; }
+    .swatch-row { display: flex; align-items: center; gap: 10px; }
+    .swatch {
+      width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0;
+      border: 1.5px solid rgba(0,0,0,0.1);
+    }
+    .swatch-text { font-size: 13px; line-height: 1.4; }
+    .swatch-text strong { font-weight: 700; display: block; font-size: 12px; }
+    .swatch-text span { opacity: 0.6; font-size: 12px; }
+
+    .swatch-group-title {
+      font-size: 11px; font-weight: 800; text-transform: uppercase;
+      letter-spacing: 0.1em; opacity: 0.4; margin: 12px 0 6px;
+    }
+
+    /* ── Inline note ── */
+    .note {
+      font-size: 12px; opacity: 0.6; font-style: italic;
+      padding: 8px 12px; border-radius: 10px;
+      background: rgba(0,0,0,0.04);
+    }
+  </style>
+</head>
+<body>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+  <main>
+    <div class="app-layout">
+      <section class="panel nav" id="nav"></section>
+      <div class="content-stack">
+
+        <!-- Hero -->
+        <section class="panel">
+          <div class="section-head">
+            <div class="section-title-wrap">
+              <h1 class="section-title">Info Halaman & Panduan Sistem</h1>
+              <p class="section-desc">Daftar semua halaman, siapa yang bisa mengaksesnya, fitur-fiturnya, dan panduan makna warna/simbol di seluruh sistem.</p>
+            </div>
+          </div>
+          <div class="tab-bar" style="margin-top:18px">
+            <button class="tab-btn active" data-tab="warna">Panduan Warna</button>
+            <button class="tab-btn" data-tab="dashboard">Dashboard</button>
+            <button class="tab-btn" data-tab="santri">Santri & Halaqoh</button>
+            <button class="tab-btn" data-tab="kelas">Kelas & Ujian</button>
+            <button class="tab-btn" data-tab="kondisi">Kondisi & Pengurus</button>
+            <button class="tab-btn" data-tab="portal">Portal & Pengaturan</button>
+            <button class="tab-btn" data-tab="lainnya">Lainnya & Akun</button>
+          </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════════════════ -->
+        <!-- TAB: PANDUAN WARNA                                 -->
+        <!-- ═══════════════════════════════════════════════════ -->
+        <section class="panel tab-panel active" id="tab-warna">
+
+          <p class="swatch-group-title">Gender / Jenis Kelamin</p>
+          <div class="swatch-grid">
+            <div class="swatch-row"><div class="swatch" style="background:#c8dff5;"></div><div class="swatch-text"><strong>Biru muda</strong><span>Ikhwan / Laki-laki — digunakan di card santri, card halaqoh, card pengurus, card pelanggaran, sakit, izin pulang</span></div></div>
+            <div class="swatch-row"><div class="swatch" style="background:#f7d5e6;"></div><div class="swatch-text"><strong>Pink / Merah muda</strong><span>Akhowat / Perempuan — sama konteksnya dengan biru di atas</span></div></div>
+            <div class="swatch-row"><div class="swatch" style="background:linear-gradient(135deg,#c8dff5 50%,#f7d5e6 50%);"></div><div class="swatch-text"><strong>Diagonal biru–pink</strong><span>Campur (putra + putri) — digunakan di card halaqoh campuran</span></div></div>
+          </div>
+
+          <p class="swatch-group-title">Status Kehadiran / Absensi</p>
+          <div class="swatch-grid">
+            <div class="swatch-row"><div class="swatch" style="background:#68e87a;border-color:#4e7a55"></div><div class="swatch-text"><strong>Hijau — Hadir</strong><span>Absensi halaqoh & kelas; status kehadiran pengurus</span></div></div>
+            <div class="swatch-row"><div class="swatch" style="background:#ffd24c;border-color:#9f7600"></div><div class="swatch-text"><strong>Kuning — Izin</strong><span>Santri izin hadir; pengurus izin masuk</span></div></div>
+            <div class="swatch-row"><div class="swatch" style="background:#ffa799;border-color:#b25b4d"></div><div class="swatch-text"><strong>Merah muda — Sakit (laporan halaqoh/kelas)</strong><span>Santri tidak hadir karena sakit</span></div></div>
+            <div class="swatch-row"><div class="swatch" style="background:#ff8425;border-color:#c4661f"></div><div class="swatch-text"><strong>Oranye — Sakit (sick)</strong><span>Varian sakit lain di absensi halaqoh/kelas</span></div></div>
+            <div class="swatch-row"><div class="swatch" style="background:#ff4343;border-color:#b23d3d"></div><div class="swatch-text"><strong>Merah — Alpa</strong><span>Tidak hadir tanpa keterangan (alpha)</span></div></div>
+            <div class="swatch-row"><div class="swatch" style="background:#aab9cc;border-color:#596779"></div><div class="swatch-text"><strong>Abu-abu — Hari tidak aktif / Belum diisi</strong><span>Hari libur atau kolom yang belum diisi</span></div></div>
+            <div class="swatch-row"><div class="swatch" style="background:#4696ff;border-color:#4b6f9f"></div><div class="swatch-text"><strong>Biru — Info</strong><span>Keterangan informasi umum di absensi</span></div></div>
+          </div>
+
+          <p class="swatch-group-title">Status Umum</p>
+          <div class="swatch-grid">
+            <div class="swatch-row"><div class="swatch" style="background:#c8edc8;border-color:#4e7a55"></div><div class="swatch-text"><strong>Hijau — Baik / Aktif / Selesai / Aman</strong><span>Digunakan di pill aktif, badge-ok, pill-sembuh, pill-hadir, status selesai</span></div></div>
+            <div class="swatch-row"><div class="swatch" style="background:#fef3c7;border-color:#d97706"></div><div class="swatch-text"><strong>Kuning/Emas — Peringatan / Terkunci / Terlambat</strong><span>Badge warn, pill locked (tahun ajaran terkunci), pill terlambat pengurus</span></div></div>
+            <div class="swatch-row"><div class="swatch" style="background:#fee2e2;border-color:#ef4444"></div><div class="swatch-text"><strong>Merah — Bahaya / Berat / Terlambat kembali</strong><span>Pelanggaran berat, santri terlambat kembali dari izin, operasi berbahaya</span></div></div>
+            <div class="swatch-row"><div class="swatch" style="background:#e5e5e5;border-color:#999"></div><div class="swatch-text"><strong>Abu-abu — Tidak aktif / Nonaktif</strong><span>Pill nonaktif, halaqoh tidak aktif, status belum diisi</span></div></div>
+            <div class="swatch-row"><div class="swatch" style="background:#c49a2c;border-color:#8a6a20"></div><div class="swatch-text"><strong>Emas tua — Terkunci</strong><span>Pill "locked" pada tahun ajaran yang sudah dikunci (tidak bisa diedit)</span></div></div>
+          </div>
+
+          <p class="swatch-group-title">Kategori Pelanggaran</p>
+          <div class="swatch-grid">
+            <div class="swatch-row"><div class="swatch" style="background:#dbeafe;border-color:#3b82f6"></div><div class="swatch-text"><strong>Biru — Ringan</strong><span>Pelanggaran kategori ringan</span></div></div>
+            <div class="swatch-row"><div class="swatch" style="background:#fef3c7;border-color:#f59e0b"></div><div class="swatch-text"><strong>Kuning — Sedang</strong><span>Pelanggaran kategori sedang</span></div></div>
+            <div class="swatch-row"><div class="swatch" style="background:#fee2e2;border-color:#ef4444"></div><div class="swatch-text"><strong>Merah — Berat</strong><span>Pelanggaran kategori berat</span></div></div>
+          </div>
+
+          <p class="swatch-group-title">Jenis Nilai Ujian (chip di halaman Nilai Ujian)</p>
+          <div class="swatch-grid">
+            <div class="swatch-row"><div class="swatch" style="background:#fffbf0;border-color:#8a6a20"></div><div class="swatch-text"><strong>Emas — UP (Ulangan Pelajaran)</strong></div></div>
+            <div class="swatch-row"><div class="swatch" style="background:#f0f4fb;border-color:#2a4e7a"></div><div class="swatch-text"><strong>Biru — UTS (Ujian Tengah Semester)</strong></div></div>
+            <div class="swatch-row"><div class="swatch" style="background:#f0fbf0;border-color:#305530"></div><div class="swatch-text"><strong>Hijau — UAS (Ujian Akhir Semester)</strong></div></div>
+            <div class="swatch-row"><div class="swatch" style="background:#f7f0fb;border-color:#6a3a8a"></div><div class="swatch-text"><strong>Ungu — Adab</strong></div></div>
+            <div class="swatch-row"><div class="swatch" style="background:#f0fbf7;border-color:#2a7a6a"></div><div class="swatch-text"><strong>Toska — Kebersihan</strong></div></div>
+          </div>
+
+          <p class="swatch-group-title">Operasi Panel Super Admin</p>
+          <div class="swatch-grid">
+            <div class="swatch-row"><div class="swatch" style="background:#dc2626;"></div><div class="swatch-text"><strong>Merah — Berbahaya</strong><span>Operasi tidak dapat dibatalkan (reset massal, hapus)</span></div></div>
+            <div class="swatch-row"><div class="swatch" style="background:#d97706;"></div><div class="swatch-text"><strong>Kuning — Berisiko</strong><span>Operasi yang perlu hati-hati</span></div></div>
+            <div class="swatch-row"><div class="swatch" style="background:#0f766e;"></div><div class="swatch-text"><strong>Toska — Aman</strong><span>Operasi yang relatif aman</span></div></div>
+          </div>
+
+          <p class="swatch-group-title">Indikator GPS Absensi Pengurus</p>
+          <div class="swatch-grid">
+            <div class="swatch-row"><div class="swatch" style="background:#fbbf24;"></div><div class="swatch-text"><strong>Kuning berkedip — Sedang mengambil lokasi GPS</strong></div></div>
+            <div class="swatch-row"><div class="swatch" style="background:#22c55e;"></div><div class="swatch-text"><strong>Hijau — Lokasi terverifikasi (dalam radius)</strong></div></div>
+            <div class="swatch-row"><div class="swatch" style="background:#f59e0b;"></div><div class="swatch-text"><strong>Kuning — Lokasi di luar radius yang ditentukan</strong></div></div>
+            <div class="swatch-row"><div class="swatch" style="background:#ef4444;"></div><div class="swatch-text"><strong>Merah — GPS gagal / tidak tersedia</strong></div></div>
+          </div>
+
+        </section>
+
+        <!-- ═══════════════════════════════════════════════════ -->
+        <!-- TAB: DASHBOARD                                     -->
+        <!-- ═══════════════════════════════════════════════════ -->
+        <section class="panel tab-panel" id="tab-dashboard">
+          <div class="page-group">
+
+            <details class="page-card">
+              <summary>Dashboard Super Admin <span class="chevron">&#9658;</span></summary>
+              <div class="card-body">
+                <div class="akses-row"><span class="akses-label">Akses:</span><span class="role-pill super">Super Admin</span><span class="role-pill">Admin</span></div>
+                <div><p class="sub-label">Fitur</p><ul class="fitur-list"><li>Ikhtisar statistik santri aktif secara keseluruhan</li><li>Kartu metrik, issue cards, spotlight cards</li><li>Toolbar aksi cepat</li><li>Badge prioritas: <strong>High</strong> (merah/bahaya), <strong>Medium</strong> (kuning/peringatan), <strong>Low</strong> (hijau/aman)</li></ul></div>
+              </div>
+            </details>
+
+            <details class="page-card">
+              <summary>Dashboard Admin <span class="chevron">&#9658;</span></summary>
+              <div class="card-body">
+                <div class="akses-row"><span class="akses-label">Akses:</span><span class="role-pill super">Super Admin</span><span class="role-pill">Admin</span><span class="role-pill">Mudir</span></div>
+                <div><p class="sub-label">Fitur</p><ul class="fitur-list"><li>Audit penempatan santri aktif: kelengkapan data, halaqoh, kelas, regu</li><li>Section audit bisa dibuka/tutup (collapsible)</li><li>Badge <strong>OK</strong> (hijau = tidak ada masalah) dan <strong>Warn</strong> (oranye = ada masalah)</li></ul></div>
+              </div>
+            </details>
+
+            <details class="page-card">
+              <summary>Dashboard Koordinator Halaqoh <span class="chevron">&#9658;</span></summary>
+              <div class="card-body">
+                <div class="akses-row"><span class="akses-label">Akses:</span><span class="role-pill super">Super Admin</span><span class="role-pill">Admin</span><span class="role-pill">Mudir</span><span class="role-pill">Koord. Halaqoh</span></div>
+                <div><p class="sub-label">Fitur</p><ul class="fitur-list"><li>Audit absensi halaqoh yang belum lengkap</li><li>Audit pengampu yang belum punya halaqoh</li><li>Pola UI sama dengan Dashboard Admin (badge OK/Warn)</li></ul></div>
+              </div>
+            </details>
+
+            <details class="page-card">
+              <summary>Dashboard Akademik <span class="chevron">&#9658;</span></summary>
+              <div class="card-body">
+                <div class="akses-row"><span class="akses-label">Akses:</span><span class="role-pill super">Super Admin</span><span class="role-pill">Admin</span><span class="role-pill">Mudir</span><span class="role-pill">Akademik</span></div>
+                <div><p class="sub-label">Fitur</p><ul class="fitur-list"><li>Audit guru kelas siang yang tidak terdaftar di kelas manapun</li><li>Pola UI sama dengan Dashboard Admin</li></ul></div>
+              </div>
+            </details>
+
+            <details class="page-card">
+              <summary>Dashboard Kesantrian <span class="chevron">&#9658;</span></summary>
+              <div class="card-body">
+                <div class="akses-row"><span class="akses-label">Akses:</span><span class="role-pill super">Super Admin</span><span class="role-pill">Admin</span><span class="role-pill">Mudir</span><span class="role-pill">Kesantrian</span></div>
+                <div><p class="sub-label">Fitur</p><ul class="fitur-list"><li>Rekap pelanggaran santri per bulan</li><li>Filter bulan, kartu rekap (ringan/sedang/berat), tabel per santri</li><li>Warna kategori: Ringan = biru, Sedang = kuning, Berat = merah</li></ul></div>
+              </div>
+            </details>
+
+          </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════════════════ -->
+        <!-- TAB: SANTRI & HALAQOH                              -->
+        <!-- ═══════════════════════════════════════════════════ -->
+        <section class="panel tab-panel" id="tab-santri">
+          <div class="page-group">
+
+            <p class="group-title">Santri</p>
+
+            <details class="page-card">
+              <summary>Data Santri (View) <span class="chevron">&#9658;</span></summary>
+              <div class="card-body">
+                <div class="akses-row"><span class="akses-label">Akses:</span><span class="role-pill all">Semua Pengurus</span></div>
+                <div><p class="sub-label">Fitur</p><ul class="fitur-list"><li>Tampilan read-only daftar santri</li><li>Filter nama/no induk/program/no HP, status, gender, urutan</li><li>Card santri: biru muda = laki-laki, pink = perempuan</li><li>Status santri: aktif, dibekukan, nonaktif</li></ul></div>
+              </div>
+            </details>
+
+            <details class="page-card">
+              <summary>Edit Santri <span class="chevron">&#9658;</span></summary>
+              <div class="card-body">
+                <div class="akses-row"><span class="akses-label">Akses:</span><span class="role-pill">Admin</span></div>
+                <div><p class="sub-label">Fitur</p><ul class="fitur-list"><li>CRUD biodata santri (tambah, edit, hapus)</li><li>Filter status, gender, status akad, pencarian</li><li>Deteksi duplikat santri — kandidat digabung diberi border hijau (recommended)</li><li>Status akad: santri biasa, calon pengabdian, pengabdian, selesai</li></ul></div>
+              </div>
+            </details>
+
+            <p class="group-title">Halaqoh</p>
+
+            <details class="page-card">
+              <summary>Edit Halaqoh <span class="chevron">&#9658;</span></summary>
+              <div class="card-body">
+                <div class="akses-row"><span class="akses-label">Akses:</span><span class="role-pill super">Super Admin</span><span class="role-pill">Admin</span><span class="role-pill">Koord. Halaqoh</span></div>
+                <div><p class="sub-label">Fitur</p><ul class="fitur-list"><li>CRUD halaqoh (nama, pengampu, gender, anggota)</li><li>Card halaqoh diberi warna sesuai gender: biru = ikhwan, pink = akhowat, diagonal = campur</li></ul></div>
+              </div>
+            </details>
+
+            <details class="page-card">
+              <summary>Absensi Halaqoh <span class="chevron">&#9658;</span></summary>
+              <div class="card-body">
+                <div class="akses-row"><span class="akses-label">Akses:</span><span class="role-pill">Admin</span><span class="role-pill">Koord. Halaqoh</span><span class="role-pill">Pengampu Halaqoh</span></div>
+                <div><p class="sub-label">Fitur</p><ul class="fitur-list"><li>Input absensi santri harian per halaqoh</li><li>Pilih halaqoh via toolbar, cari santri</li></ul></div>
+                <div><p class="sub-label">Warna Status Absensi</p><ul class="fitur-list"><li>Hijau = Hadir &nbsp;|&nbsp; Kuning = Izin</li><li>Merah muda = Sakit &nbsp;|&nbsp; Oranye = Sakit (jenis lain)</li><li>Merah = Alpa &nbsp;|&nbsp; Biru = Info &nbsp;|&nbsp; Abu-abu = Hari tidak aktif / belum diisi</li></ul></div>
+              </div>
+            </details>
+
+            <details class="page-card">
+              <summary>Hafalan Harian <span class="chevron">&#9658;</span></summary>
+              <div class="card-body">
+                <div class="akses-row"><span class="akses-label">Akses:</span><span class="role-pill super">Super Admin</span><span class="role-pill">Admin</span><span class="role-pill">Koord. Halaqoh</span><span class="role-pill">Pengampu Halaqoh</span></div>
+                <div><p class="sub-label">Fitur</p><ul class="fitur-list"><li>Input ziyadah (hafalan baru) dan muroja'ah (sabaqi & manzili) per santri per hari</li><li>Grid card halaqoh — ikhwan (biru), akhowat (pink), tidak aktif (abu-abu)</li><li>Pill hari ini: hijau = sudah ada entri, abu-abu = belum ada entri</li></ul></div>
+              </div>
+            </details>
+
+            <details class="page-card">
+              <summary>Ujian Hafalan <span class="chevron">&#9658;</span></summary>
+              <div class="card-body">
+                <div class="akses-row"><span class="akses-label">Akses:</span><span class="role-pill super">Super Admin</span><span class="role-pill">Admin</span><span class="role-pill">Koord. Halaqoh</span><span class="role-pill">Pengampu Halaqoh</span><span class="role-pill">Penguji Hafalan</span></div>
+                <div><p class="sub-label">Fitur</p><ul class="fitur-list"><li>Input dan pantau ujian juziyyah dan sertifikasi</li><li>Tab per jenis ujian; dialog full-screen per santri</li></ul></div>
+                <div><p class="sub-label">Status Ujian</p><ul class="fitur-list"><li>Coklat = Diajukan (belum dijadwalkan)</li><li>Hijau = Dijadwalkan &nbsp;|&nbsp; Abu-abu = Selesai</li></ul></div>
+              </div>
+            </details>
+
+            <details class="page-card">
+              <summary>Nilai UAS Hafalan <span class="chevron">&#9658;</span></summary>
+              <div class="card-body">
+                <div class="akses-row"><span class="akses-label">Akses:</span><span class="role-pill super">Super Admin</span><span class="role-pill">Admin</span><span class="role-pill">Koord. Halaqoh</span><span class="role-pill">Pengampu Halaqoh</span></div>
+                <div><p class="sub-label">Fitur</p><ul class="fitur-list"><li>Input nilai ujian akhir semester: Qur'an, Mufrodat, Hadits, Adzkar</li><li>Tiap komponen bisa multi-entri nilai + KKM per komponen</li><li>Pill komponen: hijau = sudah diisi lengkap</li></ul></div>
+              </div>
+            </details>
+
+          </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════════════════ -->
+        <!-- TAB: KELAS & UJIAN                                 -->
+        <!-- ═══════════════════════════════════════════════════ -->
+        <section class="panel tab-panel" id="tab-kelas">
+          <div class="page-group">
+
+            <p class="group-title">Kelas Siang</p>
+
+            <details class="page-card">
+              <summary>Edit Kelas Siang <span class="chevron">&#9658;</span></summary>
+              <div class="card-body">
+                <div class="akses-row"><span class="akses-label">Akses:</span><span class="role-pill">Admin</span><span class="role-pill">Akademik</span></div>
+                <div><p class="sub-label">Fitur</p><ul class="fitur-list"><li>Susun kelas, atur jadwal, daftarkan guru pengajar</li><li>CRUD kelas siang</li></ul></div>
+              </div>
+            </details>
+
+            <details class="page-card">
+              <summary>Absensi Kelas <span class="chevron">&#9658;</span></summary>
+              <div class="card-body">
+                <div class="akses-row"><span class="akses-label">Akses:</span><span class="role-pill">Admin</span><span class="role-pill">Akademik</span><span class="role-pill">Pengajar / Guru</span></div>
+                <div><p class="sub-label">Fitur</p><ul class="fitur-list"><li>Input absensi santri harian per kelas siang</li><li>Warna status identik dengan Absensi Halaqoh (Hadir/Izin/Sakit/Alpa/dll)</li></ul></div>
+              </div>
+            </details>
+
+            <details class="page-card">
+              <summary>Nilai Ujian <span class="chevron">&#9658;</span></summary>
+              <div class="card-body">
+                <div class="akses-row"><span class="akses-label">Akses:</span><span class="role-pill">Admin</span><span class="role-pill">Akademik</span><span class="role-pill">Pengajar / Guru</span></div>
+                <div><p class="sub-label">Fitur</p><ul class="fitur-list"><li>Input nilai ujian per kelas; pilih tahun ajaran</li><li>Tiap kolom nilai punya bobot persen; kolom Akumulasi otomatis tertimbang</li></ul></div>
+                <div><p class="sub-label">Chip Jenis Nilai</p><ul class="fitur-list"><li>Emas = UP (Ulangan Pelajaran)</li><li>Biru = UTS &nbsp;|&nbsp; Hijau = UAS</li><li>Ungu = Adab &nbsp;|&nbsp; Toska = Kebersihan</li><li>Abu-abu = Belum ada nilai</li></ul></div>
+              </div>
+            </details>
+
+            <details class="page-card">
+              <summary>Edit Soal <span class="chevron">&#9658;</span></summary>
+              <div class="card-body">
+                <div class="akses-row"><span class="akses-label">Akses:</span><span class="role-pill">Admin</span><span class="role-pill">Akademik</span><span class="role-pill">Pengajar / Guru</span></div>
+                <div><p class="sub-label">Fitur</p><ul class="fitur-list"><li>Kelola bank soal per kelas dan mata pelajaran</li></ul></div>
+              </div>
+            </details>
+
+            <p class="group-title">Regu & Raport</p>
+
+            <details class="page-card">
+              <summary>Edit Regu <span class="chevron">&#9658;</span></summary>
+              <div class="card-body">
+                <div class="akses-row"><span class="akses-label">Akses:</span><span class="role-pill">Admin</span></div>
+                <div><p class="sub-label">Fitur</p><ul class="fitur-list"><li>Tambah/edit kelompok regu, daftarkan pembina dan anggota santri</li></ul></div>
+              </div>
+            </details>
+
+            <details class="page-card">
+              <summary>Raport & Rekam Jejak <span class="chevron">&#9658;</span></summary>
+              <div class="card-body">
+                <div class="akses-row"><span class="akses-label">Akses:</span><span class="role-pill super">Super Admin</span><span class="role-pill">Admin</span><span class="role-pill">yang punya izin raport</span></div>
+                <div><p class="sub-label">Fitur</p><ul class="fitur-list"><li>5 entitas + 6 halaman: input kelas/level, perkembangan, akhlak, deskripsi, rekam jejak, raport</li><li>Modul lengkap rekam jejak santri per semester</li></ul></div>
+              </div>
+            </details>
+
+            <details class="page-card">
+              <summary>Tahun Ajaran <span class="chevron">&#9658;</span></summary>
+              <div class="card-body">
+                <div class="akses-row"><span class="akses-label">Akses:</span><span class="role-pill super">Super Admin</span><span class="role-pill">Admin</span><span class="role-pill">Mudir</span></div>
+                <div><p class="sub-label">Fitur</p><ul class="fitur-list"><li>Kelola periode tahun ajaran dan semester</li><li>Aktifkan/nonaktifkan TA; kunci TA agar tidak bisa diedit</li></ul></div>
+                <div><p class="sub-label">Status</p><ul class="fitur-list"><li>Hijau = Aktif &nbsp;|&nbsp; Abu-abu = Nonaktif</li><li>Emas tua = Terkunci (locked — tidak bisa diedit)</li><li>Hijau = Semester terbuka &nbsp;|&nbsp; Merah = Semester ditutup</li></ul></div>
+              </div>
+            </details>
+
+          </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════════════════ -->
+        <!-- TAB: KONDISI & PENGURUS                            -->
+        <!-- ═══════════════════════════════════════════════════ -->
+        <section class="panel tab-panel" id="tab-kondisi">
+          <div class="page-group">
+
+            <p class="group-title">Pelanggaran & Kondisi Santri</p>
+
+            <details class="page-card">
+              <summary>Pelanggaran Santri <span class="chevron">&#9658;</span></summary>
+              <div class="card-body">
+                <div class="akses-row"><span class="akses-label">Akses:</span><span class="role-pill all">Semua Pengurus</span></div>
+                <div><p class="sub-label">Fitur</p><ul class="fitur-list"><li>Catat dan kelola pelanggaran + hukuman santri</li><li>Filter, tab bar, pagination</li><li>Card santri: biru = laki-laki, pink = perempuan</li><li>Kategori: Ringan (biru), Sedang (kuning), Berat (merah)</li></ul></div>
+              </div>
+            </details>
+
+            <details class="page-card">
+              <summary>Santri Sakit <span class="chevron">&#9658;</span></summary>
+              <div class="card-body">
+                <div class="akses-row"><span class="akses-label">Akses:</span><span class="role-pill super">Super Admin</span><span class="role-pill">Admin</span><span class="role-pill">Kesehatan / Klinik</span></div>
+                <div><p class="sub-label">Fitur</p><ul class="fitur-list"><li>Catat dan pantau santri sakit; tab sedang sakit / riwayat</li><li>Catat tanggal sakit dan tanggal sembuh</li></ul></div>
+                <div><p class="sub-label">Status</p><ul class="fitur-list"><li>Merah muda = Masih sakit &nbsp;|&nbsp; Hijau muda = Sudah sembuh</li><li>Card santri: biru = laki-laki, pink = perempuan</li></ul></div>
+              </div>
+            </details>
+
+            <details class="page-card">
+              <summary>Izin Pulang <span class="chevron">&#9658;</span></summary>
+              <div class="card-body">
+                <div class="akses-row"><span class="akses-label">Akses:</span><span class="role-pill super">Super Admin</span><span class="role-pill">Admin</span><span class="role-pill">Kesantrian</span></div>
+                <div><p class="sub-label">Fitur</p><ul class="fitur-list"><li>Catat izin pulang, pantau kepulangan, tab sedang izin / riwayat</li><li>Filter tanggal</li></ul></div>
+                <div><p class="sub-label">Status & Peringatan</p><ul class="fitur-list"><li>Kuning = Sedang izin &nbsp;|&nbsp; Hijau = Sudah kembali</li><li>Merah = Terlambat kembali — card berubah background merah terang dan ada badge peringatan</li></ul></div>
+              </div>
+            </details>
+
+            <p class="group-title">Absensi Pengurus</p>
+
+            <details class="page-card">
+              <summary>Input Absensi Pengurus <span class="chevron">&#9658;</span></summary>
+              <div class="card-body">
+                <div class="akses-row"><span class="akses-label">Akses:</span><span class="role-pill all">Semua Pengurus</span></div>
+                <div><p class="sub-label">Fitur</p><ul class="fitur-list"><li>Input absensi diri sendiri dengan verifikasi geolokasi + foto selfie</li><li>Tab Input / Riwayat</li></ul></div>
+                <div><p class="sub-label">Indikator GPS</p><ul class="fitur-list"><li>Kuning berkedip = Sedang mengambil lokasi</li><li>Hijau = Lokasi terverifikasi (dalam radius)</li><li>Kuning = Lokasi di luar radius</li><li>Merah = GPS gagal</li></ul></div>
+                <div><p class="sub-label">Status Kehadiran</p><ul class="fitur-list"><li>Hijau = Hadir &nbsp;|&nbsp; Kuning = Terlambat &nbsp;|&nbsp; Toska = Masuk lebih awal</li><li>Coklat = Izin &nbsp;|&nbsp; Merah = Sakit</li></ul></div>
+              </div>
+            </details>
+
+            <details class="page-card">
+              <summary>Cek Absensi Pengurus <span class="chevron">&#9658;</span></summary>
+              <div class="card-body">
+                <div class="akses-row"><span class="akses-label">Akses:</span><span class="role-pill">Admin</span><span class="role-pill">SDM / Kepegawaian</span></div>
+                <div><p class="sub-label">Fitur</p><ul class="fitur-list"><li>Lihat absensi per pengurus via kalender bulanan</li><li>Dialog detail menampilkan kalender + statistik strip pengurus</li><li>List pengurus: biru = laki-laki, pink = perempuan, coklat tua = dibekukan</li></ul></div>
+              </div>
+            </details>
+
+            <details class="page-card">
+              <summary>Koordinat Absensi <span class="chevron">&#9658;</span></summary>
+              <div class="card-body">
+                <div class="akses-row"><span class="akses-label">Akses:</span><span class="role-pill super">Super Admin</span><span class="role-pill">Admin</span><span class="role-pill">SDM / Kepegawaian</span></div>
+                <div><p class="sub-label">Fitur</p><ul class="fitur-list"><li>Atur titik koordinat dan radius zona absensi pengurus</li></ul></div>
+              </div>
+            </details>
+
+            <details class="page-card">
+              <summary>Master Jabatan <span class="chevron">&#9658;</span></summary>
+              <div class="card-body">
+                <div class="akses-row"><span class="akses-label">Akses:</span><span class="role-pill">Admin</span></div>
+                <div><p class="sub-label">Fitur</p><ul class="fitur-list"><li>CRUD daftar jabatan pengurus (nama, kategori, urutan)</li><li>Kategori jabatan menentukan akses halaman secara otomatis</li></ul></div>
+                <div class="note">Kategori jabatan yang dikenali sistem: super admin, admin/operator, mudir, koordinator halaqoh, pengampu halaqoh, penguji hafalan, akademik, pengajar/ustadz, kesehatan/klinik, sdm/kepegawaian, kesantrian, kebersihan, operator jam digital.</div>
+              </div>
+            </details>
+
+            <details class="page-card">
+              <summary>Edit Pengurus <span class="chevron">&#9658;</span></summary>
+              <div class="card-body">
+                <div class="akses-row"><span class="akses-label">Akses:</span><span class="role-pill">Admin</span></div>
+                <div><p class="sub-label">Fitur</p><ul class="fitur-list"><li>CRUD data pengurus; atur jabatan dan status akun</li></ul></div>
+              </div>
+            </details>
+
+          </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════════════════ -->
+        <!-- TAB: PORTAL & PENGATURAN                           -->
+        <!-- ═══════════════════════════════════════════════════ -->
+        <section class="panel tab-panel" id="tab-portal">
+          <div class="page-group">
+
+            <p class="group-title">Mading & Konten</p>
+
+            <details class="page-card">
+              <summary>Mading Digital <span class="chevron">&#9658;</span></summary>
+              <div class="card-body">
+                <div class="akses-row"><span class="akses-label">Akses:</span><span class="role-pill all">Semua Pengurus</span><span class="role-pill santri">Santri</span></div>
+                <div><p class="sub-label">Fitur</p><ul class="fitur-list"><li>Lihat konten dan pengumuman sesuai role</li><li>Search judul/isi; pagination; buka konten detail</li><li>Chip ungu = konten khusus pengurus</li></ul></div>
+              </div>
+            </details>
+
+            <details class="page-card">
+              <summary>Kelola Mading <span class="chevron">&#9658;</span></summary>
+              <div class="card-body">
+                <div class="akses-row"><span class="akses-label">Akses:</span><span class="role-pill">Admin</span></div>
+                <div><p class="sub-label">Fitur</p><ul class="fitur-list"><li>Publikasi konten untuk 3 audiens: pengurus, umum, santri</li><li>Editor rich text (Quill.js) untuk isi konten</li><li>CRUD konten mading</li></ul></div>
+              </div>
+            </details>
+
+            <p class="group-title">Jadwal & Kalender</p>
+
+            <details class="page-card">
+              <summary>Jadwal Ibadah <span class="chevron">&#9658;</span></summary>
+              <div class="card-body">
+                <div class="akses-row"><span class="akses-label">Akses:</span><span class="role-pill all">Semua Pengurus</span></div>
+                <div><p class="sub-label">Fitur</p><ul class="fitur-list"><li>Atur jadwal kultum, imam sholat harian, dan khutbah Jum'at per pekan</li><li>Inline editing dengan autosave: border biru = menyimpan, hijau = tersimpan, merah = gagal</li><li>Elemen Jum'at ditandai biru tua</li></ul></div>
+              </div>
+            </details>
+
+            <details class="page-card">
+              <summary>Kalender Akademik <span class="chevron">&#9658;</span></summary>
+              <div class="card-body">
+                <div class="akses-row"><span class="akses-label">Akses:</span><span class="role-pill all">Semua Pengurus</span></div>
+                <div><p class="sub-label">Fitur</p><ul class="fitur-list"><li>Lihat agenda kegiatan dalam tampilan kalender bulanan</li><li>Panel "Upcoming" di sisi kanan; navigasi bulan; pilih tahun ajaran</li></ul></div>
+              </div>
+            </details>
+
+            <p class="group-title">Pengaturan Sistem</p>
+
+            <details class="page-card">
+              <summary>Pengaturan Portal <span class="chevron">&#9658;</span></summary>
+              <div class="card-body">
+                <div class="akses-row"><span class="akses-label">Akses:</span><span class="role-pill super">Super Admin saja</span></div>
+                <div><p class="sub-label">Fitur</p><ul class="fitur-list"><li>Upload logo organisasi (PNG persegi minimal 512×512px dianjurkan untuk PWA)</li><li>Ubah nama, tagline, deskripsi, alamat, kontak organisasi</li><li>Kelola carousel foto di beranda publik</li><li>Atur pendaftaran santri baru (buka/tutup)</li></ul></div>
+                <div class="note">Logo yang diupload di sini otomatis dipakai sebagai ikon PWA dan favicon di semua halaman.</div>
+              </div>
+            </details>
+
+            <details class="page-card">
+              <summary>Panel Super Admin <span class="chevron">&#9658;</span></summary>
+              <div class="card-body">
+                <div class="akses-row"><span class="akses-label">Akses:</span><span class="role-pill super">Super Admin saja</span></div>
+                <div><p class="sub-label">Fitur</p><ul class="fitur-list"><li>Operasi massal yang tidak bisa dibatalkan: reset password, reset username, hapus sesi</li><li>Setiap operasi wajib konfirmasi bertingkat</li></ul></div>
+                <div><p class="sub-label">Warna Tombol</p><ul class="fitur-list"><li>Merah = Berbahaya (tidak bisa dibatalkan)</li><li>Kuning = Berisiko &nbsp;|&nbsp; Toska = Aman</li></ul></div>
+                <div class="note">Tema halaman ini sengaja merah tua (#7f1d1d) sebagai peringatan visual bahwa ini area berbahaya.</div>
+              </div>
+            </details>
+
+            <details class="page-card">
+              <summary>Edit Kegiatan & SOP <span class="chevron">&#9658;</span></summary>
+              <div class="card-body">
+                <div class="akses-row"><span class="akses-label">Akses:</span><span class="role-pill super">Super Admin</span><span class="role-pill">Admin</span><span class="role-pill">Mudir</span></div>
+                <div><p class="sub-label">Fitur</p><ul class="fitur-list"><li>Kelola daftar kegiatan rutin dan SOP pesantren</li></ul></div>
+              </div>
+            </details>
+
+          </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════════════════ -->
+        <!-- TAB: LAINNYA & AKUN                                -->
+        <!-- ═══════════════════════════════════════════════════ -->
+        <section class="panel tab-panel" id="tab-lainnya">
+          <div class="page-group">
+
+            <p class="group-title">Alat Bantu</p>
+
+            <details class="page-card">
+              <summary>Audit Data <span class="chevron">&#9658;</span></summary>
+              <div class="card-body">
+                <div class="akses-row"><span class="akses-label">Akses:</span><span class="role-pill super">Super Admin</span><span class="role-pill">Admin</span></div>
+                <div><p class="sub-label">Fitur</p><ul class="fitur-list"><li>Temukan masalah data prioritas: santri tanpa halaqoh, data tidak lengkap, dll</li><li>Badge prioritas: High (merah), Medium (kuning), Low (hijau)</li></ul></div>
+              </div>
+            </details>
+
+            <details class="page-card">
+              <summary>Skema Database <span class="chevron">&#9658;</span></summary>
+              <div class="card-body">
+                <div class="akses-row"><span class="akses-label">Akses:</span><span class="role-pill all">Semua Pengurus</span></div>
+                <div><p class="sub-label">Fitur</p><ul class="fitur-list"><li>Tampilkan struktur dan relasi antar tabel database sistem</li><li>Legend keterangan simbol; daftar tabel dengan kolom dan relasi</li></ul></div>
+              </div>
+            </details>
+
+            <details class="page-card">
+              <summary>Info Akses <span class="chevron">&#9658;</span></summary>
+              <div class="card-body">
+                <div class="akses-row"><span class="akses-label">Akses:</span><span class="role-pill all">Semua Pengurus</span></div>
+                <div><p class="sub-label">Fitur</p><ul class="fitur-list"><li>Tampilkan halaman apa yang bisa diakses oleh setiap jabatan</li><li>Tab per tipe role; kartu expandable per jabatan</li></ul></div>
+              </div>
+            </details>
+
+            <details class="page-card">
+              <summary>Info Halaman & Panduan Sistem <span class="chevron">&#9658;</span></summary>
+              <div class="card-body">
+                <div class="akses-row"><span class="akses-label">Akses:</span><span class="role-pill all">Semua Pengurus</span></div>
+                <div><p class="sub-label">Fitur</p><ul class="fitur-list"><li>Halaman ini — daftar semua halaman, akses, fitur, dan panduan warna sistem</li></ul></div>
+              </div>
+            </details>
+
+            <p class="group-title">Akun</p>
+
+            <details class="page-card">
+              <summary>Profil Akun <span class="chevron">&#9658;</span></summary>
+              <div class="card-body">
+                <div class="akses-row"><span class="akses-label">Akses:</span><span class="role-pill all">Semua Pengurus</span><span class="role-pill santri">Santri</span></div>
+                <div><p class="sub-label">Fitur</p><ul class="fitur-list"><li>Lihat dan edit foto profil, nama, data akun</li><li>Tanda tangan digital (pengurus saja) — gambar/upload TTD transparan PNG untuk dokumen resmi</li><li>Avatar gradient emas jika belum ada foto</li></ul></div>
+              </div>
+            </details>
+
+            <details class="page-card">
+              <summary>Ganti Password <span class="chevron">&#9658;</span></summary>
+              <div class="card-body">
+                <div class="akses-row"><span class="akses-label">Akses:</span><span class="role-pill all">Semua Pengurus</span><span class="role-pill santri">Santri</span></div>
+                <div><p class="sub-label">Fitur</p><ul class="fitur-list"><li>Form ubah password: isi password lama, password baru, konfirmasi</li></ul></div>
+              </div>
+            </details>
+
+            <p class="group-title">Publik (Tanpa Login)</p>
+
+            <details class="page-card">
+              <summary>Portal Publik (Beranda) <span class="chevron">&#9658;</span></summary>
+              <div class="card-body">
+                <div class="akses-row"><span class="akses-label">Akses:</span><span class="role-pill all">Siapapun (tanpa login)</span></div>
+                <div><p class="sub-label">Fitur</p><ul class="fitur-list"><li>Tampilan beranda pesantren: nama, tagline, logo, carousel foto</li><li>Konten dikonfigurasi dari Pengaturan Portal</li><li>Link ke halaman login pengurus dan santri</li></ul></div>
+              </div>
+            </details>
+
+          </div>
+        </section>
+
+      </div>
+    </div>
+  </main>
+
+  <script src="../../shared-access.js"></script>
+  <script src="../../shared-nav.js"></script>
+  <script src="../../shared-shell.js"></script>
+  <script>
+    const session = (function () {
+      try { return JSON.parse(localStorage.getItem('ps_session') || 'null'); } catch (_) { return null; }
+    })();
+    if (!session) { window.location.replace('/pages/login/'); }
+    else if (window.PSAccess && window.PSAccess.redirectIfForbidden(session, 'infoHalaman.html')) { /* redirected */ }
+    else {
+      window.PSShell.mount({
+        currentPage: 'infoHalaman.html',
+        session,
+        getStoredSession: function () { try { return JSON.parse(localStorage.getItem('ps_session') || 'null'); } catch (_) { return null; } },
+        storageKey: 'ps_session'
+      });
+    }
+
+    // Tabs
+    document.querySelectorAll('.tab-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        document.querySelectorAll('.tab-btn').forEach(function (b) { b.classList.remove('active'); });
+        document.querySelectorAll('.tab-panel').forEach(function (p) { p.classList.remove('active'); });
+        btn.classList.add('active');
+        document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+      });
+    });
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function () {});
+    }
+  </script>
+</body>
+</html>

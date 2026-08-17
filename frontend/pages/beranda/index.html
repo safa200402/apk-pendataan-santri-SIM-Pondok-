@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#9e2f22">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="../../shared-ui.css">
+  <script src="../../shared-ui.js"></script>
+  <title>Beranda</title>
+  <link rel="stylesheet" href="../../shared-shell.css">
+  <link rel="stylesheet" href="../../vendor/fontawesome/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700&display=swap');
+    :root {
+      --paper: #f6efe0;
+      --ink: #4d4034;
+      --muted: #7b6a58;
+      --line: rgba(91, 73, 57, 0.15);
+      --accent: #b97650;
+      --success: #74846c;
+      --danger: #a55a52;
+      --warning: #b58439;
+      --shadow: 0 18px 45px rgba(87, 67, 51, 0.18);
+      --radius: 24px;
+    }
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.15;
+      mix-blend-mode: multiply;
+    }
+
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.23;
+    }
+
+    h1, h2, h3 {
+      margin: 0 0 10px;
+      text-transform: uppercase;
+    }
+
+    p { margin: 0; line-height: 1.65; }
+
+    .panel {
+      padding: 22px;
+    }
+
+    /* ── Hero ── */
+    .hero-block {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 6px;
+      margin-bottom: 26px;
+    }
+
+    .hero-logo {
+      width: 64px;
+      height: 64px;
+      object-fit: contain;
+      margin-bottom: 6px;
+      filter: drop-shadow(0 6px 14px rgba(87, 67, 51, 0.22));
+    }
+
+    .hero-org {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--muted);
+    }
+
+    .hero-role {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(26px, 5vw, 38px);
+      font-weight: 900;
+      color: var(--ink);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      line-height: 1.15;
+      margin-top: 2px;
+    }
+
+    .hero-greeting {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--muted);
+    }
+
+    .hero-greeting strong {
+      color: var(--ink);
+      font-weight: 700;
+    }
+
+    /* ── Akses Notice ── */
+    .akses-notice {
+      display: none;
+      padding: 13px 16px;
+      border-radius: 14px;
+      font-size: 14px;
+      font-weight: 600;
+      line-height: 1.55;
+      margin-bottom: 24px;
+    }
+
+    .akses-notice.show { display: block; }
+
+    /* ── Tile Sections ── */
+    .tile-section {
+      margin-bottom: 26px;
+    }
+
+    .tile-section-title {
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+
+    .tile-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: 12px;
+    }
+
+    .tile {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 16px 10px;
+      border-radius: 16px;
+      border: 1px solid var(--line);
+      background: rgba(255, 251, 243, 0.72) !important;
+      text-decoration: none;
+      color: var(--ink) !important;
+      font-weight: 700 !important;
+      font-size: 12.5px;
+      text-align: center;
+      text-transform: none !important;
+      line-height: 1.3;
+      box-shadow: var(--shadow);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .tile:hover, .tile:focus-visible {
+      transform: translateY(-2px);
+    }
+
+    .tile-badge {
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      color: #fff !important;
+      flex-shrink: 0;
+    }
+
+    .tile-empty {
+      color: var(--muted);
+      font-style: italic;
+      font-size: 14px;
+    }
+
+    /* ── Pencarian Menu ── */
+    .beranda-search-wrap {
+      margin-bottom: 22px;
+    }
+
+    .beranda-search-input {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 12px 16px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: rgba(255, 251, 243, 0.72);
+      color: var(--ink);
+      font-family: 'Poppins', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      outline: none;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .beranda-search-input::placeholder {
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    .beranda-search-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(185, 118, 80, 0.15);
+    }
+
+    .section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    /* ── Fill remaining viewport height ── */
+    main {
+      min-height: 100vh;
+      min-height: 100dvh;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+    }
+    .app-layout {
+      flex: 1;
+      display: flex !important;
+      flex-direction: column;
+    }
+    .content-stack {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+    .content-stack > .panel {
+      flex: 1;
+    }
+
+    /* ── Carousel jadwal ibadah (popup) ── */
+    .ji-carousel-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 9500;
+      background: rgba(41, 23, 15, 0.45);
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      box-sizing: border-box;
+    }
+    .ji-carousel-overlay.show { display: flex; }
+    .ji-carousel-card {
+      position: relative;
+      width: 100%;
+      max-width: 380px;
+      max-height: calc(100vh - 32px);
+      overflow-y: auto;
+      background: var(--paper);
+      color: var(--ink);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 26px 22px 18px;
+      box-sizing: border-box;
+      text-align: center;
+    }
+    .ji-carousel-close {
+      position: absolute;
+      top: 10px;
+      right: 12px;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      font-size: 24px;
+      line-height: 1;
+      cursor: pointer;
+      padding: 4px 8px;
+    }
+    .ji-carousel-close:hover { color: var(--ink); }
+    .ji-carousel-icon {
+      width: 48px;
+      height: 48px;
+      margin: 0 auto 10px;
+      border-radius: 14px;
+      background: var(--accent);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+    }
+    .ji-carousel-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 18px;
+      font-weight: 900;
+      text-transform: none;
+    }
+    .ji-carousel-date {
+      font-size: 12.5px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-top: 4px;
+      margin-bottom: 14px;
+    }
+    .ji-carousel-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 8px 2px;
+      border-top: 1px solid var(--line);
+      text-align: left;
+    }
+    .ji-carousel-date + .ji-carousel-row,
+    .ji-carousel-title + .ji-carousel-row { border-top: none; }
+    .ji-carousel-row.current { background: rgba(185, 118, 80, 0.08); border-radius: 8px; margin: 0 -6px; padding: 8px 6px; }
+    .ji-carousel-row.current + .ji-carousel-row { border-top: none; }
+    .ji-carousel-row.has-note { cursor: pointer; }
+    .ji-carousel-note-icon { color: var(--accent); font-size: 11px; margin-left: 4px; }
+    .ji-carousel-label {
+      font-size: 12.5px;
+      font-weight: 700;
+      color: var(--muted);
+      white-space: nowrap;
+      flex-shrink: 0;
+      padding-top: 1px;
+    }
+    .ji-carousel-tag {
+      display: inline-block;
+      font-size: 9.5px;
+      font-weight: 800;
+      color: var(--accent);
+      background: rgba(185, 118, 80, 0.14);
+      border-radius: 5px;
+      padding: 1px 5px;
+      margin-left: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    .ji-carousel-value {
+      font-size: 13.5px;
+      font-weight: 600;
+      color: var(--ink);
+      text-align: right;
+    }
+    .ji-carousel-empty { color: var(--muted); font-style: italic; font-weight: 500; }
+    .ji-carousel-badal { font-size: 11px; font-weight: 500; color: var(--muted); margin-top: 2px; }
+    .ji-carousel-note {
+      margin-top: 12px;
+      font-size: 12.5px;
+      color: var(--muted);
+      font-style: italic;
+      text-align: left;
+      background: rgba(255, 251, 243, 0.6);
+      border-radius: 10px;
+      padding: 8px 10px;
+    }
+    .ji-carousel-nav {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 18px;
+    }
+    .ji-carousel-nav-btn {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      border: 1px solid var(--line);
+      background: rgba(255, 251, 243, 0.7);
+      color: var(--ink);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      flex-shrink: 0;
+    }
+    .ji-carousel-nav-btn:hover { background: rgba(255, 251, 243, 1); }
+    .ji-carousel-dots { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+    .ji-carousel-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--line);
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .ji-carousel-dot.active { background: var(--accent); }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-left">
+      <button class="drawer-toggle" id="navToggle" type="button" aria-label="Toggle sidebar">Menu</button>
+      <div class="header-brand">Pendataan Santri</div>
+      <div class="header-page">Beranda</div>
+    </div>
+    <div class="header-right">
+      <span class="header-chip" id="headerRole">Pengurus</span>
+    </div>
+  </header>
+  <div class="drawer-backdrop" id="navBackdrop"></div>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+  <main>
+    <div class="app-layout">
+      <section class="panel nav" id="nav"></section>
+      <div class="content-stack">
+        <section class="panel">
+          <!-- Hero -->
+          <div class="hero-block">
+            <img class="hero-logo" id="heroLogo" src="/icons/icon-192.svg" alt="Logo">
+            <div class="hero-org" id="heroOrg">Pendataan Santri</div>
+            <div class="hero-role" id="heroRole">...</div>
+            <div class="hero-greeting">Halo, <strong id="heroName">...</strong></div>
+          </div>
+
+          <!-- Pesan akses terbatas -->
+          <div class="akses-notice warn" id="aksesNotice">
+            Kamu belum memiliki akses ke halaman tertentu.
+          </div>
+
+          <!-- Pencarian menu -->
+          <div class="beranda-search-wrap">
+            <input type="search" id="berandaSearch" class="beranda-search-input" placeholder="Cari menu..." autocomplete="off" spellcheck="false">
+          </div>
+
+          <!-- Tile grid menu -->
+          <div id="tileSections"></div>
+          <p class="tile-empty" id="tileSearchEmpty" style="display:none;">Menu tidak ditemukan.</p>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <script src="../../shared-access.js"></script>
+  <script src="../../shared-nav.js"></script>
+  <script src="../../shared-shell.js"></script>
+  <script>
+    const STORAGE = {
+      apiBase: 'ps_api_base',
+      token:   'ps_token',
+      session: 'ps_session'
+    };
+
+    const BADGE_COLORS = ['#b97650', '#74846c', '#b58439', '#a55a52', '#7b6a58', '#9e2f22'];
+
+    function getStoredSession() {
+      try { return JSON.parse(localStorage.getItem(STORAGE.session) || 'null'); }
+      catch (e) { return null; }
+    }
+
+    function clearSession() {
+      localStorage.removeItem(STORAGE.token);
+      localStorage.removeItem(STORAGE.session);
+    }
+
+    function escapeHtml(value) {
+      return String(value === undefined || value === null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function stripAccessMark(label) {
+      return String(label || '').replace(/^\*+\s*/, '');
+    }
+
+    const ICONS = {
+      // Dashboard
+      'dashboardAdmin.html': 'gauge-high',
+      'dashboardKoordHalaqoh.html': 'people-group',
+      'dashboardAkademik.html': 'graduation-cap',
+      'dashboardKesantrian.html': 'triangle-exclamation',
+      'dashboardSdm.html': 'users-gear',
+      'dashboard.html': 'chart-pie',
+      // Santri
+      'daftarSantri.html': 'address-book',
+      'santriProfile.html': 'id-card',
+      'rekamJejak.html': 'route',
+      'kondisiSantri.html': 'heart-pulse',
+      // Pengurus
+      'strukturOrganisasi.html': 'sitemap',
+      'masterJabatan.html': 'id-badge',
+      'editPengurus.html': 'user-tie',
+      'kegiatanSop.html': 'clipboard-list',
+      'koordinatAbsensi.html': 'location-dot',
+      'inputAbsensiPengurus.html': 'fingerprint',
+      'rekapAbsensiPengurus.html': 'calendar-check',
+      'jurnalSdm.html': 'book',
+      'jadwalHarianPengurus.html': 'calendar-days',
+      'jadwalFingerprint.html': 'fingerprint',
+      // Tahun Ajaran
+      'tahunAjaran.html': 'calendar',
+      // Halaqoh
+      'editHalaqoh.html': 'people-group',
+      'editHalaqohTasmi.html': 'headphones',
+      'riwayatPindahHalaqoh.html': 'right-left',
+      'halaqohAbsensi.html': 'clipboard-check',
+      'hafalanHarian.html': 'book-quran',
+      'tasmiSetoran.html': 'comments',
+      'ujianHafalan.html': 'award',
+      'nilaiUas.html': 'star',
+      // Kelas
+      'editKelas.html': 'chalkboard',
+      'inputKelasLevel.html': 'layer-group',
+      'kelasAbsensi.html': 'clipboard-check',
+      'nilaiUjian.html': 'pen',
+      'editSoal.html': 'file-pen',
+      // Pelajaran Santri
+      'masterPelajaran.html': 'book-open',
+      'progPelajaran.html': 'chart-line',
+      // Regu
+      'editRegu.html': 'flag',
+      'riwayatPindahRegu.html': 'right-left',
+      'reguAbsensi.html': 'clipboard-check',
+      'perkembanganSantri.html': 'seedling',
+      'perkembanganTemplate.html': 'file-lines',
+      // Data Kelompok dan Jadwal
+      'dataKelompok.html': 'table',
+      'dataKelompokManual.html': 'table-list',
+      'jadwalIbadah.html': 'mosque',
+      // Raport & Rekam Jejak
+      'raport&rekamJejak.html': 'file-invoice',
+      'akhlakKepribadian.html': 'heart',
+      'deskripsiSantri.html': 'pen-nib',
+      // Pelanggaran & Kondisi
+      'pelanggaran.html': 'triangle-exclamation',
+      'jenisPelanggaran.html': 'list',
+      'santriSakit.html': 'house-medical',
+      'izinPulang.html': 'door-open',
+      'rekapZoom.html': 'video',
+      // Lainnya
+      'bukuDigital.html': 'book-open',
+      'bankSoal.html': 'list-check',
+      'kaldik.html': 'calendar-days',
+      'editKaldik.html': 'calendar-plus',
+      'jamDigital.html': 'clock',
+      'jamDigitalRemote.html': 'tower-broadcast',
+      'skemaDb.html': 'database',
+      'aksesInfo.html': 'shield-halved',
+      'infoHalaman.html': 'circle-info',
+      // Pengaturan
+      'index.html': 'globe',
+      'madingDigital.html': 'newspaper',
+      'kelolaMading.html': 'pen-to-square',
+      'pengumuman.html': 'bullhorn',
+      'survey.html': 'square-poll-vertical',
+      'kelolaAudit.html': 'magnifying-glass-chart',
+      'portalSettings.html': 'gear',
+      'superAdmin.html': 'user-shield',
+      'backup.html': 'box-archive'
+    };
+    const DEFAULT_ICON = 'circle';
+
+    function getIconClass(href) {
+      const key = window.PSAccess && typeof window.PSAccess.cleanFileName === 'function'
+        ? window.PSAccess.cleanFileName(href)
+        : href;
+      return ICONS[key] || DEFAULT_ICON;
+    }
+
+    function getVisibleGroups(session) {
+      const groups = (window.PSNav && window.PSNav.groups) || [];
+      return groups.reduce((list, group) => {
+        if (group.hidden) return list;
+        const items = (group.items || []).filter((item) => (
+          window.PSAccess && typeof window.PSAccess.canShowNavItem === 'function'
+            ? window.PSAccess.canShowNavItem(session, item.href)
+            : true
+        ));
+        if (items.length) list.push({ title: group.title, items });
+        return list;
+      }, []);
+    }
+
+    function renderTiles(session) {
+      const groups = getVisibleGroups(session);
+      const host = document.getElementById('tileSections');
+
+      if (!groups.length) {
+        host.innerHTML = '<p class="tile-empty">Belum ada menu yang bisa diakses pada akun ini.</p>';
+        return;
+      }
+
+      let colorIndex = 0;
+      host.innerHTML = groups.map((group) => {
+        const tiles = group.items.map((item) => {
+          const color = BADGE_COLORS[colorIndex++ % BADGE_COLORS.length];
+          const label = stripAccessMark(item.label);
+          return '<a class="tile" href="' + escapeHtml(item.href) + '" title="' + escapeHtml(item.description || '') + '">'
+            + '<span class="tile-badge" style="background:' + color + '"><i class="fa-solid fa-' + escapeHtml(getIconClass(item.href)) + '"></i></span>'
+            + '<span>' + escapeHtml(label) + '</span>'
+            + '</a>';
+        }).join('');
+        return '<div class="tile-section">'
+          + '<div class="tile-section-title">' + escapeHtml(group.title) + '</div>'
+          + '<div class="tile-grid">' + tiles + '</div>'
+          + '</div>';
+      }).join('');
+    }
+
+    function applyTileFilter(query) {
+      const q = String(query || '').toLowerCase().trim();
+      const sections = document.querySelectorAll('#tileSections .tile-section');
+      let anySectionVisible = false;
+      sections.forEach((section) => {
+        const tiles = section.querySelectorAll('.tile');
+        let anyVisible = false;
+        tiles.forEach((tile) => {
+          const label = (tile.textContent || '').toLowerCase();
+          const show = !q || label.indexOf(q) !== -1;
+          tile.style.display = show ? '' : 'none';
+          if (show) anyVisible = true;
+        });
+        section.style.display = anyVisible ? '' : 'none';
+        if (anyVisible) anySectionVisible = true;
+      });
+      const emptyMsg = document.getElementById('tileSearchEmpty');
+      if (emptyMsg) emptyMsg.style.display = (q && !anySectionVisible) ? '' : 'none';
+    }
+
+    function bindTileSearch() {
+      const input = document.getElementById('berandaSearch');
+      if (!input) return;
+      input.addEventListener('input', () => applyTileFilter(input.value));
+      input.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+          input.value = '';
+          applyTileFilter('');
+        }
+      });
+    }
+
+    function renderBeranda() {
+      const session = getStoredSession();
+      if (!session) {
+        clearSession();
+        window.location.replace('/pages/login/');
+        return;
+      }
+
+      if (window.PSAccess && window.PSAccess.redirectIfForbidden(session, '/pages/beranda/')) {
+        return;
+      }
+
+      const rawSession = session;
+      const scopedSession = window.PSAccess && typeof window.PSAccess.getScopedSession === 'function'
+        ? window.PSAccess.getScopedSession(rawSession)
+        : rawSession;
+
+      const permissions = scopedSession && scopedSession.permissions
+        ? scopedSession.permissions
+        : (rawSession && rawSession.permissions ? rawSession.permissions : {});
+
+      const name = rawSession.name || 'Pengguna';
+      const scopeAktif = scopedSession.scopeLabel
+        || scopedSession.primaryJabatanLabel
+        || permissions.label
+        || (rawSession.role === 'santri' ? 'Santri' : '-');
+      const isSuperAdmin = !!(permissions.isSuperAdmin || permissions.accessLevel === 'super_admin');
+
+      // Hero
+      document.getElementById('heroRole').textContent = scopeAktif;
+      document.getElementById('heroName').textContent = name;
+
+      // Pesan akses terbatas hanya jika bukan super admin
+      const aksesNotice = document.getElementById('aksesNotice');
+      if (!isSuperAdmin) {
+        aksesNotice.classList.add('show');
+      } else {
+        aksesNotice.classList.remove('show');
+      }
+
+      renderTiles(rawSession);
+      bindTileSearch();
+
+      // Mount shell
+      if (window.PSShell) {
+        window.PSShell.mount({
+          currentPage: window.PSAccess
+            ? window.PSAccess.cleanFileName(window.location.pathname)
+            : '/pages/beranda/',
+          session: rawSession,
+          getStoredSession,
+          storageKey: STORAGE.session
+        });
+      }
+
+      loadJadwalIbadahCarousel();
+    }
+
+    /* ── Carousel jadwal ibadah/khutbah yang ditandai "Tampil di Beranda" ──
+       Hanya di halaman ini (bukan lewat shared-shell.js spt pengumuman/audit) krn memang
+       cuma relevan di Beranda. Item mana yg tampil duluan dipilih acak, lalu bisa digeser
+       lewat panah/dots tanpa ikut menutup popupnya -- close (x) di pojok kanan atas yg
+       menutup semuanya. */
+    const BULAN_ID_JI = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+    let _jiItems = [];
+    let _jiIndex = 0;
+
+    function formatTanggalPendekJi(iso) {
+      if (!iso) return '—';
+      const d = new Date(iso + 'T00:00:00');
+      if (isNaN(d)) return iso;
+      return d.getDate() + ' ' + BULAN_ID_JI[d.getMonth()].slice(0, 3);
+    }
+
+    async function loadJadwalIbadahCarousel() {
+      const token = localStorage.getItem(STORAGE.token);
+      if (!token) return;
+      try {
+        const r = await fetch('/api?' + new URLSearchParams({ action: 'jadwal.ibadah.beranda.carousel', token }));
+        const json = await r.json();
+        if (!json.ok || !json.data || !json.data.items || !json.data.items.length) return;
+        _jiItems = json.data.items;
+        _jiIndex = Math.floor(Math.random() * _jiItems.length);
+        showJadwalIbadahCarousel();
+      } catch (e) { /* diam-diam gagal, bukan fitur wajib */ }
+    }
+
+    function renderJadwalIbadahCarouselBody(item) {
+      if (item.type === 'khutbah') {
+        const rowsHtml = (item.entries || []).map((e) => {
+          const khotibText = e.khotib ? escapeHtml(e.khotib) : '<span class="ji-carousel-empty">—</span>';
+          const badalText = e.khotibBadal ? '<div class="ji-carousel-badal">Badal: ' + escapeHtml(e.khotibBadal) + '</div>' : '';
+          const currentTag = e.isCurrent ? ' <span class="ji-carousel-tag">Pekan ini</span>' : '';
+          const hasNote = !!(e.isCurrent && e.catatan);
+          const noteIcon = hasNote ? ' <i class="fa-solid fa-note-sticky ji-carousel-note-icon" title="Ada catatan, klik utk lihat"></i>' : '';
+          const rowAttrs = hasNote ? ' id="jiKhutbahNoteToggle" role="button" tabindex="0"' : '';
+          const noteHtml = hasNote ? '<div class="ji-carousel-note" id="jiKhutbahNote" hidden>' + escapeHtml(e.catatan) + '</div>' : '';
+          return '<div class="ji-carousel-row' + (e.isCurrent ? ' current' : '') + (hasNote ? ' has-note' : '') + '"' + rowAttrs + '>'
+            + '<span class="ji-carousel-label">' + escapeHtml(formatTanggalPendekJi(e.tanggal)) + currentTag + '</span>'
+            + '<span class="ji-carousel-value">' + khotibText + badalText + noteIcon + '</span>'
+            + '</div>' + noteHtml;
+        }).join('');
+        return '<div class="ji-carousel-icon"><i class="fa-solid fa-mosque"></i></div>'
+          + '<div class="ji-carousel-title">' + escapeHtml(item.title) + '</div>'
+          + rowsHtml;
+      }
+      const icon = item.type === 'imam' ? 'person-praying' : 'microphone';
+      const slotsHtml = (item.slots || []).map((s) => (
+        '<div class="ji-carousel-row"><span class="ji-carousel-label">' + escapeHtml(s.waktuLabel) + '</span>'
+        + '<span class="ji-carousel-value">' + (s.nama ? escapeHtml(s.nama) : '<span class="ji-carousel-empty">—</span>')
+        + ((s.badal && s.badal.length) ? '<div class="ji-carousel-badal">Badal: ' + s.badal.map(escapeHtml).join(', ') + '</div>' : '')
+        + '</span></div>'
+      )).join('');
+      return '<div class="ji-carousel-icon"><i class="fa-solid fa-' + icon + '"></i></div>'
+        + '<div class="ji-carousel-title">' + escapeHtml(item.title) + '</div>'
+        + '<div class="ji-carousel-date">' + escapeHtml(item.hariLabel || '') + '</div>'
+        + slotsHtml;
+    }
+
+    function showJadwalIbadahCarousel() {
+      if (!_jiItems.length) return;
+      let overlay = document.getElementById('jiCarouselOverlay');
+      if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'jiCarouselOverlay';
+        overlay.className = 'ji-carousel-overlay';
+        overlay.addEventListener('click', (event) => { if (event.target === overlay) closeJadwalIbadahCarousel(); });
+        document.body.appendChild(overlay);
+      }
+      const item = _jiItems[_jiIndex];
+      const total = _jiItems.length;
+      const navHtml = total > 1
+        ? '<div class="ji-carousel-nav">'
+          + '<button type="button" class="ji-carousel-nav-btn" id="jiCarouselPrev" aria-label="Sebelumnya"><i class="fa-solid fa-chevron-left"></i></button>'
+          + '<div class="ji-carousel-dots">' + _jiItems.map((_, i) => '<span class="ji-carousel-dot' + (i === _jiIndex ? ' active' : '') + '" data-idx="' + i + '"></span>').join('') + '</div>'
+          + '<button type="button" class="ji-carousel-nav-btn" id="jiCarouselNext" aria-label="Berikutnya"><i class="fa-solid fa-chevron-right"></i></button>'
+          + '</div>'
+        : '';
+      overlay.innerHTML = '<div class="ji-carousel-card">'
+        + '<button type="button" class="ji-carousel-close" id="jiCarouselClose" aria-label="Tutup">&times;</button>'
+        + renderJadwalIbadahCarouselBody(item)
+        + navHtml
+        + '</div>';
+      overlay.classList.add('show');
+      overlay.querySelector('#jiCarouselClose').addEventListener('click', closeJadwalIbadahCarousel);
+      const prevBtn = overlay.querySelector('#jiCarouselPrev');
+      const nextBtn = overlay.querySelector('#jiCarouselNext');
+      if (prevBtn) prevBtn.addEventListener('click', () => { _jiIndex = (_jiIndex - 1 + total) % total; showJadwalIbadahCarousel(); });
+      if (nextBtn) nextBtn.addEventListener('click', () => { _jiIndex = (_jiIndex + 1) % total; showJadwalIbadahCarousel(); });
+      overlay.querySelectorAll('.ji-carousel-dot').forEach((dot) => dot.addEventListener('click', () => { _jiIndex = +dot.dataset.idx; showJadwalIbadahCarousel(); }));
+      const noteToggle = overlay.querySelector('#jiKhutbahNoteToggle');
+      if (noteToggle) {
+        const toggleNote = () => { const note = overlay.querySelector('#jiKhutbahNote'); if (note) note.hidden = !note.hidden; };
+        noteToggle.addEventListener('click', toggleNote);
+        noteToggle.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggleNote(); } });
+      }
+    }
+
+    function closeJadwalIbadahCarousel() {
+      const overlay = document.getElementById('jiCarouselOverlay');
+      if (overlay) overlay.remove();
+    }
+
+    renderBeranda();
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
+    }
+
+    fetch('/api?action=portal.brand.public.get', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((json) => {
+        const brand = json && json.ok && json.data && json.data.brand;
+        if (!brand) return;
+        let logoUrl = brand.logoUrl;
+        if (logoUrl && !logoUrl.startsWith('http') && !logoUrl.startsWith('/') && !logoUrl.startsWith('data:')) {
+          logoUrl = '/' + logoUrl;
+        }
+        const orgName = brand.organizationName;
+        if (logoUrl) {
+          document.getElementById('heroLogo').src = logoUrl;
+        }
+        if (orgName) {
+          document.getElementById('heroOrg').textContent = orgName;
+        }
+      })
+      .catch(() => {});
+  </script>
+</body>
+</html>

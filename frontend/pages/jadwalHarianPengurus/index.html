@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#9e2f22">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="../../shared-ui.css">
+  <script src="../../shared-ui.js"></script>
+  <title>Jadwal Harian Pengurus</title>
+  <link rel="stylesheet" href="../../shared-shell.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700&display=swap');
+    :root {
+      --paper: #f6efe0;
+      --ink: #4d4034;
+      --muted: #7b6a58;
+      --line: rgba(91, 73, 57, 0.15);
+      --accent: #b97650;
+      --success: #74846c;
+      --danger: #a55a52;
+      --warning: #b58439;
+      --shadow: 0 18px 45px rgba(87, 67, 51, 0.18);
+      --radius: 24px;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; }
+    body::before { content: ''; position: fixed; inset: 0; pointer-events: none; opacity: 0.15 !important; mix-blend-mode: multiply; }
+
+    .panel { padding: 22px; }
+    h1, h2, h3 { margin: 0 0 10px; }
+    p { margin: 0; line-height: 1.6; }
+    button, input, select, textarea { font: inherit; }
+
+    /* Cegah <select> dgn opsi teks panjang (nama jabatan) "meledakkan" lebar kolom grid filter
+       (grid blowout) -- tanpa ini, kolom lain di grid jadi kegencet di layar sempit. */
+    #filtersPanel select, #filtersPanel input { min-width: 0; width: 100%; }
+
+    .toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0; }
+    .toolbar button { padding: 12px 18px; font-weight: 700; cursor: pointer; }
+
+    .table-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid var(--line); margin-top: 10px; }
+    .jhp-table { border-collapse: collapse; width: 100%; min-width: 1080px; }
+    .jhp-table th, .jhp-table td {
+      padding: 8px 10px;
+      text-align: center;
+      white-space: nowrap;
+      vertical-align: middle;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    }
+    .jhp-table thead th {
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      border-bottom: 2px solid rgba(0, 0, 0, 0.14);
+      background: rgba(244, 228, 191, 0.65);
+      color: #2a1712;
+    }
+    .col-no { width: 36px; color: var(--muted); font-size: 12px; }
+    .col-nama {
+      position: sticky;
+      left: 0;
+      z-index: 2;
+      text-align: left !important;
+      min-width: 170px;
+      max-width: 220px;
+      background: #fffaf0;
+    }
+    .jhp-table thead .col-nama { z-index: 3; }
+    .jhp-nama { font-weight: 700; font-size: 13px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .jhp-jabatan { font-size: 11px; color: var(--muted); font-weight: 500; }
+    .jhp-saved-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      padding: 1px 8px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      background: rgba(116, 132, 108, 0.16);
+      color: var(--success);
+      white-space: nowrap;
+    }
+    .jhp-table tr.row-saved td.col-nama { background: #f4f1e5; }
+    .jhp-input {
+      width: 96px;
+      padding: 6px 8px;
+      font-size: 13px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      text-align: center;
+      background: #fff;
+    }
+    .jhp-input:focus { border-color: var(--accent); outline: none; }
+    .empty-state { text-align: center; padding: 30px 16px; color: var(--muted); }
+
+    .floating-paste-btn {
+      position: fixed;
+      right: 22px;
+      bottom: 22px;
+      z-index: 40;
+      padding: 14px 20px;
+      border-radius: 999px;
+      border: none;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+      box-shadow: var(--shadow);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .floating-paste-btn:hover { filter: brightness(1.06); }
+    .floating-paste-btn:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-left">
+      <button class="drawer-toggle" id="navToggle" type="button" aria-label="Toggle sidebar">Menu</button>
+      <div class="header-brand">Pendataan Santri</div>
+      <div class="header-page">Jadwal Harian Pengurus</div>
+    </div>
+    <div class="header-right">
+      <span class="header-chip" id="headerRole">Admin</span>
+    </div>
+  </header>
+  <div class="drawer-backdrop" id="navBackdrop"></div>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+  <main>
+    <div class="app-layout">
+      <section class="panel nav" id="nav"></section>
+      <div class="content-stack">
+        <section class="panel">
+          <h1 style="font-family:'Playfair Display',serif;font-size:1.9rem;letter-spacing:-0.02em;">Jadwal Harian Pengurus</h1>
+          <p style="color:var(--muted);font-size:14px;">Catat jam kehadiran ibadah pengurus setiap hari (shubuh, siang, ba'da isya'). Diisi khusus untuk Pengawas Lapangan, Admin, dan Super Admin.</p>
+          <div class="filters" id="filtersPanel" style="margin-top:14px;">
+            <label>
+              Tahun Ajaran
+              <select id="taSelect"></select>
+            </label>
+            <label>
+              Tanggal
+              <input type="date" id="tanggalInput">
+            </label>
+            <label>
+              Gender
+              <select id="genderFilter">
+                <option value="">Semua</option>
+                <option value="male">Laki-laki</option>
+                <option value="female">Perempuan</option>
+              </select>
+            </label>
+            <label>
+              Jabatan
+              <select id="jabatanFilter">
+                <option value="">Semua</option>
+              </select>
+            </label>
+          </div>
+          <div class="toolbar">
+            <button class="secondary" id="refreshButton" type="button">Muat Ulang</button>
+            <button class="primary" id="saveAllButton" type="button">Simpan Semua</button>
+          </div>
+          <div id="tableArea">
+            <div class="empty-state"><i class="fa-solid fa-spinner fa-spin"></i><p style="margin-top:8px;">Memuat data...</p></div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <button class="floating-paste-btn" id="floatingPasteButton" type="button" title="Tempel nilai terakhir yang diketik ke kolom yang sedang aktif" disabled>
+    <i class="fa-solid fa-paste"></i> Tempel Terakhir
+  </button>
+
+  <script src="../../shared-audit.js"></script>
+  <script src="../../shared-access.js"></script>
+  <script src="../../shared-nav.js"></script>
+  <script src="../../shared-shell.js"></script>
+  <script>
+    const API_BASE = window.location.origin + '/api';
+    const STORAGE = { apiBase: 'ps_api_base', token: 'ps_token', session: 'ps_session' };
+    localStorage.setItem(STORAGE.apiBase, API_BASE);
+
+    const FIELD_DEFS = [
+      { key: 'jam_tetap_shubuh', label: 'Jam Tetap Shubuh' },
+      { key: 'jam_hadir_shubuh', label: 'Jam Hadir Shubuh' },
+      { key: 'jam_0800', label: '08:00' },
+      { key: 'jam_0900', label: '09:00' },
+      { key: 'jam_1000', label: '10:00' },
+      { key: 'jam_1300', label: '13:00' },
+      { key: 'jam_1400', label: '14:00' },
+      { key: 'jam_tetap_isya', label: "Jam Tetap Ba'da Isya'" },
+      { key: 'jam_hadir_isya', label: "Jam Hadir Ba'da Isya'" }
+    ];
+
+    const state = {
+      tahunAjaranId: '',
+      tahunAjaranList: [],
+      tanggal: todayStr(),
+      gender: '',
+      jabatanId: '',
+      jabatanList: [],
+      items: []
+    };
+
+    function todayStr() {
+      const n = new Date();
+      return n.getFullYear() + '-' + String(n.getMonth() + 1).padStart(2, '0') + '-' + String(n.getDate()).padStart(2, '0');
+    }
+
+    function escapeHtml(text) {
+      return String(text == null ? '' : text)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    /* ── Auth / API ── */
+    function getToken() { return localStorage.getItem(STORAGE.token) || ''; }
+    function clearSession() { localStorage.removeItem(STORAGE.token); localStorage.removeItem(STORAGE.session); }
+    function getStoredSession() { try { return JSON.parse(localStorage.getItem(STORAGE.session) || 'null'); } catch (e) { return null; } }
+
+    function toParams(data) {
+      const params = new URLSearchParams();
+      Object.entries(data).forEach(([key, value]) => {
+        if (value === undefined || value === null) return;
+        params.append(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
+      });
+      return params;
+    }
+
+    async function api(action, payload = {}, method = 'GET') {
+      const token = getToken();
+      if (!token) { clearSession(); window.location.replace('/pages/login/'); throw new Error('Sesi tidak ditemukan.'); }
+      const scopeLabel = window.PSAccess ? (window.PSAccess.getActiveRoleScopeLabel(getStoredSession()) || '') : '';
+      const response = method === 'GET'
+        ? await fetch(`${API_BASE}?${toParams({ action, token, scopeLabel, ...payload })}`)
+        : await fetch(API_BASE, { method, body: toParams({ action, token, scopeLabel, ...payload }) });
+      const json = await response.json();
+      if (!json.ok) {
+        const error = new Error(json.error && json.error.message ? `Server: ${json.error.message}` : 'Permintaan gagal.');
+        error.code = (json.error && json.error.code) || response.status || 500;
+        if (error.code === 401) { clearSession(); window.location.replace('/pages/login/'); }
+        throw error;
+      }
+      return json.data;
+    }
+
+    function mountShell() {
+      return window.PSShell.mount({
+        currentPage: window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : 'jadwalHarianPengurus.html',
+        session: getStoredSession(),
+        getStoredSession,
+        storageKey: STORAGE.session
+      });
+    }
+
+    /* ── Notice ── */
+    let noticeId = '', noticeCounter = 0;
+    function showNotice(text, type) {
+      if (noticeId) { const x = document.querySelector(`[data-notice-id="${noticeId}"]`); if (x) x.remove(); }
+      const el = document.createElement('div');
+      el.className = `notice ${type || ''}`.trim();
+      el.dataset.noticeId = `n-${Date.now()}-${noticeCounter += 1}`;
+      el.textContent = text;
+      function dismiss() {
+        if (!el.parentNode) return;
+        el.classList.add('notice-dismissing');
+        window.setTimeout(() => {
+          el.remove();
+          const stack = document.getElementById('noticeStack');
+          if (stack && !stack.hasChildNodes() && stack.matches(':popover-open')) stack.hidePopover();
+        }, 220);
+      }
+      el.addEventListener('click', dismiss);
+      window.setTimeout(dismiss, type === 'error' ? 9000 : 5000);
+      const stack = document.getElementById('noticeStack');
+      stack.prepend(el);
+      noticeId = el.dataset.noticeId;
+      if (stack.matches(':popover-open')) stack.hidePopover();
+      stack.showPopover();
+    }
+    function clearNotice() {
+      if (!noticeId) return;
+      const x = document.querySelector(`[data-notice-id="${noticeId}"]`);
+      if (x) x.remove();
+      noticeId = '';
+      const stack = document.getElementById('noticeStack');
+      if (stack && !stack.hasChildNodes() && stack.matches(':popover-open')) stack.hidePopover();
+    }
+
+    /* ── Tahun Ajaran select ── */
+    function renderTaSelect() {
+      const sel = document.getElementById('taSelect');
+      sel.innerHTML = state.tahunAjaranList.map(t =>
+        `<option value="${escapeHtml(t.id)}" ${t.id === state.tahunAjaranId ? 'selected' : ''}>${escapeHtml(t.namaDisplay || t.nama)}${t.isAktif ? ' (Aktif)' : ''}</option>`
+      ).join('') || '<option value="">-- Belum ada tahun ajaran --</option>';
+    }
+
+    /* ── Jabatan filter select ── */
+    function renderJabatanFilter() {
+      const sel = document.getElementById('jabatanFilter');
+      const options = state.jabatanList.map(j =>
+        `<option value="${escapeHtml(j.id)}" ${j.id === state.jabatanId ? 'selected' : ''}>${escapeHtml(j.name)}</option>`
+      ).join('');
+      sel.innerHTML = `<option value="">Semua</option>${options}`;
+    }
+
+    /* ── Table ── */
+    function renderTable() {
+      const area = document.getElementById('tableArea');
+      if (!state.items.length) {
+        area.innerHTML = '<div class="empty-state"><i class="fa-solid fa-user-slash"></i><p style="margin-top:8px;font-weight:600;">Tidak ada pengurus aktif yang cocok dengan filter.</p></div>';
+        return;
+      }
+      const headCols = FIELD_DEFS.map(f => `<th>${escapeHtml(f.label)}</th>`).join('');
+      const rows = state.items.map((item, idx) => {
+        const entry = item.todayEntry || {};
+        const isSaved = !!item.todayEntry;
+        const cells = FIELD_DEFS.map(f =>
+          `<td><input type="text" class="jhp-input" data-field="${f.key}" value="${escapeHtml(entry[f.key] || '')}"></td>`
+        ).join('');
+        return `<tr data-pengurus-id="${escapeHtml(item.id)}"${isSaved ? ' class="row-saved"' : ''}>
+          <td class="col-no">${idx + 1}</td>
+          <td class="col-nama">
+            <div class="jhp-nama">${escapeHtml(item.name)}${isSaved ? '<span class="jhp-saved-badge"><i class="fa-solid fa-check"></i> Tersimpan</span>' : ''}</div>
+            ${item.primaryJabatanLabel ? `<div class="jhp-jabatan">${escapeHtml(item.primaryJabatanLabel)}</div>` : ''}
+          </td>
+          ${cells}
+        </tr>`;
+      }).join('');
+
+      area.innerHTML = `<div class="table-wrap">
+        <table class="jhp-table">
+          <thead>
+            <tr>
+              <th class="col-no">No</th>
+              <th class="col-nama">Nama</th>
+              ${headCols}
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+    }
+
+    /* ── Tempel input terakhir (nilai <input> terakhir yang diketik, di mana saja) ──
+       Tidak bisa pakai document.activeElement pada saat tombol diklik, karena klik ke
+       tombol itu sendiri langsung memindahkan fokus ke tombolnya (elemen input yang
+       sedang diisi jadi ke-blur duluan). Makanya elemen input yang lagi/terakhir fokus
+       harus dilacak sendiri lewat event 'focusin', disimpan di lastFocusedInput. */
+    let lastTypedValue = '';
+    let lastFocusedInput = null;
+    function updateFloatingPasteButton() {
+      const btn = document.getElementById('floatingPasteButton');
+      btn.disabled = !lastTypedValue;
+    }
+    function pasteIntoFocusedInput() {
+      const target = (lastFocusedInput && document.body.contains(lastFocusedInput)) ? lastFocusedInput : null;
+      if (!target) {
+        showNotice('Klik/fokus ke salah satu kolom isian dulu, baru tekan Tempel Terakhir.', 'error');
+        return;
+      }
+      if (!lastTypedValue) return;
+      target.value = lastTypedValue;
+      target.dispatchEvent(new Event('input', { bubbles: true }));
+      target.focus();
+    }
+
+    function collectEntries() {
+      const entries = [];
+      document.querySelectorAll('tr[data-pengurus-id]').forEach(row => {
+        const pengurusId = row.getAttribute('data-pengurus-id');
+        const entry = { id_pengurus: pengurusId };
+        FIELD_DEFS.forEach(f => {
+          const input = row.querySelector(`[data-field="${f.key}"]`);
+          entry[f.key] = input ? input.value.trim() : '';
+        });
+        entries.push(entry);
+      });
+      return entries;
+    }
+
+    /* ── Load / Save ── */
+    async function loadTable() {
+      const area = document.getElementById('tableArea');
+      area.innerHTML = '<div class="empty-state"><i class="fa-solid fa-spinner fa-spin"></i><p style="margin-top:8px;">Memuat data...</p></div>';
+      try {
+        const data = await api('jadwalHarianPengurus.list', {
+          tahunAjaranId: state.tahunAjaranId,
+          tanggal: state.tanggal,
+          gender: state.gender,
+          jabatanId: state.jabatanId
+        });
+        state.tahunAjaranId = data.tahunAjaranId || '';
+        state.tahunAjaranList = data.tahunAjaranList || [];
+        state.tanggal = data.tanggal || state.tanggal;
+        state.jabatanList = data.jabatanList || [];
+        state.items = data.items || [];
+        renderTaSelect();
+        renderJabatanFilter();
+        document.getElementById('tanggalInput').value = state.tanggal;
+        renderTable();
+      } catch (error) {
+        area.innerHTML = `<div class="empty-state"><i class="fa-solid fa-triangle-exclamation" style="color:var(--danger);"></i><p style="margin-top:8px;color:var(--danger);font-weight:600;">${escapeHtml(error.message)}</p></div>`;
+        showNotice(error.message || 'Gagal memuat data.', 'error');
+      }
+    }
+
+    async function saveAll() {
+      const entries = collectEntries();
+      showNotice('Menyimpan jadwal harian...', '');
+      try {
+        const data = await api('jadwalHarianPengurus.saveBulk', {
+          tanggal: state.tanggal,
+          tahunAjaranId: state.tahunAjaranId,
+          entries: JSON.stringify(entries)
+        }, 'POST');
+        showNotice(data && data.message ? data.message : 'Jadwal harian pengurus berhasil disimpan.', 'success');
+        await loadTable();
+      } catch (error) {
+        showNotice(error.message || 'Gagal menyimpan jadwal harian.', 'error');
+      }
+    }
+
+    /* ── Events ── */
+    const currentPage = window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : '/pages/jadwalHarianPengurus/';
+    const initialSession = getStoredSession();
+    if (!initialSession) { clearSession(); window.location.replace('/pages/login/'); }
+
+    if (!(window.PSAccess && window.PSAccess.redirectIfForbidden(initialSession, currentPage))) {
+      mountShell();
+
+      document.getElementById('taSelect').addEventListener('change', function () {
+        state.tahunAjaranId = this.value;
+        loadTable();
+      });
+      document.getElementById('tanggalInput').addEventListener('change', function () {
+        state.tanggal = this.value || todayStr();
+        loadTable();
+      });
+      document.getElementById('genderFilter').addEventListener('change', function () {
+        state.gender = this.value;
+        loadTable();
+      });
+      document.getElementById('jabatanFilter').addEventListener('change', function () {
+        state.jabatanId = this.value;
+        loadTable();
+      });
+      document.getElementById('refreshButton').addEventListener('click', loadTable);
+      document.getElementById('saveAllButton').addEventListener('click', saveAll);
+      document.getElementById('tableArea').addEventListener('input', event => {
+        if (!event.target.classList || !event.target.classList.contains('jhp-input')) return;
+        lastTypedValue = event.target.value;
+        updateFloatingPasteButton();
+      });
+      document.getElementById('tableArea').addEventListener('focusin', event => {
+        if (!event.target.classList || !event.target.classList.contains('jhp-input')) return;
+        lastFocusedInput = event.target;
+      });
+      document.getElementById('floatingPasteButton').addEventListener('click', pasteIntoFocusedInput);
+
+      document.getElementById('tanggalInput').value = state.tanggal;
+      loadTable();
+    }
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
+    }
+  </script>
+</body>
+</html>

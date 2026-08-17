@@ -1,0 +1,818 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#9e2f22">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="../../shared-ui.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+  <script src="../../shared-ui.js"></script>
+  <title>Absensi Pengurus</title>
+  <link rel="stylesheet" href="../../shared-shell.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700&display=swap');
+    :root {
+      --paper: #f6efe0;
+      --ink: #4d4034;
+      --muted: #7b6a58;
+      --line: rgba(91, 73, 57, 0.15);
+      --accent: #b97650;
+      --success: #74846c;
+      --danger: #a55a52;
+      --warning: #b58439;
+      --shadow: 0 18px 45px rgba(87, 67, 51, 0.18);
+      --radius: 24px;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; }
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.15;
+      mix-blend-mode: multiply;
+    }
+    h1, h2, h3 { margin: 0 0 10px; text-transform: uppercase; }
+    p { margin: 0; line-height: 1.65; }
+    .nav a, button { font-weight: 800 !important; text-transform: uppercase; }
+    .panel { padding: 22px; }
+    button { padding: 12px 18px; cursor: pointer; }
+    .primary { box-shadow: 0 14px 28px rgba(185, 118, 80, 0.22); }
+    input, select, textarea { width: 100%; padding: 13px 14px; outline: none; font: inherit; }
+    label { display: grid; gap: 7px; font-size: 14px; font-weight: 600; }
+
+    .section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .filters { display: grid; gap: 12px; margin-top: 16px; }
+    .toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+    .list { display: grid; gap: 14px; }
+    .field-grid { display: grid; gap: 12px; }
+
+    .notice { display: none; padding: 14px 16px; line-height: 1.55; }
+    .notice.show { display: block; }
+
+    .paging-host { display: grid; gap: 8px; margin: 3px 0; }
+    .paging { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; }
+    .page-center { display: grid; gap: 8px; justify-items: center; }
+    .page-numbers { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+    .page-summary { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+    @media (max-width: 960px) { .paging { grid-template-columns: 1fr; } }
+
+    /* Tabs */
+    .tabs { display: flex; gap: 0; margin-bottom: 22px; justify-content: center;}
+    .tab-btn {
+      padding: 12px 20px;
+      font-size: 13px;
+      font-weight: 800 !important;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      border: none;
+      background: none;
+      cursor: pointer;
+      color: var(--muted);
+      border-bottom: 3px solid transparent;
+      margin-bottom: -2px;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .tab-btn:hover { color: var(--ink); }
+    .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* Geo status */
+    .geo-box {
+      gap: 10px;
+    }
+    .geo-label { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+    .geo-indicator { display: flex; align-items: center; gap: 12px; }
+    .geo-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; background: var(--muted); transition: background 0.3s; }
+    .geo-dot.loading { background: var(--warning); animation: pulse 1.2s infinite; }
+    .geo-dot.warning { background: var(--warning); }
+    .geo-dot.ok { background: var(--success); }
+    .geo-dot.error { background: var(--danger); }
+    @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.35;} }
+    .geo-status-text { font-size: 14px; font-weight: 600; }
+    .geo-detail { font-size: 12px; color: var(--muted); font-family: monospace; }
+
+    /* Shared box */
+    .ta-card {
+        border: 1.5px solid rgb(0 0 0);
+        border-radius: 18px;
+        padding: 16px 18px;
+        display: grid;
+        gap: 10px;
+        margin-bottom: 18px;
+        background: rgba(255, 248, 230, 0.96) !important;
+    }
+    .section-box-label { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+
+    /* Foto */
+    .foto-section { display: grid; gap: 12px; }
+    .foto-label { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+    .foto-preview-img { width: 100%; max-width: 300px; border-radius: 16px; object-fit: cover; display: block; cursor: pointer; border: 2px solid var(--line); }
+    .foto-thumb { width: 68px; height: 68px; border-radius: 12px; object-fit: cover; cursor: pointer; border: 2px solid var(--line); }
+
+    /* Card */
+    .minimal-list-card { padding: 0; display: grid; gap: 0; }
+    .ka-card-head { display: flex; align-items: center; gap: 12px; padding: 14px 16px; }
+    .ka-card-main { flex: 1; min-width: 0; display: grid; gap: 5px; }
+    .ka-card-title { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .ka-card-title strong { font-size: 15px; font-family: 'Poppins', sans-serif; font-weight: 700; }
+    .ka-card-hint { font-size: 12px; color: var(--muted); }
+    .ka-card-body { padding: 10px 16px 14px; border-top: 1px solid var(--line); display: grid; gap: 10px; }
+    .ka-card-actions { display: flex; gap: 8px; }
+    .ka-card-actions button { font-size: 12px; padding: 8px 14px; }
+
+    .pill { display: inline-flex; padding: 5px 10px; font-size: 11px; font-weight: 700; border-radius: 999px; }
+    .pill-hadir { background: rgba(116,132,108,0.18); color: var(--success); }
+    .pill-terlambat { background: rgba(181,132,57,0.16); color: var(--warning); }
+    .pill-awal { background: rgba(64,150,140,0.16); color: #246b60; }
+    .pill-izin { background: rgba(185,118,80,0.14); color: var(--accent); }
+    .pill-sakit { background: rgba(165,90,82,0.14); color: var(--danger); }
+    .danger { background: var(--danger); color: #fff; }
+
+    /* Dialog */
+    dialog { padding: 0; }
+    .dialog-body {
+      padding: 22px;
+      display: flex;
+      gap: 14px;
+      max-height: 92vh;
+      overflow: auto;
+      flex-direction: column;
+    }
+    .dialog-head {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      margin: 0 -22px;
+      padding: 18px 22px 14px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .dialog-close {
+      width: 46px;
+      min-width: 46px;
+      min-height: 46px;
+      padding: 0;
+      border-radius: 999px !important;
+      font-size: 24px;
+      line-height: 1;
+    }
+    .dialog-footer { display: flex; flex-wrap: wrap; gap: 10px; padding-top: 4px; }
+
+    /* Camera dialog */
+    #kameraDialog { max-width: 520px; width: calc(100vw - 24px); }
+    #videoPreview { width: 100%; border-radius: 14px; background: #111; display: block; max-height: 54vh; object-fit: cover; }
+    #captureCanvas { display: none; }
+    .cam-controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: center; margin-top: 14px; }
+
+    /* Zoom */
+    #fotoZoomDialog { max-width: 560px; width: calc(100vw - 24px); }
+    #fotoZoomImg { width: 100%; border-radius: 14px; display: block; max-height: 80vh; object-fit: contain; }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-left">
+      <button class="drawer-toggle" id="navToggle" type="button" aria-label="Toggle sidebar">Menu</button>
+      <div class="header-brand">Pendataan Santri</div>
+      <div class="header-page">Absensi Pengurus</div>
+    </div>
+    <div class="header-right">
+      <span class="header-chip" id="headerRole">Pengurus</span>
+    </div>
+  </header>
+  <div class="drawer-backdrop" id="navBackdrop"></div>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+
+  <main>
+    <div class="app-layout">
+      <section class="panel nav" id="nav"></section>
+      <div class="content-stack">
+        <section class="notice info" id="notice"></section>
+        <section class="panel">
+          <div class="section-head">
+            <div>
+              <h2>Absensi Pengurus</h2>
+              <p style="color:var(--muted);font-size:13px;margin-top:6px;">Absensi wajib menggunakan geolokasi dan foto. Anda bisa absen berkali-kali dalam sehari, kapan pun, dan di mana pun — jika di luar lokasi, hari, atau jam acuan, absensi tetap tercatat namun ditandai dengan peringatan.</p>
+            </div>
+          </div>
+
+          <div class="tabs" style="margin-top:18px;">
+            <button class="tab-btn active" type="button" data-tab="input" style="margin-right:8px;"><i class="fa-solid fa-location-dot" style="margin-right:6px;"></i>Input Absensi</button>
+            <button class="tab-btn" type="button" data-tab="rekap"><i class="fa-solid fa-clipboard-list" style="margin-right:6px;"></i>Rekap Absensi</button>
+            <button type="button" class="secondary" id="btnResetFilter" style="font-size:12px;align-self:flex-end;margin-left: 7px;" title="Reset filter"><i class="fa-solid fa-arrows-rotate"></i></button>
+          </div>
+
+          <!-- Tab Input -->
+          <div class="tab-panel active" id="tabInput">
+            <section class="notice" id="inputError"></section>
+
+            <!-- Status Lokasi -->
+            <div class="geo-box card ta-card">
+              <div class="geo-label section-box-label">Status Lokasi</div>
+              <div class="geo-indicator">
+                <div class="geo-dot loading" id="geoDot"></div>
+                <div class="geo-status-text" id="geoStatusText">Memeriksa lokasi...</div>
+              </div>
+              <div class="geo-detail" id="geoDetail" style="display:none;"></div>
+              <div>
+                <button type="button" class="secondary" id="btnRefreshGeo" style="padding:9px 16px;"><i class="fa-solid fa-arrows-rotate" style="margin-right:6px;"></i>Perbarui Lokasi</button>
+              </div>
+            </div>
+
+            <!-- Foto -->
+            <div class="foto-section card ta-card">
+              <div class="foto-label section-box-label">Foto Absensi <span style="font-weight:400;font-size:11px;text-transform:none;">(wajib)</span></div>
+              <div id="fotoPreviewWrap" style="display:none;">
+                <img id="fotoPreview" class="foto-preview-img" alt="Foto absensi" style="max-height:220px;">
+                <div style="margin-top:10px;">
+                  <button type="button" class="secondary" id="btnHapusFoto" style="font-size:12px;padding:9px 16px;"><i class="fa-solid fa-xmark" style="margin-right:6px;"></i>Hapus Foto</button>
+                </div>
+              </div>
+              <div id="fotoBtnWrap">
+                <button type="button" class="primary" id="btnBukaKamera"><i class="fa-solid fa-camera" style="margin-right:6px;"></i>Buka Kamera</button>
+              </div>
+            </div>
+
+            <div class="field-grid card ta-card">
+              <div class="section-box-label">Catatan</div>
+              <label>
+                <span style="font-weight:400;font-size:12px;text-transform:none;">Opsional — keterangan tambahan</span>
+                <textarea id="inputCatatan" rows="2" placeholder="Keterangan tambahan..."></textarea>
+              </label>
+            </div>
+
+            <div style="margin-top:16px;">
+              <button type="button" class="primary" id="btnAbsen" disabled style="width:100%;padding:15px;font-size:14px;letter-spacing:.04em;"><i class="fa-solid fa-paper-plane" style="margin-right:6px;"></i>Kirim Absensi</button>
+            </div>
+          </div>
+
+          <!-- Tab Rekap -->
+          <div class="tab-panel" id="tabRekap">
+            <div class="filters">
+              <div style="gap:10px;flex-wrap:wrap;align-items:flex-end;">
+                <label style="min-width:140px;">
+                    Filter Bulan
+                    <input type="month" id="filterBulan">
+                </label>
+                <div>
+                  <label style="flex:1;min-width:140px;">
+                    Filter Tanggal
+                    <input type="date" id="filterTanggal">
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <p id="rekapDefaultHint" style="font-size:12px;color:var(--muted);margin-top:10px;"></p>
+            <section class="notice" id="rekapEmpty" style="margin-top:6px;"></section>
+
+            <div class="paging-host" id="rekapPaginationTop" style="margin-top:16px;"></div>
+            <div class="list" id="rekapList" style="margin-top:10px;"></div>
+            <div class="paging-host" id="rekapPaginationBottom" style="margin-top:10px;"></div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <!-- Dialog Kamera -->
+  <dialog class="ps-floating-dialog" id="kameraDialog">
+    <div class="dialog-body">
+      <div class="dialog-head">
+        <div>
+          <h3>Ambil Foto</h3>
+          <p style="font-size:13px;color:var(--muted);margin-top:4px;text-transform:none;">Arahkan kamera ke wajah Anda, lalu tekan Ambil Foto.</p>
+        </div>
+        <button type="button" class="secondary dialog-close" id="btnTutupKamera" aria-label="Tutup">&times;</button>
+      </div>
+      <video id="videoPreview" autoplay playsinline muted></video>
+      <canvas id="captureCanvas"></canvas>
+      <section class="notice" id="kameraError"></section>
+      <div class="cam-controls">
+        <button type="button" class="secondary" id="btnSwitchCamera" style="font-size:12px;padding:10px 16px;"><i class="fa-solid fa-camera-rotate" style="margin-right:6px;"></i>Balik Kamera</button>
+        <button type="button" class="primary" id="btnCapture"><i class="fa-solid fa-camera-retro" style="margin-right:6px;"></i>Ambil Foto</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Dialog Hapus -->
+  <dialog class="ps-floating-dialog" id="hapusDialog">
+    <div class="dialog-body">
+      <div>
+        <h3>Hapus Absensi?</h3>
+        <p id="hapusDesc" style="font-size:13px;color:var(--muted);margin-top:6px;text-transform:none;">Data absensi ini akan dihapus.</p>
+      </div>
+      <section class="notice" id="hapusError"></section>
+      <div class="dialog-footer">
+        <button type="button" class="danger" id="btnHapusOk">Hapus</button>
+        <button type="button" class="secondary" id="btnHapusBatal">Batal</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Dialog Zoom Foto -->
+  <dialog class="ps-floating-dialog" id="fotoZoomDialog">
+    <div class="dialog-body">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
+        <button type="button" class="secondary dialog-close" id="btnTutupFotoZoom" aria-label="Tutup">&times;</button>
+      </div>
+      <img id="fotoZoomImg" alt="Foto absensi">
+    </div>
+  </dialog>
+
+  <script src="../../shared-access.js"></script>
+  <script src="../../shared-nav.js"></script>
+  <script src="../../shared-shell.js"></script>
+  <script>
+    const API_BASE = window.location.origin + '/api';
+    const STORAGE = { apiBase: 'ps_api_base', token: 'ps_token', session: 'ps_session' };
+    localStorage.setItem(STORAGE.apiBase, API_BASE);
+
+    const state = {
+      geoOk: false, geoCoords: null,
+      capturedBlob: null, capturedDataUrl: null,
+      cameraStream: null, facingMode: 'environment',
+      rekap: [],
+      rekapPage: 1, rekapPageSize: 15, rekapTotal: 0, rekapTotalPages: 1,
+      isFiltered: false,
+      deletingId: null
+    };
+    const uiState = { currentNoticeId: '', noticeCounter: 0, noticeShownAt: 0, pendingNotice: null };
+
+    function getToken() { return localStorage.getItem(STORAGE.token) || ''; }
+    function getStoredSession() { try { return JSON.parse(localStorage.getItem(STORAGE.session) || 'null'); } catch (_) { return null; } }
+    function getScopedSession() {
+      return window.PSAccess && typeof window.PSAccess.getScopedSession === 'function'
+        ? window.PSAccess.getScopedSession(getStoredSession()) : getStoredSession();
+    }
+
+    function toParams(data) {
+      const p = new URLSearchParams();
+      Object.entries(data).forEach(function ([k, v]) { if (v !== undefined && v !== null && v !== '') p.append(k, String(v)); });
+      return p;
+    }
+    async function api(data) {
+      const res = await fetch(API_BASE + '?' + toParams({ ...data, token: getToken() }));
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error?.message || 'Error');
+      return json.data;
+    }
+    async function apiPost(data) {
+      const res = await fetch(API_BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...data, token: getToken() }) });
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error?.message || 'Error');
+      return json.data;
+    }
+
+    function createNoticeEl(text, type) {
+      const el = document.createElement('section');
+      el.className = 'notice show ' + (type || 'info');
+      el.dataset.noticeId = 'n-' + Date.now() + '-' + (uiState.noticeCounter += 1);
+      el.textContent = text;
+      function dismiss() {
+        if (!el.parentNode) return;
+        el.classList.add('notice-dismissing');
+        window.setTimeout(function () {
+          el.remove();
+          const s = document.getElementById('noticeStack');
+          if (s && !s.hasChildNodes() && s.matches(':popover-open')) s.hidePopover();
+        }, 220);
+      }
+      el.addEventListener('click', dismiss);
+      window.setTimeout(dismiss, type === 'error' ? 10000 : 6000);
+      return el;
+    }
+    function showNotice(text, type) {
+      if (uiState.pendingNotice) { clearTimeout(uiState.pendingNotice); uiState.pendingNotice = null; }
+      const elapsed = Date.now() - uiState.noticeShownAt;
+      if (elapsed < 2000 && uiState.currentNoticeId) {
+        uiState.pendingNotice = window.setTimeout(function () { uiState.pendingNotice = null; showNotice(text, type); }, 2000 - elapsed);
+        return;
+      }
+      const el = createNoticeEl(text, type);
+      const stack = document.getElementById('noticeStack');
+      stack.prepend(el);
+      uiState.currentNoticeId = el.dataset.noticeId;
+      uiState.noticeShownAt = Date.now();
+      if (stack.matches(':popover-open')) stack.hidePopover();
+      stack.showPopover();
+    }
+
+    function esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+    function resolveFotoUrl(u) {
+      const s = String(u || '').trim();
+      if (!s) return '';
+      if (/^(https?:|data:|blob:|\/)/i.test(s)) return s;
+      return '/' + s.replace(/^\.?\//, '');
+    }
+
+    function setNotice(id, msg, type) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.textContent = msg;
+      el.className = 'notice show ' + (type || 'info');
+    }
+    function clearNotice(id) {
+      const el = document.getElementById(id);
+      if (el) { el.textContent = ''; el.className = 'notice'; }
+    }
+
+    function updateAbsenBtn() {
+      document.getElementById('btnAbsen').disabled = !state.geoOk || !state.capturedBlob;
+    }
+
+    // Geo
+    function setGeoDot(status) { document.getElementById('geoDot').className = 'geo-dot ' + status; }
+
+    function checkGeo() {
+      if (!navigator.geolocation) {
+        setGeoDot('error');
+        document.getElementById('geoStatusText').textContent = 'Browser tidak mendukung geolokasi.';
+        return;
+      }
+      setGeoDot('loading');
+      document.getElementById('geoStatusText').textContent = 'Memeriksa lokasi...';
+      document.getElementById('geoDetail').style.display = 'none';
+      state.geoOk = false;
+      updateAbsenBtn();
+
+      navigator.geolocation.getCurrentPosition(function (pos) {
+        state.geoCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude, akurasi: pos.coords.accuracy };
+        // Koordinat berhasil didapat → absensi diperbolehkan (lokasi tidak memblokir, hanya peringatan).
+        state.geoOk = true;
+        const d = document.getElementById('geoDetail');
+        d.textContent = pos.coords.latitude.toFixed(5) + ', ' + pos.coords.longitude.toFixed(5) + ' | ±' + Math.round(pos.coords.accuracy) + ' m';
+        d.style.display = '';
+        updateAbsenBtn();
+        // Pratinjau kesesuaian lokasi (opsional, tidak memblokir absensi)
+        apiPost({ action: 'pengurus.absensi.cekGeo', lat: pos.coords.latitude, lng: pos.coords.longitude, akurasi: pos.coords.accuracy })
+          .then(function (res) {
+            const tempat = res.namaLokasi ? res.namaLokasi : 'titik absensi';
+            if (res.withinRadius === false) {
+              setGeoDot('warning');
+              document.getElementById('geoStatusText').innerHTML = '<i class="fa-solid fa-triangle-exclamation" style="margin-right:4px;color:var(--warning);"></i>Di luar lokasi — ' + Math.round(res.jarak) + ' m dari ' + tempat + ' (radius ' + res.radius + ' m). Absensi tetap bisa, akan ditandai.';
+            } else {
+              setGeoDot('ok');
+              document.getElementById('geoStatusText').innerHTML = '<i class="fa-solid fa-circle-check" style="margin-right:4px;color:var(--success);"></i>Lokasi sesuai' + (res.jarak != null ? ' — ' + Math.round(res.jarak) + ' m dari ' + tempat : '');
+            }
+          })
+          .catch(function () {
+            // Gagal cek kesesuaian (mis. jaringan) — absensi tetap bisa karena lokasi tidak memblokir.
+            setGeoDot('ok');
+            document.getElementById('geoStatusText').innerHTML = '<i class="fa-solid fa-circle-check" style="margin-right:4px;color:var(--success);"></i>Lokasi terdeteksi — absensi bisa dilakukan.';
+          });
+      }, function (err) {
+        setGeoDot('error');
+        state.geoOk = false;
+        const msg = err.code === 1 ? 'Izin lokasi ditolak — aktifkan di pengaturan browser.'
+          : err.code === 2 ? 'Lokasi tidak tersedia. Pastikan GPS aktif.'
+          : 'Timeout. Coba lagi.';
+        document.getElementById('geoStatusText').innerHTML = '<i class="fa-solid fa-triangle-exclamation" style="margin-right:4px;color:var(--warning);"></i>' + msg;
+        updateAbsenBtn();
+      }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+    }
+
+    // Kamera
+    function startCamera() {
+      clearNotice('kameraError');
+      stopCamera();
+      return navigator.mediaDevices.getUserMedia({
+        video: { facingMode: state.facingMode, width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: false
+      }).then(function (stream) {
+        state.cameraStream = stream;
+        document.getElementById('videoPreview').srcObject = stream;
+      }).catch(function (e) {
+        const msg = e.name === 'NotAllowedError' ? 'Izin kamera ditolak.'
+          : e.name === 'NotFoundError' ? 'Kamera tidak ditemukan.'
+          : 'Gagal mengakses kamera: ' + e.message;
+        setNotice('kameraError', msg, 'error');
+      });
+    }
+
+    function stopCamera() {
+      if (state.cameraStream) {
+        state.cameraStream.getTracks().forEach(function (t) { t.stop(); });
+        state.cameraStream = null;
+      }
+      const v = document.getElementById('videoPreview');
+      if (v) v.srcObject = null;
+    }
+
+    function capturePhoto() {
+      const video = document.getElementById('videoPreview');
+      const canvas = document.getElementById('captureCanvas');
+      if (!video.videoWidth) { setNotice('kameraError', 'Kamera belum siap.', 'error'); return; }
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      if (state.facingMode === 'user') { ctx.translate(canvas.width, 0); ctx.scale(-1, 1); }
+      ctx.drawImage(video, 0, 0);
+      canvas.toBlob(function (blob) {
+        state.capturedBlob = blob;
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          state.capturedDataUrl = e.target.result;
+          document.getElementById('fotoPreview').src = state.capturedDataUrl;
+          document.getElementById('fotoPreviewWrap').style.display = '';
+          document.getElementById('fotoBtnWrap').style.display = 'none';
+          updateAbsenBtn();
+          stopCamera();
+          document.getElementById('kameraDialog').close();
+        };
+        reader.readAsDataURL(blob);
+      }, 'image/jpeg', 0.85);
+    }
+
+    function clearFoto() {
+      state.capturedBlob = null;
+      state.capturedDataUrl = null;
+      document.getElementById('fotoPreview').src = '';
+      document.getElementById('fotoPreviewWrap').style.display = 'none';
+      document.getElementById('fotoBtnWrap').style.display = '';
+      updateAbsenBtn();
+    }
+
+    // Submit
+    function submitAbsensi() {
+      if (!state.geoOk || !state.geoCoords) { showNotice('Lokasi belum valid.', 'error'); return; }
+      if (!state.capturedBlob) { showNotice('Foto belum diambil.', 'error'); return; }
+      const btn = document.getElementById('btnAbsen');
+      btn.disabled = true; btn.textContent = 'Mengirim...';
+      clearNotice('inputError');
+
+      apiPost({ action: 'pengurus.absensi.save', lat: state.geoCoords.lat, lng: state.geoCoords.lng, akurasi: state.geoCoords.akurasi, catatan: document.getElementById('inputCatatan').value.trim() })
+        .then(function (absenRes) {
+          state._lastAbsenRes = absenRes;
+          return apiPost({ action: 'pengurus.absensi.foto.upload', id: absenRes.id, dataUrl: state.capturedDataUrl });
+        })
+        .then(function () {
+          const res = state._lastAbsenRes || {};
+          const tipeLabel = { hadir: 'Hadir', terlambat: 'Terlambat', awal: 'Lebih Awal', izin: 'Izin', sakit: 'Sakit' }[res.tipe] || res.tipe || '';
+          const waktuLabel = res.waktu ? ' pukul ' + String(res.waktu).slice(0, 5) : '';
+          const sesiLabel = res.sesiKe ? ' (absensi ke-' + res.sesiKe + ' hari ini)' : '';
+          const warns = res.warnings || [];
+          let msg = 'Absensi berhasil — ' + (tipeLabel ? tipeLabel + waktuLabel : 'tercatat') + sesiLabel + '.';
+          if (warns.length) msg += ' — ' + warns.join(' ');
+          showNotice(msg, (res.tipe === 'terlambat' || res.tipe === 'awal' || warns.length) ? 'warning' : 'success');
+          clearFoto();
+          document.getElementById('inputCatatan').value = '';
+          checkGeo();
+          if (document.getElementById('tabRekap').classList.contains('active')) loadRekap();
+        })
+        .catch(function (e) {
+          setNotice('inputError', e.message || 'Gagal mengirim absensi.', 'error');
+        })
+        .finally(function () {
+          updateAbsenBtn();
+          btn.innerHTML = '<i class="fa-solid fa-paper-plane" style="margin-right:6px;"></i>Kirim Absensi';
+        });
+    }
+
+    // Rekap
+    function renderPaging(currentPage, totalPages) {
+      const start = Math.max(1, Math.min(currentPage - 4, totalPages - 9));
+      const end = Math.min(totalPages, start + 9);
+      let html = '';
+      for (let p = start; p <= end; p++) {
+        html += '<button ' + (p === currentPage ? 'class="active" ' : '') + 'data-page="' + p + '">' + p + '</button>';
+      }
+      return html;
+    }
+
+    function syncRekapPagination() {
+      const markup = state.rekapTotal > 0 ? (
+        '<div class="paging">' +
+        '<div class="page-center"><div class="page-numbers">' +
+        renderPaging(state.rekapPage, state.rekapTotalPages) +
+        '</div><div class="page-summary">Hal. ' + state.rekapPage + ' / ' + state.rekapTotalPages + ' &mdash; ' + state.rekapTotal + ' data</div></div>' +
+        '</div>'
+      ) : '';
+      window.PSUI.syncPaginationHosts({ markup: markup, visibleCount: state.rekap.length, totalCount: state.rekapTotal, minimumCount: 0, topId: 'rekapPaginationTop', bottomId: 'rekapPaginationBottom' });
+    }
+
+    function pillClass(tipe) {
+      const map = { hadir: 'pill-hadir', terlambat: 'pill-terlambat', awal: 'pill-awal', izin: 'pill-izin', sakit: 'pill-sakit' };
+      return map[tipe] || '';
+    }
+
+    function renderRekapCard(item) {
+      // Rekap hanya menampilkan absensi milik akun sendiri, jadi pemilik selalu boleh menghapus.
+      const canDelete = true;
+      const fotoSrc = resolveFotoUrl(item.fotoUrl);
+      const fotoHtml = fotoSrc
+        ? '<img class="foto-thumb" src="' + esc(fotoSrc) + '" data-zoom="' + esc(fotoSrc) + '" alt="Foto">'
+        : '<span style="font-size:12px;color:var(--muted);">No foto</span>';
+      const metaParts = [
+        '<i class="fa-solid fa-calendar-days"></i> ' + esc(item.tanggal || '—') + (item.waktu ? ' ' + esc(item.waktu.slice(0, 5)) : ''),
+        item.jarakMeter != null ? '<i class="fa-solid fa-ruler"></i> ' + Math.round(item.jarakMeter) + ' m' : null
+      ].filter(Boolean).join(' &nbsp;·&nbsp; ');
+      const luarLokasiPill = item.luarLokasi ? '<span class="pill pill-sakit"><i class="fa-solid fa-triangle-exclamation"></i> Luar lokasi</span>' : '';
+      const hasBody = item.catatan || canDelete;
+      return '<div class="card minimal-list-card">' +
+        '<div class="ka-card-head">' +
+          '<div class="ka-card-main">' +
+            '<div class="ka-card-title"><strong>' + esc(item.pengurusNama || '—') + '</strong><span class="pill ' + pillClass(item.tipe) + '">' + esc(item.tipe || '—') + '</span>' + luarLokasiPill + '</div>' +
+            '<span class="ka-card-hint">' + metaParts + '</span>' +
+          '</div>' +
+          fotoHtml +
+        '</div>' +
+        (hasBody ? '<div class="ka-card-body">' +
+          (item.catatan ? '<span style="font-size:13px;color:var(--muted);"><i class="fa-regular fa-comment"></i> ' + esc(item.catatan) + '</span>' : '') +
+          (canDelete ? '<div class="ka-card-actions"><button type="button" class="danger" data-delete="' + esc(item.id) + '">Hapus</button></div>' : '') +
+        '</div>' : '') +
+        '</div>';
+    }
+
+    function loadRekap() {
+      const filterBulan = document.getElementById('filterBulan').value;
+      const filterTanggal = document.getElementById('filterTanggal').value;
+      state.isFiltered = !!(filterBulan || filterTanggal);
+      const rekapList = document.getElementById('rekapList');
+      rekapList.innerHTML = '<p style="padding:14px 0;color:var(--muted);font-size:13px;">Memuat...</p>';
+      const params = { action: 'pengurus.absensi.list', self: 1 };
+      if (filterTanggal) {
+        params.tanggalFrom = filterTanggal;
+        params.tanggalTo = filterTanggal;
+      } else if (filterBulan) {
+        const parts = filterBulan.split('-');
+        const y = parseInt(parts[0], 10), m = parseInt(parts[1], 10);
+        const lastDay = new Date(y, m, 0).getDate();
+        params.tanggalFrom = filterBulan + '-01';
+        params.tanggalTo = filterBulan + '-' + String(lastDay).padStart(2, '0');
+      }
+      return api(params).then(function (data) {
+        state.rekap = (data.items || []).slice().sort(function (a, b) {
+          return (b.updatedAt || b.createdAt || '').localeCompare(a.updatedAt || a.createdAt || '') ||
+                 (b.tanggal || '').localeCompare(a.tanggal || '') ||
+                 (b.waktu || '').localeCompare(a.waktu || '');
+        });
+        state.rekapTotal = state.rekap.length;
+        state.rekapTotalPages = Math.max(1, Math.ceil(state.rekapTotal / state.rekapPageSize));
+        state.rekapPage = 1;
+        renderRekap();
+      }).catch(function (e) {
+        rekapList.innerHTML = '';
+        showNotice('Gagal memuat rekap: ' + e.message, 'error');
+      });
+    }
+
+    function renderRekap() {
+      const isFiltered = state.isFiltered;
+      const hintEl = document.getElementById('rekapDefaultHint');
+      if (hintEl) {
+        hintEl.style.display = isFiltered ? 'none' : '';
+        if (!isFiltered) hintEl.textContent = state.rekap.length > 10
+          ? 'Menampilkan 10 absensi terbaru dari total ' + state.rekap.length + '. Gunakan filter untuk melihat lebih banyak.'
+          : 'Menampilkan semua absensi (' + state.rekap.length + ' data).';
+      }
+      if (!state.rekap.length) {
+        document.getElementById('rekapList').innerHTML = '';
+        setNotice('rekapEmpty', isFiltered ? 'Tidak ada data untuk filter ini.' : 'Belum ada data absensi.', 'info');
+        window.PSUI.syncPaginationHosts({ markup: '', visibleCount: 0, totalCount: 0, minimumCount: 0, topId: 'rekapPaginationTop', bottomId: 'rekapPaginationBottom' });
+        return;
+      }
+      clearNotice('rekapEmpty');
+      if (!isFiltered) {
+        document.getElementById('rekapList').innerHTML = state.rekap.slice(0, 10).map(renderRekapCard).join('');
+        window.PSUI.syncPaginationHosts({ markup: '', visibleCount: 0, totalCount: 0, minimumCount: 0, topId: 'rekapPaginationTop', bottomId: 'rekapPaginationBottom' });
+        return;
+      }
+      const start = (state.rekapPage - 1) * state.rekapPageSize;
+      const pageItems = state.rekap.slice(start, start + state.rekapPageSize);
+      document.getElementById('rekapList').innerHTML = pageItems.map(renderRekapCard).join('');
+      syncRekapPagination();
+    }
+
+    // Hapus
+    function openHapus(id) {
+      state.deletingId = id;
+      const item = state.rekap.find(function (i) { return i.id === id; });
+      document.getElementById('hapusDesc').textContent = item
+        ? ('Absensi "' + (item.pengurusNama || '—') + '" tanggal ' + (item.tanggal || '—') + ' akan dihapus.')
+        : 'Data absensi akan dihapus.';
+      clearNotice('hapusError');
+      document.getElementById('hapusDialog').showModal();
+    }
+
+    function hapusAbsensi() {
+      if (!state.deletingId) return;
+      const btn = document.getElementById('btnHapusOk');
+      btn.disabled = true; btn.textContent = 'Menghapus...';
+      apiPost({ action: 'pengurus.absensi.delete', id: state.deletingId }).then(function () {
+        document.getElementById('hapusDialog').close();
+        state.deletingId = null;
+        showNotice('Absensi dihapus.', 'success');
+        return loadRekap();
+      }).catch(function (e) {
+        setNotice('hapusError', e.message || 'Gagal menghapus.', 'error');
+      }).finally(function () {
+        btn.disabled = false; btn.textContent = 'Hapus';
+      });
+    }
+
+    // Tab
+    document.querySelectorAll('.tab-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        document.querySelectorAll('.tab-btn').forEach(function (b) { b.classList.remove('active'); });
+        document.querySelectorAll('.tab-panel').forEach(function (p) { p.classList.remove('active'); });
+        btn.classList.add('active');
+        const panelId = 'tab' + btn.dataset.tab.charAt(0).toUpperCase() + btn.dataset.tab.slice(1);
+        const panel = document.getElementById(panelId);
+        if (panel) panel.classList.add('active');
+        if (btn.dataset.tab === 'rekap') loadRekap();
+      });
+    });
+
+    // Events
+    document.getElementById('btnRefreshGeo').addEventListener('click', checkGeo);
+    document.getElementById('btnAbsen').addEventListener('click', submitAbsensi);
+    document.getElementById('btnHapusFoto').addEventListener('click', clearFoto);
+
+    document.getElementById('btnBukaKamera').addEventListener('click', function () {
+      document.getElementById('kameraDialog').showModal();
+      startCamera();
+    });
+    document.getElementById('btnTutupKamera').addEventListener('click', function () {
+      stopCamera();
+      document.getElementById('kameraDialog').close();
+    });
+    document.getElementById('btnSwitchCamera').addEventListener('click', function () {
+      state.facingMode = state.facingMode === 'environment' ? 'user' : 'environment';
+      startCamera();
+    });
+    document.getElementById('btnCapture').addEventListener('click', capturePhoto);
+    document.getElementById('filterBulan').addEventListener('change', function () {
+      if (this.value) document.getElementById('filterTanggal').value = '';
+      loadRekap();
+    });
+    document.getElementById('filterTanggal').addEventListener('change', function () {
+      if (this.value) document.getElementById('filterBulan').value = '';
+      loadRekap();
+    });
+    document.getElementById('btnResetFilter').addEventListener('click', function () {
+      document.getElementById('filterBulan').value = '';
+      document.getElementById('filterTanggal').value = '';
+      loadRekap();
+    });
+
+    document.getElementById('rekapList').addEventListener('click', function (e) {
+      const delBtn = e.target.closest('[data-delete]');
+      const zoomImg = e.target.closest('[data-zoom]');
+      if (delBtn) openHapus(delBtn.dataset.delete);
+      else if (zoomImg) {
+        document.getElementById('fotoZoomImg').src = zoomImg.dataset.zoom;
+        document.getElementById('fotoZoomDialog').showModal();
+      }
+    });
+
+    document.getElementById('btnHapusOk').addEventListener('click', hapusAbsensi);
+    document.getElementById('btnHapusBatal').addEventListener('click', function () {
+      document.getElementById('hapusDialog').close(); state.deletingId = null;
+    });
+    document.getElementById('btnTutupFotoZoom').addEventListener('click', function () {
+      document.getElementById('fotoZoomDialog').close();
+    });
+
+    ['rekapPaginationTop', 'rekapPaginationBottom'].forEach(function (id) {
+      document.getElementById(id).addEventListener('click', function (e) {
+        const btn = e.target.closest('[data-page]');
+        if (!btn || btn.disabled) return;
+        const p = parseInt(btn.dataset.page, 10);
+        if (isNaN(p) || p < 1 || p > state.rekapTotalPages) return;
+        state.rekapPage = p;
+        renderRekap();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+    });
+
+    window.addEventListener('DOMContentLoaded', function () {
+      if (window.PSAccess && window.PSAccess.redirectIfForbidden(getStoredSession(), 'inputAbsensiPengurus.html')) return;
+      if (window.PSShell) {
+        window.PSShell.mount({
+          currentPage: window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : '/pages/inputAbsensiPengurus/',
+          session: getStoredSession(), getStoredSession: getStoredSession, storageKey: STORAGE.session
+        });
+      }
+
+      const s = getScopedSession();
+      const perms = s && s.permissions;
+      if (!perms || !perms.canAccessPanel) {
+        window.location.replace('/pages/login/');
+        return;
+      }
+
+      checkGeo();
+      loadRekap();
+    });
+  </script>
+</body>
+</html>

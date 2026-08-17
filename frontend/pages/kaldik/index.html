@@ -1,0 +1,950 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#9e2f22">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="../../shared-ui.css">
+  <script src="../../shared-ui.js"></script>
+  <title>Kalender Akademik</title>
+  <link rel="stylesheet" href="../../shared-shell.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700&display=swap');
+    :root {
+      --paper: #f6efe0;
+      --ink: #4d4034;
+      --muted: #7b6a58;
+      --line: rgba(91, 73, 57, 0.15);
+      --accent: #b97650;
+      --success: #74846c;
+      --danger: #a55a52;
+      --warning: #b58439;
+      --shadow: 0 18px 45px rgba(87, 67, 51, 0.18);
+      --radius: 24px;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; }
+    .panel { padding: 22px; }
+    h1, h2, h3 { margin: 0 0 8px; }
+    p { margin: 0; line-height: 1.65; }
+    button, input, select { font: inherit; }
+
+    /* Controls */
+    .cal-controls {
+      display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap;
+      margin-bottom: 18px;
+    }
+    .cal-nav-group { display: flex; align-items: center; gap: 6px; }
+    .cal-nav-btn {
+      width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;
+      border-radius: 50%; background: var(--line); color: var(--ink);
+      font-size: 20px; line-height: 1; padding: 0; border: none; cursor: pointer;
+      transition: background 0.15s, color 0.15s; font-weight: 700;
+    }
+    .cal-nav-btn:hover { background: var(--accent); color: #fff; }
+    .cal-month-label {
+      font-size: 17px; font-weight: 700; min-width: 164px; text-align: center;
+      letter-spacing: 0.2px;
+    }
+    .cal-today-btn {
+      padding: 7px 14px; font-size: 12px; font-weight: 700;
+      background: var(--line); color: var(--ink); border-radius: 20px;
+      border: none; cursor: pointer; transition: background 0.15s;
+    }
+    .cal-today-btn:hover { background: var(--accent); color: #fff; }
+    .cal-ta-select {
+      padding: 7px 12px; font-size: 12px; font-weight: 600; border-radius: 20px;
+      border: 1.5px solid var(--line); background: var(--paper); color: var(--ink);
+      cursor: pointer;
+    }
+
+    /* Layout: calendar + upcoming side panel */
+    .cal-layout {
+      display: grid;
+      gap: 18px;
+      align-items: start;
+    }
+    @media (max-width: 860px) {
+      .cal-layout { grid-template-columns: 1fr; }
+    }
+
+    /* Grid */
+    .cal-grid-wrap { overflow-x: auto; }
+    .cal-grid {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(70px, 1fr));
+      gap: 1px;
+      background: var(--line);
+      border-radius: 10px;
+      overflow: hidden;
+      min-width: 490px;
+    }
+    .cal-head-cell {
+      background: #ede3cf;
+      text-align: center; padding: 8px 2px;
+      font-size: 10px; font-weight: 700; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.6px;
+    }
+    .cal-head-cell.sunday { color: var(--danger); }
+    .cal-cell {
+      background: var(--paper);
+      min-height: 96px; padding: 5px 5px 6px;
+      position: relative; overflow: hidden;
+    }
+    .cal-cell.other-month { background: #f0e8d5; opacity: 0.55; }
+    .cal-cell.today { background: #fff8ee; }
+    .cal-cell.today::after {
+      content: ''; position: absolute; inset: 0;
+      outline: 2px solid var(--accent); outline-offset: -2px;
+      border-radius: 0; pointer-events: none;
+    }
+    .cal-num {
+      width: 24px; height: 24px;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 600; border-radius: 50%;
+      margin-bottom: 3px;
+    }
+    .cal-cell.today .cal-num { background: var(--accent); color: #fff; }
+    .cal-cell.sunday .cal-num { color: var(--danger); }
+
+    /* Events in cell */
+    .cal-event {
+      display: block; border-radius: 4px;
+      padding: 1px 5px; font-size: 10.5px; font-weight: 600;
+      margin-bottom: 2px; cursor: pointer;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      line-height: 1.7; transition: opacity 0.1s;
+    }
+    .cal-event:hover { opacity: 0.82; }
+    .cal-event.ev-cont { border-radius: 0; padding-left: 2px; }
+    .cal-event.ev-cont::before { content: '···'; margin-right: 3px; opacity: 0.5; }
+    .cal-more {
+      font-size: 10px; color: var(--muted); font-weight: 600;
+      padding: 1px 4px; cursor: pointer;
+    }
+    .cal-more:hover { color: var(--accent); }
+
+    /* Color palette */
+    .ev-merah  { background: #e57373; color: #fff; }
+    .ev-kuning { background: #e6b800; color: #fff; }
+    .ev-hijau  { background: #5daa7a; color: #fff; }
+    .ev-biru   { background: #4e8fc0; color: #fff; }
+    .ev-ungu   { background: #8b64c2; color: #fff; }
+    .ev-oranye { background: #e07b2c; color: #fff; }
+
+    /* Legend */
+    .legend {
+      display: flex; flex-wrap: wrap; gap: 8px 16px;
+      margin-top: 14px; padding-top: 12px;
+      border-top: 1px solid var(--line);
+    }
+    .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; color: var(--muted); }
+    .legend-dot { width: 11px; height: 11px; border-radius: 3px; flex-shrink: 0; }
+
+    /* Upcoming panel */
+    .upcoming-panel {
+      background: rgba(91,73,57,0.05);
+      border-radius: 14px; padding: 16px;
+    }
+    .upcoming-panel h3 { font-size: 14px; font-weight: 700; margin-bottom: 12px; color: var(--ink); }
+    .upcoming-item {
+      padding: 10px 0; border-bottom: 1px solid var(--line);
+      cursor: pointer; transition: opacity 0.1s;
+    }
+    .upcoming-item:last-child { border-bottom: none; }
+    .upcoming-item:hover { opacity: 0.75; }
+    .upcoming-date { font-size: 10px; font-weight: 700; color: var(--muted); margin-bottom: 3px; display: flex; align-items: center; gap: 5px; }
+    .upcoming-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .upcoming-title { font-size: 12.5px; font-weight: 600; color: var(--ink); line-height: 1.4; }
+    .upcoming-ta { font-size: 10px; color: var(--muted); margin-top: 1px; }
+
+    /* Detail overlay */
+    .ev-overlay {
+      position: fixed; inset: 0; background: rgba(40,28,18,0.38);
+      z-index: 300; display: flex; align-items: center; justify-content: center;
+      padding: 16px; opacity: 0; pointer-events: none; transition: opacity 0.18s;
+    }
+    .ev-overlay.open { opacity: 1; pointer-events: auto; }
+    .ev-card {
+      background: var(--paper); border-radius: 20px; padding: 24px;
+      max-width: 380px; width: 100%; box-shadow: var(--shadow);
+      transform: translateY(12px); transition: transform 0.18s;
+    }
+    .ev-overlay.open .ev-card { transform: translateY(0); }
+    .ev-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      border-radius: 20px; padding: 4px 12px;
+      font-size: 11px; font-weight: 700; margin-bottom: 10px;
+    }
+    .ev-card-title { font-size: 17px; font-weight: 700; margin-bottom: 6px; }
+    .ev-card-date { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+    .ev-card-desc { font-size: 13px; color: var(--ink); line-height: 1.6; }
+    .ev-card-close { margin-top: 18px; padding: 10px 20px; background: var(--line); border: none; border-radius: 20px; font-weight: 700; cursor: pointer; color: var(--ink); }
+    .ev-card-close:hover { background: var(--accent); color: #fff; }
+
+    .empty-state { padding: 32px 16px; text-align: center; color: var(--muted); font-size: 14px; }
+    h2, h3 { text-transform: uppercase; }
+
+    /* PDF Download */
+    .pdf-dl-btn {
+      padding: 7px 15px; font-size: 12px; font-weight: 700;
+      background: var(--accent); color: #fff; border-radius: 20px;
+      border: none; cursor: pointer; transition: filter 0.15s;
+    }
+    .pdf-dl-btn:hover { filter: brightness(1.12); }
+    .pdf-dl-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+    .pdf-quick-btn {
+      padding: 6px 13px; font-size: 11.5px; font-weight: 600;
+      background: var(--line); color: var(--ink); border-radius: 16px;
+      border: 1.5px solid transparent; cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+    .pdf-quick-btn:hover, .pdf-quick-btn.active { background: var(--accent); color: #fff; }
+    .pdf-row { display: flex; gap: 14px; margin-bottom: 14px; }
+    .pdf-col { flex: 1; }
+    .pdf-col label {
+      font-size: 10px; font-weight: 700; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.4px;
+      display: block; margin-bottom: 5px;
+    }
+    .pdf-col select {
+      width: 100%; padding: 7px 10px; font-size: 12px; font-weight: 600;
+      border-radius: 14px; border: 1.5px solid var(--line);
+      background: var(--paper); color: var(--ink); cursor: pointer; margin-bottom: 6px;
+    }
+    .pdf-actions { display: flex; gap: 8px; margin-top: 4px; }
+    .pdf-actions button { flex: 1; }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-left">
+      <button class="drawer-toggle" id="navToggle" type="button" aria-label="Toggle sidebar">Menu</button>
+      <div class="header-brand">Pendataan Santri</div>
+      <div class="header-page">Kalender Akademik</div>
+    </div>
+    <div class="header-right">
+      <span class="header-chip" id="headerRole">Pengurus</span>
+    </div>
+  </header>
+  <div class="drawer-backdrop" id="navBackdrop"></div>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+
+  <main>
+    <div class="app-layout">
+      <section class="panel nav" id="nav"></section>
+      <div class="content-stack">
+        <section class="notice info" id="notice"></section>
+        <section class="panel">
+          <div class="section-head">
+            <h2>Kalender Akademik</h2>
+          </div>
+
+          <div class="cal-controls">
+            <div class="cal-nav-group">
+              <button class="cal-nav-btn" id="prevMonth" type="button" aria-label="Bulan sebelumnya">&#8249;</button>
+              <span class="cal-month-label" id="monthLabel"></span>
+              <button class="cal-nav-btn" id="nextMonth" type="button" aria-label="Bulan berikutnya">&#8250;</button>
+            </div>
+            <button class="cal-today-btn" id="todayBtn" type="button">Hari ini</button>
+            <button class="pdf-dl-btn" id="pdfBtn" type="button">&#8615; PDF</button>
+          </div>
+
+          <div class="cal-layout">
+            <div style="overflow:auto;width:100%;
+            /* height: 80vh; */
+            ">
+              <div class="cal-grid-wrap">
+                <div class="cal-grid" id="calGrid">
+                  <p class="empty-state" style="grid-column:1/-1">Memuat kalender...</p>
+                </div>
+              </div>
+            </div>
+            <div class="legend">
+              <div class="legend-item"><span class="legend-dot" style="background:#e57373"></span>Libur / Hari Besar</div>
+              <div class="legend-item"><span class="legend-dot" style="background:#e6b800"></span>Ujian / Evaluasi</div>
+              <div class="legend-item"><span class="legend-dot" style="background:#5daa7a"></span>Kegiatan</div>
+              <div class="legend-item"><span class="legend-dot" style="background:#4e8fc0"></span>Akademik</div>
+              <div class="legend-item"><span class="legend-dot" style="background:#8b64c2"></span>Rapat / Admin</div>
+              <div class="legend-item"><span class="legend-dot" style="background:#e07b2c"></span>Lainnya</div>
+            </div>
+
+            <div class="upcoming-panel">
+              <h3>Acara Mendatang</h3>
+              <div id="upcomingList"><p style="font-size:12px;color:var(--muted)">Memuat...</p></div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <!-- Event detail overlay -->
+  <div id="evOverlay" class="ev-overlay" role="dialog" aria-modal="true">
+    <div class="ev-card" id="evCard">
+      <div id="evBadge" class="ev-badge"></div>
+      <div class="ev-card-title" id="evTitle"></div>
+      <div class="ev-card-date" id="evDate"></div>
+      <div class="ev-card-desc" id="evDesc"></div>
+      <button class="ev-card-close" id="evClose" type="button">Tutup</button>
+    </div>
+  </div>
+
+  <!-- PDF Download Modal -->
+  <div id="pdfModal" class="ev-overlay" role="dialog" aria-modal="true">
+    <div class="ev-card" style="max-width:440px">
+      <div style="font-size:16px;font-weight:700;margin-bottom:6px;color:var(--ink)">Download Kalender PDF</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:14px">Setiap bulan = 1 halaman A4 landscape (kalender + agenda)</div>
+
+      <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:8px">Rentang Cepat</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+        <button class="pdf-quick-btn" data-preset="6" type="button">6 Bulan</button>
+        <button class="pdf-quick-btn" data-preset="12" type="button">12 Bulan</button>
+        <button class="pdf-quick-btn" data-preset="ty" type="button">Tahun Ini</button>
+        <button class="pdf-quick-btn" data-preset="ta" type="button">Tahun Ajaran</button>
+      </div>
+
+      <div class="pdf-row">
+        <div class="pdf-col">
+          <label>Dari</label>
+          <select id="pdfFromMonth"></select>
+          <select id="pdfFromYear"></select>
+        </div>
+        <div class="pdf-col">
+          <label>Sampai</label>
+          <select id="pdfToMonth"></select>
+          <select id="pdfToYear"></select>
+        </div>
+      </div>
+
+      <div id="pdfRangeInfo" style="font-size:11px;color:var(--muted);margin-bottom:14px;text-align:center;min-height:16px"></div>
+
+      <div class="pdf-actions">
+        <button class="ev-card-close" id="pdfDownloadBtn" style="background:var(--accent);color:#fff" type="button">Download PDF</button>
+        <button class="ev-card-close" id="pdfModalClose" type="button">Batal</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="../../shared-access.js"></script>
+  <script src="../../shared-nav.js"></script>
+  <script src="../../shared-shell.js"></script>
+  <script>
+    const STORAGE = { apiBase: 'ps_api_base', token: 'ps_token', session: 'ps_session' };
+
+    const today = new Date();
+    const state = {
+      items: [],
+      viewYear: today.getFullYear(),
+      viewMonth: today.getMonth()
+    };
+
+    const uiState = { currentNoticeId: '', noticeCounter: 0, noticeShownAt: 0, pendingNotice: null };
+
+    const MONTH_NAMES = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+    const DAY_HEADERS = ['Sen','Sel','Rab','Kam','Jum','Sab','Min'];
+
+    const WARNA = {
+      merah:  { label: 'Libur / Hari Besar',  hex: '#e57373', css: 'ev-merah' },
+      kuning: { label: 'Ujian / Evaluasi',     hex: '#e6b800', css: 'ev-kuning' },
+      hijau:  { label: 'Kegiatan',             hex: '#5daa7a', css: 'ev-hijau' },
+      biru:   { label: 'Akademik',             hex: '#4e8fc0', css: 'ev-biru' },
+      ungu:   { label: 'Rapat / Administrasi', hex: '#8b64c2', css: 'ev-ungu' },
+      oranye: { label: 'Lainnya',              hex: '#e07b2c', css: 'ev-oranye' }
+    };
+
+    function escapeHtml(s) {
+      return String(s == null ? '' : s)
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+        .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    }
+
+    function getApiBase() { return localStorage.getItem(STORAGE.apiBase) || ''; }
+    function getToken()   { return localStorage.getItem(STORAGE.token) || ''; }
+    function getStoredSession() {
+      try { return JSON.parse(localStorage.getItem(STORAGE.session) || 'null'); } catch(e) { return null; }
+    }
+    function clearSession() {
+      localStorage.removeItem(STORAGE.token);
+      localStorage.removeItem(STORAGE.session);
+    }
+
+    function createNoticeElement(text, type) {
+      const el = document.createElement('section');
+      el.className = 'notice show ' + (type || 'info');
+      el.dataset.noticeId = 'n-' + Date.now() + '-' + (uiState.noticeCounter += 1);
+      el.textContent = text;
+      function dismiss() {
+        if (!el.parentNode) return;
+        el.classList.add('notice-dismissing');
+        setTimeout(() => {
+          el.remove();
+          const stack = document.getElementById('noticeStack');
+          if (stack && !stack.hasChildNodes() && stack.matches(':popover-open')) stack.hidePopover();
+        }, 220);
+      }
+      el.addEventListener('click', dismiss);
+      setTimeout(dismiss, type === 'error' ? 10000 : 6000);
+      return el;
+    }
+
+    function showNotice(text, type) {
+      if (uiState.pendingNotice) { clearTimeout(uiState.pendingNotice); uiState.pendingNotice = null; }
+      const elapsed = Date.now() - uiState.noticeShownAt;
+      if (elapsed < 2000 && uiState.currentNoticeId) {
+        uiState.pendingNotice = setTimeout(() => { uiState.pendingNotice = null; showNotice(text, type); }, 2000 - elapsed);
+        return;
+      }
+      clearNotice();
+      const el = createNoticeElement(text, type);
+      const stack = document.getElementById('noticeStack');
+      stack.prepend(el);
+      uiState.currentNoticeId = el.dataset.noticeId;
+      uiState.noticeShownAt = Date.now();
+      if (stack.matches(':popover-open')) stack.hidePopover();
+      stack.showPopover();
+    }
+
+    function clearNotice() {
+      if (uiState.pendingNotice) { clearTimeout(uiState.pendingNotice); uiState.pendingNotice = null; }
+      if (!uiState.currentNoticeId) return;
+      const el = document.querySelector('[data-notice-id="' + uiState.currentNoticeId + '"]');
+      if (el) el.remove();
+      uiState.currentNoticeId = '';
+    }
+
+    async function api(action, payload, method) {
+      const apiBase = getApiBase();
+      const token = getToken();
+      if (!apiBase || !token) { clearSession(); window.location.replace('/pages/login/'); throw new Error('Sesi tidak ditemukan.'); }
+      payload = payload || {};
+      method = method || 'GET';
+      if (method === 'GET') {
+        const params = new URLSearchParams({ action, token, ...payload });
+        const res = await fetch(apiBase + '?' + params.toString());
+        const json = await res.json();
+        if (!json.ok) throw new Error(json.error && json.error.message ? 'Server: ' + json.error.message : 'Permintaan gagal.');
+        return json.data;
+      }
+      const res = await fetch(apiBase + '?action=' + encodeURIComponent(action) + '&token=' + encodeURIComponent(token), {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error && json.error.message ? 'Server: ' + json.error.message : 'Permintaan gagal.');
+      return json.data;
+    }
+
+    function toDateStr(d) {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return y + '-' + m + '-' + day;
+    }
+
+    const todayStr = toDateStr(today);
+
+    function formatDate(str) {
+      if (!str) return '';
+      try {
+        const [y, m, d] = str.split('-').map(Number);
+        return new Date(y, m - 1, d).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+      } catch(e) { return str; }
+    }
+
+    function formatDateShort(str) {
+      if (!str) return '';
+      try {
+        const [y, m, d] = str.split('-').map(Number);
+        return new Date(y, m - 1, d).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+      } catch(e) { return str; }
+    }
+
+    function getFilteredItems() {
+      return state.items;
+    }
+
+    function getEventsForDay(dateStr, items) {
+      return items.filter(function(ev) {
+        const start = ev.tanggalMulai || '';
+        const end   = ev.tanggalSelesai || start;
+        return dateStr >= start && dateStr <= end;
+      });
+    }
+
+    function renderCell(date, dateStr, evs, otherMonth) {
+      const dow = date.getDay(); // 0=Sun
+      const isSunday = dow === 0;
+      const isToday  = dateStr === todayStr;
+
+      let cls = 'cal-cell';
+      if (otherMonth) cls += ' other-month';
+      if (isToday)    cls += ' today';
+      if (isSunday)   cls += ' sunday';
+
+      const MAX_SHOW = 3;
+      let evHtml = evs.slice(0, MAX_SHOW).map(function(ev) {
+        const w = WARNA[ev.warna] || WARNA.oranye;
+        const isStart = dateStr === (ev.tanggalMulai || '');
+        const isMulti = ev.tanggalMulai !== (ev.tanggalSelesai || ev.tanggalMulai);
+        const isCont  = isMulti && !isStart;
+        return '<span class="cal-event ' + w.css + (isCont ? ' ev-cont' : '') + '" data-ev-id="' + escapeHtml(ev.id) + '">'
+          + (isCont ? '' : escapeHtml(ev.judul))
+          + '</span>';
+      }).join('');
+
+      if (evs.length > MAX_SHOW) {
+        evHtml += '<span class="cal-more">+' + (evs.length - MAX_SHOW) + ' lagi</span>';
+      }
+
+      return '<div class="' + cls + '" data-date="' + dateStr + '">'
+        + '<div class="cal-num">' + date.getDate() + '</div>'
+        + evHtml
+        + '</div>';
+    }
+
+    function renderCalendar() {
+      const { viewYear, viewMonth } = state;
+      document.getElementById('monthLabel').textContent = MONTH_NAMES[viewMonth] + ' ' + viewYear;
+
+      const items = getFilteredItems();
+
+      // First day, Mon-based (Mon=0 … Sun=6)
+      const firstDay = new Date(viewYear, viewMonth, 1);
+      let startDow = (firstDay.getDay() + 6) % 7;
+
+      const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+
+      let html = DAY_HEADERS.map(function(d, i) {
+        return '<div class="cal-head-cell' + (i === 6 ? ' sunday' : '') + '">' + d + '</div>';
+      }).join('');
+
+      // Prev month fill
+      for (let i = 0; i < startDow; i++) {
+        const d = new Date(viewYear, viewMonth, 1 - (startDow - i));
+        html += renderCell(d, toDateStr(d), getEventsForDay(toDateStr(d), items), true);
+      }
+      // Current month
+      for (let d = 1; d <= daysInMonth; d++) {
+        const date = new Date(viewYear, viewMonth, d);
+        const ds = toDateStr(date);
+        html += renderCell(date, ds, getEventsForDay(ds, items), false);
+      }
+      // Next month fill
+      const totalCells = Math.ceil((startDow + daysInMonth) / 7) * 7;
+      for (let i = 1; i <= totalCells - startDow - daysInMonth; i++) {
+        const d = new Date(viewYear, viewMonth + 1, i);
+        html += renderCell(d, toDateStr(d), getEventsForDay(toDateStr(d), items), true);
+      }
+
+      document.getElementById('calGrid').innerHTML = html;
+      renderUpcoming(items);
+    }
+
+    function renderUpcoming(items) {
+      const upcoming = items
+        .filter(function(ev) { return (ev.tanggalSelesai || ev.tanggalMulai || '') >= todayStr; })
+        .sort(function(a, b) { return (a.tanggalMulai || '').localeCompare(b.tanggalMulai || ''); })
+        .slice(0, 12);
+
+      const el = document.getElementById('upcomingList');
+      if (!upcoming.length) {
+        el.innerHTML = '<p style="font-size:12px;color:var(--muted);">Tidak ada acara mendatang.</p>';
+        return;
+      }
+
+      el.innerHTML = upcoming.map(function(ev) {
+        const w = WARNA[ev.warna] || WARNA.oranye;
+        const isSingle = ev.tanggalMulai === (ev.tanggalSelesai || ev.tanggalMulai);
+        const dateLabel = isSingle
+          ? formatDateShort(ev.tanggalMulai)
+          : formatDateShort(ev.tanggalMulai) + ' — ' + formatDateShort(ev.tanggalSelesai);
+        return '<div class="upcoming-item" data-ev-id="' + escapeHtml(ev.id) + '">'
+          + '<div class="upcoming-date">'
+          + '<span class="upcoming-dot" style="background:' + w.hex + '"></span>'
+          + escapeHtml(dateLabel)
+          + '</div>'
+          + '<div class="upcoming-title">' + escapeHtml(ev.judul) + '</div>'
+          + '</div>';
+      }).join('');
+    }
+
+    function openEventDetail(id) {
+      const ev = state.items.find(function(x) { return x.id === id; });
+      if (!ev) return;
+      const w = WARNA[ev.warna] || WARNA.oranye;
+      const isSingle = ev.tanggalMulai === (ev.tanggalSelesai || ev.tanggalMulai);
+      const dateLabel = isSingle
+        ? formatDate(ev.tanggalMulai)
+        : formatDate(ev.tanggalMulai) + ' — ' + formatDate(ev.tanggalSelesai);
+
+      document.getElementById('evBadge').style.background = w.hex;
+      document.getElementById('evBadge').style.color = '#fff';
+      document.getElementById('evBadge').textContent = w.label;
+      document.getElementById('evTitle').textContent = ev.judul;
+      document.getElementById('evDate').textContent = dateLabel;
+      document.getElementById('evDesc').textContent = ev.deskripsi || '';
+
+      document.getElementById('evOverlay').classList.add('open');
+    }
+
+    function closeEventDetail() {
+      document.getElementById('evOverlay').classList.remove('open');
+    }
+
+    async function loadData() {
+      showNotice('Memuat kalender...', 'info');
+      try {
+        const kaldikData = await api('kaldik.list');
+        state.items = kaldikData.items || [];
+        clearNotice();
+        renderCalendar();
+      } catch(err) {
+        showNotice(err.message || 'Gagal memuat data.', 'error');
+      }
+    }
+
+    function mountShell() {
+      return window.PSShell.mount({
+        currentPage: window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : '/pages/kaldik/',
+        session: getStoredSession(),
+        getStoredSession,
+        storageKey: STORAGE.session
+      });
+    }
+
+    // ── PDF Download ──────────────────────────────────────────────────
+    function hexRgb(hex) {
+      return [parseInt(hex.slice(1,3),16), parseInt(hex.slice(3,5),16), parseInt(hex.slice(5,7),16)];
+    }
+
+    function openPdfModal() {
+      populatePdfSelects();
+      applyPdfPreset('6');
+      document.getElementById('pdfModal').classList.add('open');
+    }
+
+    function closePdfModal() {
+      document.getElementById('pdfModal').classList.remove('open');
+    }
+
+    function populatePdfSelects() {
+      const opts = MONTH_NAMES.map((n, i) => `<option value="${i}">${n}</option>`).join('');
+      ['pdfFromMonth','pdfToMonth'].forEach(id => { document.getElementById(id).innerHTML = opts; });
+      const cy = new Date().getFullYear();
+      let yOpts = '';
+      for (let y = cy - 2; y <= cy + 4; y++) yOpts += `<option value="${y}">${y}</option>`;
+      ['pdfFromYear','pdfToYear'].forEach(id => { document.getElementById(id).innerHTML = yOpts; });
+    }
+
+    function applyPdfPreset(preset) {
+      document.querySelectorAll('.pdf-quick-btn').forEach(b => b.classList.toggle('active', b.dataset.preset === preset));
+      const now = new Date();
+      let y = now.getFullYear(), m = now.getMonth();
+      let fromY = y, fromM = m, toY = y, toM = m;
+
+      if (preset === '6') {
+        const e = new Date(y, m + 5, 1); toY = e.getFullYear(); toM = e.getMonth();
+      } else if (preset === '12') {
+        const e = new Date(y, m + 11, 1); toY = e.getFullYear(); toM = e.getMonth();
+      } else if (preset === 'ty') {
+        fromM = 0; toM = 11;
+      } else if (preset === 'ta') {
+        if (m >= 6) { fromM = 6; toY = y + 1; toM = 5; }
+        else { fromY = y - 1; fromM = 6; toM = 5; }
+      }
+
+      document.getElementById('pdfFromYear').value  = fromY;
+      document.getElementById('pdfFromMonth').value = fromM;
+      document.getElementById('pdfToYear').value    = toY;
+      document.getElementById('pdfToMonth').value   = toM;
+      updatePdfRangeInfo();
+    }
+
+    function updatePdfRangeInfo() {
+      const fM = parseInt(document.getElementById('pdfFromMonth').value);
+      const fY = parseInt(document.getElementById('pdfFromYear').value);
+      const tM = parseInt(document.getElementById('pdfToMonth').value);
+      const tY = parseInt(document.getElementById('pdfToYear').value);
+      const n  = (tY - fY) * 12 + (tM - fM) + 1;
+      const el = document.getElementById('pdfRangeInfo');
+      if (n <= 0) {
+        el.textContent = 'Rentang tidak valid.'; el.style.color = 'var(--danger)';
+      } else if (n > 24) {
+        el.textContent = n + ' halaman — terlalu banyak (maks 24 bulan).'; el.style.color = 'var(--danger)';
+      } else {
+        el.textContent = MONTH_NAMES[fM] + ' ' + fY + ' — ' + MONTH_NAMES[tM] + ' ' + tY + ' (' + n + ' halaman)';
+        el.style.color = 'var(--muted)';
+      }
+    }
+
+    async function loadJsPDF() {
+      if (window.jspdf) return;
+      await new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+        s.onload = resolve;
+        s.onerror = () => reject(new Error('Gagal memuat library PDF. Periksa koneksi.'));
+        document.head.appendChild(s);
+      });
+    }
+
+    async function downloadKaldikPDF() {
+      const btn = document.getElementById('pdfDownloadBtn');
+      const fM = parseInt(document.getElementById('pdfFromMonth').value);
+      const fY = parseInt(document.getElementById('pdfFromYear').value);
+      const tM = parseInt(document.getElementById('pdfToMonth').value);
+      const tY = parseInt(document.getElementById('pdfToYear').value);
+      const total = (tY - fY) * 12 + (tM - fM) + 1;
+
+      if (total <= 0 || total > 24) { showNotice('Rentang tidak valid.', 'error'); return; }
+
+      btn.disabled = true; btn.textContent = 'Memproses...';
+
+      try {
+        await loadJsPDF();
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+        const evItems = state.items;
+
+        const PW = 297, PH = 210, ML = 12;
+        const CW = PW - 2*ML;       // 273
+        const CellW = CW / 7;       // ~39
+        const HeadH = 7, CellH = 15;
+        const CalY = 24;
+
+        const ink     = [77,64,52];
+        const muted   = [123,106,88];
+        const paper   = [246,239,224];
+        const accent  = [185,118,80];
+        const danger  = [165,90,82];
+        const headBg  = [237,227,207];
+        const otherBg = [240,232,213];
+        const todayBg = [255,248,238];
+        const lineC   = [210,200,185];
+        const titleBg = [158,47,34];
+        const agBg    = [235,225,208];
+
+        let cY = fY, cM = fM, pageNum = 0;
+
+        while (cY < tY || (cY === tY && cM <= tM)) {
+          if (pageNum > 0) doc.addPage();
+          pageNum++;
+
+          // ── Title bar
+          doc.setFillColor(...titleBg);
+          doc.rect(0, 0, PW, 10, 'F');
+          doc.setFontSize(7.5); doc.setFont('helvetica','bold'); doc.setTextColor(255,255,255);
+          doc.text('KALENDER AKADEMIK', ML, 6.5);
+
+          // ── Month title
+          doc.setFontSize(13); doc.setFont('helvetica','bold'); doc.setTextColor(...ink);
+          doc.text(MONTH_NAMES[cM] + ' ' + cY, PW/2, 18, { align:'center' });
+
+          // ── Day headers
+          ['Sen','Sel','Rab','Kam','Jum','Sab','Min'].forEach((d, i) => {
+            const cx = ML + i * CellW;
+            doc.setFillColor(...headBg); doc.rect(cx, CalY, CellW, HeadH, 'F');
+            doc.setDrawColor(...lineC); doc.setLineWidth(0.15); doc.rect(cx, CalY, CellW, HeadH, 'S');
+            doc.setFontSize(6.5); doc.setFont('helvetica','bold');
+            doc.setTextColor(...(i === 6 ? danger : muted));
+            doc.text(d, cx + CellW/2, CalY + HeadH/2, { align:'center', baseline:'middle' });
+          });
+
+          // ── Build cells
+          const firstDay = new Date(cY, cM, 1);
+          const startDow = (firstDay.getDay() + 6) % 7;
+          const dim = new Date(cY, cM+1, 0).getDate();
+          const totalCells = Math.ceil((startDow + dim) / 7) * 7;
+          const cells = [];
+
+          for (let i = 0; i < startDow; i++) {
+            const d = new Date(cY, cM, 1-(startDow-i)), ds = toDateStr(d);
+            cells.push({ d, ds, other: true, evs: getEventsForDay(ds, evItems) });
+          }
+          for (let n = 1; n <= dim; n++) {
+            const d = new Date(cY, cM, n), ds = toDateStr(d);
+            cells.push({ d, ds, other: false, evs: getEventsForDay(ds, evItems) });
+          }
+          for (let i = 1; i <= totalCells-startDow-dim; i++) {
+            const d = new Date(cY, cM+1, i), ds = toDateStr(d);
+            cells.push({ d, ds, other: true, evs: getEventsForDay(ds, evItems) });
+          }
+
+          // ── Draw cells
+          cells.forEach(({ d, ds, other, evs }, idx) => {
+            const col = idx % 7, row = Math.floor(idx / 7);
+            const cx = ML + col * CellW, cy = CalY + HeadH + row * CellH;
+            const isSun = col === 6, isToday = ds === todayStr;
+
+            const bg = other ? otherBg : isToday ? todayBg : paper;
+            doc.setFillColor(...bg); doc.rect(cx, cy, CellW, CellH, 'F');
+            doc.setDrawColor(...lineC); doc.setLineWidth(0.15); doc.rect(cx, cy, CellW, CellH, 'S');
+
+            if (isToday) {
+              doc.setDrawColor(...accent); doc.setLineWidth(0.45);
+              doc.rect(cx+0.25, cy+0.25, CellW-0.5, CellH-0.5, 'S');
+              doc.setLineWidth(0.15); doc.setDrawColor(...lineC);
+            }
+
+            // Date number
+            const numX = cx + 4.5, numY = cy + 4.5;
+            if (isToday) {
+              doc.setFillColor(...accent); doc.circle(numX, numY, 3, 'F');
+              doc.setTextColor(255,255,255);
+            } else {
+              doc.setTextColor(...(other ? [190,175,155] : isSun ? danger : ink));
+            }
+            doc.setFontSize(7); doc.setFont('helvetica','bold');
+            doc.text(String(d.getDate()), numX, numY, { align:'center', baseline:'middle' });
+
+            // Events (max 2 per cell)
+            evs.slice(0, 2).forEach((ev, ei) => {
+              const w = WARNA[ev.warna] || WARNA.oranye;
+              const rgb = hexRgb(w.hex);
+              const ey = cy + 8.5 + ei * 4;
+              doc.setFillColor(...rgb); doc.roundedRect(cx+1, ey, CellW-2, 3.2, 0.7, 0.7, 'F');
+              doc.setTextColor(255,255,255); doc.setFontSize(5); doc.setFont('helvetica','normal');
+              const isStart = ds === (ev.tanggalMulai || '');
+              const raw = isStart ? ev.judul : ('··· ' + ev.judul);
+              const lbl = doc.splitTextToSize(raw, CellW - 4)[0] || '';
+              doc.text(lbl, cx+2, ey+1.6, { baseline:'middle' });
+            });
+            if (evs.length > 2) {
+              doc.setTextColor(...muted); doc.setFontSize(5); doc.setFont('helvetica','normal');
+              doc.text('+' + (evs.length-2), cx+1, cy+CellH-2, { baseline:'middle' });
+            }
+          });
+
+          // ── Agenda section
+          const numRows = Math.ceil(totalCells / 7);
+          const agY = CalY + HeadH + numRows * CellH + 5;
+
+          doc.setFillColor(...agBg); doc.roundedRect(ML, agY, CW, 6.5, 1.5, 1.5, 'F');
+          doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.setTextColor(...ink);
+          doc.text('AGENDA ' + MONTH_NAMES[cM].toUpperCase() + ' ' + cY, ML+4, agY+3.5, { baseline:'middle' });
+
+          const mStart = cY + '-' + String(cM+1).padStart(2,'0') + '-01';
+          const mEnd   = cY + '-' + String(cM+1).padStart(2,'0') + '-' + String(dim).padStart(2,'0');
+          const mEvs = evItems
+            .filter(ev => { const s = ev.tanggalMulai||'', e = ev.tanggalSelesai||s; return s <= mEnd && e >= mStart; })
+            .sort((a,b) => (a.tanggalMulai||'').localeCompare(b.tanggalMulai||''));
+
+          const agLineH = 5.5, agLimitY = PH - 10;
+          let ay = agY + 9;
+
+          if (!mEvs.length) {
+            doc.setFontSize(7); doc.setFont('helvetica','italic'); doc.setTextColor(...muted);
+            doc.text('Tidak ada kegiatan bulan ini.', ML+4, ay, { baseline:'middle' });
+          } else {
+            mEvs.forEach(ev => {
+              if (ay + agLineH > agLimitY) return;
+              const w = WARNA[ev.warna] || WARNA.oranye;
+              const rgb = hexRgb(w.hex);
+
+              doc.setFillColor(...rgb); doc.circle(ML+3, ay, 1.5, 'F');
+
+              const isSingle = ev.tanggalMulai === (ev.tanggalSelesai || ev.tanggalMulai);
+              const dateLbl = isSingle
+                ? formatDate(ev.tanggalMulai)
+                : formatDate(ev.tanggalMulai) + ' — ' + formatDate(ev.tanggalSelesai);
+              doc.setFontSize(6.5); doc.setFont('helvetica','normal'); doc.setTextColor(...muted);
+              doc.text(dateLbl, ML+7, ay, { baseline:'middle' });
+
+              doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.setTextColor(...ink);
+              const titleLine = doc.splitTextToSize(ev.judul, 125)[0] || '';
+              doc.text(titleLine, ML+68, ay, { baseline:'middle' });
+
+              doc.setFontSize(6); doc.setFont('helvetica','normal'); doc.setTextColor(...rgb);
+              doc.text(w.label, ML+200, ay, { baseline:'middle' });
+
+              ay += agLineH;
+            });
+          }
+
+          // ── Legend + page number
+          const legY = PH - 5.5;
+          let lx = ML;
+          Object.values(WARNA).forEach(w => {
+            const rgb = hexRgb(w.hex);
+            doc.setFillColor(...rgb); doc.roundedRect(lx, legY-2, 3, 3, 0.5, 0.5, 'F');
+            doc.setFontSize(5.5); doc.setFont('helvetica','normal'); doc.setTextColor(...muted);
+            doc.text(w.label, lx+4, legY-0.5, { baseline:'middle' });
+            lx += 45;
+          });
+          doc.setFontSize(6); doc.setTextColor(...muted);
+          doc.text(String(pageNum), PW-ML, legY-0.5, { align:'right', baseline:'middle' });
+
+          cM++; if (cM > 11) { cM = 0; cY++; }
+        }
+
+        const fname = 'kaldik-' + fY + '-' + String(fM+1).padStart(2,'0') + '_sd_' + tY + '-' + String(tM+1).padStart(2,'0') + '.pdf';
+        doc.save(fname);
+        closePdfModal();
+        showNotice('PDF berhasil diunduh (' + total + ' halaman).', 'info');
+      } catch(err) {
+        showNotice(err.message || 'Gagal membuat PDF.', 'error');
+      } finally {
+        btn.disabled = false; btn.textContent = 'Download PDF';
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────
+
+    const initialSession = getStoredSession();
+    if (!initialSession) { clearSession(); window.location.replace('/pages/login/'); }
+    else if (!(window.PSAccess && window.PSAccess.redirectIfForbidden(initialSession, '/pages/kaldik/'))) {
+      mountShell();
+      loadData();
+
+      document.getElementById('prevMonth').addEventListener('click', function() {
+        state.viewMonth--;
+        if (state.viewMonth < 0) { state.viewMonth = 11; state.viewYear--; }
+        renderCalendar();
+      });
+      document.getElementById('nextMonth').addEventListener('click', function() {
+        state.viewMonth++;
+        if (state.viewMonth > 11) { state.viewMonth = 0; state.viewYear++; }
+        renderCalendar();
+      });
+      document.getElementById('todayBtn').addEventListener('click', function() {
+        const t = new Date();
+        state.viewYear  = t.getFullYear();
+        state.viewMonth = t.getMonth();
+        renderCalendar();
+      });
+      document.getElementById('calGrid').addEventListener('click', function(e) {
+        const evEl = e.target.closest('[data-ev-id]');
+        if (evEl) openEventDetail(evEl.getAttribute('data-ev-id'));
+      });
+      document.getElementById('upcomingList').addEventListener('click', function(e) {
+        const item = e.target.closest('[data-ev-id]');
+        if (item) openEventDetail(item.getAttribute('data-ev-id'));
+      });
+      document.getElementById('evClose').addEventListener('click', closeEventDetail);
+      document.getElementById('evOverlay').addEventListener('click', function(e) {
+        if (e.target === document.getElementById('evOverlay')) closeEventDetail();
+      });
+
+      document.getElementById('pdfBtn').addEventListener('click', openPdfModal);
+      document.getElementById('pdfModalClose').addEventListener('click', closePdfModal);
+      document.getElementById('pdfModal').addEventListener('click', function(e) {
+        if (e.target === this) closePdfModal();
+      });
+      document.getElementById('pdfDownloadBtn').addEventListener('click', downloadKaldikPDF);
+      document.querySelectorAll('.pdf-quick-btn').forEach(b => {
+        b.addEventListener('click', () => applyPdfPreset(b.dataset.preset));
+      });
+      ['pdfFromMonth','pdfFromYear','pdfToMonth','pdfToYear'].forEach(id => {
+        document.getElementById(id).addEventListener('change', () => {
+          document.querySelectorAll('.pdf-quick-btn').forEach(b => b.classList.remove('active'));
+          updatePdfRangeInfo();
+        });
+      });
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,360 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#9e2f22">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="../../../shared-ui.css">
+  <link rel="stylesheet" href="../../../shared-shell.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+  <script src="../../../shared-ui.js"></script>
+  <title>Profil Santri</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700&display=swap');
+
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; }
+
+    .panel { padding: 22px; }
+
+    :root {
+      --paper: #fff6df;
+      --brown: #4a2f22;
+      --dark: #24170f;
+      --orange: #c96f35;
+      --mustard: #d9a441;
+      --sp-shadow: rgba(52, 32, 19, 0.18);
+    }
+
+    .hero-inner { display: grid; gap: 6px; }
+    .hero-inner .hero-label {
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      font-size: 13px;
+      color: var(--muted, #7b6a58);
+    }
+    .hero-inner h1 {
+      margin: 4px 0 8px;
+      font-size: clamp(1.8rem, 4vw, 3rem);
+      font-family: 'Playfair Display', serif;
+      line-height: 1.05;
+      color: var(--ink, #4d4034);
+    }
+    .hero-inner .hero-sub {
+      font-size: 14px;
+      color: var(--muted, #7b6a58);
+      line-height: 1.6;
+    }
+
+    .chip-list { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      min-height: 30px;
+      padding: 0 12px;
+      font-weight: 700;
+      font-size: 12.5px;
+      border-radius: 20px;
+      background: #f0ece8;
+      color: var(--ink, #4d4034);
+      border: 1px solid rgba(91,73,57,0.15);
+    }
+
+    .sp-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+    .sp-card {
+      padding: 14px 16px;
+      border-radius: 12px;
+      background: #faf7f4;
+      border: 1px solid rgba(91,73,57,0.12);
+    }
+    .sp-card strong {
+      display: block;
+      font-size: 11.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted, #7b6a58);
+      margin-bottom: 5px;
+    }
+    .sp-card span { font-size: 14px; font-weight: 600; color: var(--ink, #4d4034); }
+
+    .section-title { font-size: 15px; font-weight: 800; color: var(--ink, #4d4034); margin: 0 0 4px; }
+    .section-sub { font-size: 13px; color: var(--muted, #7b6a58); margin: 0 0 14px; }
+
+    .content-grid { display: grid; gap: 12px; margin-top: 14px; }
+    .content-card {
+      padding: 16px;
+      border-radius: 12px;
+      border: 1px solid rgba(91,73,57,0.12);
+      background: rgba(242, 222, 154, 0.96) !important;
+    }
+    .content-card h3 { margin: 0 0 6px; font-size: 15px; color: var(--ink, #4d4034); }
+    .content-card p { margin: 0; font-size: 13.5px; color: var(--muted, #7b6a58); line-height: 1.6; }
+    .content-card .meta { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+
+    .loading-state { text-align: center; padding: 40px 20px; color: var(--muted, #7b6a58); }
+
+    .pagination { display: flex; align-items: center; justify-content: center; gap: 4px; flex-wrap: wrap; margin-top: 12px; }
+    .pagination button { min-width: 32px; height: 32px; border-radius: 8px; border: 1px solid rgba(91,73,57,0.2); background: #fff; color: var(--ink, #4d4034); font-size: 13px; font-weight: 600; cursor: pointer; padding: 0 6px; }
+    .pagination button:hover { background: #f5f0eb; }
+    .pagination button.active { background: var(--orange); color: #fff; border-color: var(--orange); }
+    .pagination button:disabled { opacity: .4; cursor: default; }
+  </style>
+</head>
+<body>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+  <main>
+    <div class="app-layout">
+      <section class="panel nav" id="nav"></section>
+      <div class="content-stack">
+
+        <section class="panel">
+          <div class="hero-inner">
+            <div class="hero-label">Profil Santri</div>
+            <h1 id="heroName">Memuat...</h1>
+            <p class="hero-sub" id="heroText">Mengambil data diri, halaqoh, kelas siang, dan regu.</p>
+            <div class="chip-list" id="heroMeta"></div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <p class="section-title">Identitas</p>
+          <p class="section-sub">Data diri santri</p>
+          <div class="sp-grid" id="identityGrid">
+            <div class="loading-state"><i class="fa-solid fa-spinner fa-spin"></i></div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="section-head" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+            <div>
+              <p class="section-title">Keanggotaan</p>
+              <p class="section-sub">Halaqoh, kelas siang, dan regu</p>
+            </div>
+            <label style="display:grid;gap:4px;font-size:12px;font-weight:700;color:var(--muted,#7b6a58);min-width:200px;">
+              Tahun ajaran
+              <select id="tahunAjaranFilter" style="padding:8px 10px;border-radius:10px;border:1px solid rgba(91,73,57,0.2);">
+                <option value="">Semua tahun ajaran</option>
+              </select>
+            </label>
+          </div>
+          <div class="sp-grid" id="membershipGrid"></div>
+        </section>
+
+        <section class="panel">
+          <p class="section-title">Mading Digital Santri</p>
+          <p class="section-sub">Pengumuman dan mading digital untuk santri</p>
+          <div class="content-grid" id="contentList"></div>
+        </section>
+
+      </div>
+    </div>
+  </main>
+
+  <script src="../../../shared-access.js"></script>
+  <script src="../../../shared-nav.js"></script>
+  <script src="../../../shared-shell.js"></script>
+  <script>
+    const API_BASE = window.location.origin + '/api';
+    const STORAGE = { token: 'ps_token', session: 'ps_session', apiBase: 'ps_api_base' };
+    localStorage.setItem(STORAGE.apiBase, API_BASE);
+
+    function getToken() { return localStorage.getItem(STORAGE.token) || ''; }
+    function getStoredSession() { try { return JSON.parse(localStorage.getItem(STORAGE.session) || 'null'); } catch { return null; } }
+    function clearSession() { localStorage.removeItem(STORAGE.token); localStorage.removeItem(STORAGE.session); }
+    function saveSession(session) { localStorage.setItem(STORAGE.session, JSON.stringify(session)); }
+
+    function showNotice(text, type) {
+      const stack = document.getElementById('noticeStack');
+      if (!stack) return;
+      const el = document.createElement('section');
+      el.className = 'notice show ' + (type || 'info');
+      el.textContent = text;
+      el.addEventListener('click', () => el.remove());
+      setTimeout(() => el.remove(), type === 'error' ? 8000 : 5000);
+      stack.prepend(el);
+      if (!stack.matches(':popover-open')) stack.showPopover();
+    }
+
+    function mountShell(session) {
+      return window.PSShell.mount({
+        currentPage: 'santriProfile.html',
+        session,
+        getStoredSession,
+        storageKey: STORAGE.session
+      });
+    }
+
+    async function api(action, payload = {}) {
+      const token = getToken();
+      if (!token) { clearSession(); window.location.replace('/pages/loginSantri/'); throw new Error('Sesi tidak ditemukan.'); }
+      const r = await fetch(`${API_BASE}?${new URLSearchParams({ action, token, ...payload })}`);
+      const json = await r.json();
+      if (!json.ok) {
+        const e = new Error(json.error?.message || 'Gagal.');
+        e.code = json.error?.code || 500;
+        if (e.code === 401) { clearSession(); window.location.replace('/pages/loginSantri/'); }
+        throw e;
+      }
+      return json.data;
+    }
+
+    function escHtml(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+    const state = { profileData: null, tahunAjaranId: '', contentPage: 1 };
+    const CONTENT_PAGE_SIZE = 10;
+
+    function renderPagination(page, total, limit) {
+      const pages = Math.ceil(total / limit);
+      if (pages <= 1) return '';
+      let html = '<div class="pagination">';
+      html += `<button data-page="${page - 1}" ${page <= 1 ? 'disabled' : ''}><i class="fa-solid fa-chevron-left"></i></button>`;
+      for (let i = 1; i <= pages; i++) html += `<button class="${i === page ? 'active' : ''}" data-page="${i}">${i}</button>`;
+      html += `<button data-page="${page + 1}" ${page >= pages ? 'disabled' : ''}><i class="fa-solid fa-chevron-right"></i></button>`;
+      html += '</div>';
+      return html;
+    }
+
+    function populateTahunAjaranFilter(list) {
+      const sel = document.getElementById('tahunAjaranFilter');
+      sel.innerHTML = '<option value="">Semua tahun ajaran</option>' +
+        list.map(t => `<option value="${escHtml(t.id)}">${escHtml(t.namaDisplay || t.nama)}${t.isAktif ? ' (Aktif)' : ''}</option>`).join('');
+      const aktif = list.find(t => t.isAktif);
+      state.tahunAjaranId = aktif ? aktif.id : '';
+      sel.value = state.tahunAjaranId;
+    }
+
+    function renderIdentity(santri) {
+      const items = [
+        ['Nama lengkap sesuai akte', santri.namaLengkap || santri.name || '-'],
+        ['Nama lengkap sesuai KK',   santri.namaLengkapKk || '-'],
+        ['Nama panggilan', santri.namaPanggilan || '-'],
+        ['No induk',       santri.noInduk || '-'],
+        ['Program',        santri.program || '-'],
+        ['Angkatan',       santri.angkatan || '-'],
+        ['No HP',          santri.noHp || '-'],
+        ['Jenis kelamin',  santri.jenisKelamin || '-'],
+        ['Status',         santri.status || '-']
+      ];
+      document.getElementById('identityGrid').innerHTML = items
+        .map(([label, val]) => `<div class="sp-card"><strong>${escHtml(label)}</strong><span>${escHtml(val)}</span></div>`)
+        .join('');
+    }
+
+    function renderMemberships(data) {
+      const taId = state.tahunAjaranId;
+      const byTa = list => taId ? (list || []).filter(item => (item.tahunAjaranId || '') === taId) : (list || []);
+      const line = (label, text) => text ? `<span style="font-size:12px;color:var(--muted,#7b6a58);margin-top:4px;display:block;">${escHtml(label)}: ${escHtml(text)}</span>` : '';
+      const names = arr => (arr || []).filter(Boolean).join(', ');
+      const taSuffix = item => item.tahunAjaranNama ? line('TA', item.tahunAjaranNama) : '';
+      const halaqoh = byTa(data.halaqoh).map(h =>
+        `<div class="sp-card"><strong>Halaqoh</strong><span>${escHtml(h.name || '-')}</span>${line('Pengampu', names(h.pengampuLabels))}${line('Badal', names(h.badalLabels))}${taSuffix(h)}</div>`).join('');
+      const kelas = byTa(data.kelasSiang).map(k =>
+        `<div class="sp-card"><strong>Kelas Siang</strong><span>${escHtml(k.name || '-')}</span>${line('Jam', k.jam)}${line('Pengajar', names(k.pengajarLabels))}${line('Badal', names(k.badalLabels))}${taSuffix(k)}</div>`).join('');
+      const regu = byTa(data.regu).map(r =>
+        `<div class="sp-card"><strong>Regu</strong><span>${escHtml(r.name || '-')}</span>${line('Pembina', names(r.pembinaLabels))}${taSuffix(r)}</div>`).join('');
+      const empty = (label) => `<div class="sp-card"><strong>${label}</strong><span style="color:var(--muted,#7b6a58)">Belum ada data</span></div>`;
+      document.getElementById('membershipGrid').innerHTML =
+        (halaqoh || empty('Halaqoh')) + (kelas || empty('Kelas Siang')) + (regu || empty('Regu'));
+    }
+
+    function renderMembershipView() {
+      const data = state.profileData;
+      if (!data) return;
+      const taId = state.tahunAjaranId;
+      const byTa = list => taId ? (list || []).filter(item => (item.tahunAjaranId || '') === taId) : (list || []);
+      document.getElementById('heroMeta').innerHTML = [
+        `<span class="chip"><i class="fa-solid fa-book-open" style="margin-right:5px;"></i>Halaqoh ${byTa(data.halaqoh).length}</span>`,
+        `<span class="chip"><i class="fa-solid fa-school" style="margin-right:5px;"></i>Kelas ${byTa(data.kelasSiang).length}</span>`,
+        `<span class="chip"><i class="fa-solid fa-people-group" style="margin-right:5px;"></i>Regu ${byTa(data.regu).length}</span>`
+      ].join('');
+      renderMemberships(data);
+    }
+
+    function renderContent(items, total, page) {
+      items = items || [];
+      if (!total) {
+        document.getElementById('contentList').innerHTML = `<div class="content-card"><h3>Belum ada mading</h3><p>Mading digital santri belum dipublikasikan.</p></div>`;
+        return;
+      }
+      document.getElementById('contentList').innerHTML = items.map(item => `
+        <div class="content-card">
+          <h3>${escHtml(item.title || '-')}</h3>
+          <p>${escHtml(item.summary || item.body || '-')}</p>
+          <div class="meta">
+            <span class="chip">${escHtml(item.targetRole || '-')}</span>
+            <span class="chip">${escHtml(item.publishedAt || '-')}</span>
+          </div>
+        </div>`).join('') + renderPagination(page, total, CONTENT_PAGE_SIZE);
+    }
+
+    async function loadContentPage(page) {
+      state.contentPage = page;
+      try {
+        const data = await api('santri.self', { contentPage: page });
+        state.profileData.content = data.content;
+        state.profileData.contentTotal = data.contentTotal;
+        state.profileData.contentPage = data.contentPage;
+        renderContent(data.content, data.contentTotal, data.contentPage);
+      } catch (e) {
+        showNotice(e.message || 'Gagal memuat mading.', 'error');
+      }
+    }
+
+    document.getElementById('contentList').addEventListener('click', event => {
+      const btn = event.target.closest('button[data-page]');
+      if (!btn) return;
+      const page = parseInt(btn.dataset.page, 10);
+      if (!page || page < 1) return;
+      loadContentPage(page);
+    });
+
+    async function loadProfile() {
+      const session = getStoredSession();
+      if (!session || session.role !== 'santri') {
+        clearSession();
+        window.location.replace('/pages/loginSantri/');
+        return;
+      }
+      mountShell(session);
+      try {
+        const sessionData = await api('session');
+        if (sessionData.session?.role !== 'santri') {
+          clearSession();
+          window.location.replace('/pages/loginSantri/');
+          return;
+        }
+        saveSession(sessionData.session);
+        const data = await api('santri.self');
+        state.profileData = data;
+        document.getElementById('heroName').textContent = data.santri.name || data.santri.namaLengkap || '-';
+        document.getElementById('heroText').textContent =
+          `No induk ${data.santri.noInduk || '-'} · Program ${data.santri.program || '-'} · Status ${data.santri.status || '-'}`;
+        populateTahunAjaranFilter(data.tahunAjaranList || []);
+        renderIdentity(data.santri);
+        renderMembershipView();
+        renderContent(data.content || [], data.contentTotal || 0, data.contentPage || 1);
+        document.getElementById('tahunAjaranFilter').addEventListener('change', event => {
+          state.tahunAjaranId = event.target.value;
+          renderMembershipView();
+        });
+      } catch (e) {
+        showNotice(e.message || 'Gagal memuat data santri.', 'error');
+        document.getElementById('identityGrid').innerHTML = `<div class="loading-state" style="color:var(--danger,#a55a52);"><i class="fa-solid fa-triangle-exclamation"></i><p>${escHtml(e.message)}</p></div>`;
+      }
+    }
+
+    loadProfile();
+    if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {}); }
+  </script>
+</body>
+</html>

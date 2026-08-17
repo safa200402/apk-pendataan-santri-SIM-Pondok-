@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#4a2f22">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="../../shared-ui.css">
+  <link rel="stylesheet" href="../../shared-shell.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+  <script src="../../shared-ui.js"></script>
+  <title>Riwayat Pindah Regu</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700&display=swap');
+    :root { --paper:#f6efe0; --ink:#4d4034; --muted:#7b6a58; --line:rgba(91,73,57,0.15); --accent:#b97650; --success:#74846c; --danger:#a55a52; --warning:#b58439; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; }
+    .panel { padding: 22px; }
+    h1,h2,h3 { margin: 0 0 10px; }
+    p { margin: 0; line-height: 1.6; }
+    button, input, select, textarea { font: inherit; }
+    button { padding: 12px 18px; font-weight: 700; cursor: pointer; }
+    .primary { box-shadow: 0 14px 28px rgba(185, 118, 80, 0.22); }
+    input, select, textarea { width: 100%; padding: 13px 14px; outline: none; }
+    label { display: grid; gap: 7px; font-size: 14px; font-weight: 600; }
+    .toolbar, .meta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; align-items: center; }
+
+    .pindah-list { display: grid; gap: 10px; margin-top: 10px; }
+    .pindah-card { border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; background: rgba(242, 222, 154, 0.5); display: flex; gap: 12px; align-items: flex-start; justify-content: space-between; }
+    .pindah-card-main { display: grid; gap: 6px; min-width: 0; }
+    .pindah-card-actions { flex-shrink: 0; display: flex; flex-direction: column; gap: 6px; }
+    .pindah-route { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 15px; font-weight: 700; color: var(--ink); }
+    .pindah-route i { color: var(--muted); font-size: 13px; }
+    .pindah-santri { font-size: 13.5px; font-weight: 700; color: var(--accent); }
+    .pindah-meta { font-size: 12.5px; color: var(--muted); }
+    .pindah-alasan { font-size: 13px; color: var(--ink); border-radius: 10px; padding: 8px 10px; }
+    .pill { display: inline-block; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; padding: 3px 10px; border-radius: 999px; background: rgba(74,110,158,0.18); color: #33587f; }
+    .pill.inactive { background: rgba(123,106,88,0.16); color: var(--muted); }
+    .pindah-card-actions button { padding: 8px 14px; font-size: 12.5px; }
+
+    .empty-state { text-align: center; padding: 40px 16px; color: var(--muted); }
+    .empty-state i { font-size: 32px; opacity: 0.4; }
+
+    .paging-host { display: grid; gap: 8px; margin: 16px 0; }
+    .paging { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; }
+    .page-center { display: grid; gap: 8px; justify-items: center; }
+    .page-numbers { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+    .page-summary { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+    @media (max-width: 960px) { .paging { grid-template-columns: 1fr; } }
+
+    .pindah-santri-picker { position: relative; }
+    .pindah-santri-results {
+      display: none;
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      right: 0;
+      z-index: 20;
+      max-height: 200px;
+      overflow: auto;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      box-shadow: 0 18px 45px rgba(87, 67, 51, 0.18);
+      padding: 6px;
+      gap: 2px;
+    }
+    .pindah-santri-results:not([hidden]) { display: grid; }
+    .pindah-santri-results .pindah-santri-item { padding: 8px 10px; border-radius: 8px; color: var(--ink); cursor: pointer; }
+    .pindah-santri-results .pindah-santri-item:hover { background: rgba(185, 118, 80, 0.15); }
+    .pindah-santri-results .pindah-santri-empty { padding: 8px 10px; font-size: 12px; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+  <main>
+    <div class="app-layout">
+      <section class="panel nav" id="nav"></section>
+      <div class="content-stack">
+        <section class="panel">
+          <h1 style="font-family:'Playfair Display',serif;font-size:1.9rem;">Riwayat Pindah Regu</h1>
+          <p style="color:var(--muted);font-size:14px;">Catatan permanen setiap perpindahan santri antar regu (dalam tahun ajaran yang sama).</p>
+        </section>
+
+        <section class="panel">
+          <div class="filters" id="filtersPanel">
+            <label>
+              Cari
+              <input id="searchInput" type="search" placeholder="Cari nama santri, regu, atau pengguna...">
+            </label>
+            <label>
+              Tahun ajaran
+              <select id="tahunAjaranFilter"><option value="">Semua tahun ajaran</option></select>
+            </label>
+            <label>
+              Status
+              <select id="statusFilter">
+                <option value="">Semua</option>
+                <option value="active">Aktif</option>
+                <option value="inactive">Nonaktif</option>
+              </select>
+            </label>
+            <label>
+              Urutkan
+              <select id="sortSelect">
+                <option value="tanggal_desc" selected>Tanggal pindah terbaru</option>
+                <option value="tanggal_asc">Tanggal pindah terlama</option>
+                <option value="dicatat_desc">Dicatat terbaru</option>
+                <option value="dicatat_asc">Dicatat terlama</option>
+                <option value="santri_asc">Nama santri A-Z</option>
+                <option value="santri_desc">Nama santri Z-A</option>
+              </select>
+            </label>
+            <label>
+              Jumlah per halaman
+              <select id="pageSizeSelect">
+                <option value="10">10</option>
+                <option value="20" selected>20</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </label>
+          </div>
+          <div class="toolbar" id="actionToolbar">
+            <button class="primary" id="addPindahButton" type="button">+ Catat Pindah Regu</button>
+            <button class="secondary" id="refreshButton" type="button">Muat ulang</button>
+          </div>
+          <div class="paging-host" id="paginationTop"></div>
+          <div class="pindah-list" id="pindahList"></div>
+          <div class="paging-host" id="paginationBottom"></div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <dialog class="ps-floating-dialog" id="pindahDialog">
+    <form class="dialog-body duplicate-dialog-body ps-dialog-shell" id="pindahForm" method="dialog">
+      <div class="duplicate-dialog-head ps-dialog-header">
+        <div>
+          <h3>Catat Pindah Regu</h3>
+          <p>Santri langsung dikeluarkan dari regu asal & dimasukkan ke regu tujuan. Keduanya wajib di tahun ajaran yang sama.</p>
+        </div>
+      </div>
+      <label>
+        Tahun ajaran
+        <select id="pindahTaSelect" required></select>
+      </label>
+      <label>
+        Regu asal
+        <select id="pindahAsalSelect" required>
+          <option value="">— Pilih regu asal —</option>
+        </select>
+      </label>
+      <label>
+        Santri
+        <div class="pindah-santri-picker">
+          <input type="text" id="pindahSantriDialogSearch" placeholder="Pilih regu asal dahulu" autocomplete="off" disabled>
+          <input type="hidden" id="pindahSantriDialogSelect" value="">
+          <div class="pindah-santri-results" id="pindahSantriDialogResults" hidden></div>
+        </div>
+      </label>
+      <label>
+        Regu tujuan
+        <select id="pindahTujuanSelect" required>
+          <option value="">— Pilih regu asal dahulu —</option>
+        </select>
+      </label>
+      <label>
+        Tanggal pindah
+        <input type="date" id="pindahTanggalDialogInput" required>
+      </label>
+      <label>
+        Alasan (opsional)
+        <input type="text" id="pindahAlasanDialogInput" placeholder="Alasan pindah">
+      </label>
+      <div class="toolbar ps-dialog-footer">
+        <button class="primary" type="submit">Pindahkan</button>
+        <button class="secondary" id="closePindahDialog" type="button">Batal</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="ps-floating-dialog" id="editPindahDialog">
+    <form class="dialog-body duplicate-dialog-body ps-dialog-shell" id="editPindahForm" method="dialog">
+      <div class="duplicate-dialog-head ps-dialog-header">
+        <div>
+          <h3>Edit Data Mutasi</h3>
+          <p id="editPindahRouteLabel"></p>
+        </div>
+      </div>
+      <input type="hidden" id="editPindahId">
+      <p style="font-size:12.5px;color:var(--muted);">Cuma tanggal pindah & alasan yang bisa diedit — santri dan regu asal/tujuan tidak bisa diubah di sini karena tidak akan ikut memindah ulang keanggotaan regu aslinya.</p>
+      <label>
+        Tanggal pindah
+        <input type="date" id="editPindahTanggalInput" required>
+      </label>
+      <label>
+        Alasan (opsional)
+        <input type="text" id="editPindahAlasanInput" placeholder="Alasan pindah">
+      </label>
+      <div class="toolbar ps-dialog-footer">
+        <button class="primary" type="submit">Simpan</button>
+        <button class="secondary" id="closeEditPindahDialog" type="button">Batal</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="../../shared-access.js"></script>
+  <script src="../../shared-nav.js"></script>
+  <script src="../../shared-shell.js"></script>
+  <script>
+    const API_BASE = window.location.origin + '/api';
+    const STORAGE = { apiBase: 'ps_api_base', token: 'ps_token', session: 'ps_session' };
+    localStorage.setItem(STORAGE.apiBase, API_BASE);
+
+    const state = {
+      items: [], page: 1, pageSize: 20, total: 0, totalPages: 1,
+      q: '', tahunAjaranId: '', status: '', sort: 'tanggal_desc',
+      canManage: false, canDelete: false
+    };
+    const dialogState = { tahunAjaranList: [], santriRefs: [], reguByTa: {}, santriOptions: [] };
+
+    let noticeId = '', noticeCounter = 0;
+    function getToken() { return localStorage.getItem(STORAGE.token) || ''; }
+    function clearSession() { localStorage.removeItem(STORAGE.token); localStorage.removeItem(STORAGE.session); }
+    function getStoredSession() { try { return JSON.parse(localStorage.getItem(STORAGE.session) || 'null'); } catch (e) { return null; } }
+    function escapeHtml(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
+    function showNotice(text, type) {
+      const stack = document.getElementById('noticeStack');
+      const el = document.createElement('div'); el.className = `notice show ${type || ''}`.trim();
+      el.dataset.noticeId = `n-${Date.now()}-${noticeCounter += 1}`; el.textContent = text;
+      el.addEventListener('click', () => el.remove()); setTimeout(() => el.remove(), type === 'error' ? 9000 : 5000);
+      if (noticeId) { const o = document.querySelector(`[data-notice-id="${noticeId}"]`); if (o) o.remove(); }
+      stack.prepend(el); noticeId = el.dataset.noticeId; if (stack.matches(':popover-open')) stack.hidePopover(); stack.showPopover();
+    }
+
+    async function api(action, payload = {}, method = 'GET') {
+      const token = getToken();
+      if (!token) { clearSession(); window.location.replace('/pages/login/'); throw new Error('Sesi tidak ditemukan.'); }
+      const scopeLabel = window.PSAccess && typeof window.PSAccess.getActiveRoleScopeLabel === 'function'
+        ? (window.PSAccess.getActiveRoleScopeLabel(getStoredSession()) || '')
+        : '';
+      const params = new URLSearchParams({ action, token, scopeLabel, ...payload });
+      const response = method === 'GET'
+        ? await fetch(`${API_BASE}?${params.toString()}`)
+        : await fetch(API_BASE, { method, body: params });
+      const json = await response.json();
+      if (!json.ok) {
+        const e = new Error(json.error?.message ? `Server: ${json.error.message}` : 'Gagal.');
+        e.code = json.error?.code || 500;
+        if (e.code === 401) { clearSession(); window.location.replace('/pages/login/'); }
+        throw e;
+      }
+      return json.data;
+    }
+
+    function mountShell(session) {
+      return window.PSShell.mount({ currentPage: window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : '/pages/riwayatPindahRegu/', session, getStoredSession, storageKey: STORAGE.session });
+    }
+
+    function buildPaginationList(page, totalPages) {
+      const maxNumbers = 10;
+      if (totalPages <= maxNumbers) return Array.from({ length: totalPages }, (_, index) => index + 1);
+      const middleSlots = maxNumbers - 2;
+      const pages = [1];
+      let start = Math.max(2, page - Math.floor(middleSlots / 2));
+      let end = start + middleSlots - 1;
+      if (end > totalPages - 1) { end = totalPages - 1; start = end - middleSlots + 1; }
+      if (start > 2) pages.push('...');
+      for (let value = start; value <= end; value += 1) pages.push(value);
+      if (end < totalPages - 1) pages.push('...');
+      pages.push(totalPages);
+      return pages;
+    }
+
+    function renderPagination() {
+      const markup = state.total ? `
+        <div class="paging">
+          <button class="secondary" type="button" data-page="${state.page - 1}" ${state.page <= 1 ? 'disabled' : ''}>Sebelumnya</button>
+          <div class="page-center">
+            <div class="page-numbers">
+              ${buildPaginationList(state.page, state.totalPages).map(item =>
+                item === '...'
+                  ? '<span class="page-summary">...</span>'
+                  : `<button class="secondary page-btn ${item === state.page ? 'active' : ''}" type="button" data-page="${item}">${item}</button>`
+              ).join('')}
+            </div>
+            <div class="page-summary">Halaman ${state.page} dari ${state.totalPages} | total ${state.total} mutasi</div>
+          </div>
+          <button class="secondary" type="button" data-page="${state.page + 1}" ${state.page >= state.totalPages ? 'disabled' : ''}>Berikutnya</button>
+        </div>` : '';
+      window.PSUI.syncPaginationHosts({ markup, visibleCount: state.items.length, totalCount: state.total, minimumCount: 0, topId: 'paginationTop', bottomId: 'paginationBottom' });
+    }
+
+    function formatDate(v) {
+      if (!v) return '-';
+      const match = String(v).match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (!match) return v;
+      return new Date(Date.UTC(+match[1], +match[2] - 1, +match[3])).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric', timeZone: 'UTC' });
+    }
+
+    function renderList() {
+      const list = document.getElementById('pindahList');
+      if (!state.items.length) {
+        list.innerHTML = '<div class="empty-state"><i class="fa-solid fa-shuffle"></i><p style="margin-top:8px;">Belum ada riwayat pindah regu.</p></div>';
+        renderPagination();
+        return;
+      }
+      list.innerHTML = state.items.map(item => {
+        const recordedAt = item.createdAt ? new Date(item.createdAt).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : '-';
+        return `
+        <div class="pindah-card">
+          <div class="pindah-card-main">
+            <div class="pindah-route">
+              <span class="pindah-santri">${escapeHtml(item.santriName || '-')}</span>
+              <span>${escapeHtml(item.fromReguName || '-')}</span>
+              <i class="fa-solid fa-arrow-right-long"></i>
+              <span>${escapeHtml(item.toReguName || '-')}</span>
+              ${item.tahunAjaranNama ? `<span class="pill">${escapeHtml(item.tahunAjaranNama)}</span>` : ''}
+              <span class="pill${item.active ? '' : ' inactive'}">${escapeHtml(item.status)}</span>
+            </div>
+            <div class="pindah-meta">Tanggal pindah: <strong>${escapeHtml(formatDate(item.tanggalPindah))}</strong> &nbsp;·&nbsp; Dicatat oleh ${escapeHtml(item.userName || '-')} pada ${escapeHtml(recordedAt)}</div>
+            <div class="pindah-alasan"><strong>Alasan:</strong> ${escapeHtml(item.alasan || '-')}</div>
+          </div>
+          <div class="pindah-card-actions">
+            <button class="secondary${state.canManage ? '' : ' ps-locked'}" type="button" data-edit="${escapeHtml(item.id)}" ${state.canManage ? '' : 'disabled aria-disabled="true" title="Tidak punya akses untuk mengedit."'}>Edit</button>
+            <button class="${item.active ? 'danger' : 'primary'}${state.canManage ? '' : ' ps-locked'}" type="button" data-toggle="${escapeHtml(item.id)}" ${state.canManage ? '' : 'disabled aria-disabled="true" title="Tidak punya akses untuk mengubah status."'}>${item.active ? 'Nonaktifkan' : 'Aktifkan'}</button>
+            <button class="danger${state.canDelete ? '' : ' ps-locked'}" type="button" data-delete="${escapeHtml(item.id)}" ${state.canDelete ? '' : 'disabled aria-disabled="true" title="Hanya Super Admin yang bisa menghapus permanen."'}>Hapus Permanen</button>
+          </div>
+        </div>`;
+      }).join('');
+      renderPagination();
+    }
+
+    function populateTahunAjaranFilter(options) {
+      const sel = document.getElementById('tahunAjaranFilter');
+      sel.innerHTML = '<option value="">Semua tahun ajaran</option>' +
+        (options || []).map(ta => `<option value="${escapeHtml(ta.id)}">${escapeHtml(ta.nama)}${ta.isAktif ? ' (Aktif)' : ''}</option>`).join('');
+      sel.value = state.tahunAjaranId;
+    }
+
+    // Sekali di awal: tentukan tahun ajaran AKTIF sebagai filter default, sama seperti
+    // perilaku default di halaman editRegu.
+    let defaultTahunAjaranResolved = false;
+    async function resolveDefaultTahunAjaran() {
+      if (defaultTahunAjaranResolved) return;
+      defaultTahunAjaranResolved = true;
+      try {
+        const refs = await api('references', { sheetKey: 'regu' });
+        const aktif = (refs.tahunAjaran || []).find(ta => ta.isAktif);
+        if (aktif) state.tahunAjaranId = aktif.id;
+      } catch (error) { /* fallback: biarkan filter "Semua tahun ajaran" */ }
+    }
+
+    async function loadData() {
+      try {
+        const data = await api('pindahRegu.list', {
+          page: state.page, pageSize: state.pageSize,
+          q: state.q, tahunAjaranId: state.tahunAjaranId, sort: state.sort,
+          status: state.status
+        });
+        state.items = data.items || [];
+        state.total = data.total || 0;
+        state.page = data.page || 1;
+        state.totalPages = data.totalPages || 1;
+        state.canManage = !!data.canManage;
+        state.canDelete = !!data.canDelete;
+        populateTahunAjaranFilter(data.tahunAjaranOptions);
+        renderList();
+      } catch (error) {
+        showNotice(error.message || 'Gagal memuat riwayat pindah regu.', 'error');
+      }
+    }
+
+    async function toggleItem(id) {
+      const item = state.items.find(entry => entry.id === id);
+      if (!item) return;
+      const nextActive = !item.active;
+      if (!confirm(`${nextActive ? 'Aktifkan' : 'Nonaktifkan'} data mutasi "${item.santriName}" (${item.fromReguName} → ${item.toReguName})?`)) return;
+      try {
+        await api('pindahRegu.toggle', { id, active: nextActive }, 'POST');
+        await loadData();
+      } catch (error) {
+        showNotice(error.message || 'Gagal mengubah status data mutasi.', 'error');
+      }
+    }
+
+    async function deleteItem(id) {
+      const item = state.items.find(entry => entry.id === id);
+      if (!item) return;
+      const word = prompt(`Ketik HAPUS untuk menghapus permanen data mutasi "${item.santriName}" (${item.fromReguName} → ${item.toReguName}). Tindakan ini tidak bisa dibatalkan.`);
+      if (word === null) return;
+      if (word.trim().toUpperCase() !== 'HAPUS') {
+        showNotice('Konfirmasi tidak sesuai, penghapusan dibatalkan.', 'error');
+        return;
+      }
+      try {
+        await api('pindahRegu.delete', { id, confirm: word.trim() }, 'POST');
+        showNotice('Data mutasi dihapus permanen.', 'info');
+        await loadData();
+      } catch (error) {
+        showNotice(error.message || 'Gagal menghapus data mutasi.', 'error');
+      }
+    }
+
+    function openEditPindahDialog(id) {
+      const item = state.items.find(entry => entry.id === id);
+      if (!item) return;
+      document.getElementById('editPindahId').value = item.id;
+      document.getElementById('editPindahRouteLabel').textContent = `${item.santriName}: ${item.fromReguName} → ${item.toReguName}`;
+      document.getElementById('editPindahTanggalInput').value = item.tanggalPindah || '';
+      document.getElementById('editPindahAlasanInput').value = item.alasan || '';
+      document.getElementById('editPindahDialog').showModal();
+    }
+
+    async function submitEditPindahDialog(event) {
+      event.preventDefault();
+      const id = document.getElementById('editPindahId').value;
+      const tanggal = document.getElementById('editPindahTanggalInput').value;
+      const alasan = document.getElementById('editPindahAlasanInput').value.trim();
+      if (!tanggal) {
+        showNotice('Tanggal pindah wajib diisi.', 'error');
+        return;
+      }
+      try {
+        const result = await api('pindahRegu.edit', { id, tanggal, alasan }, 'POST');
+        document.getElementById('editPindahDialog').close();
+        await loadData();
+        showNotice(result.message || 'Data mutasi berhasil diperbarui.', 'success');
+      } catch (error) {
+        showNotice(error.message || 'Gagal menyimpan perubahan.', 'error');
+      }
+    }
+
+    document.getElementById('editPindahForm').addEventListener('submit', submitEditPindahDialog);
+    document.getElementById('closeEditPindahDialog').addEventListener('click', () => document.getElementById('editPindahDialog').close());
+
+    document.getElementById('pindahList').addEventListener('click', event => {
+      const btn = event.target.closest('[data-edit], [data-toggle], [data-delete]');
+      if (!btn) return;
+      if (btn.hasAttribute('data-edit')) openEditPindahDialog(btn.getAttribute('data-edit'));
+      else if (btn.hasAttribute('data-toggle')) toggleItem(btn.getAttribute('data-toggle'));
+      else if (btn.hasAttribute('data-delete')) deleteItem(btn.getAttribute('data-delete'));
+    });
+
+    function populateSelect(sel, options, placeholder) {
+      sel.innerHTML = `<option value="">${escapeHtml(placeholder)}</option>` +
+        options.map(o => `<option value="${escapeHtml(o.id)}">${escapeHtml(o.name)}</option>`).join('');
+    }
+
+    function setPindahSantriDialogOptions(members, emptyPlaceholder) {
+      dialogState.santriOptions = members;
+      document.getElementById('pindahSantriDialogSelect').value = '';
+      const searchInput = document.getElementById('pindahSantriDialogSearch');
+      searchInput.value = '';
+      searchInput.placeholder = members.length ? 'Cari & pilih santri...' : emptyPlaceholder;
+      searchInput.disabled = !members.length;
+      document.getElementById('pindahSantriDialogResults').hidden = true;
+    }
+
+    function renderPindahSantriDialogResults(query) {
+      const wrap = document.getElementById('pindahSantriDialogResults');
+      const q = (query || '').trim().toLowerCase();
+      const members = dialogState.santriOptions || [];
+      const filtered = q ? members.filter(m => m.name.toLowerCase().includes(q)) : members;
+      wrap.innerHTML = filtered.length
+        ? filtered.map(m => `<div class="pindah-santri-item" data-id="${m.id}">${escapeHtml(m.name)}</div>`).join('')
+        : `<div class="pindah-santri-empty">Tidak ada santri yang cocok.</div>`;
+      wrap.hidden = false;
+    }
+
+    function selectPindahSantriDialog(id, name) {
+      document.getElementById('pindahSantriDialogSelect').value = id;
+      document.getElementById('pindahSantriDialogSearch').value = name;
+      document.getElementById('pindahSantriDialogResults').hidden = true;
+    }
+
+    function onAsalChange() {
+      const taId = document.getElementById('pindahTaSelect').value;
+      const asalId = document.getElementById('pindahAsalSelect').value;
+      const tujuanSel = document.getElementById('pindahTujuanSelect');
+      if (!asalId) {
+        setPindahSantriDialogOptions([], '— Pilih regu asal dahulu —');
+        populateSelect(tujuanSel, [], '— Pilih regu asal dahulu —');
+        return;
+      }
+      const reguList = dialogState.reguByTa[taId] || [];
+      const asal = reguList.find(h => h.id === asalId);
+      const santriById = new Map(dialogState.santriRefs.map(s => [s.id, s.name]));
+      const members = (asal?.santriIds || []).map(id => ({ id, name: santriById.get(id) || ('#' + id) }));
+      setPindahSantriDialogOptions(members, '— Regu ini belum punya anggota —');
+      const targets = reguList.filter(h => h.id !== asalId && h.active).map(h => ({ id: h.id, name: h.name }));
+      populateSelect(tujuanSel, targets, targets.length ? '— Pilih regu tujuan —' : '— Tidak ada regu lain di tahun ajaran ini —');
+    }
+
+    function onTaChange() {
+      const taId = document.getElementById('pindahTaSelect').value;
+      const reguList = (dialogState.reguByTa[taId] || []).filter(h => h.active);
+      populateSelect(document.getElementById('pindahAsalSelect'), reguList, reguList.length ? '— Pilih regu asal —' : '— Tidak ada regu aktif di tahun ajaran ini —');
+      onAsalChange();
+    }
+
+    async function openPindahDialog() {
+      try {
+        const [refs, reguList] = await Promise.all([
+          api('references', { sheetKey: 'regu' }),
+          api('regu.list', { page: 1, pageSize: 500 })
+        ]);
+        dialogState.santriRefs = refs.santri || [];
+        dialogState.tahunAjaranList = refs.tahunAjaran || [];
+        dialogState.reguByTa = {};
+        (reguList.items || []).forEach(h => {
+          const taId = h.tahunAjaranId || '';
+          if (!dialogState.reguByTa[taId]) dialogState.reguByTa[taId] = [];
+          dialogState.reguByTa[taId].push(h);
+        });
+        const taSel = document.getElementById('pindahTaSelect');
+        const aktif = dialogState.tahunAjaranList.find(ta => ta.isAktif);
+        populateSelect(taSel, dialogState.tahunAjaranList.map(ta => ({ id: ta.id, name: (ta.namaDisplay || ta.nama) + (ta.isAktif ? ' (Aktif)' : '') })), '— Pilih tahun ajaran —');
+        taSel.value = aktif ? aktif.id : (dialogState.tahunAjaranList[0]?.id || '');
+        onTaChange();
+        document.getElementById('pindahTanggalDialogInput').value = new Date().toISOString().slice(0, 10);
+        document.getElementById('pindahAlasanDialogInput').value = '';
+        document.getElementById('pindahDialog').showModal();
+      } catch (error) {
+        showNotice(error.message || 'Gagal memuat data untuk form pindah regu.', 'error');
+      }
+    }
+
+    async function submitPindahDialog(event) {
+      event.preventDefault();
+      const fromReguId = document.getElementById('pindahAsalSelect').value;
+      const santriId = document.getElementById('pindahSantriDialogSelect').value;
+      const toReguId = document.getElementById('pindahTujuanSelect').value;
+      const tanggal = document.getElementById('pindahTanggalDialogInput').value;
+      const alasan = document.getElementById('pindahAlasanDialogInput').value.trim();
+      if (!fromReguId || !santriId || !toReguId || !tanggal) {
+        showNotice('Lengkapi regu asal, santri, regu tujuan, dan tanggal pindah.', 'error');
+        return;
+      }
+      try {
+        const result = await api('regu.pindahkanSantri', { santriId, fromReguId, toReguId, tanggal, alasan }, 'POST');
+        document.getElementById('pindahDialog').close();
+        state.page = 1;
+        await loadData();
+        showNotice(result.message || 'Santri berhasil dipindahkan.', 'success');
+      } catch (error) {
+        showNotice(error.message || 'Gagal memindahkan santri.', 'error');
+      }
+    }
+
+    document.getElementById('addPindahButton').addEventListener('click', openPindahDialog);
+    document.getElementById('closePindahDialog').addEventListener('click', () => document.getElementById('pindahDialog').close());
+    document.getElementById('pindahForm').addEventListener('submit', submitPindahDialog);
+    document.getElementById('pindahTaSelect').addEventListener('change', onTaChange);
+    document.getElementById('pindahAsalSelect').addEventListener('change', onAsalChange);
+    document.getElementById('pindahSantriDialogSearch').addEventListener('focus', event => renderPindahSantriDialogResults(event.target.value));
+    document.getElementById('pindahSantriDialogSearch').addEventListener('input', event => {
+      document.getElementById('pindahSantriDialogSelect').value = '';
+      renderPindahSantriDialogResults(event.target.value);
+    });
+    document.getElementById('pindahSantriDialogResults').addEventListener('click', event => {
+      const item = event.target.closest('.pindah-santri-item[data-id]');
+      if (!item) return;
+      selectPindahSantriDialog(item.dataset.id, item.textContent);
+    });
+    document.addEventListener('click', event => {
+      if (!event.target.closest('.pindah-santri-picker')) {
+        document.getElementById('pindahSantriDialogResults').hidden = true;
+      }
+    });
+
+    let searchTimer = null;
+    document.getElementById('searchInput').addEventListener('input', event => {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => { state.q = event.target.value.trim(); state.page = 1; loadData(); }, 350);
+    });
+    document.getElementById('tahunAjaranFilter').addEventListener('change', event => { state.tahunAjaranId = event.target.value; state.page = 1; loadData(); });
+    document.getElementById('statusFilter').addEventListener('change', event => { state.status = event.target.value; state.page = 1; loadData(); });
+    document.getElementById('sortSelect').addEventListener('change', event => { state.sort = event.target.value; state.page = 1; loadData(); });
+    document.getElementById('pageSizeSelect').addEventListener('change', event => { state.pageSize = parseInt(event.target.value, 10) || 20; state.page = 1; loadData(); });
+    document.getElementById('refreshButton').addEventListener('click', loadData);
+
+    function handlePaginationClick(event) {
+      const btn = event.target.closest('[data-page]');
+      if (!btn) return;
+      const pg = parseInt(btn.dataset.page, 10);
+      if (!isNaN(pg) && pg >= 1 && pg <= state.totalPages) { state.page = pg; loadData(); }
+    }
+    document.getElementById('paginationTop').addEventListener('click', handlePaginationClick);
+    document.getElementById('paginationBottom').addEventListener('click', handlePaginationClick);
+
+    const initialSession = getStoredSession();
+    if (!initialSession) {
+      clearSession();
+      window.location.replace('/pages/login/');
+    } else if (!(window.PSAccess && window.PSAccess.redirectIfForbidden(initialSession, '/pages/riwayatPindahRegu/'))) {
+      mountShell(initialSession);
+      resolveDefaultTahunAjaran().then(loadData);
+    }
+
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
+  </script>
+</body>
+</html>

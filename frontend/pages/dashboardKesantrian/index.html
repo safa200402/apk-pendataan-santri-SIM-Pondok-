@@ -1,0 +1,524 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#9e2f22">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="../../shared-ui.css">
+  <link rel="stylesheet" href="../../shared-shell.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+  <script src="../../shared-ui.js"></script>
+  <title>Dashboard Kesantrian</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700&display=swap');
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; }
+    .panel { padding: 22px; }
+    button { font: inherit; }
+    :root { --ink:#4d4034; --muted:#7b6a58; --line:rgba(91,73,57,0.15); --accent:#b97650; --danger:#a55a52; --cat-ringan:#3b82f6; --cat-sedang:#f59e0b; --cat-berat:#ef4444; }
+    .btn { padding: 9px 18px; border-radius: 12px; border: none; cursor: pointer; font-weight: 700; display: inline-flex; align-items: center; gap: 8px; }
+    /* Rekap cards */
+    .rekap-cards { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+    .rekap-card { padding: 14px 20px; border-radius: 12px; background: #fffbf7; border: 1px solid var(--line); min-width: 110px; text-align: center; }
+    .rekap-card .num { font-size: 1.8rem; font-weight: 800; line-height: 1; }
+    .rekap-card .lbl { font-size: 11px; font-weight: 700; margin-top: 3px; text-transform: uppercase; letter-spacing: .05em; }
+    .rekap-card.ringan .num { color: var(--cat-ringan); }
+    .rekap-card.sedang .num { color: var(--cat-sedang); }
+    .rekap-card.berat .num { color: var(--cat-berat); }
+    /* Audit section */
+    .audit-section { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+    .sec-header { display: flex; align-items: center; padding: 11px 14px; background: rgba(242, 222, 154, 0.96); gap: 8px; border-bottom: 1px solid transparent; }
+    .audit-section:not(.collapsed) .sec-header { border-bottom-color: var(--line); }
+    .sec-clickable { flex: 1; display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; min-width: 0; }
+    .sec-title { font-size: 0.95rem; font-weight: 700; color: var(--ink); display: flex; align-items: center; gap: 7px; }
+    .sec-title i { opacity: .65; font-size: .9em; }
+    .sec-meta { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+    .status-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 99px; }
+    .badge-ok { background: #e8f5e9; color: #2e7d32; }
+    .badge-warn { background: #fff3e0; color: #e65100; }
+.chevron { font-size: 10px; opacity: .5; transition: transform .2s; flex-shrink: 0; }
+    .audit-section:not(.collapsed) .chevron { transform: rotate(180deg); }
+    .sec-body { padding: 12px 14px; display: none; background: #f8f4ef; overflow-x: auto; }
+    .audit-section:not(.collapsed) .sec-body { display: block; }
+    .hint-box { background: #f8f4ef; border-top: 1px solid var(--line); padding: 9px 14px; font-size: 12.5px; color: var(--muted); line-height: 1.5; }
+    /* Table */
+    .issue-list { overflow-x: auto; }
+    .table-scroll { overflow-x: auto; margin-bottom: 10px; }
+    .detail-table { width: max-content; min-width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 0; }
+    .detail-table th { text-align: left; padding: 7px 10px; background: #f8f5f1; border-bottom: 2px solid var(--line); font-weight: 700; color: var(--ink); white-space: nowrap; }
+    .detail-table td { padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top; white-space: nowrap; }
+    .detail-table tr:last-child td { border-bottom: none; }
+    .cat-tag { display: inline-block; padding: 1px 7px; border-radius: 5px; font-size: 11px; font-weight: 700; }
+    .cat-tag.ringan { background: #dbeafe; color: var(--cat-ringan); }
+    .cat-tag.sedang { background: #fef3c7; color: #b45309; }
+    .cat-tag.berat { background: #fee2e2; color: var(--cat-berat); }
+    /* Pagination */
+    .pagination { display: flex; align-items: center; justify-content: center; gap: 4px; flex-wrap: wrap; margin-top: 8px; }
+    .pagination button { min-width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--line); background: #fff; color: var(--ink); font-size: 13px; font-weight: 600; cursor: pointer; padding: 0 6px; }
+    .pagination button:hover { background: #f5f0eb; }
+    .pagination button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .pagination button:disabled { opacity: .4; cursor: default; }
+    .sec-loading { text-align: center; padding: 20px; color: var(--muted); font-size: 13px; }
+    .empty-ok { text-align: center; padding: 18px; color: #2e7d32; font-size: 13px; }
+    .loading { text-align: center; padding: 40px; color: var(--muted); }
+    .filter-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+    .filter-row label { font-size: 13px; font-weight: 600; color: var(--ink); }
+    .filter-row input[type=month] { padding: 7px 10px; border: 1px solid var(--line); border-radius: 10px; font: inherit; font-size: 13px; background: rgba(242, 222, 154, 0.96); }
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; margin-bottom: 18px; }
+    .stat-card { background: rgba(242, 222, 154, 0.96); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; }
+    .stat-num { font-size: 1.8rem; font-weight: 800; color: var(--ink); line-height: 1; }
+    .stat-label { font-size: 12px; color: var(--muted); font-weight: 500; }
+  </style>
+</head>
+<body>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+  <main>
+    <div class="app-layout">
+      <section class="panel nav" id="nav"></section>
+      <div class="content-stack">
+        <section class="panel">
+          <h1 style="font-size:1.5rem;font-weight:700;color:var(--ink);margin:0 0 4px;">Dashboard Kesantrian</h1>
+          <p style="color:var(--muted);font-size:14px;margin:0 0 14px;">Rekap pelanggaran santri per bulan.</p>
+          <div class="filter-row">
+            <label for="bulanInput">Bulan:</label>
+            <input type="month" id="bulanInput">
+            <select id="taSelect" style="font:inherit;padding:8px 12px;border-radius:10px;border:1px solid var(--line);background:rgba(242, 222, 154, 0.96);color:var(--ink);font-size:13px;cursor:pointer;display:none;"></select>
+            <button class="btn primary" id="loadBtn"><i class="fa-solid fa-rotate-right"></i> Tampilkan</button>
+          </div>
+        </section>
+        <section class="panel">
+          <div id="statsGrid" class="stats-grid" style="display:none;"></div>
+          <div id="content"><div class="loading"><i class="fa-solid fa-spinner fa-spin fa-2x"></i><p style="margin-top:12px;">Memuat data...</p></div></div>
+        </section>
+      </div>
+    </div>
+  </main>
+  <script src="../../shared-access.js"></script>
+  <script src="../../shared-nav.js"></script>
+  <script src="../../shared-shell.js"></script>
+  <script>
+    const API_BASE = window.location.origin + '/api';
+    const STORAGE = { apiBase: 'ps_api_base', token: 'ps_token', session: 'ps_session' };
+    localStorage.setItem(STORAGE.apiBase, API_BASE);
+
+    function getStoredSession() { try { return JSON.parse(localStorage.getItem(STORAGE.session)); } catch { return null; } }
+    function getToken() { return localStorage.getItem(STORAGE.token); }
+    function clearSession() { localStorage.removeItem(STORAGE.session); localStorage.removeItem(STORAGE.token); }
+    function escapeHtml(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+    function mountShell(session) { return window.PSShell.mount({ currentPage: window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : 'dashboardKesantrian.html', session, getStoredSession, storageKey: STORAGE.session }); }
+
+    async function api(action, payload = {}) {
+      const token = getToken();
+      if (!token) { clearSession(); window.location.replace('/pages/login/'); throw new Error('Sesi tidak ditemukan.'); }
+      const r = await fetch(`${API_BASE}?${new URLSearchParams({ action, token, ...payload })}`);
+      const json = await r.json();
+      if (!json.ok) { const e = new Error(json.error?.message || 'Gagal.'); e.code = json.error?.code || 500; if (e.code === 401) { clearSession(); window.location.replace('/pages/login/'); } throw e; }
+      return json.data;
+    }
+
+    const state = { tahunAjaranId: '' };
+
+    const HINT = 'Rekap dan detail pelanggaran santri pada bulan yang dipilih, dikelompokkan berdasarkan kategori ringan, sedang, dan berat sesuai jenis pelanggaran yang dicatat.';
+
+    const STAT_ITEMS = [
+      { key: 'santriAktif',       label: 'Santri Aktif',           icon: 'fa-user-graduate' },
+      { key: 'santriTidakAktif',  label: 'Santri Tidak Aktif',     icon: 'fa-user-slash',        muted: true },
+      { key: 'santriDibekukan',   label: 'Santri Dibekukan',       icon: 'fa-user-lock',         muted: true },
+      { key: 'pengurusAktif',     label: 'Pengurus Aktif',         icon: 'fa-id-badge' },
+      { key: 'pengurusTidakAktif',label: 'Pengurus Tdk Aktif',     icon: 'fa-id-card-clip',      muted: true },
+      { key: 'pengurusDibekukan', label: 'Pengurus Dibekukan',     icon: 'fa-user-lock',         muted: true },
+      { key: 'reguAktif',         label: 'Regu Aktif',             icon: 'fa-people-group' },
+      { key: 'jenisAktif',        label: 'Jenis Pelanggaran Aktif', icon: 'fa-triangle-exclamation' },
+    ];
+
+    function renderStats(stats) {
+      if (!stats) return;
+      const grid = document.getElementById('statsGrid');
+      grid.style.display = '';
+      grid.innerHTML = STAT_ITEMS.map(item =>
+        `<div class="stat-card"${item.muted ? ' style="opacity:.7;"' : ''}>
+          <span class="stat-num" style="${item.muted ? 'font-size:1.4rem;' : ''}">${stats[item.key] ?? '-'}</span>
+          <span class="stat-label"><i class="fa-solid ${item.icon}" style="opacity:.55;margin-right:4px;"></i>${escapeHtml(item.label)}</span>
+        </div>`
+      ).join('');
+    }
+
+    function populateTaDropdown(list, selectedId, aktiveTaId) {
+      const sel = document.getElementById('taSelect');
+      sel.innerHTML = list.map(ta => {
+        const mark = ta.id === aktiveTaId ? ' (Aktif)' : '';
+        return `<option value="${escapeHtml(ta.id)}"${ta.id === selectedId ? ' selected' : ''}>${escapeHtml(ta.nama)}${mark}</option>`;
+      }).join('');
+      sel.style.display = list.length > 1 ? '' : 'none';
+    }
+
+    let reguKosongLoaded = false;
+    let reguGenderLoaded = false;
+    let pembinaTidakBerjabatanLoaded = false;
+    let santriReguLoaded = false;
+
+    function buildAuditSectionPagination(items, page, limit, total, goFnName) {
+      const pages = Math.ceil(total / limit);
+      if (pages <= 1) return '';
+      const maxBtn = 10; let start = Math.max(1, page - 5); let end = Math.min(pages, start + maxBtn - 1);
+      let html = '<div class="pagination">';
+      html += `<button onclick="${goFnName}(${page-1})" ${page<=1?'disabled':''}><i class="fa-solid fa-chevron-left"></i></button>`;
+      for (let i = start; i <= end; i++) html += `<button class="${i===page?'active':''}" onclick="${goFnName}(${i})">${i}</button>`;
+      html += `<button onclick="${goFnName}(${page+1})" ${page>=pages?'disabled':''}><i class="fa-solid fa-chevron-right"></i></button></div>`;
+      return html;
+    }
+
+    async function loadReguKosong(page) {
+      const listEl = document.getElementById('list_reguKosong');
+      if (!listEl) return;
+      listEl.innerHTML = '<div class="sec-loading"><i class="fa-solid fa-spinner fa-spin"></i> Memuat...</div>';
+      try {
+        const d = await api('dashboard.kesantrian.audit', { section: 'reguKosong', page, tahunAjaranId: state.tahunAjaranId });
+        reguKosongLoaded = true;
+        const badgeEl = document.getElementById('badge_reguKosong');
+        if (badgeEl) { badgeEl.className = `status-badge ${d.total===0?'badge-ok':'badge-warn'}`; badgeEl.innerHTML = d.total===0?'<i class="fa-solid fa-check-circle"></i> OK':`<i class="fa-solid fa-triangle-exclamation"></i> ${d.total}`; }
+        if (!d.items.length && d.total === 0) {
+          listEl.innerHTML = '<div class="empty-ok"><i class="fa-solid fa-circle-check"></i> Semua OK — tidak ada masalah.</div>';
+        } else {
+          let html = '<div class="issue-list">' + d.items.map(r => `<div class="issue-row">
+            <span class="nm">${escapeHtml(r.name)}</span>
+            <span class="detail">
+              ${r.noPembina ? '<span class="tag-warn">Tanpa pembina</span>&nbsp;' : ''}
+              ${r.noSantri ? '<span class="tag-warn">0 santri</span>' : ''}
+            </span></div>`).join('') + '</div>';
+          html += buildAuditSectionPagination(d.items, d.page, d.limit, d.total, 'goReguKosong');
+          listEl.innerHTML = html;
+        }
+      } catch (e) {
+        listEl.innerHTML = `<div class="sec-loading" style="color:var(--danger);">${escapeHtml(e.message)}</div>`;
+      }
+    }
+
+    async function goReguKosong(page) { const sy = window.scrollY; await loadReguKosong(page); window.scrollTo(0, sy); }
+
+    function toggleReguKosong() {
+      const el = document.getElementById('sec_reguKosong');
+      if (!el) return;
+      const willOpen = el.classList.contains('collapsed');
+      el.classList.toggle('collapsed');
+      if (willOpen && !reguKosongLoaded) loadReguKosong(1);
+    }
+
+    async function loadReguGender(page) {
+      const listEl = document.getElementById('list_reguGender');
+      if (!listEl) return;
+      listEl.innerHTML = '<div class="sec-loading"><i class="fa-solid fa-spinner fa-spin"></i> Memuat...</div>';
+      try {
+        const d = await api('dashboard.kesantrian.audit', { section: 'reguGender', page, tahunAjaranId: state.tahunAjaranId });
+        reguGenderLoaded = true;
+        const badgeEl = document.getElementById('badge_reguGender');
+        if (badgeEl) { badgeEl.className = `status-badge ${d.total===0?'badge-ok':'badge-warn'}`; badgeEl.innerHTML = d.total===0?'<i class="fa-solid fa-check-circle"></i> OK':`<i class="fa-solid fa-triangle-exclamation"></i> ${d.total}`; }
+        if (!d.items.length && d.total === 0) {
+          listEl.innerHTML = '<div class="empty-ok"><i class="fa-solid fa-circle-check"></i> Semua OK — tidak ada masalah.</div>';
+        } else {
+          let html = '<div class="issue-list">' + d.items.map(r => `<div class="issue-row">
+            <span class="nm">${escapeHtml(r.name)}</span>
+            <span class="detail"><span class="tag-warn">${escapeHtml(r.genderGroup)}</span> · ${r.mismatchCount} santri tidak sesuai: ${escapeHtml(r.mismatchNames.join(', '))}</span>
+          </div>`).join('') + '</div>';
+          html += buildAuditSectionPagination(d.items, d.page, d.limit, d.total, 'goReguGender');
+          listEl.innerHTML = html;
+        }
+      } catch (e) {
+        listEl.innerHTML = `<div class="sec-loading" style="color:var(--danger);">${escapeHtml(e.message)}</div>`;
+      }
+    }
+
+    async function goReguGender(page) { const sy = window.scrollY; await loadReguGender(page); window.scrollTo(0, sy); }
+
+    function toggleReguGender() {
+      const el = document.getElementById('sec_reguGender');
+      if (!el) return;
+      const willOpen = el.classList.contains('collapsed');
+      el.classList.toggle('collapsed');
+      if (willOpen && !reguGenderLoaded) loadReguGender(1);
+    }
+
+    async function loadPembinaTidakBerjabatan(page) {
+      const listEl = document.getElementById('list_pembinaTidakBerjabatan');
+      if (!listEl) return;
+      listEl.innerHTML = '<div class="sec-loading"><i class="fa-solid fa-spinner fa-spin"></i> Memuat...</div>';
+      try {
+        const d = await api('dashboard.kesantrian.audit', { section: 'pembinaTidakBerjabatan', page, tahunAjaranId: state.tahunAjaranId });
+        pembinaTidakBerjabatanLoaded = true;
+        const badgeEl = document.getElementById('badge_pembinaTidakBerjabatan');
+        if (badgeEl) { badgeEl.className = `status-badge ${d.total===0?'badge-ok':'badge-warn'}`; badgeEl.innerHTML = d.total===0?'<i class="fa-solid fa-check-circle"></i> OK':`<i class="fa-solid fa-triangle-exclamation"></i> ${d.total}`; }
+        if (!d.items.length && d.total === 0) {
+          listEl.innerHTML = '<div class="empty-ok"><i class="fa-solid fa-circle-check"></i> Semua OK — tidak ada masalah.</div>';
+        } else {
+          let html = '<div class="issue-list">' + d.items.map(r => `<div class="issue-row">
+            <span class="nm">${escapeHtml(r.pengurusName)}</span>
+            <span class="detail">di ${escapeHtml(r.entityName)} · <span class="tag-warn">Jabatan tidak sesuai</span></span>
+          </div>`).join('') + '</div>';
+          html += buildAuditSectionPagination(d.items, d.page, d.limit, d.total, 'goPembinaTidakBerjabatan');
+          listEl.innerHTML = html;
+        }
+      } catch (e) {
+        listEl.innerHTML = `<div class="sec-loading" style="color:var(--danger);">${escapeHtml(e.message)}</div>`;
+      }
+    }
+
+    async function goPembinaTidakBerjabatan(page) { const sy = window.scrollY; await loadPembinaTidakBerjabatan(page); window.scrollTo(0, sy); }
+
+    function togglePembinaTidakBerjabatan() {
+      const el = document.getElementById('sec_pembinaTidakBerjabatan');
+      if (!el) return;
+      const willOpen = el.classList.contains('collapsed');
+      el.classList.toggle('collapsed');
+      if (willOpen && !pembinaTidakBerjabatanLoaded) loadPembinaTidakBerjabatan(1);
+    }
+
+    async function loadSantriRegu(page) {
+      const listEl = document.getElementById('list_santriRegu');
+      if (!listEl) return;
+      listEl.innerHTML = '<div class="sec-loading"><i class="fa-solid fa-spinner fa-spin"></i> Memuat...</div>';
+      try {
+        const d = await api('dashboard.kesantrian.audit', { section: 'santriRegu', page, tahunAjaranId: state.tahunAjaranId });
+        santriReguLoaded = true;
+        const badgeEl = document.getElementById('badge_santriRegu');
+        if (badgeEl) { badgeEl.className = `status-badge ${d.total===0?'badge-ok':'badge-warn'}`; badgeEl.innerHTML = d.total===0?'<i class="fa-solid fa-check-circle"></i> OK':`<i class="fa-solid fa-triangle-exclamation"></i> ${d.total}`; }
+        if (!d.items.length && d.total === 0) {
+          listEl.innerHTML = '<div class="empty-ok"><i class="fa-solid fa-circle-check"></i> Semua OK — tidak ada masalah.</div>';
+        } else {
+          let html = '<div class="issue-list">' + d.items.map(r => `<div class="issue-row">
+            <span class="nm">${escapeHtml(r.name)}</span>
+            <span class="detail">${escapeHtml(r.noInduk||'-')} &nbsp;·&nbsp;
+              ${r.jumlahRegu===0
+                ? '<span class="tag-warn">Tidak ada regu</span>'
+                : `<span class="tag-warn">${r.jumlahRegu} regu: ${escapeHtml(r.reguNames.join(', '))}</span>`}
+            </span></div>`).join('') + '</div>';
+          html += buildAuditSectionPagination(d.items, d.page, d.limit, d.total, 'goSantriRegu');
+          listEl.innerHTML = html;
+        }
+      } catch (e) {
+        listEl.innerHTML = `<div class="sec-loading" style="color:var(--danger);">${escapeHtml(e.message)}</div>`;
+      }
+    }
+
+    async function goSantriRegu(page) { const sy = window.scrollY; await loadSantriRegu(page); window.scrollTo(0, sy); }
+
+    function toggleSantriRegu() {
+      const el = document.getElementById('sec_santriRegu');
+      if (!el) return;
+      const willOpen = el.classList.contains('collapsed');
+      el.classList.toggle('collapsed');
+      if (willOpen && !santriReguLoaded) loadSantriRegu(1);
+    }
+
+    let sectionLoaded = false;
+    let currentPage = 1;
+
+    function renderPagination(page, total, limit) {
+      const pages = Math.ceil(total / limit);
+      if (pages <= 1) return '';
+      const maxBtn = 10;
+      let start = Math.max(1, page - Math.floor(maxBtn / 2));
+      let end = Math.min(pages, start + maxBtn - 1);
+      if (end - start < maxBtn - 1) start = Math.max(1, end - maxBtn + 1);
+      let html = '<div class="pagination">';
+      html += `<button onclick="goPage(${page-1})" ${page<=1?'disabled':''}><i class="fa-solid fa-chevron-left"></i></button>`;
+      for (let i = start; i <= end; i++) html += `<button class="${i===page?'active':''}" onclick="goPage(${i})">${i}</button>`;
+      html += `<button onclick="goPage(${page+1})" ${page>=pages?'disabled':''}><i class="fa-solid fa-chevron-right"></i></button>`;
+      html += '</div>';
+      return html;
+    }
+
+    async function goPage(page) {
+      const sy = window.scrollY;
+      currentPage = page;
+      await loadSection(page);
+      window.scrollTo(0, sy);
+    }
+
+    async function loadSection(page) {
+      const bulan = document.getElementById('bulanInput').value || new Date().toISOString().slice(0, 7);
+      const listEl = document.getElementById('list_pel');
+      if (!listEl) return;
+      listEl.innerHTML = '<div class="sec-loading"><i class="fa-solid fa-spinner fa-spin"></i> Memuat...</div>';
+      try {
+        const d = await api('dashboard.kesantrian.audit', { section: 'pelanggaran', bulan, page });
+        sectionLoaded = true;
+        const badgeEl = document.getElementById('badge_pel');
+        if (badgeEl) { badgeEl.className = `status-badge ${d.total===0?'badge-ok':'badge-warn'}`; badgeEl.innerHTML = d.total===0?'<i class="fa-solid fa-check-circle"></i> OK':`<i class="fa-solid fa-triangle-exclamation"></i> ${d.total}`; }
+        let html = '';
+        if (!d.items.length && d.total === 0) {
+          html = '<div class="empty-ok"><i class="fa-solid fa-circle-check"></i> Tidak ada pelanggaran di bulan ini.</div>';
+        } else {
+          html = `<div class="table-scroll"><table class="detail-table">
+            <thead><tr><th>Tanggal</th><th>Santri</th><th>Jenis</th><th>Kat.</th><th>Keterangan</th></tr></thead>
+            <tbody>${d.items.map(r=>`<tr>
+              <td>${escapeHtml(r.tanggal)}</td>
+              <td>${escapeHtml(r.santriNama)}</td>
+              <td>${escapeHtml(r.jenisNama)}</td>
+              <td><span class="cat-tag ${escapeHtml(r.kategori)}">${escapeHtml(r.kategori||'-')}</span></td>
+              <td>${escapeHtml(r.deskripsi)}</td>
+            </tr>`).join('')}</tbody>
+          </table></div>`;
+          html += renderPagination(d.page, d.total, d.limit);
+        }
+        listEl.innerHTML = html;
+      } catch (e) {
+        listEl.innerHTML = `<div class="sec-loading" style="color:var(--danger);">${escapeHtml(e.message)}</div>`;
+      }
+    }
+
+    function toggleSection() {
+      const el = document.getElementById('sec_pel');
+      if (!el) return;
+      const willOpen = el.classList.contains('collapsed');
+      el.classList.toggle('collapsed');
+      if (willOpen && !sectionLoaded) loadSection(1);
+    }
+
+function renderShell(d) {
+      renderStats(d.stats);
+      if (d.tahunAjaranList) populateTaDropdown(d.tahunAjaranList, state.tahunAjaranId || d.aktiveTaId, d.aktiveTaId);
+      const total = d.total;
+      const cards = `<div class="rekap-cards">
+        <div class="rekap-card"><div class="num" style="color:var(--ink);">${total}</div><div class="lbl" style="color:var(--muted);">Total</div></div>
+        <div class="rekap-card ringan"><div class="num">${d.rekap.ringan}</div><div class="lbl">Ringan</div></div>
+        <div class="rekap-card sedang"><div class="num">${d.rekap.sedang}</div><div class="lbl">Sedang</div></div>
+        <div class="rekap-card berat"><div class="num">${d.rekap.berat}</div><div class="lbl">Berat</div></div>
+      </div>`;
+
+      const section = `<div class="audit-section collapsed" id="sec_pel">
+        <div class="sec-header">
+          <div class="sec-clickable" onclick="toggleSection()">
+            <div class="sec-title"><i class="fa-solid fa-list-ul"></i>Detail Pelanggaran</div>
+            <i class="fa-solid fa-chevron-down chevron"></i>
+          </div>
+          <div class="sec-meta">
+            <span class="status-badge ${total===0?'badge-ok':'badge-warn'}" id="badge_pel">
+              ${total===0?'<i class="fa-solid fa-check-circle"></i> OK':`<i class="fa-solid fa-triangle-exclamation"></i> ${total}`}
+            </span>
+          </div>
+        </div>
+        <div class="hint-box" id="hint_pel">${escapeHtml(HINT)}</div>
+        <div class="sec-body">
+          <div id="list_pel"><div class="sec-loading"><i class="fa-solid fa-hand-pointer" style="opacity:.4;"></i> Buka section untuk memuat data.</div></div>
+        </div>
+      </div>`;
+
+      const reguKosongCount = d.counts && d.counts.reguKosong != null ? d.counts.reguKosong : 0;
+      const sectionReguKosong = `<div class="audit-section collapsed" id="sec_reguKosong" style="margin-top:10px;">
+        <div class="sec-header">
+          <div class="sec-clickable" onclick="toggleReguKosong()">
+            <div class="sec-title"><i class="fa-solid fa-people-group"></i>Regu Tanpa Pembina atau Santri</div>
+            <i class="fa-solid fa-chevron-down chevron"></i>
+          </div>
+          <div class="sec-meta">
+            <span class="status-badge ${reguKosongCount===0?'badge-ok':'badge-warn'}" id="badge_reguKosong">
+              ${reguKosongCount===0?'<i class="fa-solid fa-check-circle"></i> OK':`<i class="fa-solid fa-triangle-exclamation"></i> ${reguKosongCount}`}
+            </span>
+          </div>
+        </div>
+        <div class="hint-box">Regu aktif yang tidak memiliki pembina regu terdaftar, atau tidak memiliki santri sama sekali. Filter tahun ajaran di atas berlaku untuk section ini.</div>
+        <div class="sec-body">
+          <div id="list_reguKosong"><div class="sec-loading"><i class="fa-solid fa-hand-pointer" style="opacity:.4;"></i> Buka section untuk memuat data.</div></div>
+        </div>
+      </div>`;
+
+      const reguGenderCount = d.counts && d.counts.reguGender != null ? d.counts.reguGender : 0;
+      const sectionReguGender = `<div class="audit-section collapsed" id="sec_reguGender" style="margin-top:10px;">
+        <div class="sec-header">
+          <div class="sec-clickable" onclick="toggleReguGender()">
+            <div class="sec-title"><i class="fa-solid fa-people-arrows"></i>Regu Ikhwan/Akhowat Berisi Santri Tidak Sesuai</div>
+            <i class="fa-solid fa-chevron-down chevron"></i>
+          </div>
+          <div class="sec-meta">
+            <span class="status-badge ${reguGenderCount===0?'badge-ok':'badge-warn'}" id="badge_reguGender">
+              ${reguGenderCount===0?'<i class="fa-solid fa-check-circle"></i> OK':`<i class="fa-solid fa-triangle-exclamation"></i> ${reguGenderCount}`}
+            </span>
+          </div>
+        </div>
+        <div class="hint-box">Regu yang memiliki gender group ikhwan atau akhowat tetapi memiliki santri dengan gender yang tidak sesuai. Filter tahun ajaran di atas berlaku untuk section ini.</div>
+        <div class="sec-body">
+          <div id="list_reguGender"><div class="sec-loading"><i class="fa-solid fa-hand-pointer" style="opacity:.4;"></i> Buka section untuk memuat data.</div></div>
+        </div>
+      </div>`;
+
+      const pembinaTidakBerjabatanCount = d.counts && d.counts.pembinaTidakBerjabatan != null ? d.counts.pembinaTidakBerjabatan : 0;
+      const sectionPembinaTidakBerjabatan = `<div class="audit-section collapsed" id="sec_pembinaTidakBerjabatan" style="margin-top:10px;">
+        <div class="sec-header">
+          <div class="sec-clickable" onclick="togglePembinaTidakBerjabatan()">
+            <div class="sec-title"><i class="fa-solid fa-user-tag"></i>Pembina Tidak Menjabat sebagai Pembina</div>
+            <i class="fa-solid fa-chevron-down chevron"></i>
+          </div>
+          <div class="sec-meta">
+            <span class="status-badge ${pembinaTidakBerjabatanCount===0?'badge-ok':'badge-warn'}" id="badge_pembinaTidakBerjabatan">
+              ${pembinaTidakBerjabatanCount===0?'<i class="fa-solid fa-check-circle"></i> OK':`<i class="fa-solid fa-triangle-exclamation"></i> ${pembinaTidakBerjabatanCount}`}
+            </span>
+          </div>
+        </div>
+        <div class="hint-box">Pengurus yang ditugaskan sebagai pembina regu tetapi jabatan aktifnya tidak mengandung kata kunci pembina. Filter tahun ajaran di atas berlaku untuk section ini.</div>
+        <div class="sec-body">
+          <div id="list_pembinaTidakBerjabatan"><div class="sec-loading"><i class="fa-solid fa-hand-pointer" style="opacity:.4;"></i> Buka section untuk memuat data.</div></div>
+        </div>
+      </div>`;
+
+      const santriReguCount = d.counts && d.counts.santriRegu != null ? d.counts.santriRegu : 0;
+      const sectionSantriRegu = `<div class="audit-section collapsed" id="sec_santriRegu" style="margin-top:10px;">
+        <div class="sec-header">
+          <div class="sec-clickable" onclick="toggleSantriRegu()">
+            <div class="sec-title"><i class="fa-solid fa-people-group"></i>Santri Aktif Tidak Tepat Satu Regu</div>
+            <i class="fa-solid fa-chevron-down chevron"></i>
+          </div>
+          <div class="sec-meta">
+            <span class="status-badge ${santriReguCount===0?'badge-ok':'badge-warn'}" id="badge_santriRegu">
+              ${santriReguCount===0?'<i class="fa-solid fa-check-circle"></i> OK':`<i class="fa-solid fa-triangle-exclamation"></i> ${santriReguCount}`}
+            </span>
+          </div>
+        </div>
+        <div class="hint-box">Setiap santri aktif wajib berada di tepat 1 regu aktif pada tahun ajaran yang dipilih. Santri yang tidak ada di regu manapun, atau berada di lebih dari satu regu aktif, ditampilkan di sini.</div>
+        <div class="sec-body">
+          <div id="list_santriRegu"><div class="sec-loading"><i class="fa-solid fa-hand-pointer" style="opacity:.4;"></i> Buka section untuk memuat data.</div></div>
+        </div>
+      </div>`;
+
+      document.getElementById('content').innerHTML = cards + section + sectionReguKosong + sectionReguGender + sectionPembinaTidakBerjabatan + sectionSantriRegu;
+    }
+
+    async function load() {
+      state.tahunAjaranId = document.getElementById('taSelect').value || state.tahunAjaranId;
+      const bulan = document.getElementById('bulanInput').value || new Date().toISOString().slice(0, 7);
+      sectionLoaded = false;
+      reguKosongLoaded = false;
+      reguGenderLoaded = false;
+      pembinaTidakBerjabatanLoaded = false;
+      santriReguLoaded = false;
+      currentPage = 1;
+      document.getElementById('content').innerHTML = '<div class="loading"><i class="fa-solid fa-spinner fa-spin fa-2x"></i><p style="margin-top:12px;">Memuat data...</p></div>';
+      try {
+        const d = await api('dashboard.kesantrian.audit', { bulan, tahunAjaranId: state.tahunAjaranId });
+        if (!state.tahunAjaranId) state.tahunAjaranId = d.aktiveTaId || '';
+        renderShell(d);
+      } catch (e) {
+        document.getElementById('content').innerHTML = `<div class="loading" style="color:var(--danger);"><i class="fa-solid fa-triangle-exclamation fa-2x"></i><p style="margin-top:8px;font-weight:600;">${escapeHtml(e.message)}</p></div>`;
+      }
+    }
+
+    const session = getStoredSession();
+    if (!session) { clearSession(); window.location.replace('/pages/login/'); }
+    else if (window.PSAccess && window.PSAccess.redirectIfForbidden(session, '/pages/dashboardKesantrian/')) { /* redirected */ }
+    else {
+      mountShell(session);
+      const bulanInput = document.getElementById('bulanInput');
+      bulanInput.value = new Date().toISOString().slice(0, 7);
+      document.getElementById('loadBtn').addEventListener('click', load);
+      document.getElementById('taSelect').addEventListener('change', load);
+      load();
+    }
+    if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {}); }
+  </script>
+</body>
+</html>
+
+
+
+

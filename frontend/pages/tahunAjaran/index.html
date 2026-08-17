@@ -1,0 +1,729 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#9e2f22">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="../../shared-ui.css">
+  <script src="../../shared-ui.js"></script>
+  <title>Tahun Ajaran & Semester</title>
+  <link rel="stylesheet" href="../../shared-shell.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700&display=swap');
+    :root {
+      --paper: #f6efe0;
+      --ink: #4d4034;
+      --muted: #7b6a58;
+      --line: rgba(91, 73, 57, 0.15);
+      --accent: #b97650;
+      --success: #74846c;
+      --danger: #a55a52;
+      --warning: #b58439;
+      --shadow: 0 18px 45px rgba(87, 67, 51, 0.18);
+      --radius: 24px;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; }
+    body::before { content: ''; position: fixed; inset: 0; pointer-events: none; opacity: 0.26; }
+    .panel { padding: 22px; }
+    h1, h2, h3 { margin: 0 0 10px; }
+    p { margin: 0; line-height: 1.65; }
+    .toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+    button, input, select, textarea { font: inherit; }
+    button { padding: 12px 18px; font-weight: 700; cursor: pointer; }
+    .primary { box-shadow: 0 14px 28px rgba(185, 118, 80, 0.22); }
+    input, select, textarea { width: 100%; padding: 13px 14px; outline: none; }
+    label { display: grid; gap: 7px; font-size: 14px; font-weight: 600; }
+    .notice { display: none; padding: 14px 16px; line-height: 1.55; }
+    .notice.show { display: block; }
+    dialog { width: min(520px, calc(100vw - 20px)); padding: 0; }
+    .dialog-body { padding: 22px; display: grid; gap: 14px; max-height: 85vh; overflow: auto; }
+    .list { display: grid; gap: 12px; margin-top: 16px; }
+    .ta-card { padding: 16px 20px; display: grid; gap: 10px; background: rgba(255, 248, 230, 0.96) !important;;}
+    .ta-card-head { display: flex; align-items: flex-start; gap: 12px; }
+    .ta-card-info { flex: 1; }
+    .ta-card-name { font-size: 16px; font-weight: 700; margin: 0 0 4px; }
+    .ta-card-dates { font-size: 13px; color: var(--muted); }
+    .ta-card-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+    .pill { display: inline-flex; padding: 5px 11px; font-size: 12px; font-weight: 700; border-radius: 20px; }
+    .pill.aktif { background: var(--success); color: #fff; }
+    .pill.nonaktif { background: var(--line); color: var(--muted); }
+    .pill.locked { background: #c49a2c; color: #1a0a00; }
+    .pill.open { background: var(--success); color: #fff; }
+    .pill.closed { background: var(--danger); color: #fff; }
+    .ta-card.is-locked { opacity: 0.85; }
+    .ta-card.is-locked .ta-card-name::after { content: ' 🔒'; font-size: 13px; }
+    .empty-state { padding: 32px 16px; text-align: center; color: var(--muted); }
+    body::before { opacity: 0.15 !important; mix-blend-mode: multiply; }
+    .dup-section { display: grid; gap: 10px; }
+    .dup-section-title { font-size: 13px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin: 6px 0 2px; }
+    .dup-item { display: grid; gap: 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+    .dup-main { display: flex; align-items: center; gap: 10px; padding: 12px 14px; font-size: 14px; font-weight: 700; cursor: pointer; background: rgba(255,248,230,0.7); margin: 0; }
+    .dup-main input[type=checkbox] { width: auto; padding: 0; accent-color: var(--accent); width: 16px; height: 16px; }
+    .dup-sub { display: grid; gap: 0; border-top: 1px solid var(--line); background: rgba(255,255,255,0.5); padding: 0; }
+    .dup-sub label { display: flex; align-items: center; gap: 10px; padding: 10px 14px 10px 36px; font-size: 13px; font-weight: 500; cursor: pointer; border-top: 1px solid rgba(91,73,57,0.07); margin: 0; }
+    .dup-sub label:first-child { border-top: none; }
+    .dup-sub input[type=checkbox] { width: auto; padding: 0; accent-color: var(--accent); width: 15px; height: 15px; }
+    .dup-sub label.disabled-opt { opacity: 0.4; pointer-events: none; }
+    .dup-note { font-size: 12px; color: var(--muted); padding: 6px 0 0; }
+    body::after { content: ''; position: fixed; inset: 0; pointer-events: none; opacity: 0.23; }
+    h1, h2, h3 { text-transform: uppercase; }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-left">
+      <button class="drawer-toggle" id="navToggle" type="button" aria-label="Toggle sidebar">Menu</button>
+      <div class="header-brand">Pendataan Santri</div>
+      <div class="header-page">Tahun Ajaran</div>
+    </div>
+    <div class="header-right">
+      <span class="header-chip" id="headerRole">Admin</span>
+    </div>
+  </header>
+  <div class="drawer-backdrop" id="navBackdrop"></div>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+  <main>
+    <div class="app-layout">
+      <section class="panel nav" id="nav"></section>
+      <div class="content-stack">
+        <section class="notice info" id="notice"></section>
+        <section class="panel">
+          <div class="section-head">
+            <h2>Tahun Ajaran</h2>
+            <p>Kelola tahun ajaran untuk mengorganisir data kelas, halaqoh, dan regu per periode.</p>
+          </div>
+          <div class="toolbar" id="actionToolbar">
+            <button class="primary" id="addButton" type="button">Tambah tahun ajaran</button>
+            <button class="secondary" id="refreshButton" type="button">Muat ulang</button>
+          </div>
+          <div class="list" id="list">
+            <p class="empty-state">Memuat data...</p>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <div id="dialogRoot">
+  <dialog class="ps-floating-dialog" id="dialog">
+    <form class="dialog-body duplicate-dialog-body ps-dialog-shell" id="form" method="dialog">
+      <div class="duplicate-dialog-head ps-dialog-header">
+        <div>
+          <h3 id="dialogTitle">Tambah tahun ajaran</h3>
+          <p>Buat periode tahun ajaran baru. Nama bisa diubah sewaktu-waktu.</p>
+        </div>
+      </div>
+      <input type="hidden" name="id">
+      <label>
+        Nama tahun ajaran
+        <input type="text" name="nama" required placeholder="Contoh: 2024/2025 atau TA Ganjil 2025">
+      </label>
+      <label>
+        Semester
+        <select name="semester">
+          <option value="">— Tidak ditentukan —</option>
+          <option value="Ganjil">Ganjil (Semester 1)</option>
+          <option value="Genap">Genap (Semester 2)</option>
+        </select>
+      </label>
+      <label>
+        Tanggal mulai
+        <input type="date" name="tanggalMulai">
+      </label>
+      <label>
+        Tanggal selesai
+        <input type="date" name="tanggalSelesai">
+      </label>
+      <div class="toolbar ps-dialog-footer">
+        <button class="primary" id="saveFormButton" type="submit">Simpan</button>
+        <button class="secondary" id="closeDialog" type="button">Batal</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="ps-floating-dialog danger-dialog" id="deleteDialog">
+    <form class="dialog-body duplicate-dialog-body ps-dialog-shell" id="deleteForm" method="dialog">
+      <div class="duplicate-dialog-head ps-dialog-header danger-dialog-copy">
+        <div>
+          <h3>Hapus tahun ajaran</h3>
+          <p id="deleteDialogMsg">Tahun ajaran ini akan dihapus permanen.</p>
+        </div>
+      </div>
+      <label style="display:grid;gap:6px;font-size:13px;font-weight:600;margin-top:6px;">
+        Ketik <strong>HAPUS</strong> untuk mengonfirmasi:
+        <input type="text" id="deleteConfirmInput" autocomplete="off" placeholder="HAPUS"
+          style="padding:11px 13px;border-radius:12px;border:1.5px solid var(--line,#ccc);font:inherit;text-transform:uppercase;letter-spacing:0.1em;">
+      </label>
+      <div class="toolbar ps-dialog-footer">
+        <button class="danger" id="confirmDeleteButton" type="submit" disabled>Hapus permanen</button>
+        <button class="secondary" id="closeDeleteDialog" type="button">Batal</button>
+      </div>
+    </form>
+  </dialog>
+  <dialog class="ps-floating-dialog" id="duplicateDialog">
+    <form class="dialog-body duplicate-dialog-body ps-dialog-shell" id="duplicateForm" method="dialog">
+      <div class="duplicate-dialog-head ps-dialog-header">
+        <div>
+          <h3>Gandakan Tahun Ajaran</h3>
+          <p>Buat tahun ajaran baru sebagai salinan dari <strong id="dupSourceName"></strong>.</p>
+        </div>
+      </div>
+      <label>
+        Nama tahun ajaran baru <span style="color:var(--danger)">*</span>
+        <input type="text" name="nama" required placeholder="Contoh: 2025/2026 atau TA Ganjil 2025">
+      </label>
+      <label>
+        Semester
+        <select name="semester">
+          <option value="">— Tidak ditentukan —</option>
+          <option value="Ganjil">Ganjil (Semester 1)</option>
+          <option value="Genap">Genap (Semester 2)</option>
+        </select>
+      </label>
+      <label>
+        Tanggal mulai
+        <input type="date" name="tanggalMulai">
+      </label>
+      <label>
+        Tanggal selesai
+        <input type="date" name="tanggalSelesai">
+      </label>
+      <div class="dup-section">
+        <p class="dup-section-title">Data yang disalin</p>
+        <div class="dup-item">
+          <label class="dup-main">
+            <input type="checkbox" name="halaqoh" id="dupHalaqoh"> Halaqoh
+          </label>
+          <div class="dup-sub" id="dupHalaqohSub">
+            <label><input type="checkbox" name="halaqohPengampu"> Sertakan pengampu (musyrif / badal)</label>
+            <label><input type="checkbox" name="halaqohAnggota"> Sertakan anggota santri</label>
+          </div>
+        </div>
+        <div class="dup-item">
+          <label class="dup-main">
+            <input type="checkbox" name="kelas" id="dupKelas"> Kelas Siang
+          </label>
+          <div class="dup-sub" id="dupKelasSub">
+            <label><input type="checkbox" name="kelasPengajar"> Sertakan pengajar (& badal)</label>
+            <label><input type="checkbox" name="kelasAnggota"> Sertakan anggota santri</label>
+          </div>
+        </div>
+        <div class="dup-item">
+          <label class="dup-main">
+            <input type="checkbox" name="regu" id="dupRegu"> Regu
+          </label>
+          <div class="dup-sub" id="dupReguSub">
+            <label><input type="checkbox" name="reguPembina"> Sertakan pembina</label>
+            <label><input type="checkbox" name="reguAnggota"> Sertakan anggota santri</label>
+          </div>
+        </div>
+        <p class="dup-note">Data transaksional (hafalan, nilai, absensi, raport, dll) tidak ikut disalin.</p>
+      </div>
+      <div class="toolbar ps-dialog-footer">
+        <button class="primary" type="submit" id="confirmDuplicateButton">Gandakan</button>
+        <button class="secondary" id="closeDuplicateDialog" type="button">Batal</button>
+      </div>
+    </form>
+  </dialog>
+  <dialog class="ps-floating-dialog" id="editHistoryDialog">
+    <div class="dialog-body ps-dialog-shell" style="min-width:280px;">
+      <div class="ps-dialog-header">
+        <div>
+          <h3>Riwayat Edit</h3>
+          <p id="editHistorySubtitle" style="font-size:13px;color:var(--muted);"></p>
+        </div>
+      </div>
+      <div id="editHistoryList" style="display:grid;gap:8px;margin-top:4px;"></div>
+      <div class="toolbar ps-dialog-footer" style="margin-top:12px;">
+        <button class="secondary" id="closeEditHistoryDialog" type="button">Tutup</button>
+      </div>
+    </div>
+  </dialog>
+  </div>
+
+  <script src="../../shared-access.js"></script>
+  <script src="../../shared-nav.js"></script>
+  <script src="../../shared-shell.js"></script>
+  <script>
+    const STORAGE = { apiBase: 'ps_api_base', token: 'ps_token', session: 'ps_session' };
+
+    const state = { items: [], deleteTargetId: null, duplicateSourceId: null };
+
+    const uiState = {
+      currentNoticeId: '',
+      noticeCounter: 0,
+      noticeShownAt: 0,
+      pendingNotice: null
+    };
+
+    function escapeHtml(s) {
+      return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    }
+
+    function getApiBase() { return localStorage.getItem(STORAGE.apiBase) || ''; }
+    function getToken() { return localStorage.getItem(STORAGE.token) || ''; }
+    function getStoredSession() {
+      try { return JSON.parse(localStorage.getItem(STORAGE.session) || 'null'); } catch (e) { return null; }
+    }
+    function clearSession() {
+      localStorage.removeItem(STORAGE.token);
+      localStorage.removeItem(STORAGE.session);
+    }
+
+    function toParams(data) {
+      const params = new URLSearchParams();
+      Object.entries(data).forEach(([key, value]) => {
+        if (value === undefined || value === null) return;
+        params.append(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
+      });
+      return params;
+    }
+
+    function createNoticeElement(text, type = 'info') {
+      const el = document.createElement('section');
+      el.className = `notice show ${type}`;
+      el.dataset.noticeId = `notice-${Date.now()}-${uiState.noticeCounter += 1}`;
+      el.textContent = text;
+      function dismiss() {
+        if (!el.parentNode) return;
+        el.classList.add('notice-dismissing');
+        window.setTimeout(() => {
+          el.remove();
+          const stack = document.getElementById('noticeStack');
+          if (stack && !stack.hasChildNodes() && stack.matches(':popover-open')) stack.hidePopover();
+        }, 220);
+      }
+      el.addEventListener('click', dismiss);
+      window.setTimeout(dismiss, type === 'error' ? 10000 : 6000);
+      return el;
+    }
+
+    function removeNoticeById(id) {
+      const el = document.querySelector(`[data-notice-id="${id}"]`);
+      if (el) el.remove();
+      if (uiState.currentNoticeId === id) uiState.currentNoticeId = '';
+      const stack = document.getElementById('noticeStack');
+      if (stack && !stack.hasChildNodes() && stack.matches(':popover-open')) stack.hidePopover();
+    }
+
+    function showNotice(text, type = 'info') {
+      if (uiState.pendingNotice) { clearTimeout(uiState.pendingNotice); uiState.pendingNotice = null; }
+      const elapsed = Date.now() - uiState.noticeShownAt;
+      if (elapsed < 2000 && uiState.currentNoticeId) {
+        uiState.pendingNotice = window.setTimeout(() => { uiState.pendingNotice = null; showNotice(text, type); }, 2000 - elapsed);
+        return;
+      }
+      clearNotice();
+      const el = createNoticeElement(text, type);
+      const stack = document.getElementById('noticeStack');
+      stack.prepend(el);
+      uiState.currentNoticeId = el.dataset.noticeId;
+      uiState.noticeShownAt = Date.now();
+      if (stack.matches(':popover-open')) stack.hidePopover();
+      stack.showPopover();
+    }
+
+    function clearNotice() {
+      if (uiState.pendingNotice) { clearTimeout(uiState.pendingNotice); uiState.pendingNotice = null; }
+      if (!uiState.currentNoticeId) return;
+      removeNoticeById(uiState.currentNoticeId);
+    }
+
+    function mountShell() {
+      return window.PSShell.mount({
+        currentPage: window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : '/pages/tahunAjaran/',
+        session: getStoredSession(),
+        getStoredSession,
+        storageKey: STORAGE.session
+      });
+    }
+
+    async function api(action, payload = {}, method = 'GET') {
+      const apiBase = getApiBase();
+      const token = getToken();
+      if (!apiBase || !token) { clearSession(); window.location.replace('/pages/login/'); throw new Error('Sesi tidak ditemukan.'); }
+      if (method === 'GET') {
+        const params = toParams({ action, token, ...payload });
+        const res = await fetch(`${apiBase}?${params.toString()}`);
+        const json = await res.json();
+        if (!json.ok) throw new Error(json.error?.message ? `Server mengatakan: ${json.error.message}` : 'Permintaan gagal.');
+        return json.data;
+      }
+      const res = await fetch(`${apiBase}?action=${encodeURIComponent(action)}&token=${encodeURIComponent(token)}`, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error?.message ? `Server mengatakan: ${json.error.message}` : 'Permintaan gagal.');
+      return json.data;
+    }
+
+    function formatDate(d) {
+      if (!d) return '-';
+      try {
+        const dt = new Date(d);
+        return dt.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+      } catch (e) { return d; }
+    }
+
+    function canDeleteRecords() {
+      const session = window.PSAccess && typeof window.PSAccess.getScopedSession === 'function'
+        ? window.PSAccess.getScopedSession(getStoredSession())
+        : getStoredSession();
+      return !!(session && session.permissions && session.permissions.canDelete);
+    }
+
+    function canManageRecord() {
+      const session = window.PSAccess && typeof window.PSAccess.getScopedSession === 'function'
+        ? window.PSAccess.getScopedSession(getStoredSession())
+        : getStoredSession();
+      const p = session && session.permissions;
+      return !!(p && (p.isAdmin || p.isSuperAdmin || p.canDelete));
+    }
+
+    function syncRestrictedActions() {
+      const isSuperAdmin = canDeleteRecords();
+      document.getElementById('addButton').hidden = !isSuperAdmin;
+      document.querySelectorAll('[data-super-admin="true"]').forEach(el => {
+        el.hidden = !isSuperAdmin;
+      });
+    }
+
+    function renderList() {
+      const list = document.getElementById('list');
+      if (!state.items.length) {
+        list.innerHTML = '<p class="empty-state">Belum ada tahun ajaran. Klik "Tambah tahun ajaran" untuk memulai.</p>';
+        syncRestrictedActions();
+        return;
+      }
+      const canDelete = canDeleteRecords();
+      const canManage = canManageRecord();
+      list.innerHTML = state.items.map((item, index) => `
+        <div class="card ta-card${item.isLocked ? ' is-locked' : ''}">
+          <div class="ta-card-head">
+            <div style="display:flex;flex-direction:column;gap:2px;">
+              <button class="secondary${canManage ? '' : ' ps-locked'}" type="button" data-move-up="${item.id}" ${(index === 0 || !canManage) ? 'disabled' : ''} ${canManage ? '' : 'aria-disabled="true" title="Mudir hanya bisa melihat data tahun ajaran, tidak bisa mengubah urutan."'} style="min-height:26px;padding:0 8px;line-height:1;">&#9650;</button>
+              <button class="secondary${canManage ? '' : ' ps-locked'}" type="button" data-move-down="${item.id}" ${(index === state.items.length - 1 || !canManage) ? 'disabled' : ''} ${canManage ? '' : 'aria-disabled="true" title="Mudir hanya bisa melihat data tahun ajaran, tidak bisa mengubah urutan."'} style="min-height:26px;padding:0 8px;line-height:1;">&#9660;</button>
+            </div>
+            <div class="ta-card-info">
+              <p class="ta-card-name">${escapeHtml(item.nama)}</p>
+              ${item.semester ? `<p class="ta-card-dates" style="font-weight:600;font-size:12px;">Semester ${escapeHtml(item.semester)}</p>` : ''}
+              <p class="ta-card-dates">${formatDate(item.tanggalMulai)} — ${formatDate(item.tanggalSelesai)}</p>
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+              <span class="pill ${item.isAktif ? 'aktif' : 'nonaktif'}">${item.isAktif ? 'Aktif' : 'Nonaktif'}</span>
+              <span class="pill ${item.isLocked ? 'closed' : 'open'}" title="${item.isLocked ? 'Close: data tahun ajaran ini terkunci, tidak bisa diedit' : 'Open: data tahun ajaran ini bisa diedit'}">${item.isLocked ? 'Close' : 'Open'}</span>
+            </div>
+          </div>
+          <div class="ta-card-actions">
+            ${!item.isAktif && !item.isLocked ? `<button class="primary" type="button" data-set-active="${item.id}" data-super-admin="true">Jadikan aktif</button>` : ''}
+            <button class="secondary" type="button" data-edit="${item.id}"${item.isLocked ? ' disabled title="Tahun ajaran berstatus Close"' : ''}>Edit</button>
+            <button class="secondary" type="button" data-history="${item.id}">Riwayat Edit</button>
+            ${item.isAktif ? '<span style="font-size:13px;color:var(--success);display:flex;font-weight:700;align-items:center;padding:11px">&#10003; Tahun ajaran aktif saat ini</span>' : ''}
+            <button class="secondary${canManage ? '' : ' ps-locked'}" type="button" data-lock="${item.id}" ${canManage ? '' : 'disabled aria-disabled="true" title="Mudir hanya bisa melihat data tahun ajaran, tidak bisa mengubah status Open/Close."'}>
+              ${item.isLocked ? '&#128275; Buka (Open)' : '&#128274; Tutup (Close)'}
+            </button>
+            <button class="secondary" type="button" data-duplicate="${item.id}" data-super-admin="true">&#128203; Gandakan</button>
+            ${(!item.isAktif && !item.isLocked && canDelete) ? `<button class="secondary" type="button" data-delete="${item.id}" data-super-admin="true">&#128465; Hapus</button>` : ''}
+          </div>
+        </div>
+      `).join('');
+      syncRestrictedActions();
+    }
+
+    function showEditHistory(id) {
+      const item = state.items.find(x => x.id === id);
+      if (!item) return;
+      document.getElementById('editHistorySubtitle').textContent = item.namaDisplay || item.nama;
+      let history = [];
+      try { history = JSON.parse((item.record && item.record.edit_history) || '[]'); } catch (e) { history = []; }
+      const listEl = document.getElementById('editHistoryList');
+      if (!history.length) {
+        listEl.innerHTML = '<p style="color:var(--muted);font-size:13px;">Belum ada riwayat edit.</p>';
+      } else {
+        listEl.innerHTML = history.map((e, i) => `
+          <div style="padding:10px 12px;border-radius:10px;background:rgba(255,248,230,0.85);border:1px solid var(--line);">
+            <div style="font-weight:700;font-size:13px;">${i + 1}. ${escapeHtml(e.name || '-')}</div>
+            <div style="font-size:12px;color:var(--muted);margin-top:2px;">${escapeHtml(e.jabatan || '-')} &nbsp;·&nbsp; ${escapeHtml(e.action || 'edit')}</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:1px;">${escapeHtml(e.at || '-')}</div>
+          </div>
+        `).join('');
+      }
+      document.getElementById('editHistoryDialog').showModal();
+    }
+
+    async function loadData() {
+      clearNotice();
+      showNotice('Memuat tahun ajaran...', 'info');
+      try {
+        const data = await api('tahunAjaran.list');
+        state.items = data.items || [];
+        renderList();
+        clearNotice();
+      } catch (err) {
+        showNotice(err.message || 'Gagal memuat data.', 'error');
+      }
+    }
+
+    function openDialog(item = null) {
+      const form = document.getElementById('form');
+      const fields = form.elements;
+      document.getElementById('dialogTitle').textContent = item ? 'Edit tahun ajaran' : 'Tambah tahun ajaran';
+      fields.namedItem('id').value = item?.id || '';
+      fields.namedItem('nama').value = item?.nama || '';
+      fields.namedItem('semester').value = item?.semester || '';
+      fields.namedItem('tanggalMulai').value = item?.tanggalMulai || '';
+      fields.namedItem('tanggalSelesai').value = item?.tanggalSelesai || '';
+      window.PSUI.applyPermissionLock(document.getElementById('saveFormButton'), canManageRecord(), 'Mudir hanya bisa melihat data tahun ajaran, tidak bisa menyimpan perubahan.');
+      document.getElementById('dialog').showModal();
+    }
+
+    async function saveForm(event) {
+      event.preventDefault();
+      const form = event.currentTarget;
+      const fields = form.elements;
+      const record = {
+        id: fields.namedItem('id').value.trim(),
+        nama: fields.namedItem('nama').value.trim(),
+        semester: fields.namedItem('semester').value,
+        tanggalMulai: fields.namedItem('tanggalMulai').value,
+        tanggalSelesai: fields.namedItem('tanggalSelesai').value
+      };
+      try {
+        await api('tahunAjaran.save', { record }, 'POST');
+        document.getElementById('dialog').close();
+        await loadData();
+      } catch (err) {
+        showNotice(err.message || 'Gagal menyimpan.', 'error');
+      }
+    }
+
+    async function setActive(id) {
+      const item = state.items.find(x => x.id === id);
+      if (!item) return;
+      if (!confirm(`Jadikan "${item.nama}" sebagai tahun ajaran aktif?`)) return;
+      try {
+        await api('tahunAjaran.setActive', { id }, 'POST');
+        await loadData();
+      } catch (err) {
+        showNotice(err.message || 'Gagal mengubah tahun ajaran aktif.', 'error');
+      }
+    }
+
+    async function moveOrder(id, direction) {
+      try {
+        await api('tahunAjaran.reorder', { id, direction }, 'POST');
+        await loadData();
+      } catch (err) {
+        showNotice(err.message || 'Gagal mengubah urutan tahun ajaran.', 'error');
+      }
+    }
+
+    async function toggleLock(id) {
+      const item = state.items.find(x => x.id === id);
+      if (!item) return;
+      const action = item.isLocked ? 'membuka (Open)' : 'menutup (Close)';
+      if (!confirm(`${item.isLocked ? 'Buka (Open)' : 'Tutup (Close)'} tahun ajaran "${item.nama}"?\n\n${item.isLocked ? 'Status Open: seluruh data tahun ajaran ini bisa diedit kembali.' : 'Status Close: seluruh data yang terikat tahun ajaran ini (kelas, halaqoh, regu, absensi, nilai, hafalan awal, tingkat kelas, akhlak, deskripsi) tidak bisa diedit.'}`)) return;
+      try {
+        await api('tahunAjaran.lock', { id }, 'POST');
+        await loadData();
+      } catch (err) {
+        showNotice(err.message || `Gagal ${action} tahun ajaran.`, 'error');
+      }
+    }
+
+    const CASCADE_LABELS = {
+      halaqoh: 'Halaqoh', kelasSiang: 'Kelas', regu: 'Regu',
+      hafalanHarian: 'Setoran hafalan harian', nilaiUas: 'Nilai UAS', nilaiUp: 'Nilai ujian kelas',
+      absensiKelas: 'Absensi kelas', absensiHalaqoh: 'Absensi halaqoh', ujianHafalan: 'Ujian hafalan',
+      soal: 'Soal ujian', santriKelasLevel: 'Tingkat kelas santri', akhlakNilai: 'Nilai akhlak',
+      deskripsiRaport: 'Deskripsi raport', perkembanganBulanan: 'Perkembangan santri'
+    };
+
+    const DELETE_CONFIRM_WORD = 'HAPUS';
+
+    function syncDeleteConfirmButton() {
+      const input = document.getElementById('deleteConfirmInput');
+      const btn = document.getElementById('confirmDeleteButton');
+      btn.disabled = (input.value || '').trim().toUpperCase() !== DELETE_CONFIRM_WORD;
+    }
+
+    async function openDeleteDialog(id) {
+      const item = state.items.find(x => x.id === id);
+      if (!item) return;
+      state.deleteTargetId = id;
+      const msgEl = document.getElementById('deleteDialogMsg');
+      const input = document.getElementById('deleteConfirmInput');
+      input.value = '';
+      syncDeleteConfirmButton();
+      msgEl.textContent = 'Memuat ringkasan data terkait...';
+      document.getElementById('deleteDialog').showModal();
+      try {
+        const data = await api('tahunAjaran.deletePreview', { id });
+        const c = data.counts || {};
+        const rows = Object.keys(CASCADE_LABELS).filter(k => c[k] > 0)
+          .map(k => `<li>${CASCADE_LABELS[k]}: <strong>${c[k]}</strong></li>`).join('');
+        msgEl.innerHTML = `Anda akan <strong>menghapus permanen</strong> tahun ajaran <strong>"${escapeHtml(item.nama)}"</strong>.`
+          + `<br><br><strong>Konsekuensi:</strong> seluruh data yang terikat tahun ajaran ini akan <strong>ikut terhapus permanen</strong>`
+          + (c.total ? ` (total <strong>${c.total}</strong> data)` : '')
+          + (rows ? `:<ul style="margin:8px 0 0;padding-left:20px;text-align:left;">${rows}</ul>` : '. Tidak ada data turunan.')
+          + `<br><strong style="color:var(--danger)">Tindakan ini TIDAK DAPAT DIBATALKAN dan data tidak bisa dikembalikan.</strong>`;
+      } catch (e) {
+        msgEl.textContent = 'Gagal memuat ringkasan: ' + (e.message || e);
+      }
+    }
+
+    async function confirmDelete() {
+      const id = state.deleteTargetId;
+      if (!id) return;
+      const input = document.getElementById('deleteConfirmInput');
+      if ((input.value || '').trim().toUpperCase() !== DELETE_CONFIRM_WORD) {
+        showNotice('Ketik kata HAPUS untuk mengonfirmasi.', 'error');
+        return;
+      }
+      try {
+        const res = await api('tahunAjaran.delete', { id, confirm: input.value.trim() }, 'POST');
+        document.getElementById('deleteDialog').close();
+        state.deleteTargetId = null;
+        await loadData();
+        showNotice((res && res.message) || 'Tahun ajaran dihapus.', 'info');
+      } catch (err) {
+        showNotice(err.message || 'Gagal menghapus.', 'error');
+      }
+    }
+
+    function syncDupSuboptions() {
+      const f = document.getElementById('duplicateForm').elements;
+      [
+        ['halaqoh', 'dupHalaqohSub'],
+        ['kelas', 'dupKelasSub'],
+        ['regu', 'dupReguSub']
+      ].forEach(([name, subId]) => {
+        const on = f.namedItem(name).checked;
+        document.getElementById(subId).querySelectorAll('input').forEach(el => {
+          el.disabled = !on;
+          if (!on) el.checked = false;
+        });
+        document.getElementById(subId).querySelectorAll('label').forEach(el => {
+          el.classList.toggle('disabled-opt', !on);
+        });
+      });
+    }
+
+    function openDuplicateDialog(id) {
+      const item = state.items.find(x => x.id === id);
+      if (!item) return;
+      state.duplicateSourceId = id;
+      const f = document.getElementById('duplicateForm').elements;
+      document.getElementById('dupSourceName').textContent = item.nama;
+      f.namedItem('nama').value = item.nama + ' — Salinan';
+      f.namedItem('semester').value = item.semester || '';
+      f.namedItem('tanggalMulai').value = '';
+      f.namedItem('tanggalSelesai').value = '';
+      ['halaqoh','halaqohPengampu','halaqohAnggota','kelas','kelasPengajar','kelasAnggota','regu','reguPembina','reguAnggota']
+        .forEach(n => { f.namedItem(n).checked = false; });
+      f.namedItem('halaqoh').checked = true;
+      f.namedItem('kelas').checked = true;
+      f.namedItem('regu').checked = true;
+      syncDupSuboptions();
+      document.getElementById('duplicateDialog').showModal();
+    }
+
+    async function submitDuplicate(event) {
+      event.preventDefault();
+      if (!state.duplicateSourceId) return;
+      const f = document.getElementById('duplicateForm').elements;
+      const options = {
+        halaqoh: f.namedItem('halaqoh').checked,
+        halaqohPengampu: f.namedItem('halaqohPengampu').checked,
+        halaqohAnggota: f.namedItem('halaqohAnggota').checked,
+        kelas: f.namedItem('kelas').checked,
+        kelasPengajar: f.namedItem('kelasPengajar').checked,
+        kelasAnggota: f.namedItem('kelasAnggota').checked,
+        regu: f.namedItem('regu').checked,
+        reguPembina: f.namedItem('reguPembina').checked,
+        reguAnggota: f.namedItem('reguAnggota').checked
+      };
+      const payload = {
+        sourceId: state.duplicateSourceId,
+        record: {
+          nama: f.namedItem('nama').value.trim(),
+          semester: f.namedItem('semester').value,
+          tanggalMulai: f.namedItem('tanggalMulai').value,
+          tanggalSelesai: f.namedItem('tanggalSelesai').value
+        },
+        options
+      };
+      const btn = document.getElementById('confirmDuplicateButton');
+      btn.disabled = true;
+      btn.textContent = 'Memproses...';
+      try {
+        const res = await api('tahunAjaran.duplicate', payload, 'POST');
+        document.getElementById('duplicateDialog').close();
+        await loadData();
+        showNotice((res && res.message) || 'Tahun ajaran berhasil digandakan.', 'info');
+      } catch (err) {
+        showNotice(err.message || 'Gagal menggandakan tahun ajaran.', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Gandakan';
+      }
+    }
+
+    const currentPage = window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : '/pages/tahunAjaran/';
+    const initialSession = getStoredSession();
+    if (!initialSession) { clearSession(); window.location.replace('/pages/login/'); }
+    if (!(window.PSAccess && window.PSAccess.redirectIfForbidden(initialSession, currentPage))) {
+      mountShell();
+      syncRestrictedActions();
+      loadData();
+      document.getElementById('addButton').addEventListener('click', () => openDialog());
+      document.getElementById('refreshButton').addEventListener('click', loadData);
+      document.getElementById('form').addEventListener('submit', saveForm);
+      document.getElementById('closeDialog').addEventListener('click', () => document.getElementById('dialog').close());
+      document.getElementById('deleteForm').addEventListener('submit', (e) => { e.preventDefault(); confirmDelete(); });
+      document.getElementById('deleteConfirmInput').addEventListener('input', syncDeleteConfirmButton);
+      document.getElementById('closeDeleteDialog').addEventListener('click', () => document.getElementById('deleteDialog').close());
+      document.getElementById('duplicateForm').addEventListener('submit', submitDuplicate);
+      document.getElementById('closeDuplicateDialog').addEventListener('click', () => document.getElementById('duplicateDialog').close());
+      document.getElementById('closeEditHistoryDialog').addEventListener('click', () => document.getElementById('editHistoryDialog').close());
+      document.getElementById('duplicateForm').addEventListener('change', e => {
+        if (['halaqoh','kelas','regu'].includes(e.target.name)) syncDupSuboptions();
+      });
+      document.getElementById('list').addEventListener('click', event => {
+        const editBtn = event.target.closest('[data-edit]');
+        const activeBtn = event.target.closest('[data-set-active]');
+        const lockBtn = event.target.closest('[data-lock]');
+        const deleteBtn = event.target.closest('[data-delete]');
+        const dupBtn = event.target.closest('[data-duplicate]');
+        const historyBtn = event.target.closest('[data-history]');
+        const moveUpBtn = event.target.closest('[data-move-up]');
+        const moveDownBtn = event.target.closest('[data-move-down]');
+        if (editBtn) {
+          const item = state.items.find(x => x.id === editBtn.getAttribute('data-edit'));
+          if (item && !item.isLocked) openDialog(item);
+        } else if (activeBtn) {
+          setActive(activeBtn.getAttribute('data-set-active'));
+        } else if (lockBtn) {
+          toggleLock(lockBtn.getAttribute('data-lock'));
+        } else if (deleteBtn) {
+          openDeleteDialog(deleteBtn.getAttribute('data-delete'));
+        } else if (dupBtn) {
+          openDuplicateDialog(dupBtn.getAttribute('data-duplicate'));
+        } else if (historyBtn) {
+          showEditHistory(historyBtn.getAttribute('data-history'));
+        } else if (moveUpBtn) {
+          moveOrder(moveUpBtn.getAttribute('data-move-up'), 'up');
+        } else if (moveDownBtn) {
+          moveOrder(moveDownBtn.getAttribute('data-move-down'), 'down');
+        }
+      });
+    }
+  </script>
+</body>
+</html>

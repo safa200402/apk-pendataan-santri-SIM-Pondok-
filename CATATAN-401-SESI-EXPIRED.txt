@@ -1,0 +1,71 @@
+CATATAN - PENANGANAN TOKEN/SESI KADALUARSA (ERROR 401)
+===================================================================
+Ditulis: 2026-07-17
+Terkait: frontend/pages/superAdmin/index.html, frontend/pages/ujianHafalan/index.html
+
+
+MASALAH YANG DITEMUKAN
+-----------------------
+Di halaman pages/superAdmin/ (dan ternyata juga pages/ujianHafalan/), kalau
+token sudah tidak valid/kadaluarsa di server, halaman TIDAK redirect ke
+halaman login. User masih bisa klik-klik di sidebar/halaman tsb, cuma
+request API-nya gagal diam-diam (401 cuma keliatan di tab Network, tidak
+ada tanda apa pun di UI).
+
+Penyebabnya BUKAN satu file global yang rusak. Ternyata aplikasi ini TIDAK
+punya satu fungsi api()/fetch wrapper bersama sama sekali -- tiap halaman
+punya fungsi api() sendiri-sendiri (hasil copy-paste). Sebagian halaman
+(mis. daftarSantri, perkembanganSantri) sudah dibekali kode "kalau error
+code = 401, hapus sesi lalu redirect ke login". Tapi superAdmin dan
+ujianHafalan luput -- fungsi api() di sana cuma `throw new Error(message)`
+tanpa pernah membaca kode status dari response, jadi 401 tidak pernah
+dibedakan dari error server biasa.
+
+
+PERBAIKAN YANG SUDAH DITERAPKAN (2026-07-17)
+----------------------------------------------
+1. Helper baru window.PSUI.handleApiAuthError(error) ditambahkan di
+   frontend/shared-ui.js. Kalau error.code === 401:
+   - hapus ps_token & ps_session dari localStorage
+   - alert("Sesi berakhir, silakan login ulang.")
+   - redirect ke /pages/login/
+   - return true (supaya caller tahu sudah ditangani, tidak perlu throw
+     ulang / tampilkan error generik lagi)
+   Kalau bukan 401, return false (caller lanjut seperti biasa).
+
+2. Fungsi api() di superAdmin/index.html dan ujianHafalan/index.html
+   dipatch supaya:
+   - error.code diisi dari json.error.code (atau HTTP status kalau tidak
+     ada) sebelum di-throw
+   - panggil window.PSUI.handleApiAuthError(error) duluan; kalau return
+     true, langsung `return;` (tidak throw lagi)
+
+   Pola tepatnya (tinggal salin ke halaman lain kalau ketemu bug sama):
+
+     const json = await resp.json();
+     if (!json.ok) {
+       const error = new Error((json.error && json.error.message) || 'Terjadi kesalahan.');
+       error.code = (json.error && json.error.code) || resp.status || 500;
+       if (window.PSUI && window.PSUI.handleApiAuthError && window.PSUI.handleApiAuthError(error)) return;
+       throw error;
+     }
+     return json.data;
+
+
+BELUM DIKERJAKAN / PERLU DIINGAT
+-----------------------------------
+- Baru superAdmin & ujianHafalan yang dipatch. Ada puluhan halaman lain
+  (frontend/pages/*) yang masing-masing punya api() sendiri -- BELUM
+  dicek satu-satu apakah punya bug yang sama.
+- Kalau nemu halaman lain yang tidak redirect saat sesi habis, cek dulu
+  fungsi api()-nya: apakah sudah baca `error.code`/HTTP status dan
+  panggil window.PSUI.handleApiAuthError() seperti pola di atas.
+- shared-ui.js WAJIB sudah di-<script src> sebelum script halaman
+  (biasanya sudah, tinggal cek `<script src="../../shared-ui.js">` ada
+  di <head> halaman tsb).
+- Kalau suatu saat mau bikin fetch wrapper benar-benar bersama (bukan
+  cuma helper 401), ingat: setiap halaman punya nama/bentuk STORAGE key
+  yang konsisten (ps_token, ps_session) jadi itu aman dijadikan patokan,
+  tapi nama fungsi (api, getStoredSession, dst) dan urutan
+  parameter/payload-nya sedikit berbeda-beda tiap halaman -- perlu
+  disamakan dulu kalau mau benar-benar disatukan.

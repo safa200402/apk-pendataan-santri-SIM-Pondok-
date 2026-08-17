@@ -1,0 +1,2367 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#9e2f22">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+    <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="stylesheet" href="../../shared-ui.css">
+    <script src="../../shared-ui.js"></script>
+  <title>Edit Regu</title>
+  <link rel="stylesheet" href="../../shared-shell.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700&display=swap');
+    :root {
+      --paper: #f6efe0;
+      --ink: #4d4034;
+      --muted: #7b6a58;
+      --line: rgba(91, 73, 57, 0.15);
+      --accent: #b97650;
+      --success: #74846c;
+      --danger: #a55a52;
+      --shadow: 0 18px 45px rgba(87, 67, 51, 0.18);
+      --radius: 24px;
+    }
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.26;
+    }
+
+    .panel {
+      padding: 22px;
+    }
+
+    h1, h2, h3 {
+      margin: 0 0 10px;
+    }
+
+    p { margin: 0; line-height: 1.65; }
+
+    .eyebrow {
+      display: inline-block;
+      margin-bottom: 12px;
+      padding: 7px 12px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .nav {
+      display: grid;
+      gap: 10px;
+    }
+
+    .nav a {
+      padding: 12px 14px;
+      text-decoration: none;
+    }
+
+    .toolbar, .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 16px;
+      align-items: center;
+    }
+
+    button, input, select, textarea {
+      font: inherit;
+    }
+
+    button {
+      padding: 12px 18px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .primary {
+      box-shadow: 0 14px 28px rgba(185, 118, 80, 0.22);
+    }
+
+    input, select, textarea {
+      width: 100%;
+      padding: 13px 14px;
+      outline: none;
+    }
+    label {
+      display: grid;
+      gap: 7px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .filters {
+      display: grid;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .card {
+      padding: 16px;
+    }
+
+    .pill {
+      display: inline-flex;
+      padding: 7px 11px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .pill.gender-ikhwan {
+      background: rgba(87, 107, 149, 0.14);
+      color: #576b95;
+    }
+
+    .pill.gender-akhowat {
+      background: rgba(185, 118, 80, 0.14);
+      color: #9e2f22;
+    }
+
+    .pill.gender-campur {
+      background: rgba(181, 132, 57, 0.14);
+      color: var(--warning);
+    }
+
+    .pill.gender-none {
+      background: rgba(123, 106, 88, 0.14);
+      color: var(--muted);
+    }
+
+    .minimal-list-card.row-ikhwan           { background: #ddeeff; border-color: rgba(70,130,180,0.25); }
+    .minimal-list-card.row-akhowat          { background: #ffe4f0; border-color: rgba(200,100,140,0.25); }
+    .minimal-list-card.row-campur           { background: #f5f0e8; border-color: rgba(181,132,57,0.2); }
+    .minimal-list-card.row-ikhwan-inactive  { background: linear-gradient(135deg, #888 0%, #cce6ff 100%); border-color: rgba(70,130,180,0.25); }
+    .minimal-list-card.row-akhowat-inactive { background: linear-gradient(135deg, #888 0%, #ffd6e8 100%); border-color: rgba(200,100,140,0.25); }
+    .minimal-list-card.row-campur-inactive  { background: linear-gradient(135deg, #888 0%, #f5e8c8 100%); border-color: rgba(181,132,57,0.2); }
+
+    .regu-title-row {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .regu-context-label {
+      font-size: 12px;
+      line-height: 1.45;
+      color: var(--muted);
+    }
+
+    .notice {
+      display: none;
+      padding: 14px 16px;
+      line-height: 1.55;
+    }
+
+    .notice.show { display: block; }
+
+    dialog {
+      padding: 0;
+    }
+
+    .dialog-body {
+        padding: 22px;
+        display: flex;
+        gap: 14px;
+        max-height: 135vh;
+        overflow: auto;
+        flex-direction: column;
+        justify-content: space-between;
+        height: 100% !important;
+    }
+
+    .checklist {
+      display: grid;
+      gap: 8px;
+      max-height: 220px;
+      overflow: auto;
+      padding: 12px;
+    }
+
+    .checklist label {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 500;
+    }
+
+    .checklist input[type="checkbox"] {
+      width: auto;
+      padding: 0;
+    }
+
+    .selector-group {
+      display: grid;
+      gap: 8px;
+    }
+
+    .selector-textarea {
+      min-height: 108px;
+      resize: vertical;
+      line-height: 1.55;
+    }
+
+    .selector-note {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .selector-hint {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .checklist label[hidden] {
+      display: none;
+    }
+
+    .checklist-meta {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+    }
+
+    .checklist-meta.is-frozen {
+      color: var(--warning, #b8860b);
+      font-weight: 700;
+    }
+
+    .pindah-santri-picker {
+      position: relative;
+    }
+
+    .pindah-santri-results {
+      display: none;
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      right: 0;
+      z-index: 20;
+      max-height: 200px;
+      overflow: auto;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      padding: 6px;
+      gap: 2px;
+    }
+
+    .pindah-santri-results:not([hidden]) {
+      display: grid;
+    }
+
+    .pindah-santri-results .pindah-santri-item {
+      padding: 8px 10px;
+      border-radius: 8px;
+      color: var(--ink);
+      cursor: pointer;
+    }
+
+    .pindah-santri-results .pindah-santri-item:hover {
+      background: rgba(185, 118, 80, 0.15);
+    }
+
+    .pindah-santri-results .pindah-santri-empty {
+      padding: 8px 10px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .paging-host {
+      display: grid;
+      gap: 8px;
+      margin: 16px 0;
+    }
+
+    .paging {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .page-center {
+      display: grid;
+      gap: 8px;
+      justify-items: center;
+    }
+
+    .page-numbers {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .page-summary {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    @media (max-width: 960px) {
+
+    .paging { grid-template-columns: 1fr; }
+    }
+
+    body::before {
+      opacity: 0.15 !important;
+      mix-blend-mode: multiply;
+    }
+
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.23;
+    }
+
+    h1, h2, h3 {
+      text-transform: uppercase;
+    }
+
+    .nav a, button {
+      font-weight: 800 !important;
+      text-transform: uppercase;
+    }
+
+    .list {
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    }
+
+    @media (max-width: 960px) {
+
+    .list {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    #quickImportForm {
+      height: 100%;
+    }
+
+    .dialog-main {
+      height: 100%;
+    }
+
+    .dialog-main strong {
+      font-size: 15px;
+    }
+
+    .dialog-main code {
+      display: inline-block;
+      padding: 5px 10px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+    }
+
+    .roster-preview-table th, .roster-preview-table td {
+      white-space: nowrap;
+    }
+
+    .roster-preview-table tr.roster-pengampu-row td {
+      background: rgba(238, 223, 201, 0.55);
+      font-weight: 700;
+    }
+
+    .roster-preview-table tr.roster-pengampu-row td:first-child {
+      font-weight: 800;
+    }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-left">
+      <button class="drawer-toggle" id="navToggle" type="button" aria-label="Toggle sidebar">Menu</button>
+      <div class="header-brand">Pendataan Santri</div>
+      <div class="header-page">Edit Regu</div>
+    </div>
+    <div class="header-right">
+      <span class="header-chip" id="headerRole">Admin</span>
+    </div>
+  </header>
+  <div class="drawer-backdrop" id="navBackdrop"></div>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+  <main>
+    <div class="app-layout">
+      <section class="panel nav" id="nav"></section>
+      <div class="content-stack">
+        <section class="notice info" id="notice"></section>
+        <section class="issue-panel">
+          <h2>Masalah Terkait</h2>
+          <p>Temuan audit yang relevan dengan regu akan muncul di sini.</p>
+          <div class="issue-summary" id="issueSummary">Belum ada data audit.</div>
+          <ul class="issue-warning-list" id="issueList"></ul>
+        </section>
+        <section class="panel">
+          <div class="section-head">
+            <h2>Daftar regu</h2>
+          </div>
+          <div class="filters" id="filtersPanel">
+            <label>
+              Tahun ajaran
+              <select id="tahunAjaranFilter">
+                <option value="">Semua tahun ajaran</option>
+              </select>
+            </label>
+            <label>
+              Cari nama regu, pembina, atau santri
+              <input type="search" id="searchInput" placeholder="Mis. regu 1, ustadz, ikhwan, atau nama santri">
+            </label>
+            <label>
+              Status
+              <select id="statusFilter">
+                <option value="">Semua</option>
+                <option value="active">Aktif</option>
+                <option value="inactive">Nonaktif</option>
+              </select>
+            </label>
+            <label>
+              Gender
+              <select id="genderFilter">
+                <option value="">Semua</option>
+                <option value="Ikhwan">Ikhwan</option>
+                <option value="Akhowat">Akhowat</option>
+                <option value="Campur">Campur</option>
+                <option value="Tidak ada">Tidak ada</option>
+              </select>
+            </label>
+            <label>
+              Urutkan
+              <select id="sortSelect">
+                <option value="updated_desc" selected>Edit terbaru</option>
+                <option value="updated_asc">Edit terlama</option>
+                <option value="created_desc">Tambah terbaru</option>
+                <option value="created_asc">Tambah terlama</option>
+                <option value="name_asc">Nama A-Z</option>
+                <option value="name_desc">Nama Z-A</option>
+                <option value="id_asc">ID kecil-besar</option>
+                <option value="id_desc">ID besar-kecil</option>
+                <option value="gender_asc">Gender Ikhwan-Akhowat</option>
+                <option value="gender_desc">Gender Akhowat-Ikhwan</option>
+                <option value="santri_desc">Santri terbanyak</option>
+                <option value="santri_asc">Santri tersedikit</option>
+              </select>
+            </label>
+            <label>
+              Jumlah per halaman
+              <select id="pageSizeSelect">
+                <option value="10">10</option>
+                <option value="25" selected>25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </label>
+          </div>
+          <div class="bulk-toolbar" id="bulkToolbar"></div>
+          <div class="toolbar" id="actionToolbar">
+            <button class="primary" id="addButton" type="button">Tambah regu</button>
+            <button class="secondary" id="refreshButton" type="button">Muat ulang</button>
+            <button class="secondary" id="toggleExpandButton" type="button" data-expand-state="collapsed">Buka semua</button>
+            <button class="secondary" data-toolbar-extra="true" id="quickImportButton" type="button" hidden data-super-admin="true">Tempel regu</button>
+            <button class="secondary" data-toolbar-extra="true" id="exportQuickImportTxtButton" type="button" hidden data-super-admin="true">Export TXT tempel</button>
+            <button class="secondary" data-toolbar-extra="true" id="previewRosterButton" type="button" hidden>Lihat Data</button>
+            <button class="secondary" data-toolbar-extra="true" id="downloadTemplateButton" type="button" hidden data-super-admin="true">Template Excel</button>
+            <button class="secondary" data-toolbar-extra="true" id="importExcelButton" type="button" hidden data-super-admin="true">Import Excel</button>
+            <button class="secondary" data-toolbar-extra="true" id="exportExcelButton" type="button" hidden data-super-admin="true">Export Excel</button>
+            <button class="danger" data-toolbar-extra="true" id="deleteAllButton" type="button" hidden data-super-admin="true">Hapus semua regu</button>
+            <button class="secondary toolbar-collapse-toggle" id="toolbarCollapseToggle" type="button" aria-expanded="false" aria-label="Buka aksi tambahan">+</button>
+          </div>
+          <div class="paging-host" id="paginationTop"></div>
+          <div class="list" id="list"></div>
+          <div class="paging-host" id="paginationBottom"></div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <div id="dialogRoot">
+  <dialog class="ps-floating-dialog quick-import-dialog" id="rosterPreviewDialog">
+    <form class="dialog-body duplicate-dialog-body ps-dialog-shell quick-import-shell" id="rosterPreviewForm" method="dialog">
+      <div class="duplicate-dialog-head ps-dialog-header">
+        <div>
+          <h3 id="rosterPreviewTitle">Data Regu</h3>
+          <p id="rosterPreviewSubtitle"></p>
+        </div>
+      </div>
+      <div class="toolbar" style="margin-bottom:12px">
+        <label style="min-width:150px">
+          Gender
+          <select id="rosterPreviewGenderFilter"></select>
+        </label>
+        <label style="min-width:200px">
+          Urutkan
+          <select id="rosterPreviewSortFilter"></select>
+        </label>
+      </div>
+      <div class="quick-import-table-wrap" id="rosterPreviewTableWrap">
+        <table class="quick-import-table roster-preview-table" id="rosterPreviewTable">
+          <thead><tr id="rosterPreviewHeadRow"></tr></thead>
+          <tbody id="rosterPreviewBody"></tbody>
+        </table>
+      </div>
+      <div class="toolbar ps-dialog-footer">
+        <button class="primary" id="downloadRosterPdfButton" type="button">Download PDF</button>
+        <button class="secondary" id="closeRosterPreviewDialog" type="button">Tutup</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="ps-floating-dialog" id="dialog">
+    <form class="dialog-body duplicate-dialog-body ps-dialog-shell" id="form" method="dialog">
+      <div class="duplicate-dialog-head ps-dialog-header">
+        <div>
+          <h3 id="dialogTitle">Tambah regu</h3>
+          <p>Pilih pembina dan anggota santri per regu.</p>
+        </div>
+      </div>
+      <input type="hidden" name="id">
+      <label>
+        Nama regu
+        <input type="text" name="name" required>
+      </label>
+      <label>
+        Kategori gender
+        <select name="genderGroup">
+          <option value="Ikhwan">Ikhwan</option>
+          <option value="Akhowat">Akhowat</option>
+          <option value="Campur">Campur</option>
+          <option value="Tidak ada">Tidak ada</option>
+        </select>
+      </label>
+      <label>
+        Deskripsi
+        <textarea name="description" rows="4"></textarea>
+      </label>
+      <label>
+        Status
+        <select name="status">
+          <option value="Aktif">Aktif</option>
+          <option value="Nonaktif">Nonaktif</option>
+        </select>
+      </label>
+      <label>
+        Tahun ajaran <span style="color:var(--danger,#a55a52)">*</span>
+        <select id="dialogTahunAjaran" required>
+          <option value="" disabled selected>— Pilih tahun ajaran —</option>
+        </select>
+      </label>
+      <div>
+        <h3>Pembina</h3>
+        <div class="selector-group">
+          <textarea class="selector-textarea" data-selector-target="pembinaChecklist" rows="4" placeholder="Tempel banyak nama pembina, satu nama per baris"></textarea>
+          <p class="selector-note">Bisa cari banyak nama sekaligus. Gunakan satu nama per baris atau pisahkan dengan koma.</p>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+            <div class="selector-hint" data-selector-count="pembinaChecklist">Belum ada dipilih</div>
+            <div style="display:flex;gap:4px;flex-shrink:0">
+              <button type="button" class="secondary" style="font-size:11px;padding:2px 10px;min-height:0;white-space:nowrap" onclick="window.PSUI.selectAllVisible('pembinaChecklist')">Pilih semua</button>
+              <button type="button" class="secondary" style="font-size:11px;padding:2px 10px;min-height:0;white-space:nowrap" onclick="window.PSUI.deselectAllVisible('pembinaChecklist')">Batalkan semua</button>
+            </div>
+          </div>
+          <div class="checklist" id="pembinaChecklist"></div>
+        </div>
+      </div>
+      <div>
+        <h3>Pembantu Pembina (Badal)</h3>
+        <div class="selector-group">
+          <textarea class="selector-textarea" data-selector-target="badalChecklist" rows="4" placeholder="Tempel banyak nama pembantu pembina, satu nama per baris"></textarea>
+          <p class="selector-note">Bisa cari banyak nama sekaligus. Gunakan satu nama per baris atau pisahkan dengan koma. Pembantu pembina bisa mengisi absensi, perkembangan santri (RJ), dan hal lain yang bisa dilakukan pembina regu untuk regu ini.</p>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+            <div class="selector-hint" data-selector-count="badalChecklist">Belum ada dipilih</div>
+            <div style="display:flex;gap:4px;flex-shrink:0">
+              <button type="button" class="secondary" style="font-size:11px;padding:2px 10px;min-height:0;white-space:nowrap" onclick="window.PSUI.selectAllVisible('badalChecklist')">Pilih semua</button>
+              <button type="button" class="secondary" style="font-size:11px;padding:2px 10px;min-height:0;white-space:nowrap" onclick="window.PSUI.deselectAllVisible('badalChecklist')">Batalkan semua</button>
+            </div>
+          </div>
+          <div class="checklist" id="badalChecklist"></div>
+        </div>
+      </div>
+      <div>
+        <h3>Anggota santri</h3>
+        <div class="selector-group">
+          <textarea class="selector-textarea" data-selector-target="santriChecklist" rows="4" placeholder="Tempel banyak nama, satu nama per baris"></textarea>
+          <p class="selector-note">Bisa cari banyak santri sekaligus. Gunakan satu nama per baris atau pisahkan dengan koma.</p>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+            <div class="selector-hint" data-selector-count="santriChecklist">Belum ada dipilih</div>
+            <div style="display:flex;gap:4px;flex-shrink:0">
+              <button type="button" class="secondary" style="font-size:11px;padding:2px 10px;min-height:0;white-space:nowrap" onclick="window.PSUI.selectAllVisible('santriChecklist')">Pilih semua</button>
+              <button type="button" class="secondary" style="font-size:11px;padding:2px 10px;min-height:0;white-space:nowrap" onclick="window.PSUI.deselectAllVisible('santriChecklist')">Batalkan semua</button>
+            </div>
+          </div>
+          <div class="checklist" id="santriChecklist"></div>
+        </div>
+      </div>
+
+      <div id="pindahSantriGroup" hidden>
+        <h3>Pindahkan santri ke regu lain</h3>
+        <p class="selector-note">Pindah 1 santri secara langsung (keluar dari regu ini, masuk ke regu tujuan) dalam satu langkah — tercatat permanen di Riwayat Pindah Regu. Regu tujuan wajib di tahun ajaran yang sama.</p>
+        <div class="toolbar" style="flex-wrap:wrap;gap:8px">
+          <div class="pindah-santri-picker" style="flex:1;min-width:180px">
+            <input type="text" id="pindahSantriSearch" placeholder="Cari &amp; pilih santri..." autocomplete="off" style="width:100%">
+            <input type="hidden" id="pindahSantriSelect" value="">
+            <div class="pindah-santri-results" id="pindahSantriResults" hidden></div>
+          </div>
+          <select id="pindahTargetSelect" style="flex:1;min-width:180px">
+            <option value="">— Pilih regu tujuan —</option>
+          </select>
+          <input type="date" id="pindahTanggalInput" style="flex:0 0 150px" title="Tanggal efektif pindah">
+        </div>
+        <div class="toolbar" style="flex-wrap:wrap;gap:8px;margin-top:6px">
+          <input type="text" id="pindahAlasanInput" style="flex:1;min-width:180px" placeholder="Alasan pindah (opsional)">
+          <button type="button" class="secondary" id="pindahSantriBtn">Pindahkan</button>
+        </div>
+      </div>
+
+      <div class="toolbar ps-dialog-footer">
+        <button class="primary" id="saveFormButton" type="submit">Simpan</button>
+        <button class="secondary" id="closeDialog" type="button">Batal</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="ps-floating-dialog quick-import-dialog" id="quickImportDialog">
+    <form class="dialog-body duplicate-dialog-body ps-dialog-shell quick-import-shell" id="quickImportForm" method="dialog">
+      <div class="duplicate-dialog-head ps-dialog-header">
+        <div>
+          <h3>Tempel cepat regu</h3>
+          <p>Tempel beberapa blok regu sekaligus. Preview akan memakai data pembina dan santri terbaru dari backend.</p>
+        </div>
+      </div>
+      <div class="quick-import-stack">
+        <div>
+          <label for="quickImportInput">Data tempelan</label>
+          <textarea class="quick-import-textarea" id="quickImportInput" placeholder="REGU:
+Regu A
+GENDER:
+Ikhwan
+DESKRIPSI:
+Regu inti lantai 1
+AKTIF:
+Aktif
+PEMBINA:
+Ustadz Fulan
+SANTRI:
+Fulan 1
+Fulan 2"></textarea>
+        </div>
+        <div>
+          <label>Contoh format</label>
+          <button class="quick-import-example" type="button">REGU:
+Regu A
+GENDER:
+Ikhwan
+DESKRIPSI:
+Regu inti lantai 1
+AKTIF:
+Aktif
+PEMBINA:
+Ustadz Fulan
+SANTRI:
+Fulan 1
+Fulan 2</button>
+        </div>
+      </div>
+      <div class="toolbar quick-import-actions-inline">
+        <button class="secondary" id="quickImportParseButton" type="button">Buat preview</button>
+        <button class="secondary" id="quickImportClearButton" type="button">Kosongkan</button>
+        <button class="secondary" id="closeQuickImportDialog" type="button">Tutup</button>
+      </div>
+      <section class="quick-import-summary" id="quickImportSummary">
+        <div class="quick-import-summary-head">
+          <span class="pill">Belum ada preview</span>
+        </div>
+        <p class="quick-import-summary-copy">Tempel data lalu klik <strong>Buat preview</strong> untuk memeriksa hasil parse dan pencocokan data terbaru.</p>
+      </section>
+      <div class="quick-import-table-wrap" hidden id="quickImportTableWrap">
+        <table class="quick-import-table">
+          <thead>
+            <tr>
+              <th>No</th>
+              <th>Regu</th>
+              <th>Gender</th>
+              <th>Deskripsi</th>
+              <th>Status</th>
+              <th>Pembina</th>
+              <th>Santri</th>
+              <th>Catatan</th>
+            </tr>
+          </thead>
+          <tbody id="quickImportTableBody"></tbody>
+        </table>
+      </div>
+      <div class="toolbar ps-dialog-footer">
+        <button class="primary" id="quickImportSaveButton" type="submit" disabled>Simpan data valid</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="ps-floating-dialog danger-dialog" id="deleteAllDialog">
+    <form class="dialog-body duplicate-dialog-body ps-dialog-shell" id="deleteAllForm" method="dialog">
+      <div class="duplicate-dialog-head ps-dialog-header">
+        <div>
+          <h3>Hapus semua data regu</h3>
+        </div>
+      </div>
+
+      <div class="dialog-main">
+        <strong>Untuk lanjut, ketik:</strong>
+        <code>HAPUS SEMUA</code>
+        <br>
+        <label>
+          Konfirmasi
+          <input id="deleteAllConfirmInput" type="text" autocomplete="off" placeholder="Ketik HAPUS SEMUA">
+        </label>
+      </div>
+      
+      <div class="toolbar ps-dialog-footer">
+        <button class="danger" id="confirmDeleteAllButton" type="submit" disabled>Hapus semua</button>
+        <button class="secondary" id="closeDeleteAllDialog" type="button">Batal</button>
+      </div>
+    </form>
+  </dialog>
+
+  </div>
+
+  <input id="importExcelInput" type="file" accept=".xlsx,.xls" hidden>
+  <script src="../../shared-audit.js"></script>
+  <script src="../../shared-access.js"></script>
+  <script src="../../shared-nav.js"></script>
+  <script src="../../shared-shell.js"></script>
+  <script src="../../shared-excel.js"></script>
+  <script src="../../shared-export.js"></script>
+  <script>
+    const API_BASE = window.location.origin + '/api';
+    const STORAGE = { apiBase: 'ps_api_base', token: 'ps_token', session: 'ps_session' };
+    localStorage.setItem(STORAGE.apiBase, API_BASE);
+    const DATASET_KEY = 'regu';
+    const state = {
+      items: [],
+      refs: { pengurus: [], santri: [], tahunAjaran: [] },
+      page: 1,
+      pageSize: 25,
+      totalPages: 1,
+      total: 0,
+      selectedIds: new Set(),
+      expandedIds: new Set(),
+      toolbarExpanded: false,
+      tahunAjaranFilter: '',
+      pindahSantriMembers: []
+    };
+    const quickImportState = {
+      entries: [],
+      busy: false,
+      hasInput: false,
+      dirty: false,
+      parsed: false
+    };
+    const ISSUE_GROUP_CONFIG = {
+      active_without_regu: true,
+      frozen_without_assignments: true,
+      regu_without_pembina: true,
+      regu_gender_mismatch: true,
+      invalid_references: {
+        filter: item => item.entity === 'regu',
+        successText: 'Tidak ada referensi regu yang hilang.'
+      }
+    };
+    const uiState = {
+      currentNoticeId: '',
+      noticeCounter: 0,
+      noticeShownAt: 0,
+      pendingNotice: null,
+      desktopSidebar: null
+    };
+
+    function getApiBase() {
+      return localStorage.getItem(STORAGE.apiBase) || '';
+    }
+
+    function getToken() {
+      return localStorage.getItem(STORAGE.token) || '';
+    }
+
+    function clearSession() {
+      localStorage.removeItem(STORAGE.token);
+      localStorage.removeItem(STORAGE.session);
+    }
+
+    function getStoredSession() {
+      try {
+        return JSON.parse(localStorage.getItem(STORAGE.session) || 'null');
+      } catch (error) {
+        return null;
+      }
+    }
+
+    function getScopedSession() {
+      return window.PSAccess && typeof window.PSAccess.getScopedSession === 'function'
+        ? window.PSAccess.getScopedSession(getStoredSession())
+        : getStoredSession();
+    }
+
+    function canDeleteRecords() {
+      const session = getScopedSession();
+      return !!(session && session.permissions && session.permissions.canDelete);
+    }
+
+    function canManageRecords() {
+      const session = getScopedSession();
+      return !!(session && session.permissions && session.permissions.canManageRegu);
+    }
+
+    function canDownloadSummaryPdf() {
+      const session = getScopedSession();
+      return !!(session && session.permissions && (session.permissions.canManageRegu || session.permissions.canManageSantri || session.permissions.canDelete));
+    }
+
+    function canUseExcelTools() {
+      if (window.PSAccess && typeof window.PSAccess.canUseExcelTools === 'function') {
+        return window.PSAccess.canUseExcelTools(getStoredSession());
+      }
+      return false;
+    }
+
+    function updateHeaderMeta(session) {
+      window.PSShell.syncIdentity({
+        currentPage: window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : '/pages/editRegu/',
+        session: session || getStoredSession(),
+        getStoredSession,
+        storageKey: STORAGE.session
+      });
+    }
+
+    function toParams(data) {
+      const params = new URLSearchParams();
+      Object.entries(data).forEach(([key, value]) => {
+        if (value === undefined || value === null) return;
+        params.append(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
+      });
+      return params;
+    }
+
+    function createNoticeElement(text, type = 'info') {
+      const element = document.createElement('section');
+      element.className = `notice show ${type}`;
+      element.dataset.noticeId = `notice-${Date.now()}-${uiState.noticeCounter += 1}`;
+      element.textContent = text;
+      function dismiss() {
+        if (!element.parentNode) return;
+        element.classList.add('notice-dismissing');
+        window.setTimeout(() => {
+          element.remove();
+          const stack = document.getElementById('noticeStack');
+          if (stack && !stack.hasChildNodes() && stack.matches(':popover-open')) stack.hidePopover();
+        }, 220);
+      }
+      element.addEventListener('click', dismiss);
+      window.setTimeout(dismiss, type === 'error' ? 10000 : 6000);
+      return element;
+    }
+
+    function removeNoticeById(id) {
+      const element = document.querySelector(`[data-notice-id="${id}"]`);
+      if (element) element.remove();
+      if (uiState.currentNoticeId === id) uiState.currentNoticeId = '';
+      const stack = document.getElementById('noticeStack');
+      if (stack && !stack.hasChildNodes() && stack.matches(':popover-open')) stack.hidePopover();
+    }
+
+    function showNotice(text, type = 'info') {
+      if (uiState.pendingNotice) { clearTimeout(uiState.pendingNotice); uiState.pendingNotice = null; }
+      const elapsed = Date.now() - uiState.noticeShownAt;
+      if (elapsed < 2000 && uiState.currentNoticeId) {
+        uiState.pendingNotice = window.setTimeout(() => { uiState.pendingNotice = null; showNotice(text, type); }, 2000 - elapsed);
+        return uiState.currentNoticeId;
+      }
+      clearNotice();
+      const element = createNoticeElement(text, type);
+      const stack = document.getElementById('noticeStack');
+      stack.prepend(element);
+      uiState.currentNoticeId = element.dataset.noticeId;
+      uiState.noticeShownAt = Date.now();
+      if (stack.matches(':popover-open')) stack.hidePopover();
+      stack.showPopover();
+      return uiState.currentNoticeId;
+    }
+
+    function clearNotice() {
+      if (uiState.pendingNotice) { clearTimeout(uiState.pendingNotice); uiState.pendingNotice = null; }
+      if (!uiState.currentNoticeId) return;
+      removeNoticeById(uiState.currentNoticeId);
+    }
+
+    function normalizeGenderGroupLabel(value) {
+      const text = String(value == null ? '' : value).trim().toLowerCase().replace(/\s+/g, ' ');
+      if (!text || text === '-' || text === 'tidak ada' || text === 'tidakada' || text === 'none' || text === 'n/a' || text === 'n a') return 'Tidak ada';
+      if (['ikhwan', 'putra', 'l', 'lk', 'laki laki', 'laki-laki', 'male'].includes(text)) return 'Ikhwan';
+      if (['akhowat', 'akhawat', 'akhwat', 'putri', 'p', 'pr', 'perempuan', 'female'].includes(text)) return 'Akhowat';
+      if (['campur', 'mixed', 'mix', 'gabung', 'bersama', 'umum'].includes(text)) return 'Campur';
+      return 'Tidak ada';
+    }
+
+    function getGenderGroupPillClass(value) {
+      const label = normalizeGenderGroupLabel(value);
+      if (label === 'Ikhwan') return 'gender-ikhwan';
+      if (label === 'Akhowat') return 'gender-akhowat';
+      if (label === 'Campur') return 'gender-campur';
+      return 'gender-none';
+    }
+
+    function getGenderGroupCardClass(value, active) {
+      const label = normalizeGenderGroupLabel(value);
+      const inactive = !active;
+      if (label === 'Ikhwan') return inactive ? 'row-ikhwan-inactive' : 'row-ikhwan';
+      if (label === 'Akhowat') return inactive ? 'row-akhowat-inactive' : 'row-akhowat';
+      if (label === 'Campur') return inactive ? 'row-campur-inactive' : 'row-campur';
+      return '';
+    }
+
+    function buildGenderGroupPill(value) {
+      const label = normalizeGenderGroupLabel(value);
+      return `<span class="pill ${getGenderGroupPillClass(label)}">${escapeHtml(label)}</span>`;
+    }
+
+    function mountShell(session) {
+      return window.PSShell.mount({
+        currentPage: window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : '/pages/editRegu/',
+        session,
+        getStoredSession,
+        storageKey: STORAGE.session
+      });
+    }
+
+    async function api(action, payload = {}, method = 'GET') {
+      const apiBase = getApiBase();
+      const token = getToken();
+      if (!apiBase || !token) {
+        clearSession();
+        window.location.replace('/pages/login/');
+        throw new Error('Sesi tidak ditemukan.');
+      }
+      const scopeLabel = window.PSAccess ? (window.PSAccess.getActiveRoleScopeLabel(getStoredSession()) || '') : '';
+      if (method === 'GET') {
+        const params = toParams({ action, token, scopeLabel, ...payload });
+        const response = await fetch(`${apiBase}?${params.toString()}`);
+        const json = await response.json();
+        if (!json.ok) {
+          const error = new Error(json.error?.message ? `Server mengatakan: ${json.error.message}` : 'Permintaan gagal.');
+          error.code = json.error?.code || response.status || 500;
+          if (error.code === 401) {
+            clearSession();
+            window.location.replace('/pages/login/');
+          }
+          throw error;
+        }
+        return json.data;
+      }
+      const response = await fetch(apiBase, {
+        method,
+        body: toParams({ action, token, scopeLabel, ...payload })
+      });
+      const json = await response.json();
+      if (!json.ok) {
+        const error = new Error(json.error?.message ? `Server mengatakan: ${json.error.message}` : 'Permintaan gagal.');
+        error.code = json.error?.code || response.status || 500;
+        if (error.code === 401) {
+          clearSession();
+          window.location.replace('/pages/login/');
+        }
+        throw error;
+      }
+      return json.data;
+    }
+
+    function escapeHtml(value) {
+      return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function getQuickImportElements() {
+      return {
+        dialog: document.getElementById('quickImportDialog'),
+        form: document.getElementById('quickImportForm'),
+        input: document.getElementById('quickImportInput'),
+        summary: document.getElementById('quickImportSummary'),
+        tableWrap: document.getElementById('quickImportTableWrap'),
+        tableBody: document.getElementById('quickImportTableBody'),
+        saveButton: document.getElementById('quickImportSaveButton'),
+        parseButton: document.getElementById('quickImportParseButton'),
+        clearButton: document.getElementById('quickImportClearButton')
+      };
+    }
+
+    function normalizeLookupValue(value) {
+      const text = String(value == null ? '' : value);
+      const normalized = typeof text.normalize === 'function'
+        ? text.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        : text;
+      return normalized
+        .toLowerCase()
+        .replace(/[^0-9a-z\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
+    function cleanQuickImportText(value) {
+      return String(value == null ? '' : value)
+        .replace(/\r\n/g, '\n')
+        .replace(/^\s*```(?:[\w-]+)?\s*$/gm, '')
+        .trim();
+    }
+
+    function normalizeMultilineValue(value) {
+      return String(value == null ? '' : value)
+        .replace(/\r\n/g, '\n')
+        .split('\n')
+        .map(line => line.replace(/\s+$/g, ''))
+        .join('\n')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+    }
+
+    function createQuickImportDraft() {
+      return {
+        name: '',
+        genderGroup: '',
+        description: '',
+        active: '',
+        pembina: '',
+        santri: ''
+      };
+    }
+
+    function hasQuickImportDraftContent(draft) {
+      return Object.values(draft || {}).some(value => String(value == null ? '' : value).trim());
+    }
+
+    function detectQuickImportField(line) {
+      const patterns = [
+        { key: 'name', pattern: /^(?:\W+\s*)?regu\s*:\s*(.*)$/i },
+        { key: 'genderGroup', pattern: /^(?:kategori\s+gender|grup\s+gender|gender)\s*:\s*(.*)$/i },
+        { key: 'description', pattern: /^deskripsi\s*:\s*(.*)$/i },
+        { key: 'active', pattern: /^aktif\s*:\s*(.*)$/i },
+        { key: 'pembina', pattern: /^pembina\s*:\s*(.*)$/i },
+        { key: 'santri', pattern: /^(?:santri|murid)\s*:\s*(.*)$/i }
+      ];
+      return patterns.reduce((result, item) => {
+        if (result) return result;
+        const match = line.match(item.pattern);
+        return match ? { key: item.key, value: match[1] || '' } : null;
+      }, null);
+    }
+
+    function appendQuickImportDraftValue(draft, key, line) {
+      if (!draft || !key) return;
+      const value = String(line == null ? '' : line).replace(/\s+$/g, '');
+      if (!value && key !== 'description') return;
+      draft[key] = draft[key]
+        ? `${draft[key]}\n${value}`
+        : value;
+    }
+
+    function parseQuickImportEntries(rawText) {
+      const cleaned = cleanQuickImportText(rawText);
+      if (!cleaned) return [];
+
+      const drafts = [];
+      let current = createQuickImportDraft();
+      let currentField = '';
+
+      cleaned.split('\n').forEach(line => {
+        const field = detectQuickImportField(line.trim());
+        if (field) {
+          if (field.key === 'name' && hasQuickImportDraftContent(current)) {
+            drafts.push(current);
+            current = createQuickImportDraft();
+          }
+          currentField = field.key;
+          appendQuickImportDraftValue(current, currentField, field.value);
+          return;
+        }
+        if (!currentField) return;
+        appendQuickImportDraftValue(current, currentField, line);
+      });
+
+      if (hasQuickImportDraftContent(current)) drafts.push(current);
+      return drafts;
+    }
+
+    async function refreshQuickImportPreviewEntries(rawText, options = {}) {
+      const drafts = parseQuickImportEntries(rawText);
+      if (!drafts.length) {
+        quickImportState.entries = [];
+        return [];
+      }
+      if (!options.silent) {
+        showNotice('Mengecek data pembina dan santri terbaru untuk preview regu...', 'info');
+      }
+      const data = await api('regu.quickImportPreview', { drafts }, 'POST');
+      const entries = Array.isArray(data?.entries) ? data.entries : [];
+      quickImportState.entries = entries;
+      return entries;
+    }
+
+    function formatQuickImportCell(values, emptyText = '-') {
+      if (!values.length) return `<span class="quick-import-empty">${escapeHtml(emptyText)}</span>`;
+      const limit = 4;
+      return `
+        <div class="quick-import-cell-list">
+          ${values.slice(0, limit).map(value => `<span>${escapeHtml(value)}</span>`).join('')}
+          ${values.length > limit ? `<span class="quick-import-more">+${values.length - limit} lainnya</span>` : ''}
+        </div>
+      `;
+    }
+
+    function formatQuickImportNotes(entry) {
+      const items = [
+        ...entry.blockingIssues.map(message => `<li class="is-error">${escapeHtml(message)}</li>`),
+        ...entry.warnings.map(message => `<li class="is-warning">${escapeHtml(message)}</li>`)
+      ];
+      if (!items.length) {
+        return '<span class="quick-import-empty">Siap disimpan</span>';
+      }
+      return `<ul class="quick-import-note-list">${items.join('')}</ul>`;
+    }
+
+    function renderQuickImportPreview() {
+      const elements = getQuickImportElements();
+      const entries = quickImportState.entries.slice();
+      const validCount = entries.filter(entry => entry.isValid).length;
+      const invalidCount = entries.length - validCount;
+      const warningCount = entries.reduce((sum, entry) => sum + entry.warnings.length, 0);
+
+      elements.parseButton.disabled = quickImportState.busy;
+      elements.clearButton.disabled = quickImportState.busy;
+      elements.saveButton.disabled = quickImportState.busy || quickImportState.dirty || validCount === 0;
+      elements.saveButton.textContent = validCount ? `Simpan ${validCount} data valid` : 'Simpan data valid';
+
+      if (!entries.length) {
+        elements.tableWrap.hidden = true;
+        elements.tableBody.innerHTML = '';
+        if (quickImportState.dirty && quickImportState.hasInput) {
+          elements.summary.innerHTML = `
+            <div class="quick-import-summary-head">
+              <span class="pill warn">Preview perlu dibuat ulang</span>
+            </div>
+            <p class="quick-import-summary-copy">Isi textarea sudah berubah. Klik <strong>Buat preview</strong> lagi agar data yang akan disimpan sesuai dengan tempelan terbaru.</p>
+          `;
+          return;
+        }
+        if (quickImportState.hasInput && !quickImportState.parsed) {
+          elements.summary.innerHTML = `
+            <div class="quick-import-summary-head">
+              <span class="pill">Siap diparse</span>
+            </div>
+            <p class="quick-import-summary-copy">Data tempelan sudah ada. Klik <strong>Buat preview</strong> untuk memeriksa hasil pencocokan pembina dan santri.</p>
+          `;
+          return;
+        }
+        elements.summary.innerHTML = quickImportState.hasInput
+          ? `
+            <div class="quick-import-summary-head">
+              <span class="pill inactive">Format belum terbaca</span>
+            </div>
+            <p class="quick-import-summary-copy">Belum ada blok regu yang berhasil diparse. Pastikan format mengandung label <strong>REGU</strong>, <strong>DESKRIPSI</strong>, <strong>AKTIF</strong>, <strong>PEMBINA</strong>, dan <strong>SANTRI</strong>.</p>
+          `
+          : `
+            <div class="quick-import-summary-head">
+              <span class="pill">Belum ada preview</span>
+            </div>
+            <p class="quick-import-summary-copy">Tempel data lalu klik <strong>Buat preview</strong> untuk memeriksa hasil parse dan nama yang cocok.</p>
+          `;
+        return;
+      }
+
+      elements.summary.innerHTML = `
+        <div class="quick-import-summary-head">
+          <span class="pill">Total ${entries.length}</span>
+          <span class="pill">${validCount} siap disimpan</span>
+          <span class="pill ${invalidCount ? 'inactive' : ''}">${invalidCount} perlu dicek</span>
+          <span class="pill ${warningCount ? 'warn' : ''}">${warningCount} warning</span>
+        </div>
+        <p class="quick-import-summary-copy">${invalidCount
+          ? 'Baris yang valid bisa langsung disimpan. Baris bermasalah akan tetap ditahan agar bisa diperbaiki dari textarea.'
+          : 'Semua baris sudah valid. Anda bisa langsung menyimpan semuanya.'}</p>
+      `;
+
+      elements.tableBody.innerHTML = entries.map(entry => `
+        <tr class="${entry.isValid ? 'is-valid' : 'is-invalid'}">
+          <td>${entry.rowNumber}</td>
+          <td><strong>${escapeHtml(entry.display.name || '-')}</strong></td>
+          <td>${buildGenderGroupPill(entry.display.genderGroup)}</td>
+          <td>${entry.display.description ? escapeHtml(entry.display.description) : '<span class="quick-import-empty">-</span>'}</td>
+          <td>${escapeHtml(entry.display.status || '-')}</td>
+          <td>${formatQuickImportCell(entry.display.primaryLabels, entry.input.primaryNames.length ? 'Belum cocok' : '-')}</td>
+          <td>${formatQuickImportCell(entry.display.santriLabels, entry.input.santriNames.length ? 'Belum cocok' : '-')}</td>
+          <td>${formatQuickImportNotes(entry)}</td>
+        </tr>
+      `).join('');
+      elements.tableWrap.hidden = false;
+    }
+
+    function resetQuickImportDialog(options) {
+      const settings = options || {};
+      const elements = getQuickImportElements();
+      if (!settings.keepText) {
+        elements.input.value = '';
+      }
+      quickImportState.entries = [];
+      quickImportState.busy = false;
+      quickImportState.hasInput = !!(settings.keepText && elements.input.value.trim());
+      quickImportState.dirty = false;
+      quickImportState.parsed = false;
+      renderQuickImportPreview();
+    }
+
+    function openQuickImportDialog() {
+      if (!canDeleteRecords()) {
+        showNotice('Hanya Super Admin yang bisa memakai fitur tempel regu.', 'error');
+        return;
+      }
+      const elements = getQuickImportElements();
+      quickImportState.hasInput = !!elements.input.value.trim();
+      quickImportState.dirty = false;
+      quickImportState.parsed = quickImportState.entries.length > 0;
+      renderQuickImportPreview();
+      elements.dialog.showModal();
+      elements.input.focus();
+    }
+
+    async function parseQuickImportPreview() {
+      const elements = getQuickImportElements();
+      quickImportState.hasInput = !!elements.input.value.trim();
+      quickImportState.dirty = false;
+      quickImportState.parsed = true;
+      quickImportState.busy = true;
+      renderQuickImportPreview();
+      try {
+        await refreshQuickImportPreviewEntries(elements.input.value);
+        clearNotice();
+      } catch (error) {
+        quickImportState.entries = [];
+        showNotice(error.message || 'Gagal membuat preview tempel regu.', 'error');
+      } finally {
+        quickImportState.busy = false;
+        renderQuickImportPreview();
+      }
+    }
+
+    async function saveQuickImport(event) {
+      event.preventDefault();
+      if (quickImportState.busy) return;
+
+      const elements = getQuickImportElements();
+      quickImportState.hasInput = !!elements.input.value.trim();
+      quickImportState.dirty = false;
+      quickImportState.parsed = true;
+      quickImportState.busy = true;
+      renderQuickImportPreview();
+
+      try {
+        await refreshQuickImportPreviewEntries(elements.input.value, { silent: true });
+      } catch (error) {
+        quickImportState.busy = false;
+        renderQuickImportPreview();
+        showNotice(error.message || 'Gagal memeriksa ulang preview tempel regu.', 'error');
+        return;
+      }
+
+      quickImportState.busy = false;
+      renderQuickImportPreview();
+
+      const validEntries = quickImportState.entries.filter(entry => entry.isValid);
+      const invalidEntries = quickImportState.entries.filter(entry => !entry.isValid);
+      if (!validEntries.length) {
+        showNotice('Belum ada baris valid untuk disimpan.', 'error');
+        return;
+      }
+
+      const confirmMessage = invalidEntries.length
+        ? `Simpan ${validEntries.length} regu yang valid? ${invalidEntries.length} baris lain belum ikut disimpan.`
+        : `Simpan ${validEntries.length} regu dari tempelan cepat?`;
+      if (!confirm(confirmMessage)) return;
+
+      quickImportState.busy = true;
+      renderQuickImportPreview();
+
+      let savedCount = 0;
+      const failedEntries = [];
+
+      for (let index = 0; index < validEntries.length; index += 1) {
+        const entry = validEntries[index];
+        showNotice(`Menyimpan regu ${index + 1}/${validEntries.length}: ${entry.record.name}...`, 'info');
+        try {
+          await api('regu.save', { record: entry.record }, 'POST');
+          savedCount += 1;
+        } catch (error) {
+          failedEntries.push({
+            ...entry,
+            blockingIssues: entry.blockingIssues.concat(error.message || 'Gagal menyimpan regu ini.'),
+            isValid: false
+          });
+        }
+      }
+
+      quickImportState.busy = false;
+
+      try {
+        await loadData();
+        await issuePanelController.load();
+      } catch (error) {
+        showNotice(error.message || 'Data regu tersimpan, tetapi daftar gagal dimuat ulang.', 'error');
+      }
+
+      const remainingEntries = invalidEntries.concat(failedEntries);
+      if (remainingEntries.length) {
+        quickImportState.entries = remainingEntries;
+        quickImportState.hasInput = true;
+        quickImportState.dirty = false;
+        quickImportState.parsed = true;
+        elements.input.value = remainingEntries.map(entry => entry.sourceBlock).join('\n\n');
+        renderQuickImportPreview();
+        showNotice(
+          savedCount
+            ? `Berhasil menyimpan ${savedCount} regu. ${remainingEntries.length} baris masih perlu ditinjau.`
+            : 'Belum ada regu yang tersimpan. Periksa catatan di preview tempel regu.',
+          savedCount ? 'info' : 'error'
+        );
+        return;
+      }
+
+      resetQuickImportDialog();
+      elements.dialog.close();
+      showNotice(`Berhasil menyimpan ${savedCount} regu dari tempelan cepat.`, 'info');
+    }
+
+    async function handleExportQuickImportText() {
+      if (!canDeleteRecords()) {
+        showNotice('Hanya Super Admin yang bisa export format tempel regu.', 'error');
+        return;
+      }
+      showNotice('Menyiapkan export TXT tempel regu...', 'info');
+      try {
+        const data = await api('regu.quickImportExport');
+        const filename = data?.filename || `regu-tempel-${window.PSExport.formatExportFileTimestamp(new Date().toISOString())}.txt`;
+        const blob = new Blob([String(data?.text || '')], { type: 'text/plain;charset=utf-8' });
+        window.PSExport.downloadBlobFile(blob, filename);
+        showNotice(`Export TXT tempel regu siap diunduh. Total ${Number(data?.count || 0)} regu.`, 'info');
+      } catch (error) {
+        showNotice(error.message || 'Gagal export TXT tempel regu.', 'error');
+      }
+    }
+
+    function buildPembinaSlots(item) {
+      const utama = Array.isArray(item.pembinaLabels) ? item.pembinaLabels.filter(Boolean) : [];
+      const badal = Array.isArray(item.badalLabels) ? item.badalLabels.filter(Boolean) : [];
+      const combined = utama.concat(badal.map(name => `(B) ${name}`));
+      const slots = combined.slice(0, 3);
+      if (combined.length > 3) {
+        const extra = combined.length - 3;
+        slots[2] = `${slots[2] || ''} +${extra} lainnya`;
+      }
+      return slots;
+    }
+
+    function buildRosterGroup(item) {
+      return {
+        name: item.name || 'Tanpa nama',
+        pengampuSlots: buildPembinaSlots(item),
+        santriLabels: Array.isArray(item.santriLabels) ? item.santriLabels.filter(Boolean) : []
+      };
+    }
+
+    function renderRosterPreviewTable(groups) {
+      const maxSantri = groups.reduce((max, g) => Math.max(max, (g.santriLabels || []).length), 0);
+      const headRow = document.getElementById('rosterPreviewHeadRow');
+      headRow.innerHTML = `<th>No</th>${groups.map(g => `<th>${escapeHtml(g.name)}</th>`).join('')}`;
+
+      const rows = [];
+      for (let r = 0; r < 3; r += 1) {
+        rows.push(`<tr class="roster-pengampu-row"><td>P${r + 1}</td>${groups.map(g => `<td>${escapeHtml((g.pengampuSlots || [])[r] || '-')}</td>`).join('')}</tr>`);
+      }
+      for (let s = 0; s < maxSantri; s += 1) {
+        rows.push(`<tr><td>${s + 1}</td>${groups.map(g => `<td>${escapeHtml((g.santriLabels || [])[s] || '')}</td>`).join('')}</tr>`);
+      }
+      document.getElementById('rosterPreviewBody').innerHTML = rows.join('');
+    }
+
+    async function refreshRosterPreview() {
+      const genderGroup = document.getElementById('rosterPreviewGenderFilter').value;
+      const sort = document.getElementById('rosterPreviewSortFilter').value;
+      try {
+        const data = await api('regu.summaryPdfData', {
+          q: document.getElementById('searchInput').value.trim(),
+          status: document.getElementById('statusFilter').value,
+          sort,
+          genderGroup,
+          tahunAjaranId: state.tahunAjaranFilter
+        });
+        const items = Array.isArray(data?.items) ? data.items : [];
+        const genderLabel = genderGroup ? ` ${genderGroup}` : '';
+        document.getElementById('rosterPreviewSubtitle').textContent = `Total ${items.length} regu${genderLabel}`;
+        renderRosterPreviewTable(items.map(buildRosterGroup));
+        clearNotice();
+      } catch (error) {
+        showNotice(error.message || 'Gagal memuat preview data regu.', 'error');
+      }
+    }
+
+    async function handlePreviewRoster() {
+      if (!canDownloadSummaryPdf()) {
+        showNotice('Lihat data regu hanya untuk Admin dan Super Admin.', 'error');
+        return;
+      }
+      showNotice('Menyusun preview data regu...', 'info');
+      try {
+        document.getElementById('rosterPreviewTitle').textContent = 'Data Regu';
+        document.getElementById('rosterPreviewGenderFilter').innerHTML = document.getElementById('genderFilter').innerHTML;
+        document.getElementById('rosterPreviewGenderFilter').value = '';
+        document.getElementById('rosterPreviewSortFilter').innerHTML = document.getElementById('sortSelect').innerHTML;
+        document.getElementById('rosterPreviewSortFilter').value = document.getElementById('sortSelect').value;
+        await refreshRosterPreview();
+        document.getElementById('rosterPreviewDialog').showModal();
+      } catch (error) {
+        showNotice(error.message || 'Gagal memuat preview data regu.', 'error');
+      }
+    }
+
+    async function handleDownloadSummaryPdf() {
+      if (!canDownloadSummaryPdf()) {
+        showNotice('Download PDF regu hanya untuk Admin dan Super Admin.', 'error');
+        return;
+      }
+      const genderGroup = document.getElementById('rosterPreviewGenderFilter').value;
+      const sort = document.getElementById('rosterPreviewSortFilter').value;
+      const genderLabel = normalizeGenderGroupLabel(genderGroup);
+      const useGenderFilter = genderLabel === 'Ikhwan' || genderLabel === 'Akhowat';
+      showNotice(`Menyusun ringkasan regu PDF${useGenderFilter ? ` ${genderLabel}` : ''}...`, 'info');
+      try {
+        const data = await api('regu.summaryPdfData', {
+          q: document.getElementById('searchInput').value.trim(),
+          status: document.getElementById('statusFilter').value,
+          sort,
+          genderGroup,
+          tahunAjaranId: state.tahunAjaranFilter
+        });
+        const items = Array.isArray(data?.items) ? data.items : [];
+        const blob = window.PSExport.buildRosterGridPdfBlob({
+          title: useGenderFilter ? `Ringkasan Regu ${genderLabel}` : 'Ringkasan Regu',
+          subtitle: `Total ${items.length} regu${useGenderFilter ? ` ${genderLabel}` : ''}`,
+          emptyText: useGenderFilter
+            ? `Belum ada regu ${genderLabel.toLowerCase()} yang cocok dengan filter saat ini.`
+            : 'Belum ada regu yang cocok dengan filter saat ini.',
+          columnsPerPage: 10,
+          groups: items.map(buildRosterGroup),
+          exportedAt: data?.exportedAt
+        });
+        const fileSuffix = useGenderFilter ? `-${genderLabel.toLowerCase()}` : '';
+        window.PSExport.downloadBlobFile(blob, `regu${fileSuffix}-${window.PSExport.formatExportFileTimestamp(data?.exportedAt)}.pdf`);
+        showNotice(`PDF regu${useGenderFilter ? ` ${genderLabel}` : ''} siap diunduh.`, 'info');
+      } catch (error) {
+        showNotice(error.message || 'Gagal membuat PDF regu.', 'error');
+      }
+    }
+
+    const issuePanelController = createIssuePanelController(api, { issueConfig: ISSUE_GROUP_CONFIG });
+
+    function checklistMetaHtml(item) {
+      const idPart = item.noInduk ? `NIS ${item.noInduk}` : (item.username ? '@' + item.username : '');
+      const bits = [idPart, item.statusLabel || ''].filter(Boolean);
+      if (!bits.length) return '';
+      const frozen = item.statusLabel === 'Dibekukan';
+      return ` <span class="checklist-meta${frozen ? ' is-frozen' : ''}">(${bits.map(escapeHtml).join(' · ')})</span>`;
+    }
+
+    function renderChecklist(targetId, items, selectedIds = []) {
+      const selected = new Set(selectedIds);
+      document.getElementById(targetId).innerHTML = (items || []).map((item, index) => `
+        <label data-item-index="${index}">
+          <input type="checkbox" value="${item.id}" ${selected.has(item.id) ? 'checked' : ''}>
+          <span>${escapeHtml(item.name)}${checklistMetaHtml(item)}</span>
+        </label>
+      `).join('');
+      updateChecklistHint(targetId);
+    }
+
+    function getSelectedValues(targetId) {
+      return Array.from(document.querySelectorAll(`#${targetId} input:checked`)).map(input => input.value);
+    }
+
+    function updateChecklistHint(targetId) {
+      const count = document.querySelectorAll(`#${targetId} input:checked`).length;
+      const hint = document.querySelector(`[data-selector-count="${targetId}"]`);
+      if (!hint) return;
+      hint.textContent = count ? `${count} dipilih` : 'Belum ada dipilih';
+    }
+
+    function parseChecklistQueries(query) {
+      return Array.from(new Set(
+        query
+          .split(/\r?\n|,|;/)
+          .map(value => value.trim().toLowerCase())
+          .filter(Boolean)
+      ));
+    }
+
+    function applyChecklistFilter(targetId, query) {
+      const terms = parseChecklistQueries(query);
+      const container = document.getElementById(targetId);
+      const labels = Array.from(container.querySelectorAll('label'));
+      if (!terms.length) {
+        labels.sort((a, b) => {
+          const ac = !!a.querySelector('input[type="checkbox"]:checked');
+          const bc = !!b.querySelector('input[type="checkbox"]:checked');
+          if (ac !== bc) return ac ? -1 : 1;
+          return Number(a.dataset.itemIndex) - Number(b.dataset.itemIndex);
+        });
+        labels.forEach(label => { label.hidden = false; container.appendChild(label); });
+        return;
+      }
+      labels.sort((a, b) => {
+        const ta = a.textContent.toLowerCase();
+        const tb = b.textContent.toLowerCase();
+        const ra = terms.findIndex(t => ta.includes(t));
+        const rb = terms.findIndex(t => tb.includes(t));
+        const rankA = ra === -1 ? Infinity : ra;
+        const rankB = rb === -1 ? Infinity : rb;
+        if (rankA !== rankB) return rankA - rankB;
+        const ac = !!a.querySelector('input[type="checkbox"]:checked');
+        const bc = !!b.querySelector('input[type="checkbox"]:checked');
+        if (ac !== bc) return ac ? -1 : 1;
+        return Number(a.dataset.itemIndex) - Number(b.dataset.itemIndex);
+      });
+      labels.forEach(label => {
+        label.hidden = !terms.some(t => label.textContent.toLowerCase().includes(t));
+        container.appendChild(label);
+      });
+    }
+
+    function resetChecklistFilters() {
+      document.querySelectorAll('[data-selector-target]').forEach(input => {
+        input.value = '';
+        applyChecklistFilter(input.dataset.selectorTarget, '');
+      });
+    }
+
+    function buildPaginationList(page, totalPages) {
+      const maxNumbers = 10;
+      if (totalPages <= maxNumbers) return Array.from({ length: totalPages }, (_, index) => index + 1);
+      const middleSlots = maxNumbers - 2;
+      const pages = [1];
+      let start = Math.max(2, page - Math.floor(middleSlots / 2));
+      let end = start + middleSlots - 1;
+      if (end > totalPages - 1) {
+        end = totalPages - 1;
+        start = end - middleSlots + 1;
+      }
+      if (start > 2) pages.push('...');
+      for (let value = start; value <= end; value += 1) pages.push(value);
+      if (end < totalPages - 1) pages.push('...');
+      pages.push(totalPages);
+      return pages;
+    }
+
+    function renderPagination() {
+      const markup = state.total
+        ? `
+          <div class="paging">
+            <button class="secondary" type="button" data-page="${state.page - 1}" ${state.page <= 1 ? 'disabled' : ''}>Sebelumnya</button>
+            <div class="page-center">
+              <div class="page-numbers">
+                ${buildPaginationList(state.page, state.totalPages).map(item => (
+                  item === '...'
+                    ? '<span class="page-summary">...</span>'
+                    : `<button class="secondary page-btn ${item === state.page ? 'active' : ''}" type="button" data-page="${item}">${item}</button>`
+                )).join('')}
+              </div>
+              <div class="page-summary">Halaman ${state.page} dari ${state.totalPages} | total ${state.total} data</div>
+            </div>
+            <button class="secondary" type="button" data-page="${state.page + 1}" ${state.page >= state.totalPages ? 'disabled' : ''}>Berikutnya</button>
+          </div>
+        `
+        : '';
+      window.PSUI.syncPaginationHosts({ markup, visibleCount: state.items.length, totalCount: state.total, topId: 'paginationTop', bottomId: 'paginationBottom' });
+    }
+
+    function isItemExpanded(id) {
+      return state.expandedIds.has(id);
+    }
+
+    function pruneExpandedIds() {
+      const visibleIds = new Set(state.items.map(item => item.id));
+      Array.from(state.expandedIds).forEach(id => {
+        if (!visibleIds.has(id)) {
+          state.expandedIds.delete(id);
+        }
+      });
+    }
+
+    function syncExpandToggleButton() {
+      const button = document.getElementById('toggleExpandButton');
+      if (!button) return;
+      const hasItems = state.items.length > 0;
+      const allExpanded = hasItems && state.items.every(item => state.expandedIds.has(item.id));
+      button.disabled = !hasItems;
+      button.dataset.expandState = allExpanded ? 'expanded' : 'collapsed';
+      button.textContent = allExpanded ? 'Tutup semua' : 'Buka semua';
+    }
+
+    function syncActionToolbar() {
+      window.PSUI.syncActionToolbar({
+        toolbarId: 'actionToolbar',
+        toggleId: 'toolbarCollapseToggle',
+        expanded: state.toolbarExpanded
+      });
+    }
+
+    function syncFiltersVisibility() {
+      const filters = document.getElementById('filtersPanel');
+      if (filters) filters.hidden = false;
+    }
+
+    function syncRestrictedActions() {
+      const canUseExcel = canUseExcelTools();
+      const canDeleteAll = canDeleteRecords();
+      const canDownloadPdf = canDownloadSummaryPdf();
+      window.PSUI.applyPermissionLock(document.getElementById('addButton'), canManageRecords(), 'Mudir hanya bisa melihat data regu, tidak bisa menambah regu.');
+      document.getElementById('quickImportButton').hidden = !canDeleteAll;
+      document.getElementById('exportQuickImportTxtButton').hidden = !canDeleteAll;
+      document.getElementById('previewRosterButton').hidden = !canDownloadPdf;
+      document.getElementById('downloadTemplateButton').hidden = !canDeleteAll;
+      document.getElementById('importExcelButton').hidden = !canDeleteAll;
+      document.getElementById('exportExcelButton').hidden = !canUseExcel;
+      document.getElementById('deleteAllButton').hidden = !canDeleteAll;
+      document.getElementById('deleteAllButton').classList.toggle('is-unavailable', !canDeleteAll);
+    }
+
+    function toggleActionToolbar() {
+      state.toolbarExpanded = !state.toolbarExpanded;
+      syncActionToolbar();
+    }
+
+    function toggleExpandedList() {
+      const allExpanded = state.items.length > 0 && state.items.every(item => state.expandedIds.has(item.id));
+      if (allExpanded) {
+        state.expandedIds.clear();
+      } else {
+        state.items.forEach(item => state.expandedIds.add(item.id));
+      }
+      renderList();
+    }
+
+    function toggleItemExpanded(id) {
+      if (!id) return;
+      if (state.expandedIds.has(id)) {
+        state.expandedIds.delete(id);
+      } else {
+        state.expandedIds.add(id);
+      }
+      renderList();
+    }
+
+    function getSelectedIds() {
+      return Array.from(state.selectedIds);
+    }
+
+    function toggleSelectedId(id, checked) {
+      if (checked) state.selectedIds.add(id);
+      else state.selectedIds.delete(id);
+      renderBulkToolbar();
+    }
+
+    function clearSelectedIds() {
+      state.selectedIds.clear();
+      renderList();
+      renderBulkToolbar();
+    }
+
+    function selectVisibleItems() {
+      state.items.forEach(item => state.selectedIds.add(item.id));
+      renderList();
+      renderBulkToolbar();
+    }
+
+    function renderBulkToolbar() {
+      const count = state.selectedIds.size;
+      const canDelete = canDeleteRecords();
+      const canManage = canManageRecords();
+      const lockAttr = canManage ? '' : 'disabled aria-disabled="true" title="Mudir hanya bisa melihat data regu, tidak bisa mengubah data."';
+      window.PSUI.mountBulkToolbar('bulkToolbar', `
+        <div class="bulk-toolbar-head">
+          <strong>${count} item dipilih</strong>
+          <div class="bulk-toolbar-actions">
+            <button class="secondary" id="selectVisibleButton" type="button">Pilih halaman ini</button>
+            <button class="secondary" id="clearSelectedButton" type="button">Kosongkan pilihan</button>
+            <button class="secondary${canManage ? '' : ' ps-locked'}" id="bulkActivateButton" type="button" ${lockAttr}>Aktifkan</button>
+            <button class="secondary${canManage ? '' : ' ps-locked'}" id="bulkDeactivateButton" type="button" ${lockAttr}>Nonaktifkan</button>
+            <button class="secondary${canManage ? '' : ' ps-locked'}" id="bulkTahunAjaranButton" type="button" ${lockAttr}>Ubah Tahun Ajaran</button>
+            ${canDelete ? '<button class="danger" id="bulkDeleteButton" type="button">Hapus permanen</button>' : ''}
+          </div>
+        </div>
+      `, count > 0);
+    }
+
+    async function bulkSetTahunAjaran() {
+      const ids = getSelectedIds();
+      if (!ids.length) return showNotice('Pilih minimal satu regu.', 'error');
+      const items = state.refs.tahunAjaran || [];
+      if (!items.length) return showNotice('Belum ada data tahun ajaran.', 'error');
+      let dlg = document.getElementById('bulkTaDialog');
+      if (!dlg) { dlg = document.createElement('dialog'); dlg.id = 'bulkTaDialog'; dlg.style.cssText = 'border:none;border-radius:16px;padding:0;max-width:440px;width:92vw;box-shadow:0 20px 60px rgba(0,0,0,0.3);'; document.body.appendChild(dlg); }
+      const opts = items.map(ta => `<option value="${ta.id}" ${ta.isAktif ? 'selected' : ''}>${escapeHtml(ta.namaDisplay || ta.nama)}${ta.isAktif ? ' (Aktif)' : ''}</option>`).join('');
+      dlg.innerHTML = `<div style="padding:22px;display:grid;gap:14px;font-family:inherit;">
+        <h3 style="margin:0;font-size:1.15rem;">Ubah Tahun Ajaran</h3>
+        <p style="margin:0;font-size:13px;color:#777;line-height:1.5;"><strong>${ids.length}</strong> item terpilih akan dipindah ke tahun ajaran:</p>
+        <select id="bulkTaSelect" style="padding:11px 13px;border-radius:12px;border:1.5px solid #ccc;font:inherit;">${opts}</select>
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:4px;">
+          <button class="secondary" type="button" id="bulkTaCancel">Batal</button>
+          <button class="primary" type="button" id="bulkTaOk">Pindahkan</button>
+        </div>
+      </div>`;
+      dlg.showModal();
+      dlg.querySelector('#bulkTaCancel').onclick = () => dlg.close();
+      dlg.querySelector('#bulkTaOk').onclick = async () => {
+        const taId = dlg.querySelector('#bulkTaSelect').value;
+        dlg.close();
+        if (!taId) return;
+        try {
+          const res = await api('bulk.setTahunAjaran', { sheetKey: DATASET_KEY, ids, tahunAjaranId: taId }, 'POST');
+          clearSelectedIds();
+          await loadData();
+          if (typeof issuePanelController !== 'undefined' && issuePanelController) await issuePanelController.load();
+          showNotice((res && res.message) || 'Tahun ajaran berhasil diperbarui.', 'success');
+        } catch (e) { showNotice(e.message || 'Gagal mengubah tahun ajaran.', 'error'); }
+      };
+    }
+
+    async function handleBulkToggle(active) {
+      const ids = getSelectedIds();
+      if (!ids.length) return showNotice('Pilih minimal satu regu.', 'error');
+      if (!confirm(`${active ? 'Aktifkan' : 'Nonaktifkan'} ${ids.length} regu terpilih?`)) return;
+      try {
+        await api('bulk.toggle', { sheetKey: DATASET_KEY, ids, active }, 'POST');
+        clearSelectedIds();
+        await loadData();
+        await issuePanelController.load();
+      } catch (error) {
+        showNotice(error.message || 'Gagal memproses aksi massal.', 'error');
+      }
+    }
+
+    const DELETE_CHILD_LABELS = { perkembanganBulanan: 'Perkembangan santri', akhlakNilai: 'Nilai akhlak', deskripsiRaport: 'Deskripsi raport' };
+
+    async function confirmCascadeDelete(ids, entityNoun, doDeleteFn) {
+      if (!ids.length) return showNotice('Pilih minimal satu ' + entityNoun + '.', 'error');
+      let dlg = document.getElementById('cascadeDeleteDialog');
+      if (!dlg) { dlg = document.createElement('dialog'); dlg.id = 'cascadeDeleteDialog'; dlg.style.cssText = 'border:none;border-radius:16px;padding:0;max-width:480px;width:94vw;box-shadow:0 20px 60px rgba(0,0,0,0.3);color:#3a2f25;'; document.body.appendChild(dlg); }
+      dlg.innerHTML = `<div style="padding:22px;display:grid;gap:12px;font-family:inherit;">
+        <h3 style="margin:0;color:var(--danger,#a55a52);">Hapus ${entityNoun}</h3>
+        <div id="cascadeMsg" style="font-size:13.5px;line-height:1.6;">Memuat ringkasan...</div>
+        <label style="display:grid;gap:6px;font-size:13px;font-weight:600;">Ketik <strong>HAPUS</strong> untuk mengonfirmasi:
+          <input type="text" id="cascadeWord" autocomplete="off" placeholder="HAPUS" style="padding:11px 13px;border-radius:12px;border:1.5px solid #ccc;font:inherit;text-transform:uppercase;letter-spacing:0.1em;">
+        </label>
+        <div style="display:flex;gap:10px;justify-content:flex-end;">
+          <button class="secondary" type="button" id="cascadeCancel">Batal</button>
+          <button class="danger" type="button" id="cascadeOk" disabled>Hapus permanen</button>
+        </div>
+      </div>`;
+      dlg.showModal();
+      const wordEl = dlg.querySelector('#cascadeWord');
+      const okBtn = dlg.querySelector('#cascadeOk');
+      wordEl.oninput = () => { okBtn.disabled = wordEl.value.trim().toUpperCase() !== 'HAPUS'; };
+      dlg.querySelector('#cascadeCancel').onclick = () => dlg.close();
+      okBtn.onclick = async () => {
+        if (wordEl.value.trim().toUpperCase() !== 'HAPUS') return;
+        const word = wordEl.value.trim();
+        dlg.close();
+        try {
+          const res = await doDeleteFn(word);
+          clearSelectedIds();
+          await loadData();
+          if (typeof issuePanelController !== 'undefined' && issuePanelController) await issuePanelController.load();
+          showNotice((res && res.message) || 'Data dihapus permanen.', 'info');
+        } catch (e) { showNotice(e.message || 'Gagal menghapus.', 'error'); }
+      };
+      try {
+        const data = await api('entity.deletePreview', { sheetKey: DATASET_KEY, ids });
+        const c = data.counts || {};
+        const rows = Object.keys(DELETE_CHILD_LABELS).filter(k => c[k] > 0).map(k => `<li>${DELETE_CHILD_LABELS[k]}: <strong>${c[k]}</strong></li>`).join('');
+        dlg.querySelector('#cascadeMsg').innerHTML = `Anda akan <strong>menghapus permanen ${ids.length} ${entityNoun}</strong>.`
+          + `<br><br><strong>Konsekuensi:</strong> seluruh data turunan yang terkait akan <strong>ikut terhapus permanen</strong>`
+          + (c.total ? ` (total <strong>${c.total}</strong> data)` : '')
+          + (rows ? `:<ul style="margin:8px 0 0;padding-left:20px;text-align:left;">${rows}</ul>` : '. Tidak ada data turunan.')
+          + `<br><strong style="color:var(--danger)">Tindakan ini TIDAK DAPAT DIBATALKAN.</strong>`;
+      } catch (e) { dlg.querySelector('#cascadeMsg').textContent = 'Gagal memuat ringkasan: ' + (e.message || e); }
+    }
+
+    async function handleBulkDelete() {
+      const ids = getSelectedIds();
+      if (!ids.length) return showNotice('Pilih minimal satu regu.', 'error');
+      confirmCascadeDelete(ids, 'regu', (word) => api('bulk.delete', { sheetKey: DATASET_KEY, ids, confirm: word }, 'POST'));
+    }
+
+    async function handleDownloadTemplate() {
+      try {
+        await window.PSExcel.downloadTemplate(api, DATASET_KEY);
+      } catch (error) {
+        showNotice(error.message || 'Gagal membuat template Excel.', 'error');
+      }
+    }
+
+    async function handleExportExcel() {
+      try {
+        await window.PSExcel.exportDatasets(api, [DATASET_KEY], 'export-regu.xlsx');
+      } catch (error) {
+        showNotice(error.message || 'Gagal export Excel.', 'error');
+      }
+    }
+
+    function handleImportRequest() {
+      document.getElementById('importExcelInput').click();
+    }
+
+    async function handleImportChange(event) {
+      const file = event.target.files && event.target.files[0];
+      event.target.value = '';
+      if (!file) return;
+      showNotice('Memproses import Excel regu...', 'info');
+      try {
+        await window.PSExcel.importDataset(api, DATASET_KEY, file, {
+          onProgress(done, total) {
+            showNotice(`Import regu ${done}/${total}...`, 'info');
+          }
+        });
+        await loadData();
+        await issuePanelController.load();
+        showNotice('Import Excel regu selesai.', 'info');
+      } catch (error) {
+        showNotice(error.message || 'Gagal import Excel.', 'error');
+      }
+    }
+
+    function formatReguContextLabel(value) {
+      const text = String(value == null ? '' : value)
+        .replace(/\s+/g, ' ')
+        .trim();
+      if (!text) return '';
+      return text.length > 48 ? `${text.slice(0, 48).trim()}...` : text;
+    }
+
+    function renderList() {
+      const target = document.getElementById('list');
+      const items = state.items;
+      if (!items.length) {
+        target.innerHTML = `<p class="empty-state">Belum ada regu yang cocok dengan filter.</p>`;
+      } else {
+        target.innerHTML = items.map(item => {
+          const contextLabel = formatReguContextLabel(item.description);
+          return `
+          <article class="card minimal-list-card ${isItemExpanded(item.id) ? 'is-expanded' : ''} ${getGenderGroupCardClass(item.genderGroup, item.active)}">
+            <div class="minimal-list-card-head">
+              <label class="card-select minimal-list-card-select">
+                <input type="checkbox" data-select="${item.id}" ${state.selectedIds.has(item.id) ? 'checked' : ''}>
+                <span>Pilih</span>
+              </label>
+              <div class="minimal-list-card-main" data-collapse="${item.id}" role="button" tabindex="0" aria-expanded="${isItemExpanded(item.id) ? 'true' : 'false'}" aria-label="${isItemExpanded(item.id) ? 'Tutup detail regu' : 'Buka detail regu'}">
+                <div class="regu-title-row">
+                  <strong class="minimal-list-card-name">${escapeHtml(item.name)}</strong>
+                  ${contextLabel ? `<span class="regu-context-label">(${escapeHtml(contextLabel)})</span>` : ''}
+                </div>
+                <span class="minimal-list-card-hint">Pembina: ${escapeHtml(item.pembinaLabels.join(', ') || '-')}</span>
+              </div>
+              <button class="secondary minimal-list-card-toggle" type="button" data-edit="${item.id}" aria-label="Edit regu ${escapeHtml(item.name)}">Edit</button>
+            </div>
+            <div class="minimal-list-card-detail">
+              <div class="minimal-list-card-summary">
+                <p>Kategori gender: ${escapeHtml(normalizeGenderGroupLabel(item.genderGroup))}</p>
+                <p>${escapeHtml(item.description || 'Tanpa deskripsi.')}</p>
+                <p>Pembantu Pembina (Badal): ${escapeHtml(item.badalLabels.join(', ') || '-')}</p>
+                <p>Total santri: ${escapeHtml(String(item.santriCount))}</p>
+              </div>
+              <div class="minimal-list-card-meta">
+                <span class="pill ${item.active ? '' : 'inactive'}">${escapeHtml(item.status)}</span>
+                ${buildGenderGroupPill(item.genderGroup)}
+                <span class="pill">Pembina ${item.pembinaLabels.length}</span>
+                <span class="pill">Badal ${item.badalLabels.length}</span>
+                <span class="pill">Santri ${item.santriCount}</span>
+              </div>
+              <div class="toolbar minimal-list-card-actions">
+                <button class="secondary" type="button" data-edit="${item.id}">Edit</button>
+                <button class="${item.active ? 'danger' : 'primary'}${canManageRecords() ? '' : ' ps-locked'}" type="button" data-toggle="${item.id}" ${canManageRecords() ? '' : 'disabled aria-disabled="true" title="Mudir hanya bisa melihat data regu, tidak bisa mengubah status."'}>
+                  ${item.active ? 'Nonaktifkan' : 'Aktifkan'}
+                </button>
+                ${canDeleteRecords() ? `<button class="danger" type="button" data-delete="${item.id}">Hapus</button>` : ''}
+              </div>
+            </div>
+          </article>
+        `;
+        }).join('');
+      }
+      renderPagination();
+      syncExpandToggleButton();
+      window.PSUI.syncScrollButtons();
+    }
+
+    async function loadData() {
+      clearNotice();
+      showNotice('Memuat regu dan referensi...', 'info');
+      try {
+        // Kalau first load dan belum ada filter, ambil refs dulu untuk tahu TA aktif
+        // sebelum memanggil regu.list — supaya list langsung terfilter dengan benar.
+        let cachedRefs = null;
+        if (state.refs.tahunAjaran.length === 0 && !state.tahunAjaranFilter) {
+          cachedRefs = await api('references', { sheetKey: 'regu' });
+          state.refs = cachedRefs;
+          state.refs.tahunAjaran = cachedRefs.tahunAjaran || [];
+          const aktif = state.refs.tahunAjaran.find(ta => ta.isAktif);
+          if (aktif) state.tahunAjaranFilter = aktif.id;
+          renderTahunAjaranFilter();
+        }
+        const [refs, list] = await Promise.all([
+          cachedRefs ? Promise.resolve(cachedRefs) : api('references', { sheetKey: 'regu' }),
+          api('regu.list', {
+            page: state.page,
+            pageSize: state.pageSize,
+            q: document.getElementById('searchInput').value.trim(),
+            status: document.getElementById('statusFilter').value,
+            genderGroup: document.getElementById('genderFilter').value,
+            sort: document.getElementById('sortSelect').value,
+            tahunAjaranId: state.tahunAjaranFilter
+          })
+        ]);
+        state.refs = refs;
+        state.refs.tahunAjaran = refs.tahunAjaran || [];
+        renderTahunAjaranFilter();
+        state.items = list.items || [];
+        state.page = list.page || 1;
+        state.pageSize = list.pageSize || state.pageSize;
+        state.totalPages = list.totalPages || 1;
+        state.total = list.total || 0;
+        pruneExpandedIds();
+        renderList();
+        renderBulkToolbar();
+        clearNotice();
+      } catch (error) {
+        showNotice(error.message || 'Gagal memuat regu.', 'error');
+      }
+    }
+
+    function buildTahunAjaranOptions(selectedId) {
+      const items = state.refs.tahunAjaran || [];
+      const hasSel = !!selectedId && items.some(ta => ta.id === selectedId);
+      return `<option value="" disabled ${hasSel ? '' : 'selected'}>— Pilih tahun ajaran —</option>` +
+        items.map(ta => `<option value="${ta.id}" ${ta.id === selectedId ? 'selected' : ''}>${escapeHtml(ta.namaDisplay || ta.nama)}${ta.isAktif ? ' (Aktif)' : ''}</option>`).join('');
+    }
+
+    function getActiveOrFirstTahunAjaranId() {
+      const items = state.refs.tahunAjaran || [];
+      if (!items.length) return '';
+      const aktif = items.find(ta => ta.isAktif);
+      return aktif ? aktif.id : items[0].id;
+    }
+
+    function renderTahunAjaranFilter() {
+      const sel = document.getElementById('tahunAjaranFilter');
+      if (!sel) return;
+      const current = state.tahunAjaranFilter || sel.value;
+      const items = state.refs.tahunAjaran || [];
+      sel.innerHTML = '<option value="">Semua tahun ajaran</option>' +
+        items.map(ta => `<option value="${ta.id}" ${ta.id === current ? 'selected' : ''}>${escapeHtml(ta.namaDisplay || ta.nama)}${ta.isAktif ? ' (Aktif)' : ''}</option>`).join('');
+      sel.value = current;
+    }
+
+    function openDialog(item = null) {
+      const form = document.getElementById('form');
+      const fields = form.elements;
+      document.getElementById('dialogTitle').textContent = item ? 'Edit regu' : 'Tambah regu';
+      fields.namedItem('id').value = item?.id || '';
+      fields.namedItem('name').value = item?.name || '';
+      fields.namedItem('genderGroup').value = normalizeGenderGroupLabel(item?.genderGroup);
+      fields.namedItem('description').value = item?.description || '';
+      fields.namedItem('status').value = item?.status || 'Aktif';
+      const tahunAjaranSel = document.getElementById('dialogTahunAjaran');
+      tahunAjaranSel.innerHTML = buildTahunAjaranOptions(item?.tahunAjaranId || getActiveOrFirstTahunAjaranId());
+      if (!item) tahunAjaranSel.value = getActiveOrFirstTahunAjaranId();
+      renderChecklist('pembinaChecklist', state.refs.pengurus, item?.pembinaIds || []);
+      renderChecklist('badalChecklist', state.refs.pengurus, item?.badalIds || []);
+      renderChecklist('santriChecklist', state.refs.santri, item?.santriIds || []);
+      resetChecklistFilters();
+      renderPindahSantriTool(item);
+      window.PSUI.applyPermissionLock(document.getElementById('saveFormButton'), canManageRecords(), 'Mudir hanya bisa melihat data regu, tidak bisa menyimpan perubahan.');
+      document.getElementById('dialog').showModal();
+    }
+
+    async function renderPindahSantriTool(item) {
+      const group = document.getElementById('pindahSantriGroup');
+      const targetSel = document.getElementById('pindahTargetSelect');
+      if (!item || !item.id || !canManageRecords()) {
+        group.hidden = true;
+        return;
+      }
+      group.hidden = false;
+      document.getElementById('pindahTanggalInput').value = new Date().toISOString().slice(0, 10);
+      document.getElementById('pindahAlasanInput').value = '';
+      const santriById = new Map((state.refs.santri || []).map(s => [s.id, s.name]));
+      const memberIds = item.santriIds || [];
+      state.pindahSantriMembers = memberIds.map(id => ({ id, name: santriById.get(id) || ('#' + id) }));
+      document.getElementById('pindahSantriSelect').value = '';
+      document.getElementById('pindahSantriSearch').value = '';
+      document.getElementById('pindahSantriResults').hidden = true;
+      targetSel.innerHTML = '<option value="">Memuat daftar regu...</option>';
+      // Ambil daftar regu lengkap (bukan cuma halaman yang lagi ditampilkan di list) supaya
+      // semua kemungkinan tujuan muncul, tidak terpotong pagination.
+      try {
+        const all = await api('regu.list', { page: 1, pageSize: 500, tahunAjaranId: item.tahunAjaranId });
+        targetSel.innerHTML = '<option value="">— Pilih regu tujuan —</option>' +
+          (all.items || [])
+            .filter(h => h.id !== item.id && h.active)
+            .map(h => {
+              const pembinaUtama = (h.pembinaLabels && h.pembinaLabels[0]) || 'Belum ada pembina';
+              const gender = h.genderGroup || 'Tidak ada';
+              return `<option value="${h.id}">${escapeHtml(h.name)} — ${escapeHtml(pembinaUtama)} — ${escapeHtml(gender)}</option>`;
+            }).join('');
+      } catch (error) {
+        targetSel.innerHTML = '<option value="">Gagal memuat daftar regu</option>';
+      }
+    }
+
+    function renderPindahSantriResults(query) {
+      const wrap = document.getElementById('pindahSantriResults');
+      const q = (query || '').trim().toLowerCase();
+      const members = state.pindahSantriMembers || [];
+      const filtered = q ? members.filter(m => m.name.toLowerCase().includes(q)) : members;
+      wrap.innerHTML = filtered.length
+        ? filtered.map(m => `<div class="pindah-santri-item" data-id="${m.id}">${escapeHtml(m.name)}</div>`).join('')
+        : `<div class="pindah-santri-empty">${members.length ? 'Tidak ada santri yang cocok.' : 'Regu ini belum punya anggota.'}</div>`;
+      wrap.hidden = false;
+    }
+
+    function selectPindahSantri(id, name) {
+      document.getElementById('pindahSantriSelect').value = id;
+      document.getElementById('pindahSantriSearch').value = name;
+      document.getElementById('pindahSantriResults').hidden = true;
+    }
+
+    async function pindahkanSantri() {
+      const item = state.items.find(h => h.id === document.getElementById('form').elements.namedItem('id').value.trim());
+      const santriId = document.getElementById('pindahSantriSelect').value;
+      const toReguId = document.getElementById('pindahTargetSelect').value;
+      const tanggal = document.getElementById('pindahTanggalInput').value;
+      const alasan = document.getElementById('pindahAlasanInput').value.trim();
+      if (!item || !santriId || !toReguId || !tanggal) {
+        showNotice('Pilih santri, regu tujuan, dan tanggal pindah terlebih dahulu.', 'error');
+        return;
+      }
+      const santriName = document.getElementById('pindahSantriSearch').value.trim() || 'Santri';
+      const targetName = document.getElementById('pindahTargetSelect').selectedOptions[0]?.textContent || 'regu tujuan';
+      if (!confirm(`Pindahkan ${santriName} dari regu ini ke ${targetName} pada ${tanggal}?`)) return;
+      try {
+        const result = await api('regu.pindahkanSantri', {
+          santriId, fromReguId: item.id, toReguId, tanggal, alasan
+        }, 'POST');
+        document.getElementById('dialog').close();
+        await loadData();
+        await issuePanelController.load();
+        showNotice(result.message || 'Santri berhasil dipindahkan.', 'success');
+      } catch (error) {
+        showNotice(error.message || 'Gagal memindahkan santri.', 'error');
+      }
+    }
+
+    async function saveForm(event) {
+      event.preventDefault();
+      const form = event.currentTarget;
+      const fields = form.elements;
+      const record = {
+        id: fields.namedItem('id').value.trim(),
+        name: fields.namedItem('name').value.trim(),
+        genderGroup: normalizeGenderGroupLabel(fields.namedItem('genderGroup').value),
+        description: fields.namedItem('description').value.trim(),
+        status: fields.namedItem('status').value,
+        tahunAjaranId: document.getElementById('dialogTahunAjaran').value,
+        pembinaIds: getSelectedValues('pembinaChecklist'),
+        badalIds: getSelectedValues('badalChecklist'),
+        santriIds: getSelectedValues('santriChecklist')
+      };
+      if (!record.tahunAjaranId) {
+        showNotice('Tahun ajaran wajib dipilih untuk regu.', 'error');
+        document.getElementById('dialogTahunAjaran').focus();
+        return;
+      }
+      try {
+        await api('regu.save', { record }, 'POST');
+        document.getElementById('dialog').close();
+        await loadData();
+        await issuePanelController.load();
+      } catch (error) {
+        showNotice(error.message || 'Gagal menyimpan regu.', 'error');
+      }
+    }
+
+    async function toggleItem(id) {
+      const item = state.items.find(entry => entry.id === id);
+      if (!item) return;
+      const nextActive = !item.active;
+      const yes = confirm(`${nextActive ? 'Aktifkan' : 'Nonaktifkan'} regu "${item.name}"?`);
+      if (!yes) return;
+      try {
+        await api('regu.toggle', { id, active: nextActive }, 'POST');
+        await loadData();
+        await issuePanelController.load();
+      } catch (error) {
+        showNotice(error.message || 'Gagal mengubah status regu.', 'error');
+      }
+    }
+
+    async function deleteItem(id) {
+      const item = state.items.find(entry => entry.id === id);
+      if (!item) return;
+      confirmCascadeDelete([id], `regu "${item.name}"`, (word) => api('regu.delete', { id, confirm: word }, 'POST'));
+    }
+
+    function closeDeleteAllDialog() {
+      document.getElementById('deleteAllDialog').close();
+      document.getElementById('deleteAllConfirmInput').value = '';
+      document.getElementById('confirmDeleteAllButton').disabled = true;
+    }
+
+    function syncDeleteAllConfirmState() {
+      const matched = document.getElementById('deleteAllConfirmInput').value.trim() === 'HAPUS SEMUA';
+      document.getElementById('confirmDeleteAllButton').disabled = !matched;
+    }
+
+    function openDeleteAllDialog() {
+      if (!canDeleteRecords()) {
+        showNotice('Hanya Super Admin yang bisa menghapus semua regu.', 'error');
+        return;
+      }
+      document.getElementById('deleteAllDialog').showModal();
+      document.getElementById('deleteAllConfirmInput').value = '';
+      document.getElementById('confirmDeleteAllButton').disabled = true;
+      window.setTimeout(() => {
+        document.getElementById('deleteAllConfirmInput').focus();
+      }, 20);
+    }
+
+    async function deleteAllRegu(event) {
+      event.preventDefault();
+      const confirmation = document.getElementById('deleteAllConfirmInput').value.trim();
+      if (confirmation !== 'HAPUS SEMUA') {
+        showNotice('Tulis HAPUS SEMUA untuk melanjutkan.', 'error');
+        return;
+      }
+      closeDeleteAllDialog();
+      showNotice('Menghapus semua regu...', 'info');
+      try {
+        const data = await api('regu.deleteAll', {}, 'POST');
+        state.page = 1;
+        clearSelectedIds();
+        await loadData();
+        await issuePanelController.load();
+        showNotice(data.message || 'Semua regu berhasil dihapus.', 'info');
+      } catch (error) {
+        showNotice(error.message || 'Gagal menghapus semua regu.', 'error');
+      }
+    }
+
+    const currentPage = window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : '/pages/editRegu/';
+    const initialSession = getStoredSession();
+    if (!initialSession) {
+      clearSession();
+      window.location.replace('/pages/login/');
+    } else if (window.PSAccess && !window.PSAccess.canAccessPage(initialSession, 'editRegu.html')) {
+      window.location.replace('/pages/accountProfile/');
+    } else {
+      mountShell();
+      syncRestrictedActions();
+      syncFiltersVisibility();
+      renderBulkToolbar();
+      syncActionToolbar();
+      syncExpandToggleButton();
+      document.getElementById('addButton').addEventListener('click', () => openDialog());
+      document.getElementById('refreshButton').addEventListener('click', async () => {
+        await loadData();
+        await issuePanelController.load();
+      });
+      document.getElementById('toggleExpandButton').addEventListener('click', toggleExpandedList);
+      document.getElementById('toolbarCollapseToggle').addEventListener('click', toggleActionToolbar);
+      document.getElementById('quickImportButton').addEventListener('click', openQuickImportDialog);
+      document.getElementById('exportQuickImportTxtButton').addEventListener('click', handleExportQuickImportText);
+      document.getElementById('previewRosterButton').addEventListener('click', handlePreviewRoster);
+      document.getElementById('closeRosterPreviewDialog').addEventListener('click', () => document.getElementById('rosterPreviewDialog').close());
+      document.getElementById('rosterPreviewGenderFilter').addEventListener('change', refreshRosterPreview);
+      document.getElementById('rosterPreviewSortFilter').addEventListener('change', refreshRosterPreview);
+      document.getElementById('downloadRosterPdfButton').addEventListener('click', handleDownloadSummaryPdf);
+      document.getElementById('downloadTemplateButton').addEventListener('click', handleDownloadTemplate);
+      document.getElementById('importExcelButton').addEventListener('click', handleImportRequest);
+      document.getElementById('exportExcelButton').addEventListener('click', handleExportExcel);
+      document.getElementById('deleteAllButton').addEventListener('click', openDeleteAllDialog);
+      document.getElementById('importExcelInput').addEventListener('change', handleImportChange);
+      document.getElementById('tahunAjaranFilter').addEventListener('change', event => { state.page = 1; state.tahunAjaranFilter = event.target.value; loadData(); });
+      document.getElementById('searchInput').addEventListener('input', () => { state.page = 1; loadData(); });
+      document.getElementById('statusFilter').addEventListener('change', () => { state.page = 1; loadData(); });
+      document.getElementById('genderFilter').addEventListener('change', () => { state.page = 1; loadData(); });
+      document.getElementById('sortSelect').addEventListener('change', () => { state.page = 1; loadData(); });
+      document.getElementById('pageSizeSelect').addEventListener('change', event => {
+        state.pageSize = Number(event.target.value);
+        state.page = 1;
+        loadData();
+      });
+      document.getElementById('closeDialog').addEventListener('click', () => document.getElementById('dialog').close());
+      document.getElementById('closeQuickImportDialog').addEventListener('click', () => document.getElementById('quickImportDialog').close());
+      document.getElementById('closeDeleteAllDialog').addEventListener('click', closeDeleteAllDialog);
+      document.getElementById('deleteAllDialog').addEventListener('close', () => {
+        document.getElementById('deleteAllConfirmInput').value = '';
+        document.getElementById('confirmDeleteAllButton').disabled = true;
+      });
+      document.getElementById('deleteAllConfirmInput').addEventListener('input', syncDeleteAllConfirmState);
+      document.getElementById('deleteAllForm').addEventListener('submit', deleteAllRegu);
+      document.getElementById('quickImportParseButton').addEventListener('click', parseQuickImportPreview);
+      document.getElementById('quickImportClearButton').addEventListener('click', () => {
+        resetQuickImportDialog();
+        document.getElementById('quickImportInput').focus();
+      });
+      document.getElementById('quickImportInput').addEventListener('input', event => {
+        const hadPreview = quickImportState.entries.length > 0 || quickImportState.parsed;
+        quickImportState.hasInput = !!event.target.value.trim();
+        quickImportState.dirty = hadPreview && quickImportState.hasInput;
+        quickImportState.parsed = false;
+        quickImportState.entries = [];
+        renderQuickImportPreview();
+      });
+      document.getElementById('quickImportInput').addEventListener('keydown', event => {
+        if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+          event.preventDefault();
+          parseQuickImportPreview();
+        }
+      });
+      document.getElementById('quickImportForm').addEventListener('submit', saveQuickImport);
+      document.getElementById('form').addEventListener('submit', saveForm);
+      document.querySelectorAll('[data-selector-target]').forEach(input => {
+        input.addEventListener('input', event => applyChecklistFilter(event.target.dataset.selectorTarget, event.target.value));
+      });
+      document.getElementById('pembinaChecklist').addEventListener('change', event => { window.PSUI.handleChecklistItemCheck(event, 'pembinaChecklist'); updateChecklistHint('pembinaChecklist'); });
+      document.getElementById('badalChecklist').addEventListener('change', event => { window.PSUI.handleChecklistItemCheck(event, 'badalChecklist'); updateChecklistHint('badalChecklist'); });
+      document.getElementById('santriChecklist').addEventListener('change', event => { window.PSUI.handleChecklistItemCheck(event, 'santriChecklist'); updateChecklistHint('santriChecklist'); });
+      document.getElementById('pindahSantriBtn').addEventListener('click', pindahkanSantri);
+      document.getElementById('pindahSantriSearch').addEventListener('focus', event => renderPindahSantriResults(event.target.value));
+      document.getElementById('pindahSantriSearch').addEventListener('input', event => {
+        document.getElementById('pindahSantriSelect').value = '';
+        renderPindahSantriResults(event.target.value);
+      });
+      document.getElementById('pindahSantriResults').addEventListener('click', event => {
+        const item = event.target.closest('.pindah-santri-item[data-id]');
+        if (!item) return;
+        selectPindahSantri(item.dataset.id, item.textContent);
+      });
+      document.addEventListener('click', event => {
+        if (!event.target.closest('.pindah-santri-picker')) {
+          document.getElementById('pindahSantriResults').hidden = true;
+        }
+      });
+    }
+    document.addEventListener('click', event => {
+      const page = event.target.getAttribute('data-page');
+      if (!page) return;
+      const nextPage = Number(page);
+      if (!nextPage || nextPage < 1 || nextPage > state.totalPages || nextPage === state.page) return;
+      state.page = nextPage;
+      loadData();
+    });
+    document.getElementById('list').addEventListener('click', event => {
+      const actionButton = event.target.closest('[data-edit], [data-toggle], [data-delete]');
+      const collapseTrigger = actionButton ? null : event.target.closest('[data-collapse]');
+      const collapseId = collapseTrigger ? collapseTrigger.getAttribute('data-collapse') : '';
+      const editId = actionButton ? actionButton.getAttribute('data-edit') : '';
+      const toggleId = actionButton ? actionButton.getAttribute('data-toggle') : '';
+      const deleteId = actionButton ? actionButton.getAttribute('data-delete') : '';
+      if (editId) {
+        const item = state.items.find(entry => entry.id === editId);
+        if (item) openDialog(item);
+        return;
+      }
+      if (toggleId) {
+        toggleItem(toggleId);
+        return;
+      }
+      if (deleteId) {
+        deleteItem(deleteId);
+        return;
+      }
+      if (collapseId) {
+        toggleItemExpanded(collapseId);
+      }
+    });
+    document.getElementById('list').addEventListener('keydown', event => {
+      const collapseTarget = event.target.closest('[data-collapse]');
+      if (!collapseTarget) return;
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      event.preventDefault();
+      toggleItemExpanded(collapseTarget.getAttribute('data-collapse'));
+    });
+    document.getElementById('list').addEventListener('change', event => {
+      const selectId = event.target.getAttribute('data-select');
+      if (!selectId) return;
+      toggleSelectedId(selectId, event.target.checked);
+    });
+    document.getElementById('bulkToolbar').addEventListener('click', event => {
+      const { id } = event.target;
+      if (id === 'selectVisibleButton') selectVisibleItems();
+      if (id === 'clearSelectedButton') clearSelectedIds();
+      if (id === 'bulkActivateButton') handleBulkToggle(true);
+      if (id === 'bulkDeactivateButton') handleBulkToggle(false);
+      if (id === 'bulkTahunAjaranButton') bulkSetTahunAjaran();
+      if (id === 'bulkDeleteButton') handleBulkDelete();
+    });
+    window.addEventListener('load', async () => {
+      if (window.PSAccess && window.PSAccess.redirectIfForbidden(getStoredSession(), currentPage)) {
+        return;
+      }
+      document.getElementById('pageSizeSelect').value = String(state.pageSize);
+      syncFiltersVisibility();
+      syncActionToolbar();
+      syncExpandToggleButton();
+      await loadData();
+      await issuePanelController.load();
+      if (window.PSShell && typeof window.PSShell.consumeAuditMismatchSantriPanel === 'function') {
+        window.PSShell.consumeAuditMismatchSantriPanel(name => {
+          document.getElementById('searchInput').value = name;
+          state.page = 1;
+          loadData();
+        });
+      }
+    });
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
+    }
+  </script>
+</body>
+</html>

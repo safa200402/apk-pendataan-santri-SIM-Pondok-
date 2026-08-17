@@ -1,0 +1,555 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#9e2f22">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="../../shared-ui.css">
+  <link rel="stylesheet" href="../../shared-shell.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+  <script src="../../shared-ui.js"></script>
+  <title>Input Tingkat Kelas</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700&display=swap');
+    :root {
+      --paper: #f6efe0; --ink: #4d4034; --muted: #7b6a58;
+      --line: rgba(91, 73, 57, 0.15); --accent: #b97650; --success: #74846c;
+      --danger: #a55a52; --warning: #b58439; --radius: 24px;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; }
+    .panel { padding: 22px; }
+    h1, h2, h3 { margin: 0 0 10px; }
+    p { margin: 0; line-height: 1.6; }
+    button, input, select { font: inherit; }
+    label { display: grid; gap: 6px; font-size: 13px; font-weight: 600; }
+
+    .ta-select {
+      padding: 10px 14px; border-radius: 14px; border: 1.5px solid var(--line);
+      background: rgba(255,255,255,0.7); font-weight: 600; color: var(--ink); min-width: 200px; outline: none;
+    }
+    .ta-select:focus { border-color: var(--accent); }
+
+    .kelas-grid {
+        display: grid;
+        /* grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); */
+        gap: 14px;
+        margin-top: 16px;
+    }
+    .kelas-card {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+        padding: 16px;
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        background: rgba(255, 251, 243, 0.7);
+        justify-content: space-between;
+    }
+    .kelas-card.row-ikhwan  { background: #ddeeff; border-color: rgba(70,130,180,0.25); }
+    .kelas-card.row-akhowat { background: #ffe4f0; border-color: rgba(200,100,140,0.25); }
+    .kelas-card.row-campur  { background: #f5f0e8; border-color: rgba(181,132,57,0.2); }
+    .kelas-card.row-ikhwan-inactive  { background: linear-gradient(135deg, #888 0%, #cce6ff 100%); border-color: rgba(70,130,180,0.25); }
+    .kelas-card.row-akhowat-inactive { background: linear-gradient(135deg, #888 0%, #ffd6e8 100%); border-color: rgba(200,100,140,0.25); }
+    .kelas-card.row-campur-inactive  { background: linear-gradient(135deg, #888 0%, #f5e8c8 100%); border-color: rgba(181,132,57,0.2); }
+    .kelas-card-body { flex: 1; min-width: 0; }
+    .kelas-card h3 { margin: 0; font-size: 1.05rem; }
+    .kelas-card-guru { font-size: 0.78em; opacity: 0.65; margin: 2px 0 0; color: var(--ink); }
+    .kelas-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .chip {
+      display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 999px;
+      font-size: 11px; font-weight: 700; background: var(--line); color: var(--ink);
+    }
+    .chip.jenis { background: rgba(116,132,108,0.16); color: var(--success); }
+    .chip.progress-full { background: rgba(116,132,108,0.18); color: var(--success); }
+    .chip.progress-partial { background: rgba(181,132,57,0.16); color: var(--warning); }
+    .chip.progress-empty { background: rgba(165,90,82,0.13); color: var(--danger); }
+    .btn-input {
+      margin-top: 4px; padding: 10px 16px; border-radius: 14px; border: none; cursor: pointer;
+      background: var(--accent); color: #fff; font-weight: 700; min-height: 44px;
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .btn-input:hover { filter: brightness(1.05); }
+
+    .empty-state { text-align: center; padding: 40px 16px; color: var(--muted); }
+    .empty-state i { font-size: 32px; opacity: 0.4; }
+
+    .paging-host { display: grid; gap: 8px; margin: 3px 0; justify-items: center; }
+    .paging { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; }
+    .page-center { display: grid; gap: 8px; justify-items: center; }
+    .page-numbers { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+    .page-numbers button { padding: 0 14px; }
+    .page-summary { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+    .paging button { min-height: 36px; padding: 0 14px; border-radius: 10px; border: 1.5px solid var(--line); background: rgba(255,255,255,0.7); font-weight: 700; color: var(--ink); cursor: pointer; }
+    .paging button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .paging button:disabled { opacity: 0.4; cursor: not-allowed; }
+    @media (max-width: 600px) { .paging { grid-template-columns: 1fr; } }
+
+    /* Dialog */
+    #santriDialog { width: min(620px, 96vw); }
+    .sd-shell { display: flex; flex-direction: column; }
+    .sd-eyebrow { font-size: 11px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+    .sd-list { display: grid; gap: 8px; margin-top: 8px; }
+    .sd-row {
+      display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+      border: 1px solid var(--line); border-radius: 14px; background: rgba(255,251,243,0.7);
+    }
+    .sd-row .nm { flex: 1; min-width: 0; }
+    .sd-row .nm strong { display: block; font-size: 14px; }
+    .sd-row .nm small { color: var(--muted); font-size: 11px; }
+    .sd-row input.level-input {
+      width: 160px; padding: 8px 10px; border-radius: 10px; border: 1.5px solid var(--line);
+      background: rgba(255,255,255,0.85); outline: none; font-size: 13px;
+    }
+    .sd-row input.level-input:focus { border-color: var(--accent); }
+    .sd-foot { display: flex; justify-content: flex-end; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+    .sd-btn { padding: 10px 18px; border-radius: 14px; border: none; cursor: pointer; font-weight: 700; min-height: 44px; }
+    .sd-btn.primary { background: var(--accent); color: #fff; }
+    .sd-btn.ghost { background: transparent; border: 1.5px solid var(--line); color: var(--ink); }
+    .sd-notice { display: none; margin-top: 10px; padding: 10px 14px; border-radius: 10px; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+  <main>
+    <div class="app-layout">
+      <section class="panel nav" id="nav"></section>
+      <div class="content-stack">
+        <section class="panel">
+          <h1 style="font-family:'Playfair Display',serif;font-size:1.9rem;letter-spacing:-0.02em;">Input Tingkat Kelas</h1>
+          <p style="color:var(--muted);font-size:14px;">Input tingkat/marhalah santri (Shigor I'dadi, Tamhidi, Takmili, dll) per kelas, per tahun ajaran. Dipakai di Raport.</p>
+          <div class="filters" id="filtersPanel" style="margin-top:14px;">
+            <label>Cari nama kelas
+              <input type="search" id="searchInput" placeholder="Ketik nama kelas, jam, pengajar, atau nama santri">
+            </label>
+            <label>Tahun Ajaran
+              <select id="taSelect" class="ta-select"></select>
+            </label>
+            <label>Status
+              <select id="statusFilter">
+                <option value="">Semua</option>
+                <option value="active" selected>Aktif</option>
+                <option value="inactive">Nonaktif</option>
+              </select>
+            </label>
+            <label>Gender
+              <select id="genderFilter">
+                <option value="">Semua</option>
+                <option value="Ikhwan">Ikhwan</option>
+                <option value="Akhowat">Akhowat</option>
+                <option value="Campur">Campur</option>
+                <option value="Tidak ada">Tidak ada</option>
+              </select>
+            </label>
+            <label>Jam
+              <select id="jamFilter">
+                <option value="">Semua jam</option>
+                <option value="-">-</option>
+                <option value="Jam 1">Jam 1</option>
+                <option value="Jam 2">Jam 2</option>
+                <option value="Jam 3">Jam 3</option>
+                <option value="Jam 4">Jam 4</option>
+                <option value="Jam 5">Jam 5</option>
+                <option value="Jam 6">Jam 6</option>
+                <option value="Jam 7">Jam 7</option>
+                <option value="Jam 8">Jam 8</option>
+                <option value="Jam 9">Jam 9</option>
+                <option value="Jam 10">Jam 10</option>
+                <option value="Jam 11">Jam 11</option>
+              </select>
+            </label>
+            <label>Urutkan
+              <select id="sortSelect">
+                <option value="name_asc" selected>Nama A-Z</option>
+                <option value="name_desc">Nama Z-A</option>
+                <option value="jam_asc">Jam A-Z</option>
+                <option value="jam_desc">Jam Z-A</option>
+                <option value="gender_asc">Gender Ikhwan-Akhowat</option>
+                <option value="gender_desc">Gender Akhowat-Ikhwan</option>
+                <option value="santri_desc">Murid terbanyak</option>
+                <option value="santri_asc">Murid tersedikit</option>
+              </select>
+            </label>
+            <label>Jumlah per halaman
+              <select id="pageSizeSelect">
+                <option value="10">10</option>
+                <option value="12" selected>12</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </label>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div id="noticeInline" class="sd-notice" style="margin-top:0;"></div>
+          <div class="paging-host" id="paginationTop"></div>
+          <div id="kelasArea">
+            <div class="empty-state"><i class="fa-solid fa-spinner fa-spin"></i><p style="margin-top:8px;">Memuat data...</p></div>
+          </div>
+          <div class="paging-host" id="paginationBottom"></div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <!-- Dialog input santri -->
+  <dialog id="santriDialog">
+    <div class="dialog-body duplicate-dialog-body ps-dialog-shell sd-shell">
+      <div class="duplicate-dialog-head ps-dialog-header">
+        <div>
+          <span class="sd-eyebrow">Input Tingkat Kelas</span>
+          <h3 id="sdKelasName" style="margin:2px 0 0;">&nbsp;</h3>
+        </div>
+      </div>
+      <datalist id="levelPresets">
+        <option value="Shigor I'dadi"></option>
+        <option value="Shigor Tamhidi"></option>
+        <option value="Shigor Takmili"></option>
+        <option value="Kibar I'dadi"></option>
+        <option value="Kibar Tamhidi"></option>
+        <option value="Kibar Takmili"></option>
+      </datalist>
+      <div id="sdList" class="sd-list"></div>
+      <div id="sdNotice" class="sd-notice"></div>
+      <div class="sd-foot">
+        <button class="sd-btn ghost" id="sdCancelBtn" type="button">Tutup</button>
+        <button class="sd-btn primary" id="sdSaveBtn" type="button"><i class="fa-solid fa-floppy-disk"></i> Simpan Semua</button>
+      </div>
+    </div>
+  </dialog>
+
+  <script src="../../shared-access.js"></script>
+  <script src="../../shared-nav.js"></script>
+  <script src="../../shared-shell.js"></script>
+  <script>
+    const API_BASE = window.location.origin + '/api';
+    const STORAGE = { apiBase: 'ps_api_base', token: 'ps_token', session: 'ps_session' };
+    localStorage.setItem(STORAGE.apiBase, API_BASE);
+
+    const state = {
+      tahunAjaranId: '', tahunAjaranList: [], kelasList: [], searchQuery: '',
+      statusFilter: 'active', genderFilter: '', jamFilter: '', sortMode: 'name_asc',
+      activeKelas: null, page: 1, pageSize: 12, total: 0, totalPages: 1
+    };
+    let noticeId = '';
+    let noticeCounter = 0;
+
+    function getToken() { return localStorage.getItem(STORAGE.token) || ''; }
+    function clearSession() { localStorage.removeItem(STORAGE.token); localStorage.removeItem(STORAGE.session); }
+    function getStoredSession() { try { return JSON.parse(localStorage.getItem(STORAGE.session) || 'null'); } catch (e) { return null; } }
+    function toParams(data) {
+      const params = new URLSearchParams();
+      Object.entries(data).forEach(([k, v]) => { if (v === undefined || v === null) return; params.append(k, typeof v === 'object' ? JSON.stringify(v) : String(v)); });
+      return params;
+    }
+    function escapeHtml(value) {
+      return String(value === undefined || value === null ? '' : value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+    function showNotice(text, type) {
+      const stack = document.getElementById('noticeStack');
+      const el = document.createElement('div');
+      el.className = `notice show ${type || ''}`.trim();
+      el.dataset.noticeId = `n-${Date.now()}-${noticeCounter += 1}`;
+      el.textContent = text;
+      el.addEventListener('click', () => el.remove());
+      window.setTimeout(() => el.remove(), type === 'error' ? 9000 : 5000);
+      if (noticeId) { const old = document.querySelector(`[data-notice-id="${noticeId}"]`); if (old) old.remove(); }
+      stack.prepend(el); noticeId = el.dataset.noticeId;
+      if (stack.matches(':popover-open')) stack.hidePopover();
+      stack.showPopover();
+    }
+    async function api(action, payload = {}, method = 'GET') {
+      const token = getToken();
+      if (!token) { clearSession(); window.location.replace('/pages/login/'); throw new Error('Sesi tidak ditemukan.'); }
+      const scopeLabel = window.PSAccess ? (window.PSAccess.getActiveRoleScopeLabel(getStoredSession()) || '') : '';
+      const response = method === 'GET'
+        ? await fetch(`${API_BASE}?${toParams({ action, token, scopeLabel, ...payload }).toString()}`)
+        : await fetch(API_BASE, { method, body: toParams({ action, token, scopeLabel, ...payload }) });
+      const json = await response.json();
+      if (!json.ok) {
+        const error = new Error(json.error?.message ? `Server: ${json.error.message}` : 'Permintaan gagal.');
+        error.code = json.error?.code || response.status || 500;
+        if (error.code === 401) { clearSession(); window.location.replace(window.PSAccess ? window.PSAccess.resolveLoginPage(getStoredSession()) : '/pages/login/'); }
+        throw error;
+      }
+      return json.data;
+    }
+    function mountShell(session) {
+      return window.PSShell.mount({
+        currentPage: window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : 'inputKelasLevel.html',
+        session, getStoredSession, storageKey: STORAGE.session
+      });
+    }
+
+    /* ── Load ── */
+    async function loadKelas() {
+      const area = document.getElementById('kelasArea');
+      area.innerHTML = '<div class="empty-state"><i class="fa-solid fa-spinner fa-spin"></i><p style="margin-top:8px;">Memuat...</p></div>';
+      try {
+        const data = await api('kelasLevel.kelasList', { tahunAjaranId: state.tahunAjaranId, status: state.statusFilter });
+        state.tahunAjaranId = data.tahunAjaranId || '';
+        state.tahunAjaranList = data.tahunAjaranList || [];
+        state.kelasList = data.kelasList || [];
+        renderTaSelect();
+        renderKelas();
+      } catch (e) {
+        area.innerHTML = `<div class="empty-state"><i class="fa-solid fa-triangle-exclamation" style="color:var(--danger);"></i><p style="margin-top:8px;color:var(--danger);font-weight:600;">${escapeHtml(e.message)}</p></div>`;
+      }
+    }
+
+    function renderTaSelect() {
+      const sel = document.getElementById('taSelect');
+      sel.innerHTML = state.tahunAjaranList.map(t =>
+        `<option value="${escapeHtml(t.id)}" ${t.id === state.tahunAjaranId ? 'selected' : ''}>${escapeHtml(t.namaDisplay || t.nama)}${t.isAktif ? ' (Aktif)' : ''}</option>`
+      ).join('') || '<option value="">-- Belum ada tahun ajaran --</option>';
+    }
+
+    function normalizeGenderGroupLabel(value) {
+      const text = String(value == null ? '' : value).trim().toLowerCase().replace(/\s+/g, ' ');
+      if (!text || text === '-' || text === 'tidak ada' || text === 'none') return 'Tidak ada';
+      if (['ikhwan', 'putra', 'l', 'lk', 'laki laki', 'laki-laki', 'male'].includes(text)) return 'Ikhwan';
+      if (['akhowat', 'akhawat', 'akhwat', 'putri', 'p', 'pr', 'perempuan', 'female'].includes(text)) return 'Akhowat';
+      if (['campur', 'mixed', 'mix', 'gabung', 'bersama', 'umum'].includes(text)) return 'Campur';
+      return 'Tidak ada';
+    }
+
+    function getGenderGroupCardClass(value, active) {
+      const label = normalizeGenderGroupLabel(value);
+      const inactive = !active;
+      if (label === 'Ikhwan') return inactive ? 'row-ikhwan-inactive' : 'row-ikhwan';
+      if (label === 'Akhowat') return inactive ? 'row-akhowat-inactive' : 'row-akhowat';
+      if (label === 'Campur') return inactive ? 'row-campur-inactive' : 'row-campur';
+      return '';
+    }
+
+    function compareKelasItems(a, b, sortMode) {
+      switch (sortMode) {
+        case 'name_desc': return (b.name || '').localeCompare(a.name || '');
+        case 'jam_asc': return (a.jam || '').localeCompare(b.jam || '');
+        case 'jam_desc': return (b.jam || '').localeCompare(a.jam || '');
+        case 'gender_asc': return normalizeGenderGroupLabel(a.genderGroup).localeCompare(normalizeGenderGroupLabel(b.genderGroup));
+        case 'gender_desc': return normalizeGenderGroupLabel(b.genderGroup).localeCompare(normalizeGenderGroupLabel(a.genderGroup));
+        case 'santri_desc': return (b.santriCount || 0) - (a.santriCount || 0);
+        case 'santri_asc': return (a.santriCount || 0) - (b.santriCount || 0);
+        case 'name_asc':
+        default: return (a.name || '').localeCompare(b.name || '');
+      }
+    }
+
+    function buildPaginationList(page, totalPages) {
+      const maxNumbers = 10;
+      if (totalPages <= maxNumbers) return Array.from({ length: totalPages }, (_, index) => index + 1);
+      const middleSlots = maxNumbers - 2;
+      const pages = [1];
+      let start = Math.max(2, page - Math.floor(middleSlots / 2));
+      let end = start + middleSlots - 1;
+      if (end > totalPages - 1) {
+        end = totalPages - 1;
+        start = end - middleSlots + 1;
+      }
+      if (start > 2) pages.push('...');
+      for (let value = start; value <= end; value += 1) pages.push(value);
+      if (end < totalPages - 1) pages.push('...');
+      pages.push(totalPages);
+      return pages;
+    }
+
+    function renderPagination() {
+      const markup = state.total ? `
+        <div class="paging">
+          <button type="button" data-page="${state.page - 1}" ${state.page <= 1 ? 'disabled' : ''}>Sebelumnya</button>
+          <div class="page-center">
+            <div class="page-numbers">
+              ${buildPaginationList(state.page, state.totalPages).map(item =>
+                item === '...'
+                  ? '<span class="page-summary">...</span>'
+                  : `<button class="${item === state.page ? 'active' : ''}" type="button" data-page="${item}">${item}</button>`
+              ).join('')}
+            </div>
+            <div class="page-summary">Halaman ${state.page} dari ${state.totalPages} | total ${state.total} kelas</div>
+          </div>
+          <button type="button" data-page="${state.page + 1}" ${state.page >= state.totalPages ? 'disabled' : ''}>Berikutnya</button>
+        </div>
+      ` : '';
+      window.PSUI.syncPaginationHosts({ markup, visibleCount: Math.min(state.pageSize, state.total), totalCount: state.total, minimumCount: 0, topId: 'paginationTop', bottomId: 'paginationBottom' });
+    }
+
+    function getFilteredKelasList() {
+      const query = (state.searchQuery || '').trim().toLowerCase();
+      const genderFilter = state.genderFilter || '';
+      const jamFilter = state.jamFilter || '';
+      let items = state.kelasList.filter(k => {
+        if (genderFilter && normalizeGenderGroupLabel(k.genderGroup) !== genderFilter) return false;
+        if (jamFilter && (k.jam || '') !== jamFilter) return false;
+        if (query) {
+          const haystack = [
+            k.name,
+            k.jam,
+            (k.pengajarLabels || []).join(' '),
+            (k.badalLabels || []).join(' '),
+            (k.santriLabels || []).join(' ')
+          ].join(' ').toLowerCase();
+          if (!haystack.includes(query)) return false;
+        }
+        return true;
+      });
+      items.sort((a, b) => compareKelasItems(a, b, state.sortMode));
+      return items;
+    }
+
+    function renderKelas() {
+      const area = document.getElementById('kelasArea');
+      const filtered = getFilteredKelasList();
+      state.total = filtered.length;
+      state.totalPages = Math.max(1, Math.ceil(state.total / state.pageSize));
+      if (state.page > state.totalPages) state.page = state.totalPages;
+      if (!filtered.length) {
+        area.innerHTML = `<div class="empty-state"><i class="fa-solid fa-school"></i><p style="margin-top:8px;font-weight:600;">${state.kelasList.length ? 'Tidak ada kelas yang cocok dengan pencarian.' : 'Tidak ada kelas pada tahun ajaran ini.'}</p></div>`;
+        renderPagination();
+        return;
+      }
+      const start = (state.page - 1) * state.pageSize;
+      const pageItems = filtered.slice(start, start + state.pageSize);
+      area.innerHTML = '<div class="kelas-grid">' + pageItems.map(k => {
+        const pct = k.santriCount ? Math.round((k.filledCount / k.santriCount) * 100) : 0;
+        const progClass = !k.santriCount ? 'progress-empty' : (k.filledCount >= k.santriCount ? 'progress-full' : (k.filledCount > 0 ? 'progress-partial' : 'progress-empty'));
+        const guruText = (k.pengajarLabels || []).join(', ');
+        const badalText = (k.badalLabels || []).join(', ');
+        return `<article class="card kelas-card ${getGenderGroupCardClass(k.genderGroup, k.active)}">
+          <div class="kelas-card-body">
+            <h3>${escapeHtml(k.name)}${k.jam ? `<span style="font-weight:400;font-size:0.85em;opacity:0.6"> · ${escapeHtml(k.jam)}</span>` : ''}</h3>
+            ${(guruText || badalText) ? `<p class="kelas-card-guru">${guruText ? `Guru: ${escapeHtml(guruText)}` : ''}${guruText && badalText ? ' · ' : ''}${badalText ? `Badal: ${escapeHtml(badalText)}` : ''}</p>` : ''}
+            <div class="kelas-meta">
+              ${k.jenis ? `<span class="chip jenis">${escapeHtml(k.jenis)}</span>` : ''}
+              <span class="chip"><i class="fa-solid fa-users"></i> ${k.santriCount} santri</span>
+              <span class="chip ${progClass}">${k.filledCount}/${k.santriCount} terisi (${pct}%)</span>
+            </div>
+          </div>
+          <button class="btn-input" onclick="openKelas('${escapeHtml(k.id)}')"><i class="fa-solid fa-pen-to-square"></i> Input Kelas</button>
+        </article>`;
+      }).join('') + '</div>';
+      renderPagination();
+    }
+
+    /* ── Dialog ── */
+    async function openKelas(kelasId) {
+      const kelas = state.kelasList.find(k => k.id === kelasId);
+      if (!kelas) return;
+      state.activeKelas = kelas;
+      document.getElementById('sdKelasName').textContent = kelas.name;
+      const listEl = document.getElementById('sdList');
+      listEl.innerHTML = '<div class="empty-state"><i class="fa-solid fa-spinner fa-spin"></i></div>';
+      hideSdNotice();
+      document.getElementById('santriDialog').showModal();
+      try {
+        const data = await api('kelasLevel.santriList', { kelasId, tahunAjaranId: state.tahunAjaranId });
+        renderSantriRows(data.santriList || []);
+      } catch (e) {
+        listEl.innerHTML = `<p style="color:var(--danger);font-weight:600;">${escapeHtml(e.message)}</p>`;
+      }
+    }
+
+    function renderSantriRows(santriList) {
+      const listEl = document.getElementById('sdList');
+      if (!santriList.length) {
+        listEl.innerHTML = '<div class="empty-state"><i class="fa-solid fa-user-slash"></i><p style="margin-top:6px;">Tidak ada santri di kelas ini.</p></div>';
+        return;
+      }
+      listEl.innerHTML = santriList.map(s => `
+        <div class="sd-row" data-santri-id="${escapeHtml(s.id)}">
+          <div class="nm"><strong>${escapeHtml(s.name)}</strong><small>${escapeHtml(s.noInduk || '-')}</small></div>
+          <input class="level-input" list="levelPresets" placeholder="Tingkat..." value="${escapeHtml(s.level || '')}">
+        </div>`).join('');
+    }
+
+    function hideSdNotice() { const el = document.getElementById('sdNotice'); el.style.display = 'none'; }
+    function showSdNotice(msg, type) {
+      const el = document.getElementById('sdNotice');
+      el.style.display = 'block';
+      el.style.background = type === 'error' ? 'rgba(165,90,82,0.12)' : 'rgba(116,132,108,0.15)';
+      el.style.color = type === 'error' ? 'var(--danger)' : 'var(--success)';
+      el.textContent = msg;
+    }
+
+    async function saveAll() {
+      const rows = Array.from(document.querySelectorAll('#sdList .sd-row'));
+      if (!rows.length) return;
+      const btn = document.getElementById('sdSaveBtn');
+      btn.disabled = true;
+      showSdNotice('Menyimpan...', 'success');
+      let saved = 0, failed = 0;
+      for (const row of rows) {
+        const santriId = row.getAttribute('data-santri-id');
+        const level = row.querySelector('.level-input').value.trim();
+        try {
+          await api('kelasLevel.save', { santriId, tahunAjaranId: state.tahunAjaranId, level }, 'POST');
+          saved += 1;
+        } catch (e) { failed += 1; }
+      }
+      btn.disabled = false;
+      if (failed) showSdNotice(`${saved} tersimpan, ${failed} gagal.`, 'error');
+      else showSdNotice(`Semua tingkat (${saved} santri) berhasil disimpan.`, 'success');
+      // Refresh progress chip SEMUA kelas (termasuk kelas lain yang berisi santri yang sama),
+      // karena tingkat disimpan per (santri + tahun ajaran) dan dipakai bersama antar kelas.
+      try { await loadKelas(); } catch (_) {}
+
+      // Muat ulang daftar santri di dialog agar menampilkan nilai yang baru disimpan
+      // (sumber data sama untuk semua kelas -> konsisten antar kelas).
+      if (state.activeKelas && state.activeKelas.id) {
+        try {
+          const refreshed = await api('kelasLevel.santriList', { kelasId: state.activeKelas.id, tahunAjaranId: state.tahunAjaranId });
+          renderSantriRows(refreshed.santriList || []);
+        } catch (_) {}
+      }
+    }
+
+    window.openKelas = openKelas;
+
+    /* ── Init ── */
+    const session = getStoredSession();
+    if (!session) {
+      clearSession();
+      window.location.replace('/pages/login/');
+    } else if (window.PSAccess && !window.PSAccess.canAccessPage(session, '/pages/inputKelasLevel/')) {
+      window.location.replace('/pages/accountProfile/');
+    } else {
+      mountShell(session);
+      (function () {
+        const scoped = window.PSAccess && typeof window.PSAccess.getScopedSession === 'function' ? window.PSAccess.getScopedSession(session) : session;
+        const canManage = !!(scoped && scoped.permissions && scoped.permissions.canManageKelasLevel);
+        const btn = document.getElementById('sdSaveBtn');
+        if (btn && window.PSUI) window.PSUI.applyPermissionLock(btn, canManage, 'Mudir hanya bisa melihat tingkat kelas santri, tidak bisa menyimpan perubahan.');
+      })();
+      document.getElementById('taSelect').addEventListener('change', function () { state.tahunAjaranId = this.value; state.page = 1; loadKelas(); });
+      document.getElementById('searchInput').addEventListener('input', function () { state.searchQuery = this.value; state.page = 1; renderKelas(); });
+      document.getElementById('statusFilter').addEventListener('change', function () { state.statusFilter = this.value; state.page = 1; loadKelas(); });
+      document.getElementById('genderFilter').addEventListener('change', function () { state.genderFilter = this.value; state.page = 1; renderKelas(); });
+      document.getElementById('jamFilter').addEventListener('change', function () { state.jamFilter = this.value; state.page = 1; renderKelas(); });
+      document.getElementById('sortSelect').addEventListener('change', function () { state.sortMode = this.value; renderKelas(); });
+      document.getElementById('pageSizeSelect').addEventListener('change', function () { state.pageSize = parseInt(this.value, 10) || 12; state.page = 1; renderKelas(); });
+      document.addEventListener('click', event => {
+        const page = event.target.getAttribute('data-page');
+        if (!page) return;
+        const nextPage = Number(page);
+        if (!nextPage || nextPage < 1 || nextPage > state.totalPages || nextPage === state.page) return;
+        state.page = nextPage;
+        renderKelas();
+      });
+      document.getElementById('sdCancelBtn').addEventListener('click', () => document.getElementById('santriDialog').close());
+      document.getElementById('sdSaveBtn').addEventListener('click', saveAll);
+      document.getElementById('santriDialog').addEventListener('cancel', (e) => { e.preventDefault(); document.getElementById('santriDialog').close(); });
+      window.addEventListener('load', loadKelas);
+    }
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
+    }
+  </script>
+</body>
+</html>

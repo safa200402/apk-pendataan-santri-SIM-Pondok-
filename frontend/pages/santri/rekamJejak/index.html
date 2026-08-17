@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#9e2f22">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="../../../shared-ui.css">
+  <link rel="stylesheet" href="../../../shared-shell.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+  <script src="../../../shared-ui.js"></script>
+  <title>Rekam Jejak Saya</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap');
+    :root {
+      --paper: #f6efe0; --ink: #4d4034; --muted: rgba(0,0,0,0.55);
+      --line: rgba(0,0,0,0.08); --accent: #9e2f22;
+      --success: #4a6b48; --danger: #8b3a35; --warning: #7a5a00;
+      --shadow: 0 12px 36px rgba(87,67,51,0.15); --radius: 18px;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; }
+    h1,h2,h3 { margin: 0; }
+    p { margin: 0; line-height: 1.65; }
+    .nav a, button { font-weight: 800 !important; text-transform: uppercase; }
+    .panel { padding: 20px; }
+    button, input, select { font: inherit; }
+    button { padding: 10px 16px; font-weight: 700; cursor: pointer; }
+
+    /* Month nav */
+    .month-nav { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 14px; }
+    .month-nav button {
+      min-height: 36px; padding: 0 14px; border-radius: 10px;
+      border: 2px solid rgba(0,0,0,0.12); background: transparent;
+      font-size: 13px; transition: background 0.15s;
+    }
+    .month-nav button:hover { background: rgba(0,0,0,0.04); }
+    .month-display { font-size: 18px; font-weight: 800; flex: 1; text-align: center; letter-spacing: 0.02em; }
+    .month-input-wrap { display: flex; align-items: center; gap: 8px; }
+    .month-input-wrap input[type="month"] {
+      min-height: 36px; padding: 0 12px; border-radius: 10px;
+      border: 2px solid rgba(0,0,0,0.12); outline: none; font-size: 13px; font-weight: 600;
+      background: rgba(255, 247, 210, 0.98);
+      margin-top: 25px;
+    }
+    .month-input-wrap input[type="month"]:focus { border-color: rgba(158,47,34,0.5); }
+
+    /* Identity strip */
+    .ident-strip { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+    .ident-chip { padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 700; background: rgba(0,0,0,0.07); }
+    .ident-chip i { margin-right: 5px; font-size: 11px; }
+
+    /* Sections */
+    .rj-section { margin-top: 14px; }
+    .rj-section-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .rj-section-head i { width: 28px; height: 28px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; font-size: 13px; color: #fff; flex-shrink: 0; }
+    .icon-perk { background: #5a7c8a; }
+    .icon-haf { background: #6b5a8a; }
+    .icon-ujian { background: #7a5a48; }
+    .rj-section-head h2 { font-size: 14px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; }
+
+    .empty-note { font-size: 13px; color: var(--muted); font-style: italic; padding: 10px 0; }
+
+    /* Hafalan totals */
+    .haf-totals { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 12px; }
+    .haf-total-card { text-align: center; padding: 12px 8px; border-radius: 12px; background: rgba(242, 222, 154, 0.96) !important; }
+    .haf-total-val { font-size: 22px; font-weight: 800; }
+    .haf-total-lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-top: 3px; }
+
+    /* Table */
+    .rj-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .rj-table th { text-align: left; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; padding: 8px 10px; color: var(--muted); border-bottom: 2px solid var(--line); }
+    .rj-table td { padding: 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    .rj-table .num { text-align: right; font-weight: 700; }
+    .rj-table tbody tr:last-child td { border-bottom: none; }
+    .rj-table .row-empty td { color: var(--muted); text-align: center; opacity: 0.6; }
+
+    /* Loading / empty */
+    .state-msg { text-align: center; padding: 36px 20px; color: var(--muted); font-size: 14px; }
+    .state-msg i { font-size: 28px; display: block; margin-bottom: 8px; }
+
+    .pagination { display: flex; align-items: center; justify-content: center; gap: 4px; flex-wrap: wrap; margin-top: 8px; }
+    .pagination button { min-width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--line); background: #fff; color: var(--ink); font-size: 13px; font-weight: 600; cursor: pointer; padding: 0 6px; }
+    .pagination button:hover { background: #f5f0eb; }
+    .pagination button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .pagination button:disabled { opacity: .4; cursor: default; }
+  </style>
+</head>
+<body>
+  <script src="../../../shared-nav.js"></script>
+  <script src="../../../shared-access.js"></script>
+  <script src="../../../shared-shell.js"></script>
+  <header class="app-header">
+    <div class="header-left">
+      <button class="drawer-toggle" id="navToggle" type="button" aria-label="Toggle sidebar">Menu</button>
+      <div class="header-brand">Pendataan Santri</div>
+      <div class="header-page">Rekam Jejak</div>
+    </div>
+    <div class="header-right">
+      <span class="header-chip" id="headerRole">Santri</span>
+    </div>
+  </header>
+  <div class="drawer-backdrop" id="navBackdrop"></div>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+  <main>
+    <div class="app-layout">
+      <section class="panel nav" id="nav"></section>
+      <div class="content-stack">
+        <section class="notice info" id="notice"></section>
+
+        <!-- Header: month nav -->
+        <section class="panel">
+          <h2 style="font-size:15px;font-weight:800;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Rekam Jejak Saya</h2>
+          <p style="font-size:13px;color:var(--muted);margin-bottom:0;">Perkembangan bulanan, hafalan, dan ujian kelas siang.</p>
+          <div class="month-nav">
+            <button id="prevMonthBtn" type="button"><i class="fas fa-chevron-left"></i></button>
+            <div class="month-display" id="monthDisplay">—</div>
+            <button id="nextMonthBtn" type="button"><i class="fas fa-chevron-right"></i></button>
+          </div>
+          <div class="month-input-wrap">
+            <input type="month" id="monthInput" title="Pilih bulan">
+          </div>
+          <div class="ident-strip" id="identStrip"></div>
+        </section>
+
+        <!-- Content -->
+        <section class="panel" id="contentPanel">
+          <div class="state-msg" id="loadingMsg"><i class="fas fa-spinner fa-spin"></i>Memuat data...</div>
+          <div id="rjContent" style="display:none;"></div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const API_BASE = window.location.origin + '/api';
+    const STORAGE = { token: 'ps_token', session: 'ps_session', apiBase: 'ps_api_base' };
+    localStorage.setItem(STORAGE.apiBase, API_BASE);
+
+    function getToken() { return localStorage.getItem(STORAGE.token) || ''; }
+    function getStoredSession() { try { return JSON.parse(localStorage.getItem(STORAGE.session) || 'null'); } catch { return null; } }
+    function clearSession() { localStorage.removeItem(STORAGE.token); localStorage.removeItem(STORAGE.session); }
+    function saveSession(s) { localStorage.setItem(STORAGE.session, JSON.stringify(s)); }
+
+    function showNotice(text, type) {
+      const stack = document.getElementById('noticeStack');
+      if (!stack) return;
+      const el = document.createElement('section');
+      el.className = 'notice show ' + (type || 'info');
+      el.textContent = text;
+      el.addEventListener('click', () => el.remove());
+      setTimeout(() => el.remove(), type === 'error' ? 9000 : 5000);
+      stack.prepend(el);
+      if (!stack.matches(':popover-open')) stack.showPopover();
+    }
+
+    async function api(action, payload = {}) {
+      const token = getToken();
+      if (!token) { clearSession(); window.location.replace('/pages/loginSantri/'); throw new Error('Sesi habis.'); }
+      const r = await fetch(`${API_BASE}?${new URLSearchParams({ action, token, ...payload })}`);
+      const json = await r.json();
+      if (!json.ok) {
+        const e = new Error(json.error?.message || 'Gagal.');
+        e.code = json.error?.code || 500;
+        if (e.code === 401) { clearSession(); window.location.replace('/pages/loginSantri/'); }
+        throw e;
+      }
+      return json.data;
+    }
+
+    function esc(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+    const BULAN_ID = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+    function bulanLabel(ym) {
+      if (!ym) return '—';
+      const [y, m] = ym.split('-');
+      return `${BULAN_ID[parseInt(m, 10) - 1] || ''} ${y}`;
+    }
+    function shiftMonth(ym, delta) {
+      let [y, m] = ym.split('-').map(Number);
+      m += delta;
+      while (m > 12) { m -= 12; y++; }
+      while (m < 1)  { m += 12; y--; }
+      return `${y}-${String(m).padStart(2, '0')}`;
+    }
+
+    // ── State ─────────────────────────────────────────────────────
+    const nowIso = new Date().toISOString().slice(0, 7);
+    let currentBulan = nowIso;
+    let santriId = null;
+    let rjData = null;
+    const PAGE_SIZE = 10;
+    const rjPage = { perkembangan: 1, hafalan: 1, ujian: 1 };
+
+    function renderPagination(section, page, total, limit) {
+      const pages = Math.ceil(total / limit);
+      if (pages <= 1) return '';
+      let html = '<div class="pagination">';
+      html += `<button data-section="${section}" data-page="${page - 1}" ${page <= 1 ? 'disabled' : ''}><i class="fas fa-chevron-left"></i></button>`;
+      for (let i = 1; i <= pages; i++) html += `<button class="${i === page ? 'active' : ''}" data-section="${section}" data-page="${i}">${i}</button>`;
+      html += `<button data-section="${section}" data-page="${page + 1}" ${page >= pages ? 'disabled' : ''}><i class="fas fa-chevron-right"></i></button>`;
+      html += '</div>';
+      return html;
+    }
+
+    // ── Render ───────────────────────────────────────────────────
+    function renderIdent(d) {
+      const chips = [
+        d.halaqohName  ? `<span class="ident-chip"><i class="fas fa-book-open"></i>${esc(d.halaqohName)}</span>` : '',
+        d.reguName     ? `<span class="ident-chip"><i class="fas fa-users"></i>Regu ${esc(d.reguName)}</span>` : '',
+        [...new Set([...(d.musyrifNames||[]), ...(d.pembinaNames||[])])].length
+          ? `<span class="ident-chip"><i class="fas fa-user-tie"></i>${esc([...new Set([...(d.musyrifNames||[]), ...(d.pembinaNames||[])])].join(', '))}</span>`
+          : ''
+      ].filter(Boolean).join('');
+      document.getElementById('identStrip').innerHTML = chips;
+    }
+
+    const MIN_TABLE_ROWS = 5;
+    function padRows(colCount, filledCount) {
+      const missing = MIN_TABLE_ROWS - filledCount;
+      if (missing <= 0) return '';
+      const cells = '<td>&mdash;</td>'.repeat(colCount);
+      return `<tr class="row-empty">${cells}</tr>`.repeat(missing);
+    }
+
+    function renderPerkembangan(items, total, page) {
+      items = items || [];
+      const rows = items.map(p => `<tr><td>${esc(p.tanggal)}</td><td>${esc(p.teks)}</td></tr>`).join('') + padRows(2, items.length);
+      const note = total ? '' : `<p class="empty-note">Belum ada catatan perkembangan bulan ini.</p>`;
+      return note + `<div style="overflow-x:auto;"><table class="rj-table">
+        <thead><tr><th>Tgl</th><th>Catatan</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>` + renderPagination('perkembangan', page, total, PAGE_SIZE);
+    }
+
+    function renderHafalan(items, total, page, totals) {
+      const totalsHtml = `<div class="haf-totals">
+        <div class="haf-total-card card"><div class="haf-total-val">${esc(String(totals.ziyadah))}</div><div class="haf-total-lbl">Ziyadah</div></div>
+        <div class="haf-total-card card"><div class="haf-total-val">${esc(String(totals.sabaqi))}</div><div class="haf-total-lbl">Sabaqi</div></div>
+        <div class="haf-total-card card"><div class="haf-total-val">${esc(String(totals.manzili))}</div><div class="haf-total-lbl">Manzili</div></div>
+        <div class="haf-total-card card"><div class="haf-total-val">${esc(String(totals.murojaah || 0))}</div><div class="haf-total-lbl">Muroja'ah</div></div>
+      </div>`;
+      items = items || [];
+      const rows = items.map(h => `<tr><td>${esc(h.tanggal)}</td><td>${esc(h.jenisLabel)}</td><td>${esc(h.detail)}</td><td class="num">${esc(h.nilai || '—')}</td></tr>`).join('') + padRows(4, items.length);
+      const note = total ? '' : `<p class="empty-note">Belum ada data hafalan bulan ini.</p>`;
+      return totalsHtml + note + `<div style="overflow-x:auto;"><table class="rj-table">
+        <thead><tr><th>Tgl</th><th>Jenis</th><th>Detail</th><th class="num">Nilai</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>` + renderPagination('hafalan', page, total, PAGE_SIZE);
+    }
+
+    function renderUjian(items, total, page) {
+      items = items || [];
+      const rows = items.map(u => `<tr><td>${esc(u.tanggal)}</td><td>${esc(u.kelasName)}</td><td class="num">${esc(u.nilai)}</td><td>${esc(u.catatan || '—')}</td></tr>`).join('') + padRows(4, items.length);
+      const note = total ? '' : `<p class="empty-note">Belum ada ujian kelas siang bulan ini.</p>`;
+      return note + `<div style="overflow-x:auto;"><table class="rj-table">
+        <thead><tr><th>Tgl</th><th>Kelas</th><th class="num">Nilai</th><th>Catatan</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>` + renderPagination('ujian', page, total, PAGE_SIZE);
+    }
+
+    function renderContent(d) {
+      return `
+        <div class="rj-section">
+          <div class="rj-section-head"><i class="fas fa-star icon-perk"></i><h2>Perkembangan Santri</h2></div>
+          <div id="rj-perkembangan">${renderPerkembangan(d.perkembangan, d.perkembanganTotal, d.perkembanganPage)}</div>
+        </div>
+        <div class="rj-section">
+          <div class="rj-section-head"><i class="fas fa-book icon-haf"></i><h2>Hafalan</h2></div>
+          <div id="rj-hafalan">${renderHafalan(d.hafalan, d.hafalanTotal, d.hafalanPage, d.hafalanTotals || { ziyadah: 0, sabaqi: 0, manzili: 0, murojaah: 0 })}</div>
+        </div>
+        <div class="rj-section">
+          <div class="rj-section-head"><i class="fas fa-pen-to-square icon-ujian"></i><h2>Ujian Kelas Siang</h2></div>
+          <div id="rj-ujian">${renderUjian(d.ujian, d.ujianTotal, d.ujianPage)}</div>
+        </div>
+      `;
+    }
+
+    function rerenderSection(section) {
+      if (!rjData) return;
+      const el = document.getElementById('rj-' + section);
+      if (!el) return;
+      if (section === 'perkembangan') el.innerHTML = renderPerkembangan(rjData.perkembangan, rjData.perkembanganTotal, rjData.perkembanganPage);
+      else if (section === 'hafalan') el.innerHTML = renderHafalan(rjData.hafalan, rjData.hafalanTotal, rjData.hafalanPage, rjData.hafalanTotals || { ziyadah: 0, sabaqi: 0, manzili: 0, murojaah: 0 });
+      else if (section === 'ujian') el.innerHTML = renderUjian(rjData.ujian, rjData.ujianTotal, rjData.ujianPage);
+    }
+
+    async function goToPage(section, page) {
+      if (loading) return;
+      loading = true;
+      rjPage[section] = page;
+      try {
+        await fetchData();
+        rerenderSection(section);
+      } catch (e) {
+        showNotice(e.message, 'error');
+      }
+      loading = false;
+    }
+
+    document.getElementById('rjContent').addEventListener('click', e => {
+      const btn = e.target.closest('button[data-section]');
+      if (!btn) return;
+      const page = parseInt(btn.dataset.page, 10);
+      if (!page || page < 1) return;
+      goToPage(btn.dataset.section, page);
+    });
+
+    // ── Load ─────────────────────────────────────────────────────
+    let loading = false;
+    async function fetchData() {
+      const d = await api('rekamJejak.data', {
+        santriId, bulan: currentBulan,
+        perkembanganPage: rjPage.perkembangan,
+        hafalanPage: rjPage.hafalan,
+        ujianPage: rjPage.ujian
+      });
+      rjData = d;
+      return d;
+    }
+
+    async function load(bulan) {
+      if (loading) return;
+      loading = true;
+      currentBulan = bulan;
+      rjPage.perkembangan = 1; rjPage.hafalan = 1; rjPage.ujian = 1;
+      document.getElementById('monthDisplay').textContent = bulanLabel(bulan);
+      document.getElementById('monthInput').value = bulan;
+      document.getElementById('loadingMsg').style.display = 'block';
+      document.getElementById('rjContent').style.display = 'none';
+      try {
+        const d = await fetchData();
+        renderIdent(d);
+        document.getElementById('rjContent').innerHTML = renderContent(d);
+        document.getElementById('rjContent').style.display = 'block';
+      } catch (e) {
+        showNotice(e.message, 'error');
+      }
+      document.getElementById('loadingMsg').style.display = 'none';
+      loading = false;
+    }
+
+    // ── Init ─────────────────────────────────────────────────────
+    window.addEventListener('DOMContentLoaded', async () => {
+      const session = getStoredSession();
+      if (!session || session.role !== 'santri') {
+        clearSession();
+        window.location.replace('/pages/loginSantri/');
+        return;
+      }
+      santriId = String(session.id);
+      window.PSShell.mount({ currentPage: 'rekamJejak.html', session, getStoredSession, storageKey: STORAGE.session });
+
+      // Verify session still valid
+      try {
+        const sd = await api('session');
+        if (sd.session?.role !== 'santri') { clearSession(); window.location.replace('/pages/loginSantri/'); return; }
+        saveSession(sd.session);
+      } catch (e) { return; }
+
+      // Month navigation
+      document.getElementById('prevMonthBtn').addEventListener('click', () => load(shiftMonth(currentBulan, -1)));
+      document.getElementById('nextMonthBtn').addEventListener('click', () => load(shiftMonth(currentBulan, 1)));
+      document.getElementById('monthInput').addEventListener('change', e => { if (e.target.value) load(e.target.value); });
+
+      await load(nowIso);
+    });
+
+    if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {}); }
+  </script>
+</body>
+</html>

@@ -1,0 +1,1733 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#9e2f22">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="../../shared-ui.css">
+  <link rel="stylesheet" href="../../shared-shell.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+  <script src="../../shared-ui.js"></script>
+  <script src="../../shared-access.js"></script>
+  <script src="../../shared-nav.js"></script>
+  <script src="../../shared-shell.js"></script>
+  <title>Ujian Hafalan</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700&display=swap');
+    :root {
+      --paper: #f6efe0; --ink: #4d4034; --muted: #7b6a58;
+      --line: rgba(91,73,57,0.15); --accent: #b97650; --success: #74846c;
+      --danger: #a55a52; --warning: #b58439;
+      --shadow: 0 18px 45px rgba(87,67,51,0.18); --radius: 24px;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; }
+    .panel { padding: 22px; overflow: auto;}
+    h1, h2, h3 { margin: 0 0 10px; }
+    p { margin: 0; line-height: 1.65; }
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; 
+      cursor: pointer;
+      FONT-WEIGHT: 800;
+      text-transform: uppercase;
+      font-family: 'Poppins';
+      padding: 7px;
+    }
+  
+    label { display: grid; gap: 7px; font-size: 14px; font-weight: 600; }
+
+    /* Pagination */
+    .paging { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; margin: 3px 0; }
+    .page-center { display: grid; gap: 8px; justify-items: center; margin-top: 16px; }
+    .page-numbers { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+    .page-summary { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+    @media (max-width: 600px) { .paging { grid-template-columns: 1fr; } }
+
+    /* View toggle */
+    .view-toggle {
+      display: flex; gap: 6px; flex-wrap: wrap;
+      border-radius: 14px; padding: 5px; align-self: flex-start;
+    }
+    .view-btn {
+      padding: 7px 18px; border-radius: 10px;
+      border: none; background: transparent;
+      color: var(--muted); font-size: 13px; font-weight: 700;
+      cursor: pointer; transition: all 150ms;
+    }
+    .view-btn.active { background: rgba(255, 247, 210, 0.98); color: var(--ink); box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
+    .view-btn:not(.active):hover { color: var(--ink); }
+
+    /* Tab bar */
+    .tab-bar {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        margin-top: 18px;
+        padding-bottom: 2px;
+        justify-content: center;
+    }
+    .tab-btn {
+      padding: 8px 20px; border-radius: 14px 14px 0 0; border: 2px solid transparent;
+      background: transparent; color: var(--muted); font-size: 13px; font-weight: 700;
+      letter-spacing: 0.05em; transition: all 150ms ease; cursor: pointer;
+    }
+    .tab-btn.active {
+      background: var(--accent); color: #fff; border-color: var(--accent);
+    }
+    .tab-btn:not(.active):hover { background: var(--line); color: var(--ink); }
+
+    /* Filters */
+    .filter-row {
+      display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; margin-top: 14px;
+    }
+    .filter-label {
+      display: grid; gap: 5px; font-size: 11px; font-weight: 800;
+      letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted);
+    }
+    .search-field {
+      display: grid; gap: 5px; font-size: 11px; font-weight: 800;
+      letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); flex: 1; min-width: 180px;
+    }
+    .search-field input {
+      padding: 8px 12px; border-radius: 10px; border: 1.5px solid var(--line);
+      background: rgba(255, 247, 210, 0.98); color: var(--ink);
+    }
+
+    /* Halaqoh cards */
+    .count-pills-row {
+      padding: 8px 16px 10px;
+      border-top: 1px dashed rgba(75,44,32,0.18);
+    }
+    .count-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+    .count-pill {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 700;
+    }
+    .count-pill.diajukan { background: rgba(185,118,80,0.12); color: var(--accent); }
+    .count-pill.dijadwalkan { background: rgba(116,132,108,0.12); color: var(--success); }
+    .count-pill.selesai { background: var(--line); color: var(--muted); }
+
+    /* Full-screen dialog */
+    #ujianDialog {
+      width: 100%; max-width: 100%; height: 100%; max-height: 100%;
+      margin: 0; padding: 0; border: none; border-radius: 0;
+      background: rgba(255, 247, 210, 0.98); overflow: hidden; position: relative;
+    }
+    #ujianDialog::backdrop { background: rgba(0, 0, 0, 0.45); backdrop-filter: blur(4px); }
+    .dialog-shell { height: 100%; display: grid; grid-template-rows: auto minmax(0,1fr); }
+    .dialog-head {
+      padding: 18px 22px 14px;
+      background: linear-gradient(135deg, rgba(255,251,243,0.97), rgba(248,228,174,0.72)), #fff;
+      border-bottom: 1px solid var(--line); display: grid; gap: 10px;
+    }
+    .dialog-title-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .dialog-title-row h2 { font-family: 'Playfair Display', serif; font-size: 1.35rem; margin: 0; line-height: 1.1; }
+    .close-btn {
+      width: 44px; min-width: 44px; height: 44px; padding: 0; border-radius: 999px;
+      border: none; background: transparent; font-size: 22px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .close-btn:hover { background: rgba(0,0,0,0.08); }
+    .dialog-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center;margin-bottom: 15px;}
+    .dialog-body { overflow-y: auto; padding: 18px 22px; }
+    .tipe-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 4px 14px; border-radius: 999px; font-size: 12px; font-weight: 800;
+      letter-spacing: 0.06em; text-transform: uppercase;
+      color: #000000;
+    }
+
+    /* Tahap badge */
+    .tahap-pill {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 4px 12px; border-radius: 999px; font-size: 11px; font-weight: 700;
+    }
+    .tahap-pill.diajukan { background: rgba(185,118,80,0.14); color: var(--accent); }
+    .tahap-pill.dijadwalkan { background: rgba(116,132,108,0.14); color: var(--success); }
+    .tahap-pill.selesai.lulus { background: rgba(116,132,108,0.18); color: var(--success); }
+    .tahap-pill.selesai.tidak-lulus { background: rgba(165,90,82,0.14); color: var(--danger); }
+    .tahap-pill.selesai.mengulang { background: rgba(181,132,57,0.16); color: var(--warning); }
+    .tahap-pill.lulus { background: rgba(116,132,108,0.18); color: var(--success); }
+    .tahap-pill.tidak_lulus { background: rgba(165,90,82,0.14); color: var(--danger); }
+    .tahap-pill.mengulang { background: rgba(181,132,57,0.16); color: var(--warning); }
+    .tahap-pill.batal { background: rgba(100,100,100,0.12); color: var(--muted); }
+
+    /* Ujian table */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); border-bottom: 2px solid var(--line); white-space: nowrap; }
+    td { padding: 12px 14px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(91,73,57,0.04); }
+    .td-actions { display: flex; gap: 6px;}
+    .action-btn {
+      padding: 5px 12px; border-radius: 8px; border: 1.5px solid var(--line);
+      background: rgba(255, 247, 210, 0.98); color: var(--ink); font-size: 11px; font-weight: 700;
+      cursor: pointer; transition: all 120ms; font-size: 13px;
+    }
+    .action-btn:hover { background: var(--line); }
+    .action-btn.primary { background: var(--accent);}
+    .action-btn.primary:hover { opacity: 0.88; }
+    .action-btn.danger { color: var(--danger); border-color: rgba(165,90,82,0.3); }
+    .action-btn.danger:hover { background: rgba(165,90,82,0.08); }
+
+    /* Entry panel — absolute overlay inside dialog */
+    #entryPanel {
+      position: absolute; inset: 0; z-index: 10; display: none;
+      align-items: center; justify-content: center;
+      padding: 16px;
+      background: rgba(8, 7, 7, 0.976); backdrop-filter: blur(3px);
+    }
+    #entryPanel.open { display: flex; }
+    #entryPanelBackdrop { position: absolute; inset: 0; }
+    .entry-panel {
+      position: relative; z-index: 1; border-radius: var(--radius);
+      max-width: 560px; width: 100%; max-height: calc(100% - 32px);
+      box-shadow: var(--shadow); background: rgba(255, 247, 210, 0.98);
+      overflow: hidden; display: flex; flex-direction: column;
+    }
+    .entry-head {
+      padding: 16px 22px 14px; background: #c7a251; color: #fff;
+      display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+    }
+    .entry-head h3 { margin: 0; font-size: 1.05rem; font-family: 'Playfair Display', serif; }
+    .entry-body { flex: 1; min-height: 0; overflow-y: auto; padding: 18px 22px; }
+    .entry-foot {
+      flex-shrink: 0; padding: 14px 22px; border-top: 1px solid var(--line);
+      display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap;
+    }
+    .field-grid { display: grid; gap: 14px; }
+    .field-grid.cols-2 { grid-template-columns: 1fr 1fr; }
+    @media (max-width: 560px) { .field-grid.cols-2 { grid-template-columns: 1fr; } }
+    .section-divider {
+      font-size: 11px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--muted); padding: 10px 0 4px; border-bottom: 1px solid var(--line); margin-bottom: 2px;
+    }
+
+    /* Inline form notice (mis. validasi sebelum simpan) */
+    #entryFormNotice {
+      display: none; margin-top: 10px; padding: 10px 14px; border-radius: 10px;
+      font-size: 13px; font-weight: 600; line-height: 1.5;
+    }
+    #entryFormNotice.show { display: block; }
+    #entryFormNotice.error { background: rgba(165,90,82,0.1); color: var(--danger); border: 1.5px solid rgba(165,90,82,0.3); }
+    #entryFormNotice.success { background: rgba(116,132,108,0.1); color: var(--success); border: 1.5px solid rgba(116,132,108,0.3); }
+
+    /* Empty state */
+    .empty-state {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 48px 24px; color: var(--muted); font-size: 14px; text-align: center; gap: 8px;
+    }
+
+    /* Nilai per juz table */
+    .npj-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 6px; }
+    .npj-table th { padding: 6px 10px; font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--line); }
+    .npj-table td { padding: 6px 8px; border-bottom: 1px solid var(--line); }
+    .npj-table input[type=number] { width: 70px; padding: 4px 8px; border-radius: 7px; border: 1.5px solid var(--line); background: rgba(255, 247, 210, 0.98); color: var(--ink); }
+    .npj-table select { padding: 4px 8px; border-radius: 7px; border: 1.5px solid var(--line); background: rgba(255, 247, 210, 0.98); color: var(--ink); font-size: 12px; }
+
+    /* Status filter (inside dialog) */
+    .status-filter { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+    .status-filter button {
+      padding: 5px 14px; border-radius: 999px; border: 1.5px solid var(--line);
+      background: rgba(255, 247, 210, 0.98); color: var(--muted); font-size: 12px; font-weight: 700;
+      cursor: pointer; transition: all 120ms;
+    }
+    .status-filter button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+    /* Queue search input */
+    #queueSearchInput { width: 49vh; }
+    @media (max-width: 600px) { #queueSearchInput { width: 100%; } }
+
+    /* Super admin tools bar */
+    .sa-tools {
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+      margin-top: 14px; padding: 10px 14px; border-radius: 12px;
+      background: rgba(165,90,82,0.06); border: 1px solid rgba(165,90,82,0.2);
+    }
+    .sa-tools-label {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 11px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--danger); flex-shrink: 0;
+    }
+    .sa-tools-sep { width: 1px; height: 22px; background: rgba(165,90,82,0.2); flex-shrink: 0; }
+    .sa-tools-group {
+        display: inline-flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        flex-direction: column;
+        align-items: flex-start;
+    }    
+    .sa-tools .action-btn i { margin-right: 5px; }
+
+    /* Tempel inline section */
+    #tempelToggleRow {
+      margin-top: 10px;
+    }
+    #tempelToggleBtn {
+      font-size: 13px; padding: 6px 14px; border-radius: 25px;
+      /* border: 1.5px solid var(--line);  */
+      background: rgba(255, 247, 210, 0.98);
+      color: var(--ink); cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+    }
+    #tempelToggleBtn:hover { background: rgba(0,0,0,0.04); }
+    #tempelSection {
+      margin-top: 12px; padding: 16px 18px; border-radius: 14px;
+      border: 1.5px solid var(--line); background: rgba(255,255,255,0.5);
+      display: grid; gap: 12px;
+    }
+    .tempel-body { display: grid; gap: 14px; }
+    .tempel-textarea {
+      width: 100%; min-height: 220px; padding: 12px 14px; border-radius: 12px;
+      border: 1.5px solid var(--line); background: rgba(255,255,255,0.6);
+      color: var(--ink); font-size: 13px; font-family: monospace; resize: vertical;
+    }
+    .tempel-preview-item {
+      padding: 12px 14px; border-radius: 12px; border: 1.5px solid var(--line);
+      background: rgba(255,255,255,0.5); font-size: 13px;
+    }
+    .tempel-preview-item.has-error { border-color: rgba(165,90,82,0.4); background: rgba(165,90,82,0.04); }
+    .tempel-preview-item.has-warning { border-color: rgba(181,132,57,0.4); background: rgba(181,132,57,0.04); }
+    .tempel-preview-item.ok { border-color: rgba(116,132,108,0.4); background: rgba(116,132,108,0.04); }
+    .tempel-preview-title { font-weight: 700; margin-bottom: 6px; }
+    .tempel-msg { font-size: 12px; margin-top: 4px; }
+    .tempel-msg.error { color: var(--danger); }
+    .tempel-msg.warn { color: var(--warning); }
+
+    /* Delete all dialog */
+    #deleteAllDialog {
+      width: 100%; max-width: 480px;
+      margin: auto; padding: 0; border: none; border-radius: var(--radius);
+      background: rgba(255, 247, 210, 0.98); overflow: hidden;
+    }
+    #deleteAllDialog::backdrop { background: rgba(41,23,15,0.45); backdrop-filter: blur(4px); }
+
+    /* Export tempel dialog */
+    #exportTempelDialog {
+      width: 100%; max-width: 420px;
+      margin: auto; padding: 0; border: none; border-radius: var(--radius);
+      background: rgba(255, 247, 210, 0.98); overflow: hidden;
+    }
+    #exportTempelDialog::backdrop { background: rgba(41,23,15,0.45); backdrop-filter: blur(4px); }
+
+    /* Edit history dialog */
+    #editHistoryDialog {
+      width: 100%; max-width: 480px;
+      margin: auto; padding: 0; border: none; border-radius: var(--radius);
+      background: rgba(255, 247, 210, 0.98); overflow: hidden;
+    }
+    #editHistoryDialog::backdrop { background: rgba(41,23,15,0.45); backdrop-filter: blur(4px); }
+
+    /* Queue view */
+    .queue-info {
+      display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap;
+    }
+    .queue-info-text { font-size: 13px; color: var(--muted); }
+    .queue-search { flex: 1; min-width: 200px; }
+    .queue-search input {
+      width: 100%; padding: 9px 14px; border-radius: 10px; border: 1.5px solid var(--line);
+      background: rgba(255, 247, 210, 0.98); color: var(--ink); font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+  <main>
+    <div class="app-layout">
+      <section class="panel nav" id="nav"></section>
+      <div class="content-stack">
+
+        <!-- Header -->
+        <section class="panel">
+          <h1 style="font-family:'Playfair Display',serif;font-size:2rem;letter-spacing:-0.03em;margin-bottom:4px;">Ujian Hafalan</h1>
+          <p style="color:var(--muted);font-size:14px;">Input dan pantau ujian juziyyah, sertifikasi, dan UAS santri.</p>
+
+          <!-- Super Admin Tools -->
+          <div id="superAdminTools" class="sa-tools" style="display:none;">
+            <span class="sa-tools-label"><i class="fa-solid fa-shield-halved"></i>Super Admin</span>
+            <div class="sa-tools-group">
+              <button class="action-btn" id="tempelToggleBtn"><i class="fa-solid fa-paste"></i> Tempel Data ▾</button>
+              <button class="action-btn" id="exportTempelBtn"><i class="fa-solid fa-file-export"></i> Export TXT Tempel</button>
+              <button class="action-btn" id="deleteAllBtn"><i class="fa-solid fa-trash-can"></i> Hapus Semua</button>
+            </div>
+          </div>
+
+          <!-- Inline Tempel Section -->
+          <div id="tempelSection" style="display:none;">
+            <div class="tempel-body">
+              <textarea class="tempel-textarea" id="tempelInput"
+                placeholder="SANTRI: Fulan bin Fulan&#10;HALAQOH: Halaqoh Fulaniyyah&#10;TIPE: juziyyah&#10;JUZ: 5&#10;TAHUN_AJARAN: 2025/2026&#10;TANGGAL_SIAP: 2025-01-10&#10;TAHAP: diajukan&#10;&#10;SANTRI: Fulanah binti Fulan&#10;HALAQOH: Halaqoh Fulaniyyah&#10;TIPE: sertifikasi&#10;JUZ_MULAI: 1&#10;JUZ_AKHIR: 10&#10;TAHUN_AJARAN: 2025/2026&#10;TANGGAL_SIAP: 2025-02-01&#10;TAHAP: diajukan"></textarea>
+              <div style="font-size:12px;color:var(--muted);line-height:1.6;">
+                Format tiap record (pisahkan dengan baris kosong):<br>
+                <code style="font-size:11px;background:rgba(0,0,0,0.05);padding:2px 6px;border-radius:4px;">SANTRI: &nbsp;HALAQOH: &nbsp;TIPE: &nbsp;JUZ: (atau JUZ_MULAI/JUZ_AKHIR) &nbsp;TANGGAL_SIAP: &nbsp;TAHAP: (diajukan / dijadwalkan / selesai / batal)</code>
+              </div>
+              <div id="tempelPreviewArea" style="display:none;">
+                <div style="font-size:12px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">Preview</div>
+                <div id="tempelPreviewList" style="display:grid;gap:8px;"></div>
+              </div>
+            </div>
+            <div class="entry-foot" style="padding-top:4px;">
+              <button class="ps-btn ps-border-radius-lg secondary" id="tempelCopyExampleBtn"><i class="fa-regular fa-copy" style="margin-right:6px;"></i>Contoh</button>
+              <button class="ps-btn ps-border-radius-lg secondary" id="tempelPreviewBtn"><i class="fa-solid fa-eye" style="margin-right:6px;"></i>Buat Preview</button>
+              <button class="ps-btn ps-border-radius-lg primary ps-accent" id="tempelSaveBtn" disabled>Simpan</button>
+            </div>
+          </div>
+
+          <!-- View toggle (revealed for penguji after load) -->
+          <div>
+            <div id="viewToggleWrap" style="display:none; margin-top:18px;">
+              <div class="view-toggle">
+                <button class="view-btn active" data-view="antrian"><i class="fa-solid fa-list-check" style="margin-right:6px;"></i>Antrian Ujian</button>
+                <button class="view-btn" data-view="halaqoh"><i class="fa-solid fa-layer-group" style="margin-right:6px;"></i>Per Halaqoh</button>
+              </div>
+            </div>
+
+            <!-- Tab bar -->
+            <div class="tab-bar">
+              <button class="tab-btn active" data-tipe="juziyyah"><i class="fa-solid fa-book-open" style="margin-right:6px;"></i>Juziyyah</button>
+              <button class="tab-btn" data-tipe="sertifikasi"><i class="fa-solid fa-certificate" style="margin-right:6px;"></i>Sertifikasi</button>
+              <button class="tab-btn" data-tipe="mufrodat"><i class="fa-solid fa-language" style="margin-right:6px;"></i>Mufrodat</button>
+              <button class="tab-btn" data-tipe="adzkar"><i class="fa-solid fa-star-and-crescent" style="margin-right:6px;"></i>Adzkar</button>
+            </div>
+          </div>
+
+          <!-- Filters -->
+          <div class="filter-row">
+            <label class="filter-label">
+              <span>Tahun Ajaran</span>
+              <select id="tahunAjaranFilter" style="padding:8px 12px;border-radius:10px;border:1.5px solid var(--line);background:rgba(255, 247, 210, 0.98);color:var(--ink);min-width:150px;">
+                <option value="">Semua tahun ajaran</option>
+              </select>
+            </label>
+            <label class="filter-label">
+              <span>Gender</span>
+              <select id="genderFilter" style="padding:8px 12px;border-radius:10px;border:1.5px solid var(--line);background:rgba(255, 247, 210, 0.98);color:var(--ink);">
+                <option value="">Semua</option>
+                <option value="ikhwan">Laki-laki</option>
+                <option value="akhowat">Perempuan</option>
+              </select>
+            </label>
+            <!-- Queue-only: tahap filter -->
+            <label class="filter-label" id="queueTahapLabel" style="display:none;">
+              <span>Tahap</span>
+              <select id="queueTahapFilter" style="padding:8px 12px;border-radius:10px;border:1.5px solid var(--line);background:rgba(255, 247, 210, 0.98);color:var(--ink);">
+                <option value="" selected>Semua Tahap</option>
+                <option value="diajukan,dijadwalkan">Diajukan &amp; Dijadwalkan</option>
+                <option value="diajukan">Diajukan</option>
+                <option value="dijadwalkan">Dijadwalkan</option>
+                <option value="selesai,lulus,tidak_lulus,mengulang">Selesai</option>
+                <option value="batal">Batal</option>
+              </select>
+            </label>
+            <!-- Queue-only: sort filter -->
+            <label class="filter-label" id="queueSortLabel" style="display:none;">
+              <span>Urutkan</span>
+              <select id="queueSortFilter" style="padding:8px 12px;border-radius:10px;border:1.5px solid var(--line);background:rgba(255, 247, 210, 0.98);color:var(--ink);">
+                <option value="siap">Tanggal Siap Diuji</option>
+                <option value="daftar">Tanggal Daftar</option>
+                <option value="ujian">Tanggal Ujian</option>
+              </select>
+            </label>
+            <!-- Halaqoh-only: search halaqoh name -->
+            <label class="search-field" id="halaqohSearchLabel">
+              <span>Cari Halaqoh</span>
+              <input type="search" id="searchInput" placeholder="Ketik nama halaqoh..." autocomplete="off">
+            </label>
+          </div>
+        </section>
+
+        <!-- Cards / Queue area -->
+        <section class="panel">
+          <div id="paginationTop" class="paging"></div>
+          <div id="cardsArea">
+            <div class="empty-state"><i class="fa-solid fa-spinner fa-spin" style="font-size:28px;"></i></div>
+          </div>
+          <div id="paginationBottom" class="paging"></div>
+        </section>
+
+      </div>
+    </div>
+  </main>
+
+  <!-- Ujian dialog -->
+  <dialog id="ujianDialog">
+    <div class="dialog-shell">
+      <div class="dialog-head" style="display: block;">
+        <div class="dialog-title-row">
+          <h2 id="dialogTitle">—</h2>
+          <button class="close-btn" id="dialogCloseBtn" aria-label="Tutup">&#x2715;</button>
+        </div>
+        <div class="dialog-actions">
+          <span style="font-size:13px;color:var(--muted);flex:1;" id="dialogSubtitle"></span>
+          <button class="ps-btn ps-border-radius-lg primary ps-accent" id="dialogAddBtn" style="gap:7px;padding:9px 18px;min-height:40px;">
+            <i class="fa-solid fa-plus"></i> Tambah Ujian
+          </button>
+        </div>
+        <div class="status-filter" id="statusFilter">
+          <button class="active" data-tahap="">Semua</button>
+          <button data-tahap="diajukan">Diajukan</button>
+          <button data-tahap="dijadwalkan">Dijadwalkan</button>
+          <button data-tahap="selesai,lulus,tidak_lulus,mengulang">Selesai</button>
+          <button data-tahap="batal">Batal</button>
+        </div>
+        <span class="tipe-badge" id="dialogTipeBadge" style="width: 100%;">Juziyyah</span>
+      </div>
+      <div class="dialog-body" id="ujianListArea">
+        <div class="empty-state"><i class="fa-solid fa-spinner fa-spin"></i></div>
+      </div>
+    </div>
+
+    <!-- Saran nama pengurus utk autocomplete field "Nama Penguji" (teks bebas) -->
+    <datalist id="pengujiNameOptions"></datalist>
+
+    <!-- Entry form overlay (inside dialog) -->
+    <div id="entryPanel">
+      <div id="entryPanelBackdrop"></div>
+      <div class="entry-panel">
+        <div class="entry-head">
+          <h3 id="formTitle">Tambah Ujian</h3>
+          <button class="close-btn" id="entryCloseBtn" style="color:#fff;" aria-label="Tutup">&#x2715;</button>
+        </div>
+        <div class="entry-body" id="entryBody">
+          <!-- dynamic fields -->
+        </div>
+        <div class="entry-foot">
+          <button class="ps-btn ps-border-radius-lg secondary" id="entryCancelBtn">Batal</button>
+          <button class="ps-btn ps-border-radius-lg primary ps-accent" id="entrySaveBtn">Simpan</button>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Export Tempel Dialog -->
+  <dialog id="exportTempelDialog">
+    <div class="entry-panel" style="max-width:100%;width:100%;">
+      <div class="entry-head">
+        <h3><i class="fa-solid fa-file-export" style="margin-right:6px;"></i>Export TXT Tempel</h3>
+        <button class="close-btn" id="exportTempelCloseBtn" aria-label="Tutup">&#x2715;</button>
+      </div>
+      <div class="entry-body" style="padding:18px 20px;">
+        <label style="display:flex;flex-direction:column;gap:8px;">
+          <span style="font-size:13px;font-weight:600;">Pilih Tahun Ajaran</span>
+          <select id="exportTempelTahunSelect"
+            style="padding:9px 12px;border-radius:10px;border:1.5px solid var(--line);background:rgba(255, 247, 210, 0.98);color:var(--ink);font-size:14px;">
+            <option value="">-- Semua Tahun Ajaran --</option>
+          </select>
+        </label>
+      </div>
+      <div class="entry-foot">
+        <button class="ps-btn ps-border-radius-lg secondary" id="exportTempelCancelBtn">Batal</button>
+        <button class="ps-btn ps-border-radius-lg" id="exportTempelConfirmBtn">
+          <i class="fa-solid fa-download"></i> Export
+        </button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Delete All Dialog -->
+  <dialog id="deleteAllDialog">
+    <div class="entry-panel" style="max-width:100%;width:100%;">
+      <div class="entry-head" style="background:var(--danger);">
+        <h3>Hapus Semua Data Ujian</h3>
+        <button class="close-btn" id="deleteAllCloseBtn" style="color:#fff;" aria-label="Tutup">&#x2715;</button>
+      </div>
+      <div class="entry-body" id="deleteAllBody"></div>
+      <div class="entry-foot">
+        <button class="ps-btn ps-border-radius-lg secondary" id="deleteAllCancelBtn">Batal</button>
+        <button class="ps-btn ps-border-radius-lg" id="deleteAllConfirmBtn"
+          style="background:var(--danger);color:#fff;border-color:var(--danger);" disabled>Hapus Semua</button>
+      </div>
+    </div>
+  </dialog>
+
+
+  <!-- Edit History Dialog -->
+  <dialog id="editHistoryDialog">
+    <div class="entry-panel" style="max-width:100%;width:100%;">
+      <div class="entry-head">
+        <h3>Riwayat Edit</h3>
+        <button class="close-btn" id="editHistoryCloseBtn" aria-label="Tutup">&#x2715;</button>
+      </div>
+      <div class="entry-body">
+        <p id="editHistorySubtitle" style="font-size:13px;color:var(--muted);margin-bottom:12px;"></p>
+        <div id="editHistoryList" style="display:grid;gap:8px;"></div>
+      </div>
+    </div>
+  </dialog>
+
+  <script>
+    const API_BASE = (window.location.protocol.indexOf('http') === 0 && window.location.port === '3000')
+      ? `${window.location.origin}/api`
+      : '/api';
+    const STORAGE = { session: 'ps_session' };
+
+    function getStoredSession() {
+      try { return JSON.parse(localStorage.getItem(STORAGE.session) || 'null'); } catch { return null; }
+    }
+
+    function currentSessionName() {
+      const session = getStoredSession();
+      return (session && session.name) || '';
+    }
+
+    async function api(action, payload) {
+      const session = getStoredSession();
+      const scopeLabel = window.PSAccess ? (window.PSAccess.getActiveRoleScopeLabel(session) || '') : '';
+      const body = { action, token: session && session.token ? session.token : '', scopeLabel, ...payload };
+      const resp = await fetch(API_BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const json = await resp.json();
+      if (!json.ok) {
+        const error = new Error((json.error && json.error.message) || json.message || 'Terjadi kesalahan.');
+        error.code = (json.error && json.error.code) || resp.status || 500;
+        if (window.PSUI && window.PSUI.handleApiAuthError && window.PSUI.handleApiAuthError(error)) return;
+        throw error;
+      }
+      return json.data;
+    }
+
+    function escHtml(s) {
+      return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function fmtDate(s) {
+      if (!s) return '—';
+      const [y, m, d] = s.split('-');
+      const months = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+      return `${parseInt(d)} ${months[parseInt(m) - 1]} ${y}`;
+    }
+
+    function todayStr() {
+      return new Date().toISOString().slice(0, 10);
+    }
+
+    function debounce(fn, wait) {
+      let t;
+      return function (...args) {
+        clearTimeout(t);
+        const ctx = this;
+        t = setTimeout(() => fn.apply(ctx, args), wait);
+      };
+    }
+
+    const KKM_UJIAN_HAFALAN = 70; // Nilai di bawah ini tidak boleh dinyatakan Lulus.
+
+    function setEntryFormNotice(msg, type) {
+      const el = document.getElementById('entryFormNotice');
+      if (el) { el.textContent = msg; el.className = 'show ' + (type || 'error'); }
+      window.PSUI && window.PSUI.showNotice && window.PSUI.showNotice(msg, type || 'error');
+    }
+    function clearEntryFormNotice() {
+      const el = document.getElementById('entryFormNotice');
+      if (el) { el.textContent = ''; el.className = ''; }
+    }
+
+    const TIPE_LABELS = { juziyyah: 'Juziyyah', sertifikasi: 'Sertifikasi', uas: 'UAS', mufrodat: 'Mufrodat', adzkar: 'Adzkar' };
+    const TAHAP_LABELS = { diajukan: 'Diajukan', dijadwalkan: 'Dijadwalkan', selesai: 'Selesai', lulus: 'Lulus', tidak_lulus: 'Tidak Lulus (Ziyadah Ulang)', mengulang: 'Mengulang', batal: 'Batal' };
+    // Status tahap "selesai" lama (+ field Kelulusan terpisah) digantikan tahap Lulus/Tidak Lulus
+    // (Ziyadah Ulang)/Mengulang langsung. Data lama dgn tahap "selesai" tetap didukung apa adanya.
+    const SELESAI_TAHAP_SET = { selesai: true, lulus: true, tidak_lulus: true, mengulang: true };
+    function isCompletedTahap(tahap) { return !!SELESAI_TAHAP_SET[tahap]; }
+    const JUZ_OPTIONS = Array.from({length: 30}, (_, i) => `<option value="${i+1}">Juz ${i+1}</option>`).join('');
+    const MUFRODAT_LEVEL_OPTIONS = Array.from({length: 10}, (_, i) => `<option value="${i+1}">Level ${i+1}</option>`).join('');
+    const ADZKAR_KATEGORI = [
+      { value: 'bacaan_sholat', label: 'Bacaan Sholat' },
+      { value: 'bacaan_setelah_sholat', label: 'Bacaan Setelah Sholat' },
+      { value: 'dzikir_pagi', label: 'Dzikir Pagi' },
+      { value: 'dzikir_petang', label: 'Dzikir Petang' }
+    ];
+    const ADZKAR_KATEGORI_OPTIONS = ADZKAR_KATEGORI.map(k => `<option value="${k.value}">${k.label}</option>`).join('');
+    function materiColumnLabel() {
+      if (state.tipe === 'mufrodat') return 'Level';
+      if (state.tipe === 'adzkar') return 'Kategori';
+      return 'Juz';
+    }
+    const LULUS_INFO = {
+      '1': { cssClass: 'lulus', color: 'var(--success)', label: 'Lulus' },
+      '0': { cssClass: 'tidak-lulus', color: 'var(--danger)', label: 'Tdk Lulus' },
+      '2': { cssClass: 'mengulang', color: 'var(--warning)', label: 'Mengulang' }
+    };
+    function getLulusInfo(lulus) {
+      return LULUS_INFO[lulus] || LULUS_INFO['0'];
+    }
+    // Tahap baru (lulus/tidak_lulus/mengulang) menyimpan hasil kelulusan langsung di tahap-nya;
+    // data lama (tahap "selesai") masih pakai field `lulus` terpisah.
+    function getLulusInfoForRecord(u) {
+      if (u.tahap === 'lulus') return LULUS_INFO['1'];
+      if (u.tahap === 'tidak_lulus') return LULUS_INFO['0'];
+      if (u.tahap === 'mengulang') return LULUS_INFO['2'];
+      return getLulusInfo(u.lulus);
+    }
+
+    /* ── State ── */
+    const state = {
+      halaqohList: [], tahunAjaranList: [], isPenguji: false,
+      elevatedRole: null, // 'superAdmin' | 'koordinator' | 'penguji' | null
+      canTempel: false, // isAdmin || isSuperAdmin
+      viewMode: 'halaqoh', // 'halaqoh' | 'antrian'
+      // halaqoh view
+      tahunAjaranFilter: '', genderFilter: '', searchQuery: '',
+      tipe: 'juziyyah', page: 1, pageSize: 10, totalPages: 1, total: 0,
+      // antrian view
+      queueList: [], queuePage: 1, queuePageSize: 10, queueTotalPages: 1, queueTotal: 0,
+      queueSearch: '', queueTahap: '', queueSort: 'siap', // 'siap' (default) | 'daftar'
+      // dialog/form
+      activeHalaqoh: null, ujianList: [], tahapFilter: '',
+      ujianPage: 1, ujianPageSize: 10, ujianTotalPages: 1, ujianTotal: 0,
+      editingId: null, editingRecord: null,
+      fromQueue: false
+    };
+
+    /* ── Pagination helpers ── */
+    function renderPaging(currentPage, totalPages) {
+      const start = Math.max(1, Math.min(currentPage - 4, totalPages - 9));
+      const end = Math.min(totalPages, start + 9);
+      let html = '';
+      for (let p = start; p <= end; p++) {
+        html += `<button ${p === currentPage ? 'class="active"' : ''} data-page-h="${p}">${p}</button>`;
+      }
+      return html;
+    }
+
+    function renderPagination(current, totalPages, total, label, dataAttr) {
+      const isQueue = dataAttr === 'data-page-q';
+      function makeButtons(cur, tot) {
+        if (tot <= 1) return '';
+        const start = Math.max(1, Math.min(cur - 4, tot - 9));
+        const end = Math.min(tot, start + 9);
+        let html = '<div class="page-center"><div class="page-numbers">';
+        for (let p = start; p <= end; p++) {
+          html += `<button class="secondary page-btn${p === cur ? ' active' : ''}" type="button" ${dataAttr}="${p}">${p}</button>`;
+        }
+        html += `</div><div class="page-summary">Halaman ${cur} dari ${tot} | ${total} ${label}</div></div>`;
+        return html;
+      }
+      const markup = total ? makeButtons(current, totalPages) : '';
+      const topEl = document.getElementById('paginationTop');
+      const botEl = document.getElementById('paginationBottom');
+      if (topEl) topEl.innerHTML = markup;
+      if (botEl) botEl.innerHTML = markup;
+    }
+
+    /* ── View switching ── */
+    function switchView(mode) {
+      state.viewMode = mode;
+      document.querySelectorAll('.view-btn').forEach(b => b.classList.toggle('active', b.dataset.view === mode));
+
+      const isAntrian = mode === 'antrian';
+      document.getElementById('queueTahapLabel').style.display = isAntrian ? '' : 'none';
+      document.getElementById('queueSortLabel').style.display = isAntrian ? '' : 'none';
+      document.getElementById('halaqohSearchLabel').style.display = isAntrian ? 'none' : '';
+
+      if (isAntrian) {
+        state.queuePage = 1;
+        loadQueue();
+      } else {
+        state.page = 1;
+        loadDashboard();
+      }
+    }
+
+    /* Super admin = penguji untuk keperluan aksi di halaman ini */
+    function canGrade() {
+      return state.isPenguji || state.elevatedRole === 'superAdmin';
+    }
+
+    /* ── Super Admin Tools ── */
+    function showSuperAdminTools() {
+      if (state.elevatedRole === 'superAdmin') {
+        document.getElementById('superAdminTools').style.display = '';
+      }
+    }
+
+    // ── Delete All ──
+    function openDeleteAllDialog() {
+      const tipeLabel = TIPE_LABELS;
+      const tipe = state.tipe;
+      const tipeNama = tipeLabel[tipe] || tipe;
+      const ta = state.tahunAjaranList.find(t => t.id === state.tahunAjaranFilter);
+      const taNama = ta ? ta.name : 'Semua Tahun Ajaran';
+      const body = document.getElementById('deleteAllBody');
+      body.innerHTML = `
+        <div style="margin-bottom:16px;">
+          <p style="font-size:14px;line-height:1.6;">Anda akan menghapus <strong>semua data ujian ${escHtml(tipeNama)}</strong>
+          untuk <strong>${escHtml(taNama)}</strong>. Tindakan ini tidak dapat dibatalkan.</p>
+        </div>
+        <label style="display:grid;gap:6px;font-size:13px;font-weight:700;">
+          <div>Ketik <strong style="color:var(--danger);">hapus semua</strong> untuk konfirmasi: </div>
+          <input type="text" id="deleteAllConfirmInput" placeholder="hapus semua"
+            style="padding:9px 12px;border-radius:10px;border:1.5px solid var(--line);background:rgba(255, 247, 210, 0.98);color:var(--ink);font-size:14px;">
+        </label>`;
+      document.getElementById('deleteAllConfirmBtn').disabled = true;
+      document.getElementById('deleteAllDialog').showModal();
+      const inp = document.getElementById('deleteAllConfirmInput');
+      inp.addEventListener('input', () => {
+        document.getElementById('deleteAllConfirmBtn').disabled = inp.value.trim().toLowerCase() !== 'hapus semua';
+      });
+    }
+
+    async function confirmDeleteAll() {
+      const btn = document.getElementById('deleteAllConfirmBtn');
+      btn.disabled = true;
+      try {
+        const data = await api('ujian.hafalan.deleteAll', {
+          tipe: state.tipe,
+          tahunAjaranId: state.tahunAjaranFilter
+        });
+        document.getElementById('deleteAllDialog').close();
+        window.PSUI && window.PSUI.showNotice && window.PSUI.showNotice(data.message, 'success');
+        loadDashboard();
+      } catch (e) {
+        window.PSUI && window.PSUI.showNotice && window.PSUI.showNotice(e.message, 'error');
+        btn.disabled = false;
+      }
+    }
+
+    // ── Tempel ──
+    const TEMPEL_EXAMPLE_TEXT =
+`SANTRI: Fulan bin Fulan
+HALAQOH: Halaqoh Fulaniyyah
+TIPE: juziyyah
+JUZ: 5
+TAHUN_AJARAN: 2025/2026
+TANGGAL_SIAP: 2025-01-10
+TAHAP: diajukan
+
+SANTRI: Fulanah binti Fulan
+HALAQOH: Halaqoh Fulaniyyah
+TIPE: sertifikasi
+JUZ_MULAI: 1
+JUZ_AKHIR: 10
+TAHUN_AJARAN: 2025/2026
+TANGGAL_SIAP: 2025-02-01
+TAHAP: diajukan`;
+
+    function copyTempelExample() {
+      navigator.clipboard.writeText(TEMPEL_EXAMPLE_TEXT).then(() => {
+        const btn = document.getElementById('tempelCopyExampleBtn');
+        const orig = btn.innerHTML;
+        btn.innerHTML = '<i class="fa-solid fa-check" style="margin-right:6px;"></i>Tersalin!';
+        setTimeout(() => { btn.innerHTML = orig; }, 1800);
+      }).catch(() => {
+        window.PSUI && window.PSUI.showNotice && window.PSUI.showNotice('Gagal menyalin.', 'error');
+      });
+    }
+
+    let tempelPreviews = [];
+
+    function toggleTempelSection() {
+      const section = document.getElementById('tempelSection');
+      const btn = document.getElementById('tempelToggleBtn');
+      const isVisible = section.style.display !== 'none';
+      if (isVisible) {
+        section.style.display = 'none';
+        btn.innerHTML = '<i class="fa-solid fa-paste"></i> Tempel Data ▾';
+      } else {
+        section.style.display = '';
+        btn.innerHTML = '<i class="fa-solid fa-paste"></i> Sembunyikan ▴';
+        tempelPreviews = [];
+        document.getElementById('tempelInput').value = '';
+        document.getElementById('tempelPreviewArea').style.display = 'none';
+        document.getElementById('tempelPreviewList').innerHTML = '';
+        document.getElementById('tempelSaveBtn').disabled = true;
+      }
+    }
+
+    async function buildTempelPreview() {
+      const text = document.getElementById('tempelInput').value.trim();
+      if (!text) { window.PSUI && window.PSUI.showNotice && window.PSUI.showNotice('Teks tempelan kosong.', 'error'); return; }
+      const btn = document.getElementById('tempelPreviewBtn');
+      btn.disabled = true;
+      try {
+        const data = await api('ujian.hafalan.quickImportPreview', { text });
+        tempelPreviews = data.previews || [];
+        const list = document.getElementById('tempelPreviewList');
+        list.innerHTML = tempelPreviews.map(p => {
+          const cls = p.errors.length ? 'has-error' : p.warnings.length ? 'has-warning' : 'ok';
+          const statusIcon = p.errors.length
+            ? `<i class="fa-solid fa-circle-xmark" style="color:var(--danger);"></i>`
+            : p.warnings.length
+              ? `<i class="fa-solid fa-triangle-exclamation" style="color:var(--warning);"></i>`
+              : `<i class="fa-solid fa-circle-check" style="color:var(--success);"></i>`;
+          const juzLabel = p.tipe === 'juziyyah' ? `Juz ${p.juzMulai}` : `Juz ${p.juzMulai}–${p.juzAkhir}`;
+          return `<div class="tempel-preview-item ${cls}">
+            <div class="tempel-preview-title">${statusIcon} #${p.index} — ${escHtml(p.santriName)} | ${escHtml(p.halaqohName)} | ${escHtml(p.tipe)} | ${escHtml(juzLabel)}</div>
+            ${p.errors.map(e => `<div class="tempel-msg error"><i class="fa-solid fa-xmark"></i> ${escHtml(e)}</div>`).join('')}
+            ${p.warnings.map(w => `<div class="tempel-msg warn"><i class="fa-solid fa-triangle-exclamation"></i> ${escHtml(w)}</div>`).join('')}
+          </div>`;
+        }).join('');
+        document.getElementById('tempelPreviewArea').style.display = '';
+        const canSaveCount = tempelPreviews.filter(p => p.canSave).length;
+        document.getElementById('tempelSaveBtn').disabled = canSaveCount === 0;
+        if (canSaveCount > 0) {
+          document.getElementById('tempelSaveBtn').textContent = `Simpan ${canSaveCount} data`;
+        }
+      } catch (e) {
+        window.PSUI && window.PSUI.showNotice && window.PSUI.showNotice(e.message, 'error');
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function saveTempel() {
+      const entries = tempelPreviews.filter(p => p.canSave);
+      if (!entries.length) return;
+      const btn = document.getElementById('tempelSaveBtn');
+      btn.disabled = true;
+      try {
+        const data = await api('ujian.hafalan.quickImport', { entries });
+        toggleTempelSection();
+        window.PSUI && window.PSUI.showNotice && window.PSUI.showNotice(data.message, 'success');
+        loadDashboard();
+      } catch (e) {
+        window.PSUI && window.PSUI.showNotice && window.PSUI.showNotice(e.message, 'error');
+        btn.disabled = false;
+      }
+    }
+
+    // ── Export TXT Tempel ──
+    function openExportTempelDialog() {
+      const sel = document.getElementById('exportTempelTahunSelect');
+      sel.innerHTML = '<option value="">-- Semua Tahun Ajaran --</option>';
+      (state.tahunAjaranList || []).forEach(function(ta) {
+        const opt = document.createElement('option');
+        opt.value = ta.id;
+        opt.textContent = ta.label || ta.name || ta.id;
+        if (ta.id === state.tahunAjaranFilter) opt.selected = true;
+        sel.appendChild(opt);
+      });
+      document.getElementById('exportTempelDialog').showModal();
+    }
+
+    async function confirmExportTempel() {
+      const tahunAjaranId = document.getElementById('exportTempelTahunSelect').value;
+      const btn = document.getElementById('exportTempelConfirmBtn');
+      btn.disabled = true;
+      try {
+        const payload = tahunAjaranId ? { tahunAjaranId } : {};
+        const data = await api('ujian.hafalan.quickImportExport', payload);
+        document.getElementById('exportTempelDialog').close();
+        const blob = new Blob([data.text || ''], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = data.filename || 'ujian-hafalan-tempel.txt';
+        document.body.appendChild(a); a.click();
+        document.body.removeChild(a); URL.revokeObjectURL(url);
+        window.PSUI && window.PSUI.showNotice && window.PSUI.showNotice(`Export selesai — ${data.count} record.`, 'success');
+      } catch (e) {
+        window.PSUI && window.PSUI.showNotice && window.PSUI.showNotice(e.message, 'error');
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    /* ── Dashboard (halaqoh cards) ── */
+    async function loadDashboard() {
+      document.getElementById('cardsArea').innerHTML =
+        '<div class="empty-state"><i class="fa-solid fa-spinner fa-spin" style="font-size:28px;"></i><p style="margin-top:8px;font-weight:600;">Memuat data...</p></div>';
+      try {
+        const params = {
+          tahunAjaranId: state.tahunAjaranFilter, tipe: state.tipe,
+          genderFilter: state.genderFilter, search: state.searchQuery,
+          page: state.page, pageSize: state.pageSize
+        };
+        let data = await api('ujian.hafalan.list', params);
+        state.halaqohList = data.halaqohList || [];
+        state.isPenguji = !!data.isPenguji;
+        state.total = data.total || 0;
+        state.totalPages = data.totalPages || 1;
+        state.page = data.page || 1;
+        if (data.tahunAjaranList && data.tahunAjaranList.length) {
+          state.tahunAjaranList = data.tahunAjaranList;
+          const autoSet = renderTahunAjaranFilter();
+          if (autoSet) {
+            // Filter baru di-auto-set ke TA aktif — refetch dengan filter yang benar
+            data = await api('ujian.hafalan.list', { ...params, tahunAjaranId: state.tahunAjaranFilter });
+            state.halaqohList = data.halaqohList || [];
+            state.isPenguji = !!data.isPenguji;
+            state.total = data.total || 0;
+            state.totalPages = data.totalPages || 1;
+            state.page = data.page || 1;
+          }
+        }
+
+        // Reveal view toggle untuk penguji / koordinator / super admin; set default view on first load
+        if (state.isPenguji || state.elevatedRole) {
+          const wrap = document.getElementById('viewToggleWrap');
+          if (wrap.style.display === 'none') {
+            wrap.style.display = '';
+            state.viewMode = 'antrian';
+            document.querySelectorAll('.view-btn').forEach(b => b.classList.toggle('active', b.dataset.view === 'antrian'));
+            document.getElementById('queueTahapLabel').style.display = '';
+            document.getElementById('queueSortLabel').style.display = '';
+            document.getElementById('halaqohSearchLabel').style.display = 'none';
+          }
+        }
+
+        if (state.viewMode === 'antrian') {
+          await loadQueue();
+        } else {
+          renderCards();
+        }
+      } catch (e) {
+        document.getElementById('cardsArea').innerHTML =
+          `<div class="empty-state"><i class="fa-solid fa-triangle-exclamation" style="color:var(--danger);font-size:28px;"></i><p style="margin-top:8px;color:var(--danger);font-weight:600;">${escHtml(e.message)}</p></div>`;
+      }
+    }
+
+    function renderTahunAjaranFilter() {
+      const sel = document.getElementById('tahunAjaranFilter');
+      const cur = sel.value || state.tahunAjaranFilter;
+      sel.innerHTML = '<option value="">Semua tahun ajaran</option>' +
+        state.tahunAjaranList.map(t => `<option value="${escHtml(t.id)}">${escHtml(t.namaDisplay || t.name)}${t.isAktif ? ' (Aktif)' : ''}</option>`).join('');
+      if (cur) {
+        sel.value = cur;
+        if (sel.value !== cur) sel.value = '';
+      } else {
+        const aktif = state.tahunAjaranList.find(t => t.isAktif);
+        if (aktif) {
+          sel.value = aktif.id;
+          state.tahunAjaranFilter = aktif.id;
+          return true; // sinyal: filter baru di-auto-set, perlu refetch
+        }
+      }
+      return false;
+    }
+
+    function renderCards() {
+      const area = document.getElementById('cardsArea');
+      const list = state.halaqohList;
+
+      renderPagination(state.page, state.totalPages, state.total, 'halaqoh', 'data-page-h');
+
+      if (!list.length) {
+        area.innerHTML = '<div class="empty-state"><i class="fa-solid fa-people-group" style="font-size:32px;opacity:0.3;display:block;margin-bottom:10px;"></i><p style="font-weight:600;">Tidak ada halaqoh yang cocok.</p></div>';
+        return;
+      }
+
+      area.innerHTML = '<div class="list">' + list.map(h => {
+        const g = (h.genderGroup || '').toLowerCase();
+        const genderClass = g.includes('ikhwan') ? ' entity-gender-ikhwan' : g.includes('akhowat') ? ' entity-gender-akhowat' : '';
+        const counts = h.counts || { diajukan: 0, dijadwalkan: 0, selesai: 0 };
+        const countHtml = [
+          counts.diajukan ? `<span class="count-pill diajukan"><i class="fa-solid fa-clock"></i>${counts.diajukan} Diajukan</span>` : '',
+          counts.dijadwalkan ? `<span class="count-pill dijadwalkan"><i class="fa-solid fa-calendar-check"></i>${counts.dijadwalkan} Dijadwalkan</span>` : '',
+          counts.selesai ? `<span class="count-pill selesai"><i class="fa-solid fa-check"></i>${counts.selesai} Selesai</span>` : ''
+        ].filter(Boolean).join('');
+        const genderIcon = g.includes('ikhwan') ? 'fa-person' : g.includes('akhowat') ? 'fa-person-dress' : 'fa-people-group';
+        const pengampuText = (h.pengampuNames && h.pengampuNames.length) ? escHtml(h.pengampuNames.join(', ')) : '';
+        return `<article class="card minimal-list-card${genderClass}">
+          <div class="minimal-list-card-head">
+            <div class="minimal-list-card-main" style="cursor:pointer" onclick="openHalaqoh('${escHtml(h.id)}')">
+              <strong class="minimal-list-card-name">${escHtml(h.name)}</strong>
+              <span class="minimal-list-card-hint"><i class="fa-solid ${genderIcon}"></i> ${escHtml(h.genderGroup || 'Tidak ada')} &nbsp;·&nbsp; <i class="fa-solid fa-users"></i> ${h.santriCount} santri${pengampuText ? ` &nbsp;·&nbsp; <i class="fa-solid fa-chalkboard-user"></i> ${pengampuText}` : ''}</span>
+            </div>
+            <button class="secondary minimal-list-card-toggle" type="button" onclick="openHalaqoh('${escHtml(h.id)}')">Buka</button>
+          </div>
+          ${countHtml ? `<div class="count-pills-row"><div class="count-row">${countHtml}</div></div>` : ''}
+        </article>`;
+      }).join('') + '</div>';
+    }
+
+    /* ── Queue view (antrian ujian) ── */
+    async function loadQueue() {
+      const area = document.getElementById('cardsArea');
+      area.innerHTML = '<div class="empty-state"><i class="fa-solid fa-spinner fa-spin" style="font-size:28px;"></i><p style="margin-top:8px;font-weight:600;">Memuat antrian...</p></div>';
+      try {
+        const data = await api('ujian.hafalan.list', {
+          listMode: 'queue',
+          tipe: state.tipe,
+          tahunAjaranId: state.tahunAjaranFilter,
+          tahap: state.queueTahap,
+          genderFilter: state.genderFilter,
+          search: state.queueSearch,
+          sort: state.queueSort,
+          page: state.queuePage,
+          pageSize: state.queuePageSize
+        });
+        state.queueList = data.items || [];
+        state.isPenguji = !!data.isPenguji;
+        state.queueTotal = data.total || 0;
+        state.queueTotalPages = data.totalPages || 1;
+        state.queuePage = data.page || 1;
+        renderQueue();
+      } catch (e) {
+        area.innerHTML = `<div class="empty-state"><i class="fa-solid fa-triangle-exclamation" style="color:var(--danger);font-size:28px;"></i><p style="margin-top:8px;color:var(--danger);font-weight:600;">${escHtml(e.message)}</p></div>`;
+      }
+    }
+
+    function renderQueue() {
+      const area = document.getElementById('cardsArea');
+      const list = state.queueList;
+
+      renderPagination(state.queuePage, state.queueTotalPages, state.queueTotal, 'santri', 'data-page-q');
+
+      if (!list.length) {
+        area.innerHTML = `<div class="empty-state"><i class="fa-solid fa-inbox" style="font-size:32px;opacity:0.3;display:block;margin-bottom:10px;"></i><p style="font-weight:600;">Tidak ada antrian ujian.</p><p style="font-size:13px;margin-top:4px;">Pengampu halaqoh belum mendaftarkan santri, atau semua sudah selesai.</p></div>`;
+        return;
+      }
+
+      let html = `
+        <div class="queue-info">
+          <div class="queue-search">
+            <input type="search" id="queueSearchInput" placeholder="Cari nama santri atau halaqoh..." autocomplete="off" value="${escHtml(state.queueSearch)}" style="padding:9px 14px;border-radius:10px;border:1.5px solid var(--line);background:rgba(255, 247, 210, 0.98);color:var(--ink);font-size:13px;">
+          </div>
+          <div class="queue-info-text">${state.queueTotal} pendaftar ditemukan</div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>Santri</th><th>Siap Diuji</th><th>Status</th><th>Halaqoh</th><th>${materiColumnLabel()}</th>
+              <th>Tgl Daftar</th><th>Tgl Ujian</th>
+              <th>Nilai</th><th>Penguji</th><th>Aksi</th>
+            </tr></thead>
+            <tbody>`;
+
+      list.forEach(u => {
+        const lulusInfo = getLulusInfoForRecord(u);
+        const tahapClass = u.tahap === 'selesai' ? ('selesai ' + lulusInfo.cssClass) : u.tahap;
+        const tahapLabel = TAHAP_LABELS[u.tahap] || u.tahap;
+        const nilaiDisplay = isCompletedTahap(u.tahap)
+          ? (u.nilai ? `<strong>${escHtml(u.nilai)}</strong> <span style="font-size:11px;color:${lulusInfo.color}">${lulusInfo.label}</span>` : '—')
+          : '—';
+
+        const g = (u.halaqohGender || '').toLowerCase();
+        const halaqohColor = g.includes('ikhwan') ? 'color:#3c82d2' : g.includes('akhowat') ? 'color:#c8508c' : '';
+        const santriColor = u.santriGender === 'male' ? 'color:#3c82d2' : u.santriGender === 'female' ? 'color:#c8508c' : '';
+
+        let actions = '';
+        if (canGrade() && !isCompletedTahap(u.tahap) && u.tahap !== 'batal') {
+          actions += `<button class="action-btn primary" onclick="openNilaiFormFromQueue('${escHtml(u.id)}')"><i class="fa-solid fa-star"></i> Nilai</button>`;
+        }
+        if (canGrade() && (u.tahap === 'batal' || isCompletedTahap(u.tahap))) {
+          actions += `<button class="action-btn" onclick="openNilaiFormFromQueue('${escHtml(u.id)}')"><i class="fa-solid fa-pen"></i> Edit</button>`;
+        }
+        actions += `<button class="action-btn" onclick="showQueueHistory('${escHtml(u.id)}')"><i class="fa-solid fa-clock-rotate-left"></i> Riwayat</button>`;
+
+        html += `<tr>
+          <td style="font-weight:700;${santriColor}">${escHtml(u.santriName)}</td>
+          <td style="font-size:12px;font-weight:600;">${fmtDate(u.tanggalSiap)}</td>
+          <td><span class="tahap-pill ${tahapClass}">${escHtml(tahapLabel)}</span></td>
+          <td style="font-size:12px;${halaqohColor}">${escHtml(u.halaqohName)}${(u.pengampuNames && u.pengampuNames.length) ? `<br><span style="font-size:11px;color:var(--muted);font-weight:400;">${escHtml(u.pengampuNames.join(', '))}</span>` : ''}</td>
+          <td><span style="font-weight:600;">${escHtml(u.juzLabel)}</span></td>
+          <td style="font-size:12px;">${fmtDate(u.tanggalDaftar)}</td>
+          <td style="font-size:12px;">${fmtDate(u.tanggalUjian)}</td>
+          <td style="font-size:12px;">${nilaiDisplay}</td>
+          <td style="font-size:12px;">${escHtml(u.pengujiName || '-')}</td>
+          <td><div class="td-actions">${actions}</div></td>
+        </tr>`;
+      });
+
+      html += '</tbody></table></div>';
+      area.innerHTML = html;
+
+      // Wire up live search input
+      const qsi = document.getElementById('queueSearchInput');
+      if (qsi) {
+        qsi.addEventListener('input', debounce(function () {
+          state.queueSearch = this.value.trim();
+          state.queuePage = 1;
+          loadQueue();
+        }, 300));
+      }
+    }
+
+    /* ── Dialog (halaqoh detail) ── */
+    async function openHalaqoh(halaqohId) {
+      const h = state.halaqohList.find(x => x.id === halaqohId);
+      state.activeHalaqoh = { id: halaqohId, name: h ? h.name : halaqohId, santriList: [] };
+      state.tahapFilter = '';
+      state.ujianPage = 1;
+      document.getElementById('dialogTitle').textContent = h ? h.name : halaqohId;
+      document.getElementById('dialogTipeBadge').textContent = TIPE_LABELS[state.tipe];
+      document.getElementById('dialogSubtitle').textContent = '';
+      document.getElementById('ujianListArea').innerHTML =
+        '<div class="empty-state"><i class="fa-solid fa-spinner fa-spin"></i><p style="margin-top:8px;font-weight:600;">Memuat...</p></div>';
+      document.querySelectorAll('.status-filter button').forEach(b => {
+        b.classList.toggle('active', b.dataset.tahap === '');
+      });
+      document.getElementById('ujianDialog').showModal();
+      await loadUjianList();
+    }
+
+    async function loadUjianList() {
+      const area = document.getElementById('ujianListArea');
+      try {
+        const data = await api('ujian.hafalan.list', {
+          halaqohId: state.activeHalaqoh.id,
+          tipe: state.tipe,
+          tahunAjaranId: state.tahunAjaranFilter,
+          tahap: state.tahapFilter,
+          page: state.ujianPage,
+          pageSize: state.ujianPageSize
+        });
+        state.ujianList = data.items || [];
+        state.isPenguji = !!data.isPenguji;
+        state.ujianTotal = data.total || 0;
+        state.ujianTotalPages = data.totalPages || 1;
+        state.ujianPage = data.page || 1;
+        if (data.halaqoh) {
+          state.activeHalaqoh.santriList = data.halaqoh.santriList || [];
+          document.getElementById('dialogSubtitle').textContent =
+            `${state.activeHalaqoh.santriList.length} santri`;
+        }
+        renderUjianList();
+      } catch (e) {
+        area.innerHTML = `<div class="empty-state"><i class="fa-solid fa-triangle-exclamation" style="color:var(--danger);"></i><p style="margin-top:8px;color:var(--danger);font-weight:600;">${escHtml(e.message)}</p></div>`;
+      }
+    }
+
+    function renderUjianList() {
+      const area = document.getElementById('ujianListArea');
+      const list = state.ujianList;
+      if (!list.length) {
+        area.innerHTML = '<div class="empty-state"><i class="fa-solid fa-scroll" style="font-size:32px;opacity:0.3;display:block;margin-bottom:10px;"></i><p style="font-weight:600;">Belum ada data ujian untuk filter ini.</p><p style="font-size:13px;margin-top:4px;">Klik <strong>+ Tambah Ujian</strong> untuk mendaftarkan santri.</p></div>';
+        return;
+      }
+
+      let html = '<div class="table-wrap"><table><thead><tr>' +
+        `<th>Santri</th><th>Siap Diuji</th><th>Status</th><th>${materiColumnLabel()}</th><th>Mulai Persiapan</th>` +
+        '<th>Tgl Ujian</th><th>Nilai</th><th>Penguji</th><th>Aksi</th>' +
+        '</tr></thead><tbody>';
+
+      list.forEach(u => {
+        const lulusInfo = getLulusInfoForRecord(u);
+        const tahapClass = u.tahap === 'selesai' ? ('selesai ' + lulusInfo.cssClass) : u.tahap;
+        const tahapLabel = TAHAP_LABELS[u.tahap] || u.tahap;
+        const nilaiDisplay = isCompletedTahap(u.tahap)
+          ? (u.nilai ? `<strong>${escHtml(u.nilai)}</strong> <span style="font-size:11px;color:${lulusInfo.color}">${lulusInfo.label}</span>` : '—')
+          : '—';
+
+        let actions = `<button class="action-btn" onclick="openEditForm('${escHtml(u.id)}')"><i class="fa-solid fa-pen"></i> Edit</button>`;
+        if (canGrade() && !isCompletedTahap(u.tahap) && u.tahap !== 'batal') {
+          actions += `<button class="action-btn primary" onclick="openNilaiForm('${escHtml(u.id)}')"><i class="fa-solid fa-star"></i> Nilai</button>`;
+        }
+        actions += `<button class="action-btn" onclick="showEditHistory('${escHtml(u.id)}')"><i class="fa-solid fa-clock-rotate-left"></i> Riwayat</button>`;
+        actions += `<button class="action-btn danger" onclick="deleteUjian('${escHtml(u.id)}')"><i class="fa-solid fa-trash"></i> Hapus</button>`;
+        const santriColor = u.santriGender === 'male' ? 'color:#3c82d2' : u.santriGender === 'female' ? 'color:#c8508c' : '';
+
+        html += `<tr>
+          <td style="font-weight:700;${santriColor}">${escHtml(u.santriName)}</td>
+          <td style="font-size:12px;">${fmtDate(u.tanggalSiap)}</td>
+          <td><span class="tahap-pill ${tahapClass}">${escHtml(tahapLabel)}</span></td>
+          <td><span style="font-weight:600;">${escHtml(u.juzLabel)}</span></td>
+          <td style="font-size:12px;">${fmtDate(u.tanggalMulaiPersiapan)}</td>
+          <td style="font-size:12px;">${fmtDate(u.tanggalUjian)}</td>
+          <td style="font-size:12px;">${nilaiDisplay}</td>
+          <td style="font-size:12px;">${escHtml(u.pengujiName || '-')}</td>
+          <td><div class="td-actions">${actions}</div></td>
+        </tr>`;
+      });
+
+      html += '</tbody></table></div>';
+
+      if (state.ujianTotalPages > 1) {
+        const start2 = Math.max(1, Math.min(state.ujianPage - 4, state.ujianTotalPages - 9));
+        const end2 = Math.min(state.ujianTotalPages, start2 + 9);
+        html += '<div class="page-center"><div class="page-numbers">';
+        for (let p = start2; p <= end2; p++) {
+          html += `<button class="secondary page-btn${p === state.ujianPage ? ' active' : ''}" type="button" data-page-u="${p}">${p}</button>`;
+        }
+        html += `</div><div class="page-summary">Halaman ${state.ujianPage} dari ${state.ujianTotalPages} | ${state.ujianTotal} data ujian</div></div>`;
+      }
+
+      area.innerHTML = html;
+    }
+
+    /* ── Form ── */
+    function buildFormFields(mode, rec) {
+      const tipe = state.tipe;
+      const isNilaiMode = mode === 'nilai';
+      const santriOptions = (state.activeHalaqoh && state.activeHalaqoh.santriList || [])
+        .map(s => `<option value="${escHtml(s.id)}" ${rec && rec.santriId === s.id ? 'selected' : ''}>${escHtml(s.name)}</option>`)
+        .join('');
+
+      let html = '';
+
+      if (!isNilaiMode) {
+        html += `<div class="section-divider">Data Pendaftaran</div>
+          <div class="field-grid" style="margin-top:12px;">
+            <label>Santri<select name="santriId" style="padding:9px 12px;border-radius:10px;border:1.5px solid var(--line);background:rgba(255, 247, 210, 0.98);color:var(--ink);" required>
+              <option value="">— Pilih santri —</option>${santriOptions}
+            </select></label>`;
+
+        if (tipe === 'juziyyah') {
+          html += `<label>Juz<select name="juzMulai" style="padding:9px 12px;border-radius:10px;border:1.5px solid var(--line);background:rgba(255, 247, 210, 0.98);color:var(--ink);">
+            ${JUZ_OPTIONS}
+          </select></label>`;
+        } else if (tipe === 'mufrodat') {
+          html += `<label>Level<select name="juzMulai" style="padding:9px 12px;border-radius:10px;border:1.5px solid var(--line);background:rgba(255, 247, 210, 0.98);color:var(--ink);">
+            ${MUFRODAT_LEVEL_OPTIONS}
+          </select></label>`;
+        } else if (tipe === 'adzkar') {
+          html += `<label>Kategori<select name="juzMulai" style="padding:9px 12px;border-radius:10px;border:1.5px solid var(--line);background:rgba(255, 247, 210, 0.98);color:var(--ink);">
+            ${ADZKAR_KATEGORI_OPTIONS}
+          </select></label>`;
+        } else {
+          html += `<div class="field-grid cols-2">
+            <label>Juz Mulai<select name="juzMulai" style="padding:9px 12px;border-radius:10px;border:1.5px solid var(--line);background:rgba(255, 247, 210, 0.98);color:var(--ink);">${JUZ_OPTIONS}</select></label>
+            <label>Juz Akhir<select name="juzAkhir" style="padding:9px 12px;border-radius:10px;border:1.5px solid var(--line);background:rgba(255, 247, 210, 0.98);color:var(--ink);">${JUZ_OPTIONS}</select></label>
+          </div>`;
+        }
+
+        html += `<div class="field-grid cols-2">
+          <label>Mulai Persiapan<input type="date" name="tanggalMulaiPersiapan" value="${rec ? rec.tanggalMulaiPersiapan || '' : ''}" style="padding:9px 12px;border-radius:10px;border:1.5px solid var(--line);background:rgba(255, 247, 210, 0.98);color:var(--ink);"></label>
+          <label>Siap Diuji<input type="date" name="tanggalSiap" value="${rec ? rec.tanggalSiap || '' : todayStr()}" style="padding:9px 12px;border-radius:10px;border:1.5px solid var(--line);background:rgba(255, 247, 210, 0.98);color:var(--ink);" required></label>
+        </div>
+        <label>Catatan<textarea name="catatan" rows="2" style="padding:9px 12px;border-radius:10px;border:1.5px solid var(--line);background:rgba(255, 247, 210, 0.98);color:var(--ink);resize:vertical;">${rec ? escHtml(rec.catatan || '') : ''}</textarea></label>
+        </div>`;
+      }
+
+      if (isNilaiMode || (canGrade() && mode === 'edit')) {
+        html += `<div class="section-divider" style="margin-top:${isNilaiMode ? '0' : '16px'};">Penilaian (Penguji)</div>
+          <div id="entryFormNotice"></div>
+          <div class="field-grid" style="margin-top:12px;">
+            <label>Tanggal Ujian<input type="date" name="tanggalUjian" value="${rec ? rec.tanggalUjian || '' : ''}" style="padding:9px 12px;border-radius:10px;border:1.5px solid var(--line);background:rgba(255, 247, 210, 0.98);color:var(--ink);" required></label>
+            <label>Nama Penguji<input type="text" name="namaPenguji" list="pengujiNameOptions" autocomplete="off" value="${escHtml((rec && rec.pengujiName) || currentSessionName())}" placeholder="Ketik nama penguji..." style="padding:9px 12px;border-radius:10px;border:1.5px solid var(--line);background:rgba(255, 247, 210, 0.98);color:var(--ink);" required></label>`;
+
+        if (tipe === 'uas') {
+          const juzMulai = parseInt(rec && rec.juzMulai ? rec.juzMulai : 1);
+          const juzAkhir = parseInt(rec && rec.juzAkhir ? rec.juzAkhir : 1);
+          let npjData = {};
+          try { if (rec && rec.nilaiPerJuz) JSON.parse(rec.nilaiPerJuz).forEach(x => { npjData[x.juz] = x; }); } catch {}
+          html += `<div><div style="font-size:13px;font-weight:600;margin-bottom:6px;">Nilai per Juz</div>
+            <table class="npj-table"><thead><tr><th>Juz</th><th>Nilai (0-100)</th><th>Lulus?</th></tr></thead><tbody>`;
+          for (let j = juzMulai; j <= juzAkhir; j++) {
+            const d = npjData[j] || {};
+            html += `<tr>
+              <td style="font-weight:700;">Juz ${j}</td>
+              <td><input type="number" name="npj_nilai_${j}" min="0" max="100" value="${d.nilai || ''}"></td>
+              <td><select name="npj_lulus_${j}">
+                <option value="">—</option>
+                <option value="1" ${d.lulus === '1' ? 'selected' : ''}>Lulus</option>
+                <option value="0" ${d.lulus === '0' ? 'selected' : ''}>Tidak Lulus</option>
+                <option value="2" ${d.lulus === '2' ? 'selected' : ''}>Mengulang</option>
+              </select></td>
+            </tr>`;
+          }
+          html += `</tbody></table></div>`;
+        } else {
+          html += `<div class="field-grid cols-2">
+            <label>Nilai (0–100)<input type="number" name="nilai" min="0" max="100" value="${rec ? rec.nilai || '' : ''}" style="padding:9px 12px;border-radius:10px;border:1.5px solid var(--line);background:rgba(255, 247, 210, 0.98);color:var(--ink);"></label>
+            <label>Kelulusan <span style="font-weight:400;color:var(--muted);font-size:11px;">(nonaktif, lihat Status Tahap)</span><select name="lulus" disabled style="padding:9px 12px;border-radius:10px;border:1.5px solid var(--line);background:rgba(0,0,0,0.05);color:var(--muted);">
+              <option value="">— Pilih —</option>
+              <option value="1" ${rec && rec.lulus === '1' ? 'selected' : ''}>Lulus</option>
+              <option value="0" ${rec && rec.lulus === '0' ? 'selected' : ''}>Tidak Lulus</option>
+              <option value="2" ${rec && rec.lulus === '2' ? 'selected' : ''}>Mengulang</option>
+            </select></label>
+          </div>`;
+        }
+
+        html += `<label>Status Tahap<select name="tahap" style="padding:9px 12px;border-radius:10px;border:1.5px solid var(--line);background:rgba(255, 247, 210, 0.98);color:var(--ink);">
+          <option value="diajukan" ${!rec || rec.tahap === 'diajukan' ? 'selected' : ''}>Diajukan</option>
+          <option value="dijadwalkan" ${rec && rec.tahap === 'dijadwalkan' ? 'selected' : ''}>Dijadwalkan</option>
+          <option value="lulus" ${rec && rec.tahap === 'lulus' ? 'selected' : ''}>Lulus</option>
+          <option value="tidak_lulus" ${rec && rec.tahap === 'tidak_lulus' ? 'selected' : ''}>Tidak Lulus (Ziyadah Ulang)</option>
+          <option value="mengulang" ${rec && rec.tahap === 'mengulang' ? 'selected' : ''}>Mengulang</option>
+          ${rec && rec.tahap === 'selesai' ? `<option value="selesai" selected>Selesai (Lama)</option>` : ''}
+          <option value="batal" ${rec && rec.tahap === 'batal' ? 'selected' : ''}>Batal</option>
+        </select></label>
+        </div>`;
+      }
+
+      return html;
+    }
+
+    function openAddForm() {
+      state.editingId = null;
+      state.editingRecord = null;
+      state.fromQueue = false;
+      document.getElementById('formTitle').textContent = 'Tambah Ujian ' + TIPE_LABELS[state.tipe];
+      document.getElementById('entryBody').innerHTML = buildFormFields('add', null);
+      document.getElementById('entryPanel').classList.add('open');
+    }
+
+    function openEditForm(id) {
+      const rec = state.ujianList.find(u => u.id === id);
+      if (!rec) return;
+      state.editingId = id;
+      state.editingRecord = rec;
+      state.fromQueue = false;
+      document.getElementById('formTitle').textContent = 'Edit Ujian ' + TIPE_LABELS[state.tipe];
+      document.getElementById('entryBody').innerHTML = buildFormFields('edit', rec);
+      const formEl = document.getElementById('entryBody');
+      if (formEl.querySelector('[name=juzMulai]')) formEl.querySelector('[name=juzMulai]').value = rec.juzMulai || '1';
+      if (formEl.querySelector('[name=juzAkhir]')) formEl.querySelector('[name=juzAkhir]').value = rec.juzAkhir || '1';
+      document.getElementById('entryPanel').classList.add('open');
+    }
+
+    function openNilaiForm(id) {
+      if (!canGrade()) return;
+      const rec = state.ujianList.find(u => u.id === id);
+      if (!rec) return;
+      state.editingId = id;
+      state.editingRecord = rec;
+      state.fromQueue = false;
+      document.getElementById('formTitle').textContent = 'Beri Nilai — ' + escHtml(rec.santriName || '');
+      document.getElementById('entryBody').innerHTML = buildFormFields('nilai', rec);
+      document.getElementById('entryPanel').classList.add('open');
+    }
+
+    function openNilaiFormFromQueue(id) {
+      if (!canGrade()) return;
+      const rec = state.queueList.find(u => u.id === id);
+      if (!rec) return;
+      state.tipe = rec.tipe;
+      state.activeHalaqoh = { id: rec.halaqohId, name: rec.halaqohName, santriList: [] };
+      state.editingId = id;
+      state.editingRecord = rec;
+      state.fromQueue = true;
+      // Siapkan dialog sebagai wadah, lalu langsung tampilkan entry panel di atasnya
+      document.getElementById('dialogTitle').textContent = rec.halaqohName;
+      document.getElementById('dialogTipeBadge').textContent = TIPE_LABELS[rec.tipe] || rec.tipe;
+      document.getElementById('dialogSubtitle').textContent = rec.santriName;
+      document.getElementById('ujianListArea').innerHTML =
+        '<div class="empty-state"><i class="fa-solid fa-spinner fa-spin"></i></div>';
+      const dlg = document.getElementById('ujianDialog');
+      if (!dlg.open) dlg.showModal();
+      document.getElementById('formTitle').textContent = 'Beri Nilai — ' + escHtml(rec.santriName || '') + ' (' + escHtml(rec.halaqohName) + ')';
+      document.getElementById('entryBody').innerHTML = buildFormFields('nilai', rec);
+      document.getElementById('entryPanel').classList.add('open');
+    }
+
+    function closeEntryForm() {
+      document.getElementById('entryPanel').classList.remove('open');
+      // Tutup dialog juga jika form dibuka dari antrian (tidak perlu tampilan halaqoh)
+      if (state.fromQueue) {
+        document.getElementById('ujianDialog').close();
+      }
+      state.editingId = null;
+      state.editingRecord = null;
+    }
+
+    async function saveForm() {
+      if (!state.canGradeUjian) { window.PSUI && window.PSUI.showNotice && window.PSUI.showNotice('Mudir hanya bisa melihat data ujian hafalan, tidak bisa menyimpan nilai.', 'error'); return; }
+      const body = document.getElementById('entryBody');
+      const get = name => { const el = body.querySelector(`[name="${name}"]`); return el ? el.value : ''; };
+
+      const isNilaiMode = !body.querySelector('[name=santriId]');
+      const tipe = state.tipe;
+
+      const isSingleValueTipe = tipe === 'juziyyah' || tipe === 'mufrodat' || tipe === 'adzkar';
+      let juzMulai = get('juzMulai') || (state.editingRecord && state.editingRecord.juzMulai) || '1';
+      let juzAkhir = get('juzAkhir') || (isSingleValueTipe ? juzMulai : (state.editingRecord && state.editingRecord.juzAkhir) || juzMulai);
+
+      let nilaiPerJuz = '';
+      if (tipe === 'uas') {
+        const jFrom = parseInt(state.editingRecord && state.editingRecord.juzMulai ? state.editingRecord.juzMulai : juzMulai);
+        const jTo = parseInt(state.editingRecord && state.editingRecord.juzAkhir ? state.editingRecord.juzAkhir : juzAkhir);
+        const arr = [];
+        for (let j = jFrom; j <= jTo; j++) {
+          const n = get(`npj_nilai_${j}`);
+          const l = get(`npj_lulus_${j}`);
+          if (n || l) arr.push({ juz: j, nilai: n, lulus: l });
+        }
+        if (arr.length) nilaiPerJuz = JSON.stringify(arr);
+      }
+
+      const payload = {
+        id: state.editingId || '',
+        tipe, halaqohId: state.activeHalaqoh ? state.activeHalaqoh.id : '',
+        santriId: isNilaiMode ? (state.editingRecord && state.editingRecord.santriId) : get('santriId'),
+        juzMulai, juzAkhir,
+        tanggalMulaiPersiapan: isNilaiMode ? (state.editingRecord && state.editingRecord.tanggalMulaiPersiapan) : get('tanggalMulaiPersiapan'),
+        tanggalSiap: isNilaiMode ? (state.editingRecord && state.editingRecord.tanggalSiap) : get('tanggalSiap'),
+        tanggalUjian: get('tanggalUjian'),
+        namaPenguji: get('namaPenguji'),
+        nilai: get('nilai'),
+        nilaiPerJuz,
+        lulus: get('lulus'),
+        tahap: get('tahap') || (isNilaiMode ? 'selesai' : ''),
+        catatan: get('catatan'),
+        tahunAjaranId: state.tahunAjaranFilter ||
+          ((state.tahunAjaranList || []).find(t => t.isAktif) || {}).id || ''
+      };
+
+      clearEntryFormNotice();
+      if (!payload.santriId) { setEntryFormNotice('Pilih santri terlebih dahulu.'); return; }
+      if (!isNilaiMode && !payload.tanggalSiap) { setEntryFormNotice('Tanggal siap diuji wajib diisi.'); return; }
+
+      // Field-field di section Penilaian (tanggal ujian, nama penguji, nilai) cuma ada kalau
+      // section itu dirender (mode "nilai" atau mode "edit" utk penguji/super admin).
+      const hasPenilaianSection = !!body.querySelector('[name="tahap"]');
+      if (hasPenilaianSection) {
+        const tahapVal = payload.tahap;
+        // "Diajukan"/"Batal" belum butuh data penilaian — begitu tahap dimajukan (dijadwalkan
+        // dst.) baru tanggal ujian & nama penguji wajib diisi.
+        const tahapButuhPenilaian = tahapVal && tahapVal !== 'diajukan' && tahapVal !== 'batal';
+        if (tahapButuhPenilaian) {
+          if (!payload.tanggalUjian) { setEntryFormNotice('Tanggal ujian wajib diisi.'); return; }
+          if (!payload.namaPenguji) { setEntryFormNotice('Nama penguji wajib diisi.'); return; }
+        }
+
+        const isTahapSelesai = ['lulus', 'tidak_lulus', 'mengulang', 'selesai'].indexOf(tahapVal) !== -1;
+        if (isTahapSelesai && tipe !== 'uas') {
+          if (payload.nilai === '' || payload.nilai === null || payload.nilai === undefined) {
+            setEntryFormNotice('Nilai wajib diisi kalau status tahap sudah dinyatakan selesai/lulus/tidak lulus/mengulang.');
+            return;
+          }
+          const nilaiNum = parseFloat(payload.nilai);
+          if (isNaN(nilaiNum) || nilaiNum < 0 || nilaiNum > 100) {
+            setEntryFormNotice('Nilai harus berupa angka antara 0–100.');
+            return;
+          }
+          if (tahapVal === 'lulus' && nilaiNum < KKM_UJIAN_HAFALAN) {
+            setEntryFormNotice(`Nilai ${nilaiNum} di bawah KKM (${KKM_UJIAN_HAFALAN}) — tidak bisa dinyatakan Lulus. Pilih status "Tidak Lulus (Ziyadah Ulang)" atau "Mengulang".`);
+            return;
+          }
+        }
+      }
+
+      const btn = document.getElementById('entrySaveBtn');
+      btn.disabled = true;
+      try {
+        await api('ujian.hafalan.save', payload);
+        closeEntryForm();
+        if (state.fromQueue) {
+          await loadQueue();
+        } else {
+          await loadUjianList();
+        }
+        // Refresh dashboard counts silently
+        api('ujian.hafalan.list', { tahunAjaranId: state.tahunAjaranFilter }).then(data => {
+          state.halaqohList = data.halaqohList || [];
+        }).catch(() => {});
+        window.PSUI && window.PSUI.showNotice && window.PSUI.showNotice('Data ujian berhasil disimpan.', 'success');
+      } catch (e) {
+        setEntryFormNotice(e.message);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function deleteUjian(id) {
+      if (!confirm('Hapus data ujian ini?')) return;
+      try {
+        await api('ujian.hafalan.delete', { id });
+        await loadUjianList();
+        api('ujian.hafalan.list', { tahunAjaranId: state.tahunAjaranFilter }).then(data => {
+          state.halaqohList = data.halaqohList || [];
+        }).catch(() => {});
+        window.PSUI && window.PSUI.showNotice && window.PSUI.showNotice('Data ujian dihapus.', 'success');
+      } catch (e) {
+        window.PSUI && window.PSUI.showNotice && window.PSUI.showNotice(e.message, 'error');
+      }
+    }
+
+    function showEditHistory(id) {
+      const rec = state.ujianList.find(u => u.id === id);
+      if (!rec) return;
+      document.getElementById('editHistorySubtitle').textContent = `${rec.santriName || ''} — ${rec.juzLabel || ''}`;
+      let history = [];
+      try { history = JSON.parse((rec.record && rec.record.edit_history) || '[]'); } catch (e) { history = []; }
+      const listEl = document.getElementById('editHistoryList');
+      if (!history.length) {
+        listEl.innerHTML = '<p style="color:var(--muted);font-size:13px;">Belum ada riwayat edit.</p>';
+      } else {
+        listEl.innerHTML = history.map((e, i) => `
+          <div style="padding:10px 12px;border-radius:10px;background:rgba(255,248,230,0.85);border:1px solid var(--line);">
+            <div style="font-weight:700;font-size:13px;">${i + 1}. ${escHtml(e.name || '-')}</div>
+            <div style="font-size:12px;color:var(--muted);margin-top:2px;">${escHtml(e.jabatan || '-')} &nbsp;·&nbsp; ${escHtml(e.action || 'edit')}</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:1px;">${escHtml(e.at || '-')}</div>
+          </div>
+        `).join('');
+      }
+      document.getElementById('editHistoryDialog').showModal();
+    }
+
+    function showQueueHistory(id) {
+      const rec = state.queueList.find(u => u.id === id);
+      if (!rec) return;
+      document.getElementById('editHistorySubtitle').textContent = `${rec.santriName || ''} — ${rec.halaqohName || ''} (${rec.juzLabel || ''})`;
+      let history = [];
+      try { history = JSON.parse((rec.record && rec.record.edit_history) || '[]'); } catch (e) { history = []; }
+      const listEl = document.getElementById('editHistoryList');
+      if (!history.length) {
+        listEl.innerHTML = '<p style="color:var(--muted);font-size:13px;">Belum ada riwayat edit.</p>';
+      } else {
+        listEl.innerHTML = history.map((e, i) => `
+          <div style="padding:10px 12px;border-radius:10px;background:rgba(255,248,230,0.85);border:1px solid var(--line);">
+            <div style="font-weight:700;font-size:13px;">${i + 1}. ${escHtml(e.name || '-')}</div>
+            <div style="font-size:12px;color:var(--muted);margin-top:2px;">${escHtml(e.jabatan || '-')} &nbsp;·&nbsp; ${escHtml(e.action || 'edit')}</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:1px;">${escHtml(e.at || '-')}</div>
+          </div>
+        `).join('');
+      }
+      document.getElementById('editHistoryDialog').showModal();
+    }
+
+    /* ── Init ── */
+    function mountShell(session) {
+      return window.PSShell.mount({
+        currentPage: window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : 'ujianHafalan.html',
+        session, getStoredSession, storageKey: STORAGE.session
+      });
+    }
+
+    function init() {
+      const initialSession = getStoredSession();
+      if (!initialSession || !initialSession.token) {
+        window.location.href = '/pages/login/';
+        return;
+      }
+      if (window.PSAccess && window.PSAccess.redirectIfForbidden(initialSession, 'ujianHafalan.html')) return;
+
+      mountShell(initialSession);
+
+      // Deteksi role dari scoped session — scope selalu dihormati, termasuk untuk super admin
+      const scopedPerms = window.PSAccess
+        ? ((window.PSAccess.getScopedSession(initialSession) || {}).permissions || {})
+        : ((initialSession && initialSession.permissions) || {});
+      if (scopedPerms.isSuperAdmin || scopedPerms.canDelete) {
+        state.elevatedRole = 'superAdmin';
+      } else if (scopedPerms.isHalaqohCoordinator) {
+        state.elevatedRole = 'koordinator';
+      } else if (scopedPerms.isPengujiHafalan) {
+        state.elevatedRole = 'penguji';
+      }
+      state.canTempel = !!(scopedPerms.isSuperAdmin || scopedPerms.canDelete || scopedPerms.isAdmin);
+      state.canGradeUjian = !!(scopedPerms.isSuperAdmin || scopedPerms.isAdmin || scopedPerms.isHalaqohCoordinator || scopedPerms.isPengampuHalaqoh || scopedPerms.isPengujiHafalan || scopedPerms.canManageHalaqoh);
+
+      // Tab buttons
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          state.tipe = btn.dataset.tipe;
+          state.page = 1;
+          state.queuePage = 1;
+          if (state.viewMode === 'antrian') {
+            loadQueue();
+          } else {
+            loadDashboard();
+          }
+        });
+      });
+
+      // View toggle
+      document.querySelectorAll('.view-btn').forEach(btn => {
+        btn.addEventListener('click', () => switchView(btn.dataset.view));
+      });
+
+      // Filters
+      document.getElementById('tahunAjaranFilter').addEventListener('change', function () {
+        state.tahunAjaranFilter = this.value;
+        state.page = 1;
+        state.queuePage = 1;
+        loadDashboard();
+      });
+      document.getElementById('genderFilter').addEventListener('change', function () {
+        state.genderFilter = this.value;
+        state.page = 1;
+        state.queuePage = 1;
+        if (state.viewMode === 'antrian') loadQueue();
+        else loadDashboard();
+      });
+      document.getElementById('searchInput').addEventListener('input', debounce(function () {
+        state.searchQuery = this.value.trim();
+        state.page = 1;
+        loadDashboard();
+      }, 300));
+      document.getElementById('queueTahapFilter').addEventListener('change', function () {
+        state.queueTahap = this.value;
+        state.queuePage = 1;
+        loadQueue();
+      });
+      document.getElementById('queueSortFilter').addEventListener('change', function () {
+        state.queueSort = this.value;
+        state.queuePage = 1;
+        loadQueue();
+      });
+
+      // Pagination clicks (both views use same containers, different data-attr)
+      document.addEventListener('click', function (e) {
+        const pgH = e.target.getAttribute('data-page-h');
+        const pgQ = e.target.getAttribute('data-page-q');
+        const pgU = e.target.getAttribute('data-page-u');
+        if (pgH) {
+          const next = Number(pgH);
+          if (!next || next < 1 || next > state.totalPages || next === state.page) return;
+          state.page = next;
+          loadDashboard();
+        }
+        if (pgQ) {
+          const next = Number(pgQ);
+          if (!next || next < 1 || next > state.queueTotalPages || next === state.queuePage) return;
+          state.queuePage = next;
+          loadQueue();
+        }
+        if (pgU) {
+          const next = Number(pgU);
+          if (!next || next < 1 || next > state.ujianTotalPages || next === state.ujianPage) return;
+          state.ujianPage = next;
+          loadUjianList();
+        }
+      });
+
+      // Dialog
+      document.getElementById('dialogCloseBtn').addEventListener('click', () => document.getElementById('ujianDialog').close());
+      document.getElementById('ujianDialog').addEventListener('cancel', e => e.preventDefault());
+      document.getElementById('dialogAddBtn').addEventListener('click', openAddForm);
+
+      // Status filter
+      document.getElementById('statusFilter').addEventListener('click', function (e) {
+        const btn = e.target.closest('[data-tahap]');
+        if (!btn) return;
+        document.querySelectorAll('.status-filter button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        state.tahapFilter = btn.dataset.tahap;
+        state.ujianPage = 1;
+        loadUjianList();
+      });
+
+      // Entry form
+      document.getElementById('entryPanelBackdrop').addEventListener('click', closeEntryForm);
+      document.getElementById('entryCloseBtn').addEventListener('click', closeEntryForm);
+      document.getElementById('entryCancelBtn').addEventListener('click', closeEntryForm);
+      document.getElementById('entrySaveBtn').addEventListener('click', saveForm);
+
+      // Super Admin Tools
+      showSuperAdminTools();
+      document.getElementById('deleteAllBtn').addEventListener('click', openDeleteAllDialog);
+      document.getElementById('deleteAllCloseBtn').addEventListener('click', () => document.getElementById('deleteAllDialog').close());
+      document.getElementById('deleteAllCancelBtn').addEventListener('click', () => document.getElementById('deleteAllDialog').close());
+      document.getElementById('deleteAllConfirmBtn').addEventListener('click', confirmDeleteAll);
+      document.getElementById('tempelToggleBtn').addEventListener('click', toggleTempelSection);
+      document.getElementById('tempelCopyExampleBtn').addEventListener('click', copyTempelExample);
+      document.getElementById('tempelPreviewBtn').addEventListener('click', buildTempelPreview);
+      document.getElementById('tempelSaveBtn').addEventListener('click', saveTempel);
+      document.getElementById('exportTempelBtn').addEventListener('click', openExportTempelDialog);
+      document.getElementById('exportTempelCloseBtn').addEventListener('click', () => document.getElementById('exportTempelDialog').close());
+      document.getElementById('exportTempelCancelBtn').addEventListener('click', () => document.getElementById('exportTempelDialog').close());
+      document.getElementById('exportTempelConfirmBtn').addEventListener('click', confirmExportTempel);
+
+      document.getElementById('editHistoryCloseBtn').addEventListener('click', () => document.getElementById('editHistoryDialog').close());
+
+      window.addEventListener('load', loadDashboard);
+      loadPengujiNameOptions();
+    }
+
+    // Isi <datalist> nama pengurus buat autocomplete field "Nama Penguji" (teks bebas, bukan rujukan id).
+    async function loadPengujiNameOptions() {
+      try {
+        const data = await api('pengurus.namesList', {});
+        const dl = document.getElementById('pengujiNameOptions');
+        if (dl) dl.innerHTML = (data.names || []).map(name => `<option value="${escHtml(name)}"></option>`).join('');
+      } catch (e) { /* autocomplete opsional, abaikan kalau gagal */ }
+    }
+
+    init();
+
+    /* ── Expose ── */
+    window.openHalaqoh = openHalaqoh;
+    window.openEditForm = openEditForm;
+    window.openNilaiForm = openNilaiForm;
+    window.openNilaiFormFromQueue = openNilaiFormFromQueue;
+    window.deleteUjian = deleteUjian;
+    window.showEditHistory = showEditHistory;
+    window.showQueueHistory = showQueueHistory;
+  </script>
+</body>
+</html>

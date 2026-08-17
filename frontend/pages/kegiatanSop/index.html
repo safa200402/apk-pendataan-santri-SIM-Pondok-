@@ -1,0 +1,2831 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#9e2f22">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="../../shared-ui.css">
+  <script src="../../shared-ui.js"></script>
+  <link rel="stylesheet" href="../../shared-shell.css">
+  <link rel="stylesheet" href="../../vendor/quill/quill.snow.css">
+  <script src="../../vendor/quill/quill.js"></script>
+  <title>Kegiatan & SOP</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700;800&display=swap');
+
+    :root {
+      --paper: #f6efe0;
+      --ink: #4d4034;
+      --muted: #7b6a58;
+      --line: rgba(91, 73, 57, 0.15);
+      --accent: #b97650;
+      --success: #74846c;
+      --danger: #a55a52;
+      --warning: #b58439;
+      --shadow: 0 18px 45px rgba(87, 67, 51, 0.18);
+      --radius: 24px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.15;
+      mix-blend-mode: multiply;
+    }
+
+    .panel,
+    .card {
+      padding: 22px;
+    }
+
+    h1, h2, h3 {
+      margin: 0 0 10px;
+    }
+
+    p { margin: 0; line-height: 1.65; }
+
+    .section-head h2,
+    .dialog-head h3,
+    .side-section h3 {
+      margin: 0;
+      line-height: 1.12;
+    }
+
+    .section-head p,
+    .side-section p,
+    .meta-note,
+    .entity-description {
+      line-height: 1.65;
+    }
+
+    .workspace-grid {
+      display: grid;
+      gap: 18px;
+      grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
+      align-items: start;
+    }
+
+    .side-section {
+      display: grid;
+      gap: 14px;
+    }
+
+    .field-stack {
+      display: grid;
+      gap: 12px;
+    }
+
+    .field-grid {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    label,
+    .field-stack {
+      display: grid;
+      gap: 7px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    input,
+    select,
+    textarea,
+    button {
+      font: inherit;
+    }
+
+    button {
+      padding: 12px 18px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      padding: 13px 14px;
+      outline: none;
+    }
+
+    textarea {
+      min-height: 110px;
+      resize: vertical;
+    }
+
+    .toolbar,
+    .toolbar-row,
+    .view-switch {
+      display: flex;
+      gap: 10px;
+    }
+
+    .lampiran-global-toolbar {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .lampiran-global-toolbar[hidden] {
+      display: none;
+    }
+
+    .view-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px 18px;
+      font-weight: 800;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    #actionToolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    #actionToolbar > button {
+      font-weight: 800 !important;
+      text-transform: uppercase;
+    }
+
+    .content-head {
+      display: grid;
+      gap: 16px;
+    }
+
+    .content-head-top {
+      display: grid;
+      gap: 14px;
+      align-items: start;
+    }
+
+    .section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .section-head-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;      
+      order: 2;
+    }
+
+    .filters {
+      display: grid;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .list {
+      display: grid;
+      gap: 14px;
+      grid-template-columns: 1fr;
+      margin-top: 17px;
+    }
+
+    .card {
+      padding: 16px;
+    }
+
+    .pill {
+      display: inline-flex;
+      padding: 7px 11px;
+      font-size: 12px;
+      font-weight: 700;
+      border-radius: 21px;
+    }
+
+    .empty-state {
+      padding: 22px;
+      text-align: left;
+      line-height: 1.65;
+    }
+
+    .minimal-list-card-title-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .minimal-list-card-title-row .pill {
+      flex: 0 0 auto;
+    }
+
+    .minimal-list-card-expand {
+      min-width: 52px;
+      width: 52px;
+      padding: 0 !important;
+      font-size: 28px;
+      line-height: 1;
+      flex: 0 0 52px !important;
+    }
+
+    .entity-card {
+      display: grid;
+      gap: 14px;
+      padding: 18px;
+    }
+
+    .entity-head {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: start;
+    }
+
+    .entity-main {
+      display: grid;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .entity-main h3 {
+      margin: 0;
+      font-size: clamp(1.1rem, 2.6vw, 1.5rem);
+      line-height: 1.15;
+    }
+
+    .entity-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .entity-description {
+      color: rgba(74, 47, 34, 0.82);
+    }
+
+    .metric-grid {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    }
+
+    .metric {
+      padding: 12px 14px;
+      border-radius: 18px;
+      background: rgba(248, 241, 228, 0.95);
+      border: 1px solid rgba(74, 47, 34, 0.12);
+    }
+
+    .metric span {
+      display: block;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: rgba(74, 47, 34, 0.66);
+    }
+
+    .metric strong {
+      display: block;
+      margin-top: 6px;
+      font-size: 15px;
+      line-height: 1.35;
+    }
+
+    .tag-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      min-height: 30px;
+      padding: 0 10px;
+      border-radius: 999px;
+      background: rgba(74, 47, 34, 0.08);
+      color: #5b3928;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .tag.is-primary {
+      background: rgba(158, 47, 34, 0.12);
+      color: #8b271f;
+    }
+
+    .sop-preview {
+      padding: 16px;
+      border-radius: 18px;
+      background: linear-gradient(180deg, rgba(255, 252, 245, 0.98), rgba(246, 236, 214, 0.92));
+      border: 1px solid rgba(74, 47, 34, 0.12);
+      white-space: pre-wrap;
+      line-height: 1.72;
+      color: rgba(42, 23, 18, 0.9);
+      max-height: 320px;
+      overflow: auto;
+    }
+
+    .detail-grid {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .detail-block {
+      display: grid;
+      gap: 10px;
+      padding: 16px;
+      border-radius: 20px;
+      background: rgba(250, 244, 231, 0.94);
+      border: 1px solid rgba(74, 47, 34, 0.12);
+    }
+
+    .detail-block h4 {
+      margin: 0;
+      font-size: 14px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .card-toggle {
+      width: 46px;
+      min-width: 46px;
+      min-height: 46px;
+      padding: 0;
+    }
+
+    .manager-summary {
+      display: grid;
+      gap: 12px;
+    }
+
+    .manager-activities {
+      display: grid;
+      gap: 10px;
+    }
+
+    .manager-activity {
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: rgba(255, 252, 245, 0.96);
+      border: 1px solid rgba(74, 47, 34, 0.12);
+      display: grid;
+      gap: 6px;
+    }
+
+    .manager-activity strong {
+      display: block;
+      line-height: 1.35;
+    }
+
+    .manager-activity p {
+      margin: 0;
+    }
+
+    /* SOP items table */
+    .sop-items-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      margin-top: 10px;
+    }
+
+    .sop-items-table th {
+      text-align: left;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      padding: 6px 8px;
+      border-bottom: 2px solid rgba(74,47,34,0.15);
+      color: rgba(74,47,34,0.65);
+    }
+
+    .sop-items-table td {
+      padding: 7px 8px;
+      border-bottom: 1px solid rgba(74,47,34,0.08);
+      vertical-align: top;
+      line-height: 1.55;
+    }
+
+    .sop-items-table tr:last-child td { border-bottom: none; }
+    .sop-items-table td.col-waktu { white-space: nowrap; font-weight: 600; width: 80px; color: rgba(74,47,34,0.75); }
+    .sop-items-table td.col-pj { white-space: nowrap; width: 130px; font-weight: 600; }
+
+    .sop-items-table td.col-del { width: 32px; text-align: right; }
+    .sop-items-table td.col-del button {
+      width: 26px;
+      height: 26px;
+      padding: 0;
+      font-size: 14px;
+      border-radius: 6px;
+      line-height: 1;
+      min-height: 0;
+    }
+
+    .sop-items-table td.col-order {
+      width: 52px;
+      white-space: nowrap;
+      text-align: right;
+    }
+    .sop-items-table td.col-order button {
+      width: 24px;
+      height: 24px;
+      padding: 0;
+      font-size: 13px;
+      border-radius: 5px;
+      line-height: 1;
+      min-height: 0;
+    }
+
+    .sop-empty {
+      font-size: 13px;
+      font-style: italic;
+      color: rgba(74, 47, 34, 0.5);
+      padding: 8px 0 2px;
+    }
+
+    /* Chip / tag multi-input */
+    .chip-input-wrap {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+      padding: 8px 10px;
+      min-height: 46px;
+      cursor: text;
+      border: 1px solid rgba(51, 51, 51, 0.28);
+      border-radius: 10px;
+      background: rgba(255, 247, 210, 0.98);
+    }
+    .chip-input-wrap:focus-within {
+      outline: 2px solid var(--accent);
+      outline-offset: -2px;
+    }
+    .chip-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px 3px 10px;
+      border-radius: 999px;
+      background: rgb(34 68 158 / 12%);
+      color: #003c91;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+      line-height: 1.4;
+    }
+    .chip-tag button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 16px;
+      height: 16px;
+      padding: 0;
+      min-height: 0;
+      border-radius: 50%;
+      font-size: 11px;
+      font-weight: 900;
+      line-height: 1;
+      background: rgba(158,47,34,0.18);
+      color: #7a1f19;
+      cursor: pointer;
+      border: none;
+    }
+    .chip-input-field {
+      border: none !important;
+      outline: none !important;
+      padding: 3px 4px !important;
+      width: auto !important;
+      min-width: 140px;
+      flex: 1;
+      background: transparent;
+      font-size: 13px;
+    }
+    .chip-hint {
+      font-size: 11px;
+      font-weight: 400;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+    /* Chips display in card list */
+    .pj-utama-chips {
+      display: inline-flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      vertical-align: middle;
+    }
+    .pj-utama-chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 1px 7px;
+      border-radius: 999px;
+      background: rgb(34 68 158 / 12%);
+      color: #003c91;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    /* Per PJ view */
+    .pj-block {
+      display: grid;
+      gap: 8px;
+    }
+
+    .pj-kegiatan-row {
+      display: grid;
+      gap: 3px;
+      padding: 8px 10px;
+      border-radius: 12px;
+      background: rgba(255,252,245,0.96);
+      border: 1px solid rgba(74,47,34,0.1);
+    }
+
+    .pj-kegiatan-label {
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: rgba(74,47,34,0.55);
+    }
+
+    .pj-task-row {
+      display: grid;
+      grid-template-columns: 80px 1fr;
+      gap: 6px;
+      font-size: 13px;
+      line-height: 1.5;
+      padding: 3px 0;
+    }
+
+    .pj-task-waktu {
+      font-weight: 700;
+      color: rgba(74,47,34,0.7);
+    }
+
+    .pj-task-sop::before { content: '→ '; font-weight: 700; opacity: 0.45; }
+
+    .notice {
+      padding: 14px 16px;
+      line-height: 1.55;
+    }
+
+    .notice.show { display: block; }
+
+    #dialog {
+      width: 81% !important;
+      min-width: 81% !important;
+      max-width: 81% !important;
+      height: 81% !important;
+      min-height: 81% !important;
+      max-height: 81% !important;
+      border: 0;
+      padding: 0;
+      border-radius: 28px;
+      background: #fff8eb;
+      box-sizing: border-box;
+    }
+
+
+    .dialog-body {
+      display: grid;
+      gap: 16px;
+      padding: 22px;
+      max-height: calc(100vh - 40px);
+      overflow: auto;
+    }
+
+    #dialog .dialog-body {
+      height: 100%;
+      max-height: none;
+      background: #f0db98;
+    }
+
+    #dialog .toolbar.ps-dialog-footer > * {
+      flex: 0 0 auto !important;
+      width: auto !important;
+      min-width: 0 !important;
+    }
+
+    #dialog .toolbar.ps-dialog-footer > button {
+      min-width: 140px;
+    }
+
+    .dialog-head {
+      display: grid;
+      gap: 8px;
+    }
+
+    .dialog-grid {
+      display: grid;
+      gap: 16px;
+    }
+
+    .dialog-column,
+    .dialog-side {
+      display: grid;
+      gap: 16px;
+      min-width: 0;
+    }
+
+    .selector-shell,
+    .editor-shell,
+    .sop-launcher,
+    .dialog-box {
+      display: grid;
+      gap: 12px;
+      padding: 18px;
+    }
+
+    .selector-head,
+    .editor-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .selector-tools {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .selector-tools button {
+      /* min-height: 38px; */
+      padding: 0 12px;
+      font-size: 12px;
+    }
+
+    .checklist {
+      max-height: 41vh;
+      display: grid;
+      gap: 8px;
+      overflow: auto;
+      padding: 12px;
+    }
+
+    .check-item {
+      display: flex;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .check-item input {
+      width: auto;
+      min-height: auto;
+      margin: 0;
+      padding: 0;
+    }
+
+    .check-item small {
+      display: block;
+      margin-top: 2px;
+    }
+
+    .assignment-summary {
+      padding: 14px 16px;
+      line-height: 1.7;
+      font-weight: 600;
+    }
+
+    .sop-dialog-shell {
+      padding: 0;
+    }
+
+    #sopEditor {
+      min-height: clamp(200px, 28vh, 400px);
+    }
+
+    .sop-builder {
+      display: grid;
+      gap: 10px;
+      padding: 14px 16px;
+    }
+
+    .sop-builder-head {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: space-between;
+    }
+
+    .sop-builder-fields {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: 160px 1fr 2fr auto;
+      align-items: end;
+    }
+
+    .sop-builder-fields label {
+      gap: 5px;
+      font-size: 13px;
+    }
+
+    .sop-builder-fields input {
+      min-height: 40px;
+      padding: 8px 10px;
+      font-size: 13px;
+    }
+
+    .sop-builder-fields button {
+      min-height: 40px;
+      padding: 0 14px;
+      white-space: nowrap;
+      font-size: 13px;
+    }
+
+    @media (max-width: 900px) {
+      .sop-builder-fields {
+        grid-template-columns: 1fr 1fr;
+      }
+      .sop-builder-fields button {
+        grid-column: 1 / -1;
+      }
+    }
+
+    @media (max-width: 540px) {
+      .sop-builder-fields { grid-template-columns: 1fr; }
+    }
+
+    .editor-shell.is-fullscreen {
+      position: fixed !important;
+      background: #333 !important;
+      top: 0px !important;
+      right: 0px !important;
+      width: 100% !important;
+      height: 100% !important;
+      z-index: 888 !important;
+      display: flex !important;
+      flex-direction: column !important;
+      justify-content: center !important;
+      padding: 2%;
+    }
+
+    .editor-shell.is-fullscreen #sopEditor {
+      padding: 10px !important;
+      height: 100vh !important;
+      background: aliceblue !important;
+    }
+
+    .ql-toolbar.is-fullscreen {
+      background: aliceblue !important;
+    }
+
+    .editor-shell.is-fullscreen .editor-head strong {
+      /* display: none !important; */
+      visibility: hidden !important;
+    }
+
+    .filter-collapse-toggle {
+      width: 100%;
+      justify-content: space-between;
+    }
+
+    .filter-collapse-toggle::after {
+      content: '+';
+      font-size: 18px;
+      line-height: 1;
+    }
+
+    .filter-collapse-toggle[aria-expanded="true"]::after {
+      content: '-';
+    }
+
+    .filters-collapse-body[hidden] {
+      display: none;
+    }
+
+    .filters-collapse-body {
+      display: grid;
+      gap: 12px;
+      padding-top: 4px;
+    }
+
+    @media (max-width: 1100px) {
+      .dialog-grid,
+      .detail-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .field-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .toolbar,
+      .toolbar-row,
+      .view-switch {
+        gap: 10px;
+      }
+
+      #dialog .toolbar.ps-dialog-footer > * {
+        flex: 1 1 calc(50% - 10px) !important;
+        width: 100% !important;
+      }
+
+      .entity-head {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Lampiran */
+    #lampiranListDialog,
+    #lampiranFormDialog {
+      width: min(720px, 94vw);
+      max-height: 90vh;
+      border: 0;
+      padding: 0;
+      border-radius: 28px;
+      background: #fff8eb;
+      box-sizing: border-box;
+    }
+
+    #lampiranListDialog .dialog-body,
+    #lampiranFormDialog .dialog-body {
+      max-height: 90vh;
+      overflow: auto;
+    }
+
+    .lampiran-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .lampiran-item {
+      display: grid;
+      gap: 10px;
+      padding: 14px 16px;
+      border-radius: 16px;
+      background: rgba(255, 252, 245, 0.96);
+      border: 1px solid rgba(74, 47, 34, 0.12);
+    }
+
+    .lampiran-item-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .lampiran-item-head strong {
+      font-size: 1rem;
+      line-height: 1.3;
+    }
+
+    .lampiran-item-actions {
+      display: flex;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .lampiran-item-actions button {
+      padding: 6px 14px;
+      font-size: 12px;
+      min-height: 32px;
+    }
+
+    .lampiran-isi-preview {
+      max-height: 200px;
+      overflow: auto;
+      padding: 10px 14px;
+      border-radius: 10px;
+      background: rgba(245, 240, 228, 0.8);
+      border: 1px solid rgba(74, 47, 34, 0.08);
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    /* Lampiran tabs (Semua / Ketentuan / Lampiran) */
+    .lampiran-tab-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .lampiran-tab-btn {
+      padding: 7px 16px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      border-radius: 999px;
+      border: 2px solid rgba(74, 47, 34, 0.15);
+      font-family: inherit;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      background: rgba(0, 0, 0, 0.05);
+      color: inherit;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+
+    .lampiran-tab-btn.active {
+      background: var(--accent, #b97650);
+      border-color: var(--accent, #b97650);
+      color: #fff;
+    }
+
+    .lampiran-jenis-badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      background: rgba(185, 118, 80, 0.15);
+      color: #8a4a2c;
+      flex-shrink: 0;
+    }
+
+    .lampiran-jenis-badge.is-empty {
+      background: rgba(0, 0, 0, 0.08);
+      color: rgba(0, 0, 0, 0.5);
+    }
+
+    .lampiran-isi-preview.ql-editor {
+      border: none !important;
+      box-shadow: none !important;
+      min-height: unset !important;
+    }
+
+    #lampiranFormEditor {
+      min-height: 240px;
+    }
+
+    .lampiran-editor-field {
+      min-width: 0;
+    }
+
+    .lampiran-editor-wrap {
+      min-width: 0;
+      border: 1px solid rgba(74, 47, 34, 0.18);
+      border-radius: 12px;
+      overflow: hidden;
+      background: #fffdf5;
+    }
+
+    .lampiran-editor-wrap .ql-toolbar {
+      border-bottom: 1px solid rgba(74, 47, 34, 0.14);
+      border-top: none;
+      border-left: none;
+      border-right: none;
+      background: rgba(245, 238, 218, 0.7);
+    }
+
+    .lampiran-editor-wrap .ql-container {
+      border: none;
+      font-size: 14px;
+    }
+
+    .ql-editor img {
+      max-width: 100%;
+      height: auto;
+    }
+
+    .ql-editor table {
+      table-layout: fixed;
+      width: 100%;
+      word-break: break-word;
+    }
+
+    .ql-editor pre,
+    .ql-editor code {
+      white-space: pre-wrap;
+      overflow-wrap: break-word;
+      word-break: break-word;
+    }
+    .col-sop-hist { width: 70px; text-align: right; white-space: nowrap; }
+    .edit-history-subtitle { font-weight: 600; margin: 0; }
+    .edit-history-list { display: grid; gap: 10px; }
+    .edit-history-entry { display: flex; align-items: flex-start; gap: 12px; padding: 10px 12px; background: rgba(91,73,57,0.05); border-radius: 8px; border: 1px solid rgba(91,73,57,0.12); }
+    .edit-history-order { min-width: 26px; height: 26px; border-radius: 50%; background: var(--accent, #c99a28); color: #fff; display: grid; place-items: center; font-size: 11px; font-weight: 700; flex-shrink: 0; }
+    .edit-history-info { display: grid; gap: 2px; }
+    .edit-history-name { font-weight: 700; font-size: 14px; }
+    .edit-history-jabatan { font-size: 12px; color: var(--muted); }
+    .edit-history-meta { font-size: 12px; color: var(--muted); }
+    .edit-history-empty { color: var(--muted); font-size: 13px; margin: 0; text-align: center; padding: 16px 0; }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-left">
+      <button class="drawer-toggle" id="navToggle" type="button" aria-label="Toggle sidebar">Menu</button>
+      <div class="header-brand">Pendataan Santri</div>
+      <div class="header-page">Kegiatan & SOP</div>
+    </div>
+    <div class="header-right">
+      <span class="header-chip" id="headerRole">Admin</span>
+    </div>
+  </header>
+  <div class="drawer-backdrop" id="navBackdrop"></div>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+  <main>
+    <div class="app-layout">
+      <section class="panel nav" id="nav"></section>
+      <div class="content-stack">
+        <section class="issue-panel">
+          <h2>Masalah Terkait</h2>
+          <div class="issue-summary" id="issueSummary"></div>
+          <ul class="issue-warning-list" id="issueList"></ul>
+        </section>
+
+        <section class="panel">
+          <div class="filters" id="advancedFiltersPanel">
+            <label>
+              Cari kegiatan, PJ, atau isi SOP
+              <input id="searchInput" type="search" placeholder="Mis. kebersihan, kepala dapur, menyiapkan...">
+            </label>
+            <label>
+              Status
+              <select id="statusFilter">
+                <option value="">Semua status</option>
+                <option value="active">Aktif</option>
+                <option value="inactive">Nonaktif</option>
+              </select>
+            </label>
+            <label>
+              Urutkan
+              <select id="sortSelect">
+                <option value="updated_desc">Edit terbaru</option>
+                <option value="updated_asc">Edit terlama</option>
+                <option value="created_desc">Tambah terbaru</option>
+                <option value="created_asc">Tambah terlama</option>
+                <option value="name_asc">Nama A-Z</option>
+                <option value="name_desc">Nama Z-A</option>
+                <option value="item_count_desc">Item terbanyak</option>
+                <option value="item_count_asc">Item tersedikit</option>
+              </select>
+            </label>
+            <label>
+              Jumlah per halaman
+              <select id="pageSizeSelect">
+                <option value="10">10</option>
+                <option value="25" selected>25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </label>
+          </div>
+          <div class="toolbar" id="actionToolbar">
+            <button class="primary" id="addButton" type="button">Tambah kegiatan</button>
+            <button class="secondary" id="refreshButton" type="button">Muat ulang</button>
+            <button class="secondary" id="toggleExpandButton" type="button" data-expand-state="collapsed">Buka semua</button>
+            <button class="secondary" data-toolbar-extra="true" id="downloadPdfButton" type="button">Download PDF</button>
+            <button class="secondary" data-toolbar-extra="true" id="downloadTemplateButton" type="button" hidden>Template Excel</button>
+            <button class="secondary" data-toolbar-extra="true" id="importExcelButton" type="button" hidden>Import Excel</button>
+            <button class="secondary" data-toolbar-extra="true" id="exportExcelButton" type="button" hidden>Export Excel</button>
+            <button class="danger" data-toolbar-extra="true" id="deleteAllButton" type="button" hidden data-super-admin="true">Hapus Semua Kegiatan</button>
+            <button class="secondary toolbar-collapse-toggle" id="toolbarCollapseToggle" type="button" aria-expanded="false" aria-label="Buka aksi tambahan">+</button>
+          </div>
+          <div class="section-head-actions view-switch" id="viewSwitch" style="margin-top:12px;">
+            <button class="view-button active" type="button" data-view-mode="activity">Per Kegiatan</button>
+            <button class="view-button" type="button" data-view-mode="jabatan">Per Jabatan</button>
+            <button class="view-button" type="button" data-view-mode="lampiran">Per Lampiran/Ketentuan</button>
+          </div>
+          <div class="section-head" style="margin-top:14px;">
+            <div>
+              <h2 id="viewTitle">Preview per kegiatan</h2>
+              <p id="viewSummaryText">Daftar ini menampilkan seluruh kegiatan operasional beserta jabatan penanggung jawab dan ringkasan SOP.</p>
+            </div>
+            <div class="lampiran-global-toolbar" id="lampiranGlobalToolbar" hidden>
+              <button class="primary" type="button" id="addLampiranGlobalBtn">+ Tambah Lampiran/Ketentuan</button>
+            </div>
+          </div>
+          <input id="importExcelInput" type="file" accept=".xlsx,.xls" hidden>
+          <div class="paging-host" id="paginationTop"></div>
+          <div class="list" id="list"></div>
+          <div class="paging-host" id="paginationBottom"></div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <div id="dialogRoot">
+  <dialog class="ps-floating-dialog" id="dialog">
+    <form class="dialog-body duplicate-dialog-body ps-dialog-shell" id="form" method="dialog">
+      <div class="duplicate-dialog-head ps-dialog-header">
+        <div>
+          <h3 id="dialogTitle">Tambah Kegiatan Operasional</h3>
+        </div>
+      </div>
+      <input type="hidden" name="id">
+      <div class="dialog-box">
+        <div class="field-grid">
+          <label>
+            Nama kegiatan
+            <input type="text" name="name" maxlength="180" required placeholder="Contoh: KBM, Piket Dapur">
+          </label>
+          <label>
+            Status
+            <select name="status">
+              <option value="active">Aktif</option>
+              <option value="inactive">Nonaktif</option>
+            </select>
+          </label>
+        </div>
+        <div class="field-stack">
+          <label for="pjUtamaInput">PJ Utama</label>
+          <div class="chip-input-wrap" id="pjUtamaWrap">
+            <input type="text" class="chip-input-field" id="pjUtamaInput" list="jabatanUtamaList" placeholder="Ketik lalu Enter untuk tambah...">
+          </div>
+          <span class="chip-hint">Tekan Enter untuk menambahkan, klik × untuk menghapus.</span>
+        </div>
+        <datalist id="jabatanUtamaList"></datalist>
+        <label>
+          Deskripsi kegiatan
+          <textarea name="description" maxlength="2000" placeholder="Konteks singkat kegiatan, ruang lingkup, atau catatan penting."></textarea>
+        </label>
+        <div class="sop-builder card">
+          <div class="sop-builder-head">
+            <strong style="font-size:13px;">Item SOP</strong>
+            <span class="meta-note" style="font-size:12px;">Setiap item = 1 tugas untuk 1 penanggung jawab.</span>
+          </div>
+          <div class="sop-builder-fields">
+            <label>Waktu<input type="text" id="sopWaktu" placeholder="04:30 / Pagi / Fleksibel"></label>
+            <label>PJ<input type="text" id="sopPj" list="sopPjList" placeholder="Akademik / Kepala Dapur"></label>
+            <label>SOP <span style="font-weight:400;font-size:11px;">(kata kerja aktif)</span><input type="text" id="sopText" placeholder="Menyiapkan daftar hadir santri..."></label>
+            <button type="button" id="addSopItemButton" class="secondary">+ Tambah</button>
+          </div>
+          <datalist id="sopPjList"></datalist>
+          <div id="sopItemList"></div>
+        </div>
+      </div>
+      <div class="toolbar ps-dialog-footer">
+        <button class="primary" type="submit">Simpan Perubahan</button>
+        <button class="secondary" id="closeDialogButton" type="button">Batal</button>
+      </div>
+    </form>
+  </dialog>
+  </div>
+
+  <dialog class="ps-floating-dialog" id="deleteAllKegiatanDialog">
+    <form class="dialog-body duplicate-dialog-body ps-dialog-shell" id="deleteAllKegiatanForm" method="dialog">
+      <div class="duplicate-dialog-head ps-dialog-header">
+        <div>
+          <h3 style="margin:0 0 6px;">Hapus semua kegiatan</h3>
+          <p>Semua kegiatan operasional dan SOP akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.</p>
+        </div>
+      </div>
+      <div style="display:grid;gap:8px;">
+        <strong>Untuk lanjut, ketik: <code>HAPUS SEMUA</code></strong>
+        <label>
+          Konfirmasi
+          <input id="deleteAllKegiatanInput" type="text" autocomplete="off" placeholder="Ketik HAPUS SEMUA">
+        </label>
+      </div>
+      <div class="toolbar ps-dialog-footer">
+        <button class="danger" id="confirmDeleteAllKegiatanButton" type="submit" disabled>Konfirmasi</button>
+        <button class="secondary" id="cancelDeleteAllKegiatanButton" type="button">Batal</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="ps-floating-dialog" id="sopOverviewDialog" data-no-history>
+    <div class="dialog-body duplicate-dialog-body ps-dialog-shell">
+      <div class="duplicate-dialog-head ps-dialog-header">
+        <div>
+          <h3 id="sopOverviewTitle">Alur SOP Kegiatan</h3>
+        </div>
+      </div>
+      <div id="sopOverviewContent"></div>
+      <div class="toolbar ps-dialog-footer">
+        <button class="secondary" id="closeSopOverviewButton" type="button">Tutup</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog class="ps-floating-dialog" id="lampiranViewDialog" data-no-history>
+    <div class="dialog-body duplicate-dialog-body ps-dialog-shell">
+      <div class="duplicate-dialog-head ps-dialog-header">
+        <div>
+          <h3 id="lampiranViewTitle">Lampiran / Ketentuan</h3>
+        </div>
+      </div>
+      <div id="lampiranViewContent"></div>
+      <div class="toolbar ps-dialog-footer">
+        <button class="secondary" id="closeLampiranViewButton" type="button">Tutup</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="lampiranListDialog" data-no-history>
+    <div class="dialog-body duplicate-dialog-body ps-dialog-shell">
+      <div class="duplicate-dialog-head ps-dialog-header">
+        <div>
+          <h3 id="lampiranListTitle">Lampiran / Ketentuan Kegiatan</h3>
+          <p style="margin:4px 0 0;font-size:13px;opacity:.7;">Setiap lampiran / ketentuan punya nama dan isi teks kaya yang bisa diedit.</p>
+        </div>
+      </div>
+      <div class="lampiran-tab-bar" id="lampiranTabBar">
+        <button class="lampiran-tab-btn active" type="button" data-lampiran-tab="semua">Semua</button>
+        <button class="lampiran-tab-btn" type="button" data-lampiran-tab="ketentuan">Ketentuan</button>
+        <button class="lampiran-tab-btn" type="button" data-lampiran-tab="lampiran">Lampiran</button>
+      </div>
+      <div class="lampiran-list" id="lampiranListContainer"></div>
+      <div class="toolbar ps-dialog-footer">
+        <button class="primary" type="button" id="addLampiranBtn">+ Tambah Lampiran / Ketentuan</button>
+        <button class="secondary" type="button" id="closeLampiranListBtn">Tutup</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="lampiranFormDialog" data-no-history>
+    <div class="dialog-body duplicate-dialog-body ps-dialog-shell">
+      <div class="duplicate-dialog-head ps-dialog-header">
+        <div>
+          <h3 id="lampiranFormTitle">Tambah Lampiran / Ketentuan</h3>
+        </div>
+      </div>
+      <div style="display:grid;gap:16px;">
+        <label id="lampiranKegiatanSelectWrap" hidden>
+          Kegiatan
+          <select id="lampiranKegiatanSelect"></select>
+        </label>
+        <label>
+          Nama lampiran / ketentuan
+          <input type="text" id="lampiranNamaInput" maxlength="200" placeholder="Contoh: Keadaan Kebolehan Pulang Santri">
+        </label>
+        <label>
+          Kategori
+          <select id="lampiranJenisInput">
+            <option value="ketentuan">Ketentuan</option>
+            <option value="lampiran">Lampiran</option>
+          </select>
+        </label>
+        <div class="lampiran-editor-field">
+          <span style="display:block;font-size:14px;font-weight:600;margin-bottom:8px;">Isi Lampiran / Ketentuan</span>
+          <div class="lampiran-editor-wrap">
+            <div id="lampiranFormEditor"></div>
+          </div>
+        </div>
+      </div>
+      <div class="toolbar ps-dialog-footer">
+        <button class="primary" type="button" id="saveLampiranBtn">Simpan Lampiran / Ketentuan</button>
+        <button class="secondary" type="button" id="cancelLampiranFormBtn">Batal</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog class="ps-floating-dialog" id="editHistoryDialog">
+    <div class="dialog-body duplicate-dialog-body ps-dialog-shell">
+      <div class="duplicate-dialog-head ps-dialog-header">
+        <div>
+          <h3>Riwayat Edit Kegiatan</h3>
+          <p id="editHistorySubtitle" class="edit-history-subtitle"></p>
+        </div>
+      </div>
+      <div class="edit-history-list" id="editHistoryList"></div>
+      <div class="toolbar ps-dialog-footer">
+        <button class="secondary" id="closeEditHistoryDialog" type="button">Tutup</button>
+      </div>
+    </div>
+  </dialog>
+
+  <script src="../../shared-audit.js"></script>
+  <script src="../../shared-access.js"></script>
+  <script src="../../shared-nav.js"></script>
+  <script src="../../shared-shell.js"></script>
+  <script src="../../shared-excel.js"></script>
+  <script src="../../shared-export.js"></script>
+  <script>
+    const API_BASE = window.location.origin + '/api';
+    const STORAGE = { apiBase: 'ps_api_base', token: 'ps_token', session: 'ps_session' };
+    const DATASET_KEY = 'kegiatanSop';
+    const ISSUE_GROUP_CONFIG = {
+      kegiatan_sop_without_jabatan: true,
+      kegiatan_sop_without_sop: true
+    };
+    const state = {
+      items: [],
+      refs: { jabatan: [] },
+      viewMode: 'activity',
+      expandedActivityIds: new Set(),
+      expandedPjIds: new Set(),
+      dialogItems: [],
+      pjUtamaChips: [],
+      toolbarExpanded: false,
+      page: 1,
+      pageSize: 25
+    };
+    let currentNoticeId = '';
+    let noticeCounter = 0;
+    let noticeShownAt = 0;
+    let pendingNotice = null;
+
+    localStorage.setItem(STORAGE.apiBase, API_BASE);
+
+    function escapeHtml(text) {
+      return String(text == null ? '' : text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function getToken() {
+      return localStorage.getItem(STORAGE.token) || '';
+    }
+
+    function clearSession() {
+      localStorage.removeItem(STORAGE.token);
+      localStorage.removeItem(STORAGE.session);
+    }
+
+    function getStoredSession() {
+      try {
+        return JSON.parse(localStorage.getItem(STORAGE.session) || 'null');
+      } catch (error) {
+        return null;
+      }
+    }
+
+    function getScopedSession() {
+      return window.PSAccess && typeof window.PSAccess.getScopedSession === 'function'
+        ? window.PSAccess.getScopedSession(getStoredSession())
+        : getStoredSession();
+    }
+
+    function canDeleteRecords() {
+      const session = getScopedSession();
+      return !!(session && session.permissions && session.permissions.canDelete);
+    }
+
+    function canUseExcelTools() {
+      if (window.PSAccess && typeof window.PSAccess.canUseExcelTools === 'function') {
+        return window.PSAccess.canUseExcelTools(getStoredSession());
+      }
+      return false;
+    }
+
+    function toParams(data) {
+      const params = new URLSearchParams();
+      Object.entries(data).forEach(([key, value]) => {
+        if (value === undefined || value === null) return;
+        params.append(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
+      });
+      return params;
+    }
+
+    function createNoticeElement(text, type = 'info') {
+      const element = document.createElement('section');
+      element.className = `notice show ${type}`;
+      element.dataset.noticeId = `notice-${Date.now()}-${noticeCounter += 1}`;
+      element.textContent = text;
+      function dismiss() {
+        if (!element.parentNode) return;
+        element.classList.add('notice-dismissing');
+        window.setTimeout(() => {
+          element.remove();
+          const stack = document.getElementById('noticeStack');
+          if (stack && !stack.hasChildNodes() && stack.matches(':popover-open')) stack.hidePopover();
+        }, 220);
+      }
+      element.addEventListener('click', dismiss);
+      window.setTimeout(dismiss, type === 'error' ? 10000 : 6000);
+      return element;
+    }
+
+    function removeNoticeById(id) {
+      const element = document.querySelector(`[data-notice-id="${id}"]`);
+      if (element) element.remove();
+      if (currentNoticeId === id) currentNoticeId = '';
+      const stack = document.getElementById('noticeStack');
+      if (stack && !stack.hasChildNodes() && stack.matches(':popover-open')) stack.hidePopover();
+    }
+
+    function showNotice(text, type = 'info') {
+      if (pendingNotice) { clearTimeout(pendingNotice); pendingNotice = null; }
+      const elapsed = Date.now() - noticeShownAt;
+      if (elapsed < 1000 && currentNoticeId) {
+        pendingNotice = window.setTimeout(() => { pendingNotice = null; showNotice(text, type); }, 2000 - elapsed);
+        return currentNoticeId;
+      }
+      clearNotice();
+      const element = createNoticeElement(text, type);
+      const stack = document.getElementById('noticeStack');
+      stack.prepend(element);
+      currentNoticeId = element.dataset.noticeId;
+      noticeShownAt = Date.now();
+      if (stack.matches(':popover-open')) stack.hidePopover();
+      stack.showPopover();
+      return currentNoticeId;
+    }
+
+    function clearNotice() {
+      if (pendingNotice) { clearTimeout(pendingNotice); pendingNotice = null; }
+      if (!currentNoticeId) return;
+      removeNoticeById(currentNoticeId);
+    }
+
+    function formatDateTimeLabel(value) {
+      if (!value) return '-';
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return String(value).replace('T', ' ');
+      return new Intl.DateTimeFormat('id-ID', {
+        dateStyle: 'medium',
+        timeStyle: 'short'
+      }).format(date);
+    }
+
+    function normalizeStatusKey(value) {
+      const text = String(value == null ? '' : value).trim().toLowerCase();
+      return text === 'nonaktif' || text === 'inactive' ? 'inactive' : 'active';
+    }
+
+    function htmlToPreviewText_UNUSED(html) {
+      const source = String(html == null ? '' : html)
+        .replace(/<\s*br\s*\/?>/gi, '\n')
+        .replace(/<\s*\/p\s*>/gi, '\n')
+        .replace(/<\s*\/div\s*>/gi, '\n')
+        .replace(/<\s*\/li\s*>/gi, '\n')
+        .replace(/<\s*li[^>]*>/gi, '- ')
+        .replace(/<\s*\/h[1-6]\s*>/gi, '\n');
+      const holder = document.createElement('div');
+      holder.innerHTML = source;
+      return (holder.textContent || holder.innerText || '')
+        .replace(/ /g, ' ')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+    }
+
+    function summarizeText(text, limit = 180) {
+      const safeText = String(text == null ? '' : text).trim();
+      if (!safeText) return '';
+      if (safeText.length <= limit) return safeText;
+      return `${safeText.slice(0, Math.max(0, limit - 3)).replace(/\s+\S*$/, '').trim()}...`;
+    }
+
+    function normalizeJabatanRefs(items) {
+      return (Array.isArray(items) ? items : [])
+        .map(item => ({
+          id: String(item?.id || '').trim(),
+          name: String(item?.name || '').trim(),
+          level: String(item?.level || '').trim()
+        }))
+        .filter(item => item.id && item.name)
+        .sort((a, b) => a.name.localeCompare(b.name, 'id'));
+    }
+
+    function normalizeActivityRecord(item) {
+      const sopItems = Array.isArray(item?.sopItems)
+        ? item.sopItems.map(si => ({
+            id: String(si?.id || '').trim(),
+            idKegiatan: String(si?.idKegiatan || si?.id_kegiatan || '').trim(),
+            pjLabel: String(si?.pjLabel || si?.pj_label || '').trim(),
+            waktu: String(si?.waktu || '').trim(),
+            sopText: String(si?.sopText || si?.sop_text || '').trim(),
+            urutan: Number(si?.urutan || 0),
+            record: si?.record || null
+          })).sort((a, b) => a.urutan - b.urutan)
+        : [];
+      const pjLabelsSeen = new Set();
+      const pjLabels = [];
+      sopItems.forEach(si => {
+        if (si.pjLabel && !pjLabelsSeen.has(si.pjLabel)) {
+          pjLabelsSeen.add(si.pjLabel);
+          pjLabels.push(si.pjLabel);
+        }
+      });
+      const sopText = sopItems.map(si => si.sopText).filter(Boolean).join(' ');
+      const jabatanUtama = Array.isArray(item?.jabatanUtama) ? item.jabatanUtama.filter(Boolean) : (item?.jabatanUtama ? [String(item.jabatanUtama)] : []);
+      const jabatanUtamaLabel = jabatanUtama.join(', ') || 'Belum diisi';
+      const lampiranItems = Array.isArray(item?.lampiranItems)
+        ? item.lampiranItems.map(l => ({
+            id: String(l?.id || '').trim(),
+            idKegiatan: String(l?.idKegiatan || l?.id_kegiatan || '').trim(),
+            nama: String(l?.nama || '').trim(),
+            jenis: String(l?.jenis || '').trim(),
+            isi: String(l?.isi == null ? '' : l.isi),
+            urutan: Number(l?.urutan || 0)
+          })).sort((a, b) => a.urutan - b.urutan)
+        : [];
+      return {
+        id: String(item?.id || '').trim(),
+        name: String(item?.name || '').trim(),
+        jabatanUtama,
+        description: String(item?.description || '').trim(),
+        sopItems,
+        pjLabels,
+        jabatanLabels: pjLabels,
+        jabatanUtamaLabel,
+        sopText,
+        sopPreview: summarizeText(sopText, 220),
+        status: String(item?.status || 'Aktif').trim(),
+        statusKey: normalizeStatusKey(item?.status),
+        active: normalizeStatusKey(item?.status) === 'active',
+        lampiranItems,
+        lampiranCount: lampiranItems.length,
+        createdAt: String(item?.createdAt || '').trim(),
+        updatedAt: String(item?.updatedAt || '').trim(),
+        record: item?.record || null
+      };
+    }
+
+    function getFilters() {
+      return {
+        search: String(document.getElementById('searchInput').value || '').trim().toLowerCase(),
+        status: document.getElementById('statusFilter').value,
+        sort: document.getElementById('sortSelect').value
+      };
+    }
+
+    function getVisibleActivities() {
+      const filters = getFilters();
+      const search = filters.search;
+      const items = state.items.filter(item => {
+        if (filters.status && item.statusKey !== filters.status) return false;
+        if (!search) return true;
+        return [
+          item.name,
+          item.description,
+          item.pjLabels.join(' '),
+          item.jabatanUtama.join(' '),
+          item.sopText
+        ].join(' ').toLowerCase().includes(search);
+      });
+
+      const sortValue = filters.sort;
+      items.sort((a, b) => {
+        if (sortValue === 'updated_asc') return (a.updatedAt || '').localeCompare(b.updatedAt || '');
+        if (sortValue === 'created_desc') return (b.createdAt || '').localeCompare(a.createdAt || '');
+        if (sortValue === 'created_asc') return (a.createdAt || '').localeCompare(b.createdAt || '');
+        if (sortValue === 'name_asc') return a.name.localeCompare(b.name, 'id');
+        if (sortValue === 'name_desc') return b.name.localeCompare(a.name, 'id');
+        if (sortValue === 'item_count_desc') return (b.sopItems.length - a.sopItems.length) || a.name.localeCompare(b.name, 'id');
+        if (sortValue === 'item_count_asc') return (a.sopItems.length - b.sopItems.length) || a.name.localeCompare(b.name, 'id');
+        return (b.updatedAt || '').localeCompare(a.updatedAt || '');
+      });
+      return items;
+    }
+
+    function buildPjGroups(items) {
+      const map = new Map();
+      items.forEach(item => {
+        item.sopItems.forEach(si => {
+          const key = si.pjLabel || '(Tanpa PJ)';
+          if (!map.has(key)) map.set(key, { pjLabel: key, kegiatanMap: new Map() });
+          const group = map.get(key);
+          if (!group.kegiatanMap.has(item.id)) {
+            group.kegiatanMap.set(item.id, {
+              idKegiatan: item.id,
+              namaKegiatan: item.name,
+              statusKey: item.statusKey,
+              status: item.status,
+              tasks: []
+            });
+          }
+          group.kegiatanMap.get(item.id).tasks.push(si);
+        });
+      });
+
+      const groups = [];
+      map.forEach((group, pjLabel) => {
+        const kegiatan = [];
+        group.kegiatanMap.forEach(k => {
+          k.tasks.sort((a, b) => a.urutan - b.urutan);
+          kegiatan.push(k);
+        });
+        kegiatan.sort((a, b) => a.namaKegiatan.localeCompare(b.namaKegiatan, 'id'));
+        groups.push({ pjLabel, kegiatan });
+      });
+
+      groups.sort((a, b) => a.pjLabel.localeCompare(b.pjLabel, 'id'));
+      return groups;
+    }
+
+    function buildLampiranEntries(items) {
+      const search = getFilters().search;
+      const entries = [];
+      items.forEach(item => {
+        (item.lampiranItems || []).forEach(l => {
+          if (search) {
+            const haystack = [item.name, l.nama, l.isi].join(' ').toLowerCase();
+            if (!haystack.includes(search)) return;
+          }
+          entries.push({
+            id: l.id,
+            idKegiatan: item.id,
+            namaKegiatan: item.name,
+            statusKey: item.statusKey,
+            status: item.status,
+            nama: l.nama,
+            jenis: l.jenis,
+            isi: l.isi,
+            urutan: l.urutan
+          });
+        });
+      });
+      entries.sort((a, b) => a.namaKegiatan.localeCompare(b.namaKegiatan, 'id') || a.urutan - b.urutan);
+      return entries;
+    }
+
+    function pruneExpandedState() {
+      const activityIds = new Set(state.items.map(item => item.id));
+      Array.from(state.expandedActivityIds).forEach(id => {
+        if (!activityIds.has(id)) state.expandedActivityIds.delete(id);
+      });
+    }
+
+    function syncAdvancedFiltersVisibility() {
+      const panel = document.getElementById('advancedFiltersPanel');
+      if (panel) panel.hidden = false;
+    }
+
+    function renderSopItemsTable(sopItems, withHistory = false) {
+      if (!sopItems.length) {
+        return `<p style="margin:6px 0;color:var(--page-muted);font-size:13px;">Belum ada item SOP.</p>`;
+      }
+      return `
+        <table class="sop-items-table">
+          <thead><tr><th class="col-waktu">Waktu</th><th class="col-pj">PJ</th><th>SOP / Tugas</th>${withHistory ? '<th class="col-sop-hist"></th>' : ''}</tr></thead>
+          <tbody>
+            ${sopItems.map(si => `
+              <tr>
+                <td class="col-waktu">${escapeHtml(si.waktu || '-')}</td>
+                <td class="col-pj">${escapeHtml(si.pjLabel || '-')}</td>
+                <td>${escapeHtml(si.sopText || '-')}</td>
+                ${withHistory ? `<td class="col-sop-hist"><button type="button" class="secondary" data-sop-history="${escapeHtml(si.id)}" style="font-size:11px;padding:2px 7px;">Riwayat</button></td>` : ''}
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+
+    function openSopOverviewDialog(idKegiatan) {
+      const item = state.items.find(entry => entry.id === idKegiatan);
+      if (!item) return;
+      document.getElementById('sopOverviewTitle').textContent = `Alur SOP: ${item.name}`;
+      const content = document.getElementById('sopOverviewContent');
+      if (!item.sopItems.length) {
+        content.innerHTML = '<p style="color:var(--page-muted);font-size:13px;">Belum ada item SOP untuk kegiatan ini.</p>';
+      } else {
+        content.innerHTML = renderSopItemsTable(item.sopItems);
+      }
+      document.getElementById('sopOverviewDialog').showModal();
+    }
+
+function renderActivityList(items) {
+      if (!items.length) {
+        return `<p class="empty-state">Ubah filter, tambahkan kegiatan baru, atau aktifkan kembali kegiatan yang masih nonaktif.</p>`;
+      }
+
+      return items.map((item, index) => {
+        const isExpanded = state.expandedActivityIds.has(item.id);
+        const statusPillClass = item.statusKey === 'inactive' ? 'inactive' : '';
+        const pjChipsHtml = item.jabatanUtama.length
+          ? item.jabatanUtama.map(v => `<span class="pj-utama-chip">${escapeHtml(v)}</span>`).join('')
+          : `<span style="color:var(--muted);font-size:11px;font-weight:400;">Belum diisi</span>`;
+        return `
+          <article class="card minimal-list-card ${isExpanded ? 'is-expanded' : ''} ${item.statusKey === 'inactive' ? 'status-inactive' : ''}">
+            <div class="minimal-list-card-head">
+              <div class="minimal-list-card-main" data-collapse="${escapeHtml(item.id)}" role="button" tabindex="0" aria-expanded="${isExpanded ? 'true' : 'false'}" aria-label="${isExpanded ? 'Tutup detail kegiatan' : 'Buka detail kegiatan'}">
+                <div class="minimal-list-card-title-row">
+                  <strong class="minimal-list-card-name">${escapeHtml(item.name || 'Tanpa nama kegiatan')}</strong>
+                  <span class="pill ${statusPillClass}">${escapeHtml(item.status || '-')}</span>
+                </div>
+                <span class="minimal-list-card-hint">${index + 1} pada hasil ini &nbsp;·&nbsp; PJ Utama: <span class="pj-utama-chips">${pjChipsHtml}</span> &nbsp;·&nbsp; ${item.sopItems.length} item SOP</span>
+              </div>
+              <button class="secondary minimal-list-card-toggle" type="button" data-edit="${escapeHtml(item.id)}" aria-label="Edit kegiatan ${escapeHtml(item.name || '-')}">Edit</button>
+            </div>
+            <div class="minimal-list-card-detail">
+              <div class="minimal-list-card-meta">
+                <span class="pill ${statusPillClass}">${escapeHtml(item.status || '-')}</span>
+                <span class="pill">${escapeHtml(String(item.pjLabels.length))} PJ</span>
+                <span class="pill">${escapeHtml(String(item.sopItems.length))} item</span>
+                <span class="pill ${item.sopItems.length ? '' : 'warn'}">${item.sopItems.length ? 'SOP terisi' : 'SOP belum diisi'}</span>
+                <span class="pill">${escapeHtml(String(item.lampiranCount))} lampiran / ketentuan</span>
+              </div>
+              <div class="minimal-list-card-summary">
+                <p><strong>Deskripsi:</strong> ${escapeHtml(item.description || 'Belum ada deskripsi kegiatan.')}</p>
+                <p><strong>Penanggung jawab:</strong> ${escapeHtml(item.pjLabels.length ? item.pjLabels.join(', ') : 'Belum ada PJ.')}</p>
+              </div>
+              ${renderSopItemsTable(item.sopItems, true)}
+              <div class="toolbar minimal-list-card-actions">
+                <button class="secondary" type="button" data-edit="${escapeHtml(item.id)}">Edit</button>
+                <button class="secondary" type="button" data-history="${escapeHtml(item.id)}" title="Riwayat pengedit">Riwayat Edit</button>
+                <button class="secondary" type="button" data-lampiran="${escapeHtml(item.id)}">Lampiran / Ketentuan (${escapeHtml(String(item.lampiranCount))})</button>
+                <button class="${item.statusKey === 'active' ? 'danger' : 'primary'}" type="button" data-toggle-status="${escapeHtml(item.id)}">${item.statusKey === 'active' ? 'Nonaktifkan' : 'Aktifkan'}</button>
+                ${canDeleteRecords() ? `<button class="danger" type="button" data-delete="${escapeHtml(item.id)}">Hapus</button>` : ''}
+              </div>
+            </div>
+          </article>
+        `;
+      }).join('');
+    }
+
+    function renderPjList(groups) {
+      if (!groups.length) {
+        return `<p class="empty-state">Pilih filter lain atau tambah kegiatan dengan item SOP berisi penanggung jawab agar preview per PJ terisi.</p>`;
+      }
+
+      return groups.map(group => {
+        const isExpanded = state.expandedPjIds.has(group.pjLabel);
+        const totalTasks = group.kegiatan.reduce((acc, k) => acc + k.tasks.length, 0);
+        return `
+          <article class="card minimal-list-card ${isExpanded ? 'is-expanded' : ''}">
+            <div class="minimal-list-card-head">
+              <div class="minimal-list-card-main" data-collapse-pj="${escapeHtml(group.pjLabel)}" role="button" tabindex="0" aria-expanded="${isExpanded ? 'true' : 'false'}" aria-label="${isExpanded ? 'Tutup detail PJ' : 'Buka detail PJ'}">
+                <div class="minimal-list-card-title-row">
+                  <strong class="minimal-list-card-name">${escapeHtml(group.pjLabel)}</strong>
+                  <span class="pill">${escapeHtml(String(group.kegiatan.length))} kegiatan</span>
+                  <span class="pill">${escapeHtml(String(totalTasks))} tugas</span>
+                </div>
+                <span class="minimal-list-card-hint">${escapeHtml(group.kegiatan.map(k => k.namaKegiatan).join(', '))}</span>
+              </div>
+            </div>
+            <div class="minimal-list-card-detail">
+              ${group.kegiatan.map(k => `
+                <div class="pj-block">
+                  <div class="pj-kegiatan-row">
+                    <strong>${escapeHtml(k.namaKegiatan)}</strong>
+                    <span class="pill ${k.statusKey === 'inactive' ? 'inactive' : ''}">${escapeHtml(k.status || '-')}</span>
+                  </div>
+                  <button class="secondary" type="button" data-show-sop="${escapeHtml(k.idKegiatan)}" style="font-size:12px;padding:4px 10px;min-height:28px;justify-self:start;">Lihat alur SOP kegiatan</button>
+                  ${k.tasks.map(t => `
+                    <div class="pj-task-row">
+                      <span class="pj-task-waktu">${escapeHtml(t.waktu || '-')}</span>
+                      <span class="pj-task-sop">${escapeHtml(t.sopText || '-')}</span>
+                    </div>
+                  `).join('')}
+                </div>
+              `).join('')}
+              <div class="toolbar minimal-list-card-actions">
+                ${group.kegiatan.map(k => `<button class="secondary" type="button" data-edit="${escapeHtml(k.idKegiatan)}">Edit ${escapeHtml(k.namaKegiatan)}</button>`).join('')}
+              </div>
+            </div>
+          </article>
+        `;
+      }).join('');
+    }
+
+    function renderLampiranEntryList(entries) {
+      if (!entries.length) {
+        return `<p class="empty-state">Belum ada lampiran/ketentuan yang cocok dengan filter saat ini.</p>`;
+      }
+      return entries.map(entry => `
+        <article class="card minimal-list-card">
+          <div class="minimal-list-card-head">
+            <div class="minimal-list-card-main" data-lampiran-page-open="${escapeHtml(entry.id)}" data-lampiran-page-kegiatan="${escapeHtml(entry.idKegiatan)}" role="button" tabindex="0" aria-label="Edit ${escapeHtml(entry.nama)}">
+              <div class="minimal-list-card-title-row">
+                <strong class="minimal-list-card-name">${escapeHtml(entry.nama)}</strong>
+                <span class="pill">${entry.jenis ? LAMPIRAN_JENIS_LABEL[entry.jenis] : 'Belum dikategorikan'}</span>
+                <span class="pill ${entry.statusKey === 'inactive' ? 'inactive' : ''}">${escapeHtml(entry.namaKegiatan)}</span>
+              </div>
+            </div>
+            <div class="toolbar minimal-list-card-actions">
+              <button class="secondary minimal-list-card-toggle" type="button" data-lampiran-page-view="${escapeHtml(entry.id)}" data-lampiran-page-kegiatan="${escapeHtml(entry.idKegiatan)}">Lihat</button>
+              <button class="secondary minimal-list-card-toggle" type="button" data-lampiran-page-open="${escapeHtml(entry.id)}" data-lampiran-page-kegiatan="${escapeHtml(entry.idKegiatan)}">Edit</button>
+              ${canDeleteRecords() ? `<button class="danger minimal-list-card-toggle" type="button" data-lampiran-page-delete="${escapeHtml(entry.id)}" data-lampiran-page-kegiatan="${escapeHtml(entry.idKegiatan)}">Hapus</button>` : ''}
+            </div>
+          </div>
+        </article>
+      `).join('');
+    }
+
+    function syncExpandButton(activities, groups) {
+      const button = document.getElementById('toggleExpandButton');
+      if (state.viewMode === 'lampiran') {
+        button.disabled = true;
+        return;
+      }
+      if (state.viewMode === 'activity') {
+        const allExpanded = activities.length > 0 && activities.every(item => state.expandedActivityIds.has(item.id));
+        button.dataset.expandState = allExpanded ? 'expanded' : 'collapsed';
+        button.textContent = allExpanded ? 'Tutup semua' : 'Buka semua';
+        button.disabled = !activities.length;
+        return;
+      }
+      const allExpanded = groups.length > 0 && groups.every(group => state.expandedPjIds.has(group.pjLabel));
+      button.dataset.expandState = allExpanded ? 'expanded' : 'collapsed';
+      button.textContent = allExpanded ? 'Tutup semua' : 'Buka semua';
+      button.disabled = !groups.length;
+    }
+
+    function syncActionToolbar() {
+      window.PSUI.syncActionToolbar({
+        toolbarId: 'actionToolbar',
+        toggleId: 'toolbarCollapseToggle',
+        expanded: state.toolbarExpanded
+      });
+    }
+
+    function buildPaginationList(page, totalPages) {
+      const maxNumbers = 10;
+      if (totalPages <= maxNumbers) {
+        return Array.from({ length: totalPages }, (_, i) => i + 1);
+      }
+      const middleSlots = maxNumbers - 2;
+      const pages = [1];
+      let start = Math.max(2, page - Math.floor(middleSlots / 2));
+      let end = start + middleSlots - 1;
+      if (end > totalPages - 1) {
+        end = totalPages - 1;
+        start = end - middleSlots + 1;
+      }
+      if (start > 2) pages.push('...');
+      for (let v = start; v <= end; v++) pages.push(v);
+      if (end < totalPages - 1) pages.push('...');
+      pages.push(totalPages);
+      return pages;
+    }
+
+    function renderPaging(currentPage, totalPages) {
+      const start = Math.max(1, Math.min(currentPage - 4, totalPages - 9));
+      const end = Math.min(totalPages, start + 9);
+      let html = '';
+      for (let p = start; p <= end; p++) {
+        html += `<button ${p === currentPage ? 'class="active"' : ''} data-page="${p}">${p}</button>`;
+      }
+      return html;
+    }
+
+    function renderPagination(total) {
+      const totalPages = Math.max(1, Math.ceil(total / state.pageSize));
+      const markup = total
+        ? `
+          <div class="paging">
+            <div class="page-center">
+              <div class="page-numbers">
+                ${renderPaging(state.page, totalPages)}
+              </div>
+              <div class="page-summary">Halaman ${state.page} dari ${totalPages} | total ${total} data</div>
+            </div>
+          </div>
+        `
+        : '';
+      window.PSUI.syncPaginationHosts({ markup, visibleCount: Math.min(state.pageSize, total), totalCount: total, topId: 'paginationTop', bottomId: 'paginationBottom' });
+    }
+
+    function renderList() {
+      const allActivities = getVisibleActivities();
+      const allGroups = state.viewMode === 'jabatan' ? buildPjGroups(allActivities) : [];
+      const allLampiranEntries = state.viewMode === 'lampiran' ? buildLampiranEntries(allActivities) : [];
+      const total = state.viewMode === 'activity' ? allActivities.length : (state.viewMode === 'jabatan' ? allGroups.length : allLampiranEntries.length);
+      const totalPages = Math.max(1, Math.ceil(total / state.pageSize));
+      if (state.page > totalPages) state.page = totalPages;
+
+      const start = (state.page - 1) * state.pageSize;
+      const end = start + state.pageSize;
+      const activities = state.viewMode === 'activity' ? allActivities.slice(start, end) : allActivities;
+      const groups = state.viewMode === 'jabatan' ? allGroups.slice(start, end) : allGroups;
+      const lampiranEntries = state.viewMode === 'lampiran' ? allLampiranEntries.slice(start, end) : allLampiranEntries;
+
+      const target = document.getElementById('list');
+      syncExpandButton(activities, groups);
+      document.getElementById('lampiranGlobalToolbar').hidden = state.viewMode !== 'lampiran';
+      document.getElementById('viewTitle').textContent = state.viewMode === 'activity' ? 'Preview per kegiatan' : (state.viewMode === 'jabatan' ? 'Preview per PJ' : 'Preview per lampiran/ketentuan');
+      document.getElementById('viewSummaryText').textContent = state.viewMode === 'activity'
+        ? `Menampilkan ${activities.length} dari ${allActivities.length} kegiatan setelah filter diterapkan.`
+        : state.viewMode === 'jabatan'
+          ? `Menampilkan ${groups.length} dari ${allGroups.length} penanggung jawab dari ${allActivities.length} kegiatan setelah filter diterapkan.`
+          : `Menampilkan ${lampiranEntries.length} dari ${allLampiranEntries.length} lampiran/ketentuan dari ${allActivities.length} kegiatan setelah filter diterapkan.`;
+      target.innerHTML = state.viewMode === 'activity' ? renderActivityList(activities) : (state.viewMode === 'jabatan' ? renderPjList(groups) : renderLampiranEntryList(lampiranEntries));
+      renderPagination(total);
+      window.PSUI.syncScrollButtons();
+    }
+
+    function mountShell(session) {
+      return window.PSShell.mount({
+        currentPage: window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : '/pages/kegiatanSop/',
+        session,
+        getStoredSession,
+        storageKey: STORAGE.session
+      });
+    }
+
+    async function api(action, payload = {}, method = 'GET') {
+      const token = getToken();
+      if (!token) {
+        clearSession();
+        window.location.replace('/pages/login/');
+        throw new Error('Sesi tidak ditemukan.');
+      }
+      const response = method === 'GET'
+        ? await fetch(`${API_BASE}?${toParams({ action, token, ...payload }).toString()}`)
+        : await fetch(API_BASE, { method, body: toParams({ action, token, ...payload }) });
+      const json = await response.json();
+      if (!json.ok) {
+        const error = new Error(json.error?.message ? `Server mengatakan: ${json.error.message}` : 'Permintaan gagal.');
+        error.code = json.error?.code || response.status || 500;
+        if (error.code === 401) {
+          clearSession();
+          window.location.replace('/pages/login/');
+        }
+        throw error;
+      }
+      return json.data;
+    }
+
+    async function loadAllActivities() {
+      const items = [];
+      let page = 1;
+      let totalPages = 1;
+
+      while (page <= totalPages) {
+        const data = await api('kegiatanSop.list', {
+          page,
+          pageSize: 100,
+          sort: 'updated_desc'
+        });
+        items.push(...((data.items || []).map(normalizeActivityRecord)));
+        totalPages = Number(data.totalPages || 1);
+        page += 1;
+      }
+
+      return items;
+    }
+
+    async function loadData() {
+      showNotice('Memuat kegiatan operasional dan SOP...', 'info');
+      try {
+        const [items, refs] = await Promise.all([
+          loadAllActivities(),
+          api('references', { sheetKey: 'kegiatanSop' })
+        ]);
+        state.items = items;
+        state.refs.jabatan = normalizeJabatanRefs(refs.jabatan || []);
+        pruneExpandedState();
+        syncSopPjSuggestions();
+        renderList();
+        clearNotice();
+      } catch (error) {
+        showNotice(error.message || 'Gagal memuat data kegiatan SOP.', 'error');
+      }
+    }
+
+    function syncSopPjSuggestions() {
+      const seen = new Set(state.refs.jabatan.map(j => j.name));
+      state.items.forEach(item => {
+        item.pjLabels.forEach(label => { if (label) seen.add(label); });
+        if (Array.isArray(item.jabatanUtama)) item.jabatanUtama.forEach(v => { if (v) seen.add(v); });
+      });
+      const options = Array.from(seen).sort((a, b) => a.localeCompare(b, 'id'))
+        .map(name => `<option value="${escapeHtml(name)}"></option>`).join('');
+      const pjList = document.getElementById('sopPjList');
+      if (pjList) pjList.innerHTML = options;
+      const utamaList = document.getElementById('jabatanUtamaList');
+      if (utamaList) utamaList.innerHTML = options;
+    }
+
+    function renderDialogItems() {
+      const container = document.getElementById('sopItemList');
+      if (!container) return;
+      if (!state.dialogItems.length) {
+        container.innerHTML = `<p style="margin:6px 0;color:var(--page-muted);font-size:13px;">Belum ada item SOP. Gunakan form di atas untuk menambahkan.</p>`;
+        return;
+      }
+      const last = state.dialogItems.length - 1;
+      container.innerHTML = `
+        <table class="sop-items-table">
+          <thead><tr><th class="col-order"></th><th class="col-waktu">Waktu</th><th class="col-pj">PJ</th><th>SOP / Tugas</th><th class="col-del"></th></tr></thead>
+          <tbody>
+            ${state.dialogItems.map((si, idx) => `
+              <tr>
+                <td class="col-order">
+                  <button type="button" class="secondary" data-move-up="${idx}" ${idx === 0 ? 'disabled' : ''}>↑</button>
+                  <button type="button" class="secondary" data-move-down="${idx}" ${idx === last ? 'disabled' : ''}>↓</button>
+                </td>
+                <td class="col-waktu">${escapeHtml(si.waktu || '-')}</td>
+                <td class="col-pj">${escapeHtml(si.pjLabel || '-')}</td>
+                <td>${escapeHtml(si.sopText || '-')}</td>
+                <td class="col-del"><button type="button" class="danger" data-delete-item="${idx}">×</button></td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+
+    function renderPjUtamaChips() {
+      const wrap = document.getElementById('pjUtamaWrap');
+      const input = document.getElementById('pjUtamaInput');
+      if (!wrap || !input) return;
+      const existingChips = wrap.querySelectorAll('.chip-tag');
+      existingChips.forEach(el => el.remove());
+      state.pjUtamaChips.forEach((chip, idx) => {
+        const tag = document.createElement('span');
+        tag.className = 'chip-tag';
+        tag.innerHTML = `${escapeHtml(chip)}<button type="button" aria-label="Hapus ${escapeHtml(chip)}" data-idx="${idx}">×</button>`;
+        tag.querySelector('button').addEventListener('click', () => {
+          state.pjUtamaChips.splice(idx, 1);
+          renderPjUtamaChips();
+        });
+        wrap.insertBefore(tag, input);
+      });
+    }
+
+    function addPjUtamaChip(value) {
+      const v = value.trim();
+      if (!v || state.pjUtamaChips.includes(v)) return;
+      state.pjUtamaChips.push(v);
+      renderPjUtamaChips();
+    }
+
+    function addSopItem() {
+      const waktu = document.getElementById('sopWaktu').value.trim();
+      const pj = document.getElementById('sopPj').value.trim();
+      const sop = document.getElementById('sopText').value.trim();
+      if (!sop) {
+        showNotice('Kolom SOP wajib diisi.', 'error');
+        return;
+      }
+      state.dialogItems.push({ pjLabel: pj, waktu, sopText: sop });
+      renderDialogItems();
+      document.getElementById('sopWaktu').value = '';
+      document.getElementById('sopPj').value = '';
+      document.getElementById('sopText').value = '';
+      document.getElementById('sopWaktu').focus();
+    }
+
+    function showHistoryDialog(subtitle, record) {
+      document.getElementById('editHistorySubtitle').textContent = subtitle;
+      const history = (() => {
+        try { return JSON.parse((record || {}).edit_history || '[]'); } catch (_) { return []; }
+      })();
+      const formatDate = iso => {
+        if (!iso) return '-';
+        const d = new Date(iso);
+        return isNaN(d) ? iso : d.toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
+      };
+      const actionLabel = a => a === 'create' ? 'Dibuat' : 'Diedit';
+      const rows = history.map((entry, i) => `
+        <div class="edit-history-entry">
+          <div class="edit-history-order">#${i + 1}</div>
+          <div class="edit-history-info">
+            <div class="edit-history-name">${escapeHtml(entry.name || '-')}</div>
+            ${entry.jabatan ? `<div class="edit-history-jabatan">${escapeHtml(entry.jabatan)}</div>` : ''}
+            <div class="edit-history-meta">${actionLabel(entry.action)} &bull; ${escapeHtml(formatDate(entry.at))}</div>
+          </div>
+        </div>
+      `).join('');
+      document.getElementById('editHistoryList').innerHTML = rows ||
+        '<p class="edit-history-empty">Belum ada riwayat pengedit tersimpan.</p>';
+      document.getElementById('editHistoryDialog').showModal();
+    }
+
+    function showEditHistory(item) {
+      showHistoryDialog(item.name || '-', item.record || null);
+    }
+
+    function showSopHistory(sopId) {
+      let found = null;
+      state.items.forEach(activity => {
+        if (!found) found = activity.sopItems.find(si => si.id === sopId) || null;
+      });
+      if (!found) return;
+      const label = [found.waktu, found.pjLabel, found.sopText].filter(Boolean).join(' · ');
+      showHistoryDialog(label || 'Item SOP', found.record || null);
+    }
+
+    function openDialog(item) {
+      const form = document.getElementById('form').elements;
+      const record = item || {};
+      document.getElementById('dialogTitle').textContent = record.id ? 'Edit Kegiatan Operasional' : 'Tambah Kegiatan Operasional';
+      form.namedItem('id').value = record.id || '';
+      form.namedItem('name').value = record.name || '';
+      form.namedItem('status').value = record.statusKey || 'active';
+      state.pjUtamaChips = Array.isArray(record.jabatanUtama) ? [...record.jabatanUtama] : [];
+      renderPjUtamaChips();
+      form.namedItem('description').value = record.description || '';
+      state.dialogItems = (record.sopItems || []).map(si => ({
+        pjLabel: si.pjLabel || '',
+        waktu: si.waktu || '',
+        sopText: si.sopText || ''
+      }));
+      renderDialogItems();
+      document.getElementById('sopWaktu').value = '';
+      document.getElementById('sopPj').value = '';
+      document.getElementById('sopText').value = '';
+      document.getElementById('dialog').showModal();
+    }
+
+    async function saveForm(event) {
+      event.preventDefault();
+      const fields = event.currentTarget.elements;
+      if (!fields.namedItem('name').value.trim()) {
+        showNotice('Nama kegiatan wajib diisi.', 'error');
+        return;
+      }
+      const record = {
+        id: fields.namedItem('id').value.trim(),
+        name: fields.namedItem('name').value.trim(),
+        status: fields.namedItem('status').value,
+        jabatan_utama: JSON.stringify(state.pjUtamaChips),
+        description: fields.namedItem('description').value.trim(),
+        items: state.dialogItems.map((si, i) => ({
+          pj_label: si.pjLabel,
+          waktu: si.waktu,
+          sop_text: si.sopText,
+          urutan: String(i + 1)
+        }))
+      };
+      try {
+        showNotice('Menyimpan kegiatan operasional...', 'info');
+        await api('kegiatanSop.save', { record }, 'POST');
+        document.getElementById('dialog').close();
+        await loadData();
+        await issuePanelController.load();
+        showNotice('Kegiatan operasional berhasil disimpan.', 'info');
+      } catch (error) {
+        showNotice(error.message || 'Gagal menyimpan kegiatan operasional.', 'error');
+      }
+    }
+
+    async function toggleItemStatus(id) {
+      const item = state.items.find(entry => entry.id === id);
+      if (!item) return;
+      try {
+        await api('kegiatanSop.toggle', {
+          id,
+          active: item.statusKey !== 'active'
+        }, 'POST');
+        await loadData();
+        await issuePanelController.load();
+      } catch (error) {
+        showNotice(error.message || 'Gagal mengubah status kegiatan.', 'error');
+      }
+    }
+
+    async function deleteItem(id) {
+      const item = state.items.find(entry => entry.id === id);
+      if (!item) return;
+      if (!confirm(`Hapus kegiatan "${item.name}"?`)) return;
+      try {
+        await api('kegiatanSop.delete', { id }, 'POST');
+        await loadData();
+        await issuePanelController.load();
+      } catch (error) {
+        showNotice(error.message || 'Gagal menghapus kegiatan.', 'error');
+      }
+    }
+
+    function toggleExpandCurrentView() {
+      const activities = getVisibleActivities();
+      const groups = buildPjGroups(activities);
+      if (state.viewMode === 'activity') {
+        const allExpanded = activities.length > 0 && activities.every(item => state.expandedActivityIds.has(item.id));
+        if (allExpanded) state.expandedActivityIds.clear();
+        else activities.forEach(item => state.expandedActivityIds.add(item.id));
+      } else {
+        const allExpanded = groups.length > 0 && groups.every(group => state.expandedPjIds.has(group.pjLabel));
+        if (allExpanded) state.expandedPjIds.clear();
+        else groups.forEach(group => state.expandedPjIds.add(group.pjLabel));
+      }
+      renderList();
+    }
+
+    function toggleActionToolbar() {
+      state.toolbarExpanded = !state.toolbarExpanded;
+      syncActionToolbar();
+    }
+
+    function buildPdfPayload() {
+      const activities = getVisibleActivities();
+      const groups = buildPjGroups(activities);
+      const exportedAt = new Date().toISOString();
+
+      const activityItems = activities.map(item => ({
+        title: item.name || 'Tanpa nama kegiatan',
+        badges: [
+          item.status || '-',
+          item.jabatanUtamaLabel ? `PJ utama: ${item.jabatanUtamaLabel}` : 'Belum ada PJ utama',
+          `${item.sopItems.length} item SOP`
+        ],
+        lines: [
+          item.description ? `Deskripsi: ${item.description}` : 'Belum ada deskripsi kegiatan.',
+          item.pjLabels.length ? `PJ: ${item.pjLabels.join(', ')}` : 'PJ: Belum ada.',
+          ...(item.sopItems.length
+            ? item.sopItems.map((si, idx) => `${idx + 1}. [${si.waktu || '-'}] ${si.pjLabel || '-'}: ${si.sopText || '-'}`)
+            : ['Belum ada item SOP.'])
+        ]
+      }));
+
+      const pjItems = groups.map(group => ({
+        title: group.pjLabel,
+        badges: [
+          `${group.kegiatan.length} kegiatan`,
+          `${group.kegiatan.reduce((acc, k) => acc + k.tasks.length, 0)} tugas`
+        ],
+        lines: group.kegiatan.flatMap(k => [
+          `[${k.namaKegiatan}]`,
+          ...k.tasks.map(t => `  ${t.waktu ? `[${t.waktu}] ` : ''}${t.sopText || '-'}`)
+        ])
+      }));
+
+      return {
+        title: 'Kegiatan Operasional & SOP',
+        subtitle: `${activities.length} kegiatan | ${groups.length} jabatan terlibat`,
+        exportedAt,
+        summaryText: '',
+        items: [
+          { isSection: true, title: 'Per Kegiatan', lines: [`${activities.length} kegiatan terdaftar`] },
+          ...activityItems,
+          { isSection: true, title: 'Per Pengurus (PJ)', lines: [`${groups.length} jabatan terlibat`] },
+          ...pjItems
+        ]
+      };
+    }
+
+    function downloadCurrentPdf() {
+      try {
+        const payload = buildPdfPayload();
+        const blob = window.PSExport.buildCardSummaryPdfBlob({
+          title: payload.title,
+          subtitle: payload.subtitle,
+          exportedAt: payload.exportedAt,
+          summaryText: payload.summaryText,
+          items: payload.items,
+          columns: 1,
+          emptyText: 'Tidak ada data yang cocok untuk diexport.'
+        });
+        const exportedAt = payload.exportedAt;
+        const filename = `kegiatan-sop-lengkap-${window.PSExport.formatExportFileTimestamp(exportedAt)}.pdf`;
+        window.PSExport.downloadBlobFile(blob, filename);
+      } catch (error) {
+        showNotice(error.message || 'Gagal membuat PDF kegiatan SOP.', 'error');
+      }
+    }
+
+    async function handleExportExcel() {
+      try {
+        await window.PSExcel.exportDatasets(api, [DATASET_KEY], 'kegiatan-sop.xlsx');
+      } catch (error) {
+        showNotice(error.message || 'Gagal export Excel kegiatan SOP.', 'error');
+      }
+    }
+
+    function handleDeleteAll() {
+      if (!canDeleteRecords()) {
+        showNotice('Hapus semua kegiatan hanya untuk Super Admin.', 'error');
+        return;
+      }
+      const input = document.getElementById('deleteAllKegiatanInput');
+      input.value = '';
+      document.getElementById('confirmDeleteAllKegiatanButton').disabled = true;
+      document.getElementById('deleteAllKegiatanDialog').showModal();
+      input.focus();
+    }
+
+    async function executeDeleteAll() {
+      try {
+        showNotice('Memuat daftar kegiatan...', 'info');
+        const data = await api('kegiatanSop.list', { page: 1, pageSize: 100000 });
+        const allItems = Array.isArray(data?.items) ? data.items : [];
+        const ids = allItems.map(item => item.id).filter(Boolean);
+        if (!ids.length) {
+          showNotice('Tidak ada kegiatan yang perlu dihapus.', 'info');
+          return;
+        }
+        await api('bulk.delete', { sheetKey: DATASET_KEY, ids }, 'POST');
+        await loadData();
+        showNotice(`${ids.length} kegiatan SOP berhasil dihapus.`, 'info');
+      } catch (error) {
+        showNotice(error.message || 'Gagal menghapus semua kegiatan SOP.', 'error');
+      }
+    }
+
+    async function handleDownloadTemplate() {
+      try {
+        await window.PSExcel.downloadTemplate(api, DATASET_KEY);
+      } catch (error) {
+        showNotice(error.message || 'Gagal menyiapkan template Excel.', 'error');
+      }
+    }
+
+    function handleImportRequest() {
+      document.getElementById('importExcelInput').click();
+    }
+
+    async function handleImportChange(event) {
+      const file = event.target.files && event.target.files[0];
+      event.target.value = '';
+      if (!file) return;
+      try {
+        showNotice('Mengimpor Excel kegiatan SOP...', 'info');
+        await window.PSExcel.importDataset(api, DATASET_KEY, file, {
+          onProgress(done, total) {
+            showNotice(`Import kegiatan SOP ${done}/${total}...`, 'info');
+          }
+        });
+        await loadData();
+        await issuePanelController.load();
+        showNotice('Import kegiatan SOP selesai.', 'info');
+      } catch (error) {
+        showNotice(error.message || 'Gagal import Excel kegiatan SOP.', 'error');
+      }
+    }
+
+    function syncToolbarAccess() {
+      const canUseExcel = canUseExcelTools();
+      const canDelete = canDeleteRecords();
+      document.getElementById('downloadTemplateButton').hidden = !canDelete;
+      document.getElementById('importExcelButton').hidden = !canDelete;
+      document.getElementById('exportExcelButton').hidden = !canUseExcel;
+      document.getElementById('deleteAllButton').hidden = !canDelete;
+      syncActionToolbar();
+    }
+
+    const issuePanelController = createIssuePanelController(api, {
+      issueConfig: ISSUE_GROUP_CONFIG
+    });
+
+    const session = getStoredSession();
+    if (!session) {
+      clearSession();
+      window.location.replace('/pages/login/');
+    } else if (window.PSAccess && window.PSAccess.redirectIfForbidden(session, '/pages/kegiatanSop/')) {
+      // redirected
+    } else {
+      mountShell(session);
+      syncToolbarAccess();
+      syncAdvancedFiltersVisibility();
+      syncActionToolbar();
+
+      document.getElementById('searchInput').addEventListener('input', () => { state.page = 1; renderList(); });
+      document.getElementById('statusFilter').addEventListener('change', () => { state.page = 1; renderList(); });
+      document.getElementById('sortSelect').addEventListener('change', () => { state.page = 1; renderList(); });
+      document.getElementById('pageSizeSelect').addEventListener('change', event => {
+        state.pageSize = Number(event.target.value);
+        state.page = 1;
+        renderList();
+      });
+      document.getElementById('refreshButton').addEventListener('click', async () => {
+        await loadData();
+        await issuePanelController.load();
+      });
+      document.getElementById('addButton').addEventListener('click', () => openDialog());
+      document.getElementById('toggleExpandButton').addEventListener('click', toggleExpandCurrentView);
+      document.getElementById('toolbarCollapseToggle').addEventListener('click', toggleActionToolbar);
+      document.getElementById('downloadPdfButton').addEventListener('click', downloadCurrentPdf);
+      document.getElementById('downloadTemplateButton').addEventListener('click', handleDownloadTemplate);
+      document.getElementById('importExcelButton').addEventListener('click', handleImportRequest);
+      document.getElementById('exportExcelButton').addEventListener('click', handleExportExcel);
+      document.getElementById('deleteAllButton').addEventListener('click', handleDeleteAll);
+      document.getElementById('deleteAllKegiatanInput').addEventListener('input', event => {
+        document.getElementById('confirmDeleteAllKegiatanButton').disabled = event.target.value.trim() !== 'HAPUS SEMUA';
+      });
+      document.getElementById('deleteAllKegiatanForm').addEventListener('submit', event => {
+        event.preventDefault();
+        if (document.getElementById('deleteAllKegiatanInput').value.trim() !== 'HAPUS SEMUA') return;
+        document.getElementById('deleteAllKegiatanDialog').close();
+        executeDeleteAll();
+      });
+      document.getElementById('cancelDeleteAllKegiatanButton').addEventListener('click', () => {
+        document.getElementById('deleteAllKegiatanDialog').close();
+      });
+      document.getElementById('importExcelInput').addEventListener('change', handleImportChange);
+      document.addEventListener('click', event => {
+        const pageAttr = event.target.getAttribute('data-page');
+        if (!pageAttr) return;
+        const nextPage = Number(pageAttr);
+        if (!nextPage || nextPage === state.page) return;
+        const allActivities = getVisibleActivities();
+        const allGroups = state.viewMode === 'jabatan' ? buildPjGroups(allActivities) : [];
+        const allLampiranEntries = state.viewMode === 'lampiran' ? buildLampiranEntries(allActivities) : [];
+        const total = state.viewMode === 'activity' ? allActivities.length : (state.viewMode === 'jabatan' ? allGroups.length : allLampiranEntries.length);
+        const totalPages = Math.max(1, Math.ceil(total / state.pageSize));
+        if (nextPage < 1 || nextPage > totalPages) return;
+        state.page = nextPage;
+        renderList();
+        document.getElementById('list').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+
+      document.getElementById('viewSwitch').addEventListener('click', event => {
+        const button = event.target.closest('[data-view-mode]');
+        if (!button) return;
+        state.viewMode = button.getAttribute('data-view-mode');
+        state.page = 1;
+        document.querySelectorAll('#viewSwitch [data-view-mode]').forEach(item => {
+          item.classList.toggle('active', item === button);
+        });
+        renderList();
+      });
+      document.getElementById('closeDialogButton').addEventListener('click', () => {
+        document.getElementById('dialog').close();
+      });
+      document.getElementById('closeSopOverviewButton').addEventListener('click', () => {
+        document.getElementById('sopOverviewDialog').close();
+      });
+      document.getElementById('closeLampiranViewButton').addEventListener('click', () => {
+        document.getElementById('lampiranViewDialog').close();
+      });
+      document.getElementById('form').addEventListener('submit', saveForm);
+      document.getElementById('addSopItemButton').addEventListener('click', addSopItem);
+      document.getElementById('pjUtamaInput').addEventListener('keydown', event => {
+        if (event.key === 'Enter' || event.key === ',') {
+          event.preventDefault();
+          addPjUtamaChip(event.target.value);
+          event.target.value = '';
+        }
+      });
+      document.getElementById('pjUtamaInput').addEventListener('blur', event => {
+        if (event.target.value.trim()) {
+          addPjUtamaChip(event.target.value);
+          event.target.value = '';
+        }
+      });
+      document.getElementById('pjUtamaWrap').addEventListener('click', () => {
+        document.getElementById('pjUtamaInput').focus();
+      });
+      document.getElementById('sopText').addEventListener('keydown', event => {
+        if (event.key === 'Enter') { event.preventDefault(); addSopItem(); }
+      });
+      document.getElementById('sopItemList').addEventListener('click', event => {
+        const delBtn = event.target.closest('[data-delete-item]');
+        if (delBtn) {
+          const idx = Number(delBtn.getAttribute('data-delete-item'));
+          state.dialogItems.splice(idx, 1);
+          renderDialogItems();
+          return;
+        }
+        const upBtn = event.target.closest('[data-move-up]');
+        if (upBtn) {
+          const idx = Number(upBtn.getAttribute('data-move-up'));
+          if (idx > 0) {
+            [state.dialogItems[idx - 1], state.dialogItems[idx]] = [state.dialogItems[idx], state.dialogItems[idx - 1]];
+            renderDialogItems();
+          }
+          return;
+        }
+        const downBtn = event.target.closest('[data-move-down]');
+        if (downBtn) {
+          const idx = Number(downBtn.getAttribute('data-move-down'));
+          if (idx < state.dialogItems.length - 1) {
+            [state.dialogItems[idx], state.dialogItems[idx + 1]] = [state.dialogItems[idx + 1], state.dialogItems[idx]];
+            renderDialogItems();
+          }
+        }
+      });
+      document.getElementById('list').addEventListener('click', event => {
+        const collapseActivityTarget = event.target.closest('[data-collapse]');
+        const collapsePjTarget = event.target.closest('[data-collapse-pj]');
+        const expandPjButton = event.target.closest('[data-expand-pj]');
+        const editButton = event.target.closest('[data-edit]');
+        const historyButton = event.target.closest('[data-history]');
+        const sopHistoryButton = event.target.closest('[data-sop-history]');
+        const lampiranButton = event.target.closest('[data-lampiran]');
+        const toggleStatusButton = event.target.closest('[data-toggle-status]');
+        const deleteButton = event.target.closest('[data-delete]');
+        const showSopButton = event.target.closest('[data-show-sop]');
+        const lampiranPageViewButton = event.target.closest('[data-lampiran-page-view]');
+        const lampiranPageOpenButton = event.target.closest('[data-lampiran-page-open]');
+        const lampiranPageDeleteButton = event.target.closest('[data-lampiran-page-delete]');
+
+        if (collapseActivityTarget) {
+          const id = collapseActivityTarget.getAttribute('data-collapse');
+          if (state.expandedActivityIds.has(id)) state.expandedActivityIds.delete(id);
+          else state.expandedActivityIds.add(id);
+          renderList();
+          return;
+        }
+
+        if (collapsePjTarget) {
+          const pjLabel = collapsePjTarget.getAttribute('data-collapse-pj');
+          if (state.expandedPjIds.has(pjLabel)) state.expandedPjIds.delete(pjLabel);
+          else state.expandedPjIds.add(pjLabel);
+          renderList();
+          return;
+        }
+
+        if (expandPjButton) {
+          const pjLabel = expandPjButton.getAttribute('data-expand-pj');
+          if (state.expandedPjIds.has(pjLabel)) state.expandedPjIds.delete(pjLabel);
+          else state.expandedPjIds.add(pjLabel);
+          renderList();
+          return;
+        }
+
+        if (editButton) {
+          const id = editButton.getAttribute('data-edit');
+          const item = state.items.find(entry => entry.id === id);
+          if (item) openDialog(item);
+          return;
+        }
+
+        if (historyButton) {
+          const id = historyButton.getAttribute('data-history');
+          const item = state.items.find(entry => entry.id === id);
+          if (item) showEditHistory(item);
+          return;
+        }
+
+        if (sopHistoryButton) {
+          showSopHistory(sopHistoryButton.getAttribute('data-sop-history'));
+          return;
+        }
+
+        if (lampiranButton) {
+          openLampiranListDialog(lampiranButton.getAttribute('data-lampiran'));
+          return;
+        }
+
+        if (toggleStatusButton) {
+          toggleItemStatus(toggleStatusButton.getAttribute('data-toggle-status'));
+          return;
+        }
+
+        if (deleteButton) {
+          deleteItem(deleteButton.getAttribute('data-delete'));
+          return;
+        }
+
+        if (showSopButton) {
+          openSopOverviewDialog(showSopButton.getAttribute('data-show-sop'));
+          return;
+        }
+
+        if (lampiranPageViewButton) {
+          const id = lampiranPageViewButton.getAttribute('data-lampiran-page-view');
+          const idKegiatan = lampiranPageViewButton.getAttribute('data-lampiran-page-kegiatan');
+          const kegiatan = state.items.find(i => i.id === idKegiatan);
+          const item = kegiatan ? (kegiatan.lampiranItems || []).find(l => l.id === id) : null;
+          if (item) openLampiranViewDialog(item);
+          return;
+        }
+
+        if (lampiranPageOpenButton) {
+          const id = lampiranPageOpenButton.getAttribute('data-lampiran-page-open');
+          const idKegiatan = lampiranPageOpenButton.getAttribute('data-lampiran-page-kegiatan');
+          const kegiatan = state.items.find(i => i.id === idKegiatan);
+          const item = kegiatan ? (kegiatan.lampiranItems || []).find(l => l.id === id) : null;
+          if (item) {
+            state.lampiranContext = 'global';
+            state.lampiranKegiatanId = idKegiatan;
+            openLampiranFormDialog(item);
+          }
+          return;
+        }
+
+        if (lampiranPageDeleteButton) {
+          const id = lampiranPageDeleteButton.getAttribute('data-lampiran-page-delete');
+          const idKegiatan = lampiranPageDeleteButton.getAttribute('data-lampiran-page-kegiatan');
+          state.lampiranContext = 'global';
+          state.lampiranKegiatanId = idKegiatan;
+          deleteLampiran(id);
+        }
+      });
+      document.getElementById('list').addEventListener('keydown', event => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        const collapseActivityTarget = event.target.closest('[data-collapse]');
+        const collapsePjTarget = event.target.closest('[data-collapse-pj]');
+        const lampiranOpenTarget = event.target.closest('[data-lampiran-page-open]');
+        if (!collapseActivityTarget && !collapsePjTarget && !lampiranOpenTarget) return;
+        event.preventDefault();
+        event.target.click();
+      });
+
+      window.addEventListener('load', async () => {
+        await loadData();
+        await issuePanelController.load();
+      });
+    }
+
+    // ── LAMPIRAN ──────────────────────────────────────────────────
+    state.lampiranKegiatanId = null;
+    state.lampiranItems = [];
+    state.lampiranEditId = null;
+    state.lampiranActiveTab = 'semua';
+    state.lampiranContext = 'kegiatan';
+    let lampiranQuill = null;
+
+    const LAMPIRAN_JENIS_LABEL = { ketentuan: 'Ketentuan', lampiran: 'Lampiran' };
+
+    function renderLampiranTabs() {
+      const bar = document.getElementById('lampiranTabBar');
+      if (!bar) return;
+      const items = state.lampiranItems;
+      const counts = {
+        semua: items.length,
+        ketentuan: items.filter(i => i.jenis === 'ketentuan').length,
+        lampiran: items.filter(i => i.jenis === 'lampiran').length
+      };
+      bar.querySelectorAll('.lampiran-tab-btn').forEach(btn => {
+        const tab = btn.getAttribute('data-lampiran-tab');
+        const label = tab === 'semua' ? 'Semua' : LAMPIRAN_JENIS_LABEL[tab];
+        btn.textContent = `${label} (${counts[tab]})`;
+        btn.classList.toggle('active', state.lampiranActiveTab === tab);
+      });
+    }
+
+    function renderLampiranList(items) {
+      const container = document.getElementById('lampiranListContainer');
+      if (!container) return;
+      renderLampiranTabs();
+      const filtered = state.lampiranActiveTab === 'semua'
+        ? items
+        : items.filter(item => item.jenis === state.lampiranActiveTab);
+      if (!filtered.length) {
+        container.innerHTML = '<p style="font-size:13px;opacity:.65;padding:6px 0;">Belum ada lampiran / ketentuan untuk kategori ini.</p>';
+        return;
+      }
+      container.innerHTML = filtered.map(item => `
+        <article class="lampiran-item">
+          <div class="lampiran-item-head">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <strong>${escapeHtml(item.nama)}</strong>
+              <span class="lampiran-jenis-badge${item.jenis ? '' : ' is-empty'}">${item.jenis ? LAMPIRAN_JENIS_LABEL[item.jenis] : 'Belum dikategorikan'}</span>
+            </div>
+            <div class="lampiran-item-actions">
+              <button class="secondary" type="button" data-lampiran-edit="${escapeHtml(item.id)}">Edit</button>
+              ${canDeleteRecords() ? `<button class="danger" type="button" data-lampiran-delete="${escapeHtml(item.id)}">Hapus</button>` : ''}
+            </div>
+          </div>
+          ${item.isi ? `<div class="lampiran-isi-preview ql-editor">${item.isi}</div>` : ''}
+        </article>
+      `).join('');
+    }
+
+    function openLampiranViewDialog(entry) {
+      document.getElementById('lampiranViewTitle').textContent = entry.nama;
+      document.getElementById('lampiranViewContent').innerHTML = entry.isi
+        ? `<div class="lampiran-isi-preview ql-editor">${entry.isi}</div>`
+        : '<p style="font-size:13px;opacity:.65;">Belum ada isi.</p>';
+      document.getElementById('lampiranViewDialog').showModal();
+    }
+
+    async function openLampiranListDialog(kegiatanId) {
+      const kegiatan = state.items.find(i => i.id === kegiatanId);
+      if (!kegiatan) return;
+      state.lampiranContext = 'kegiatan';
+      state.lampiranKegiatanId = kegiatanId;
+      state.lampiranActiveTab = 'semua';
+      document.getElementById('lampiranListTitle').textContent = `Lampiran / Ketentuan: ${kegiatan.name}`;
+      try {
+        const data = await api('kegiatanSopLampiran.list', { id_kegiatan: kegiatanId });
+        state.lampiranItems = data.items || [];
+        renderLampiranList(state.lampiranItems);
+      } catch (err) {
+        showNotice(err.message || 'Gagal memuat lampiran / ketentuan.', 'error');
+        state.lampiranItems = [];
+        renderLampiranList([]);
+      }
+      document.getElementById('lampiranListDialog').showModal();
+    }
+
+    function destroyLampiranQuill() {
+      lampiranQuill = null;
+      const wrap = document.querySelector('.lampiran-editor-wrap');
+      if (wrap) wrap.innerHTML = '<div id="lampiranFormEditor"></div>';
+    }
+
+    function openLampiranFormDialog(existingItem) {
+      state.lampiranEditId = existingItem ? existingItem.id : null;
+      document.getElementById('lampiranFormTitle').textContent = existingItem ? 'Edit Lampiran / Ketentuan' : 'Tambah Lampiran / Ketentuan';
+      document.getElementById('lampiranNamaInput').value = existingItem ? existingItem.nama : '';
+      const kegiatanSelectWrap = document.getElementById('lampiranKegiatanSelectWrap');
+      if (state.lampiranContext === 'global') {
+        kegiatanSelectWrap.hidden = false;
+        const select = document.getElementById('lampiranKegiatanSelect');
+        select.innerHTML = state.items.slice()
+          .sort((a, b) => a.name.localeCompare(b.name, 'id'))
+          .map(i => `<option value="${escapeHtml(i.id)}">${escapeHtml(i.name)}</option>`).join('');
+        select.value = existingItem ? existingItem.idKegiatan : (state.lampiranKegiatanId || '');
+      } else {
+        kegiatanSelectWrap.hidden = true;
+      }
+      const defaultJenis = LAMPIRAN_JENIS_LABEL[state.lampiranActiveTab] ? state.lampiranActiveTab : 'ketentuan';
+      document.getElementById('lampiranJenisInput').value = existingItem && existingItem.jenis ? existingItem.jenis : defaultJenis;
+      destroyLampiranQuill();
+      lampiranQuill = new Quill('#lampiranFormEditor', {
+        theme: 'snow',
+        modules: {
+          toolbar: [
+            [{ header: [1, 2, 3, 4, false] }],
+            [{ font: [] }, { size: ['small', false, 'large', 'huge'] }],
+            ['bold', 'italic', 'underline', 'strike'],
+            [{ color: [] }, { background: [] }],
+            [{ script: 'sub' }, { script: 'super' }],
+            [{ list: 'ordered' }, { list: 'bullet' }, { indent: '-1' }, { indent: '+1' }],
+            [{ align: [] }, { direction: 'rtl' }],
+            ['blockquote', 'code-block', 'link', 'image', 'video'],
+            ['clean']
+          ]
+        },
+        placeholder: 'Tulis isi lampiran / ketentuan di sini...'
+      });
+      if (existingItem && existingItem.isi) {
+        lampiranQuill.root.innerHTML = existingItem.isi;
+      }
+      document.getElementById('lampiranFormDialog').showModal();
+    }
+
+    async function saveLampiran() {
+      const nama = document.getElementById('lampiranNamaInput').value.trim();
+      if (!nama) { showNotice('Nama lampiran / ketentuan wajib diisi.', 'error'); return; }
+      const jenis = document.getElementById('lampiranJenisInput').value;
+      const isi = lampiranQuill ? lampiranQuill.root.innerHTML : '';
+      const kegiatanId = state.lampiranContext === 'global'
+        ? document.getElementById('lampiranKegiatanSelect').value
+        : state.lampiranKegiatanId;
+      if (!kegiatanId) { showNotice('Pilih kegiatan untuk lampiran / ketentuan ini.', 'error'); return; }
+      try {
+        showNotice('Menyimpan lampiran / ketentuan...', 'info');
+        await api('kegiatanSopLampiran.save', {
+          record: { id: state.lampiranEditId || '', id_kegiatan: kegiatanId, nama, jenis, isi }
+        }, 'POST');
+        document.getElementById('lampiranFormDialog').close();
+        destroyLampiranQuill();
+        if (state.lampiranContext === 'global') {
+          await loadData();
+        } else {
+          const data = await api('kegiatanSopLampiran.list', { id_kegiatan: kegiatanId });
+          state.lampiranItems = data.items || [];
+          renderLampiranList(state.lampiranItems);
+          const entry = state.items.find(i => i.id === kegiatanId);
+          if (entry) { entry.lampiranCount = state.lampiranItems.length; renderList(); }
+        }
+        showNotice('Lampiran / ketentuan berhasil disimpan.', 'info');
+      } catch (err) {
+        showNotice(err.message || 'Gagal menyimpan lampiran / ketentuan.', 'error');
+      }
+    }
+
+    async function deleteLampiran(id) {
+      if (!confirm('Hapus lampiran / ketentuan ini?')) return;
+      const kegiatanId = state.lampiranKegiatanId;
+      try {
+        showNotice('Menghapus lampiran / ketentuan...', 'info');
+        await api('kegiatanSopLampiran.delete', { id }, 'POST');
+        if (state.lampiranContext === 'global') {
+          await loadData();
+        } else {
+          const data = await api('kegiatanSopLampiran.list', { id_kegiatan: kegiatanId });
+          state.lampiranItems = data.items || [];
+          renderLampiranList(state.lampiranItems);
+          const entry = state.items.find(i => i.id === kegiatanId);
+          if (entry) { entry.lampiranCount = state.lampiranItems.length; renderList(); }
+        }
+        clearNotice();
+      } catch (err) {
+        showNotice(err.message || 'Gagal menghapus lampiran / ketentuan.', 'error');
+      }
+    }
+
+    document.getElementById('addLampiranBtn').addEventListener('click', () => {
+      state.lampiranContext = 'kegiatan';
+      openLampiranFormDialog(null);
+    });
+    document.getElementById('addLampiranGlobalBtn').addEventListener('click', () => {
+      state.lampiranContext = 'global';
+      state.lampiranKegiatanId = null;
+      openLampiranFormDialog(null);
+    });
+    document.getElementById('closeLampiranListBtn').addEventListener('click', () => document.getElementById('lampiranListDialog').close());
+    document.getElementById('saveLampiranBtn').addEventListener('click', saveLampiran);
+    document.getElementById('cancelLampiranFormBtn').addEventListener('click', () => {
+      document.getElementById('lampiranFormDialog').close();
+      destroyLampiranQuill();
+    });
+    document.getElementById('closeEditHistoryDialog').addEventListener('click', () => document.getElementById('editHistoryDialog').close());
+
+    document.getElementById('lampiranListContainer').addEventListener('click', event => {
+      const editBtn = event.target.closest('[data-lampiran-edit]');
+      if (editBtn) {
+        const id = editBtn.getAttribute('data-lampiran-edit');
+        const item = state.lampiranItems.find(l => l.id === id);
+        if (item) openLampiranFormDialog(item);
+        return;
+      }
+      const delBtn = event.target.closest('[data-lampiran-delete]');
+      if (delBtn) deleteLampiran(delBtn.getAttribute('data-lampiran-delete'));
+    });
+
+    document.getElementById('lampiranTabBar').addEventListener('click', event => {
+      const tabBtn = event.target.closest('[data-lampiran-tab]');
+      if (!tabBtn) return;
+      state.lampiranActiveTab = tabBtn.getAttribute('data-lampiran-tab');
+      renderLampiranList(state.lampiranItems);
+    });
+    // ── END LAMPIRAN ──────────────────────────────────────────────
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
+    }
+  </script>
+</body>
+</html>

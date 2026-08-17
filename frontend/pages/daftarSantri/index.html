@@ -1,0 +1,3505 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#9e2f22">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+    <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="stylesheet" href="../../shared-ui.css">
+    <script src="../../shared-ui.js"></script>
+  <title>Daftar Santri</title>
+  <link rel="stylesheet" href="../../shared-shell.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700&display=swap');
+    :root {
+      --paper: #f6efe0;
+      --ink: #4d4034;
+      --muted: #7b6a58;
+      --line: rgba(91, 73, 57, 0.15);
+      --accent: #b97650;
+      --success: #74846c;
+      --danger: #a55a52;
+      --warning: #b58439;
+      --shadow: 0 18px 45px rgba(87, 67, 51, 0.18);
+      --radius: 24px;
+    }
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.26;
+    }
+
+    .panel {
+      padding: 22px;
+    }
+
+    h1, h2, h3 {
+      margin: 0 0 10px;
+    }
+
+    p { margin: 0; line-height: 1.65; }
+
+    .eyebrow {
+      display: inline-block;
+      margin-bottom: 12px;
+      padding: 7px 12px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .nav {
+      display: grid;
+      gap: 10px;
+    }
+
+    .nav a {
+      padding: 12px 14px;
+      text-decoration: none;
+    }
+
+    .toolbar, .meta, .paging {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .filters {
+      display: grid;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    button, input, select, textarea {
+      font: inherit;
+    }
+
+    button {
+      padding: 12px 18px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .primary {
+      box-shadow: 0 14px 28px rgba(185, 118, 80, 0.22);
+    }
+
+    input, select, textarea {
+      width: 100%;
+      padding: 13px 14px;
+      outline: none;
+    }
+    label {
+      display: grid;
+      gap: 7px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .card {
+      padding: 16px;
+    }
+
+    .pill {
+      display: inline-flex;
+      padding: 7px 11px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .pill.male {
+      background: #333;
+      color: #7ecfff;
+      display: none;
+    }
+
+    .pill.female {
+      background: #333;
+      color: #ffb3d9;
+      display: none;
+    }
+
+    .minimal-list-card.row-male            { background: #ddeeff; border-color: rgba(70,130,180,0.25); }
+    .minimal-list-card.row-female          { background: #ffe4f0; border-color: rgba(200,100,140,0.25); }
+    .minimal-list-card.row-male-inactive   { background: linear-gradient(135deg, #888 0%, #cce6ff 100%); border-color: rgba(70,130,180,0.25); }
+    .minimal-list-card.row-female-inactive { background: linear-gradient(135deg, #888 0%, #ffd6e8 100%); border-color: rgba(200,100,140,0.25); }
+    .minimal-list-card.row-male-frozen     { background: linear-gradient(135deg, #d0d0d0 0%, #cce6ff 100%); border-color: rgba(70,130,180,0.25); }
+    .minimal-list-card.row-female-frozen   { background: linear-gradient(135deg, #d0d0d0 0%, #ffd6e8 100%); border-color: rgba(200,100,140,0.25); }
+    .minimal-list-card.row-nogender-inactive { background: linear-gradient(135deg, #888 0%, rgba(255,248,230,0.96) 100%); }
+    .minimal-list-card.row-nogender-frozen   { background: linear-gradient(135deg, #d0d0d0 0%, rgba(255,248,230,0.96) 100%); }
+    .minimal-list-card-title-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .minimal-list-card-title-row .pill {
+      flex: 0 0 auto;
+    }
+
+    .notice {
+      display: none;
+      padding: 14px 16px;
+      line-height: 1.55;
+    }
+
+    .notice.show { display: block; }
+
+    dialog {
+      padding: 0;
+    }
+
+    .dialog-body {
+        padding: 22px;
+        display: flex;
+        gap: 14px;
+        max-height: 135vh;
+        overflow: auto;
+        flex-direction: column;
+        justify-content: space-between;
+        height: 100% !important;
+    }
+    details {
+      border: 1px dashed rgba(111, 87, 69, 0.18);
+      border-radius: 18px;
+      padding: 12px 14px;
+      background: rgba(255, 251, 243, 0.72);
+    }
+    summary {
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    .field-grid {
+      display: grid;
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .view-field { display: flex; flex-direction: column; gap: 2px; }
+    .view-field-label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
+    .view-field-value { font-size: 14px; color: var(--ink); white-space: pre-wrap; word-break: break-word; }
+    .view-field-value.is-empty { color: var(--muted); font-style: italic; }
+    .view-doc-link { display: inline-flex; align-items: center; gap: 6px; }
+    .view-doc-link img { width: 40px; height: 40px; object-fit: cover; border-radius: 6px; border: 1px solid rgba(91,73,57,0.15); }
+
+    .paging-host {
+      display: grid;
+      gap: 8px;
+      margin: 3px 0;
+    }
+
+    .paging {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .page-center {
+      display: grid;
+      gap: 8px;
+      justify-items: center;
+    }
+
+    .page-numbers {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .page-summary {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .duplicate-dialog-body {
+      gap: 16px;
+      padding-top: 0;
+    }
+
+    .duplicate-dialog-head {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      margin: 0 -22px;
+      padding: 18px 22px 14px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .duplicate-dialog-title {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .duplicate-close {
+      width: 46px;
+      min-width: 46px;
+      min-height: 46px;
+      padding: 0;
+      border-radius: 999px !important;
+      font-size: 24px;
+      line-height: 1;
+    }
+
+    .duplicate-summary {
+      font-size: 14px;
+      line-height: 1.65;
+    }
+
+    .duplicate-list {
+      display: grid;
+      gap: 14px;
+    }
+
+    .duplicate-group {
+      border: 2px dashed rgba(75, 44, 32, 0.2);
+      border-radius: 20px;
+      padding: 16px;
+      background: rgba(255, 248, 237, 0.72);
+      display: grid;
+      gap: 12px;
+    }
+
+    .duplicate-group-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .duplicate-candidate-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .duplicate-candidate {
+      border: 1px solid rgba(75, 44, 32, 0.18);
+      border-radius: 18px;
+      padding: 14px;
+      background: rgba(255, 251, 243, 0.9);
+      display: grid;
+      gap: 8px;
+    }
+
+    .duplicate-candidate.recommended {
+      border-color: rgba(116, 132, 108, 0.46);
+      background: rgba(116, 132, 108, 0.12);
+    }
+
+    .duplicate-candidate-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .duplicate-recommendation {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--success);
+    }
+
+    .duplicate-note {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .danger-dialog {
+      width: min(560px, calc(100vw - 20px));
+    }
+
+    .danger-dialog-copy {
+      display: grid;
+      gap: 10px;
+    }
+
+    .dialog-main {
+      height: 100%;
+    }
+
+    .dialog-main strong {
+      font-size: 15px;
+    }
+
+    .dialog-main code {
+      display: inline-block;
+      padding: 5px 10px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+    }
+
+    @media (max-width: 960px) {
+
+    .paging {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    body::before {
+      opacity: 0.15 !important;
+      mix-blend-mode: multiply;
+    }
+
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.23;
+    }
+
+    h1, h2, h3 {
+      text-transform: uppercase;
+    }
+
+    .nav a, button {
+      font-weight: 800 !important;
+      text-transform: uppercase;
+    }
+
+    .list {
+      grid-template-columns: 1fr;
+      gap: 14px;
+    }
+
+    .section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .section-head-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .section-help-button {
+      min-width: 44px;
+      width: 44px;
+      min-height: 44px;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      line-height: 1;
+      font-weight: 800;
+    }
+
+    .status-help-copy {
+      display: grid;
+      gap: 14px;
+    }
+
+    .status-help-copy p,
+    .status-help-copy li {
+      line-height: 1.7;
+    }
+
+    .status-help-copy ul {
+      margin: 0;
+      padding-left: 20px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .toolbar-collapse-toggle {
+      min-width: 52px;
+      width: 52px;
+      min-height: 52px;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      line-height: 1;
+      flex: 0 0 52px !important;
+    }
+
+    .toolbar-extra-action {
+      display: none;
+    }
+
+    .toolbar-extra-action.is-visible {
+      display: inline-flex;
+      animation: subtle-reveal 0.18s ease;
+    }
+
+    .is-unavailable,
+    .file-input-proxy,
+    .issue-panel #issueSummary,
+    .issue-panel #issueList {
+      display: none !important;
+    }
+
+    @media (max-width: 960px) {
+
+    .list {
+        grid-template-columns: 1fr;
+      }
+
+    }
+
+    #quickImportForm {
+      height: 100%;
+    }
+    .doc-upload-area { margin-top: 6px; display: flex; flex-direction: column; gap: 8px; }
+    .doc-preview-wrap { display: flex; align-items: flex-start; gap: 8px; flex-wrap: wrap; }
+    .doc-preview-img { max-width: 180px; max-height: 130px; border-radius: 8px; object-fit: contain; border: 1px solid rgba(91,73,57,0.18); cursor: pointer; }
+    .doc-upload-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .doc-pick-btn { display: inline-flex; align-items: center; padding: 5px 11px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 600; background: #fff; color: var(--text-muted); }
+    .doc-pick-btn:hover { background: #f5f0eb; }
+    .doc-delete-btn { padding: 4px 10px; border-radius: 8px; border: 1px solid rgba(165,90,82,0.4); background: #fff5f5; color: #a55a52; font-size: 12px; font-weight: 600; cursor: pointer; }
+    .doc-delete-btn:hover { background: #ffe8e8; }
+    .doc-no-file { font-size: 12px; color: var(--text-muted); align-self: center; }
+    .doc-pending-name { font-size: 12px; font-style: italic; color: var(--text); }
+
+    .dialog-photo-area { display: flex; align-items: center; gap: 14px; padding: 12px 0 16px; border-bottom: 1px solid rgba(91,73,57,0.15); margin-bottom: 4px; }
+    .dialog-photo-avatar { width: 68px; height: 68px; border-radius: 50%; background: linear-gradient(135deg, #f4d978, #c99a28); color: #4a2f22; display: grid; place-items: center; font-size: 22px; font-weight: 900; overflow: hidden; flex-shrink: 0; border: 2px solid rgba(74,47,34,0.12); }
+    .dialog-photo-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .dialog-photo-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    .dialog-photo-hint { font-size: 11px; color: var(--muted); margin-top: 6px; }
+    .edit-history-subtitle { font-weight: 600; margin: 0; }
+    .edit-history-list { display: grid; gap: 10px; }
+    .edit-history-entry { display: flex; align-items: flex-start; gap: 12px; padding: 10px 12px; background: rgba(91,73,57,0.05); border-radius: 8px; border: 1px solid rgba(91,73,57,0.12); }
+    .edit-history-order { min-width: 26px; height: 26px; border-radius: 50%; background: var(--accent, #c99a28); color: #fff; display: grid; place-items: center; font-size: 11px; font-weight: 700; flex-shrink: 0; }
+    .edit-history-info { display: grid; gap: 2px; }
+    .edit-history-name { font-weight: 700; font-size: 14px; }
+    .edit-history-jabatan { font-size: 12px; color: var(--muted); }
+    .edit-history-meta { font-size: 12px; color: var(--muted); }
+    .edit-history-empty { color: var(--muted); font-size: 13px; margin: 0; text-align: center; padding: 16px 0; }
+
+    .placements-list { display: grid; gap: 18px; }
+    .placements-group-title { font-size: 12px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 0 0 8px; }
+    .placements-group-items { display: grid; gap: 10px; }
+    .placement-card { padding: 12px 14px; background: rgba(91,73,57,0.05); border-radius: 12px; border: 1px solid rgba(91,73,57,0.12); display: grid; gap: 6px; }
+    .placement-card-name { font-weight: 700; font-size: 14px; }
+    .placement-card-meta { font-size: 12px; color: var(--muted); line-height: 1.6; }
+    .placements-empty { color: var(--muted); font-size: 13px; margin: 0; text-align: center; padding: 10px 0; }
+
+    .name-similar-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 99999;
+      background: rgba(30, 20, 12, 0.62);
+      backdrop-filter: blur(2px);
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .name-similar-overlay.show { display: flex; }
+    .name-similar-box {
+      background: var(--paper);
+      color: var(--ink);
+      border-radius: 18px;
+      box-shadow: 0 24px 60px rgba(30,20,12,0.35);
+      max-width: 520px;
+      width: 100%;
+      max-height: 86vh;
+      overflow-y: auto;
+      padding: 22px 24px;
+      display: grid;
+      gap: 12px;
+    }
+    .name-similar-box h3 { margin: 0; font-size: 17px; }
+    .name-similar-intro { font-size: 13px; line-height: 1.6; }
+    .name-similar-list { display: grid; gap: 8px; max-height: 220px; overflow-y: auto; }
+    .name-similar-item { padding: 10px 12px; background: rgba(181,132,57,0.12); border: 1px solid rgba(181,132,57,0.35); border-radius: 10px; }
+    .name-similar-item-name { font-weight: 700; font-size: 13px; }
+    .name-similar-tag { display: inline-block; margin-left: 6px; padding: 2px 7px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; background: var(--danger); color: #fff; border-radius: 6px; }
+    .name-similar-item-meta { font-size: 11.5px; color: var(--muted); margin-top: 3px; line-height: 1.5; }
+    .name-similar-warn { font-size: 13px; line-height: 1.6; font-weight: 600; }
+    .name-similar-actions { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; margin-top: 4px; }
+
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-left">
+      <button class="drawer-toggle" id="navToggle" type="button" aria-label="Toggle sidebar">Menu</button>
+      <div class="header-brand">Pendataan Santri</div>
+      <div class="header-page">Daftar Santri</div>
+    </div>
+    <div class="header-right">
+      <span class="header-chip" id="headerRole">Admin</span>
+    </div>
+  </header>
+  <div class="drawer-backdrop" id="navBackdrop"></div>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+  <main>
+    <div class="app-layout">
+      <section class="panel nav" id="nav"></section>
+      <div class="content-stack">
+        <section class="notice info" id="notice"></section>
+        <section class="issue-panel">
+          <h2>Masalah Terkait</h2>
+          <div class="issue-summary" id="issueSummary"></div>
+          <ul class="issue-warning-list" id="issueList"></ul>
+        </section>
+        <section id="pageConceptPanel" style="display:none; padding:18px 20px; border-radius:18px; background:linear-gradient(135deg, #2b1e14, #19120c); color:#f3e9d8; box-shadow:0 14px 32px rgba(0,0,0,0.35);">
+          <span style="display:inline-block; padding:5px 12px; border-radius:999px; background:rgba(185,118,80,0.25); color:#e8b98f; font-size:11px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:10px;">Konsep Halaman · Terlihat hanya untuk Super Admin</span>
+          <ul style="margin:0; padding-left:18px; display:grid; gap:8px; font-size:13px; line-height:1.6;">
+            <li style="color:#e6d9c4;"><strong style="color:#f6d9b8;">Super Admin</strong> bisa mengakses semua fitur di halaman ini, termasuk aksi sensitif seperti hapus data, tempel/import/export santri inti, template &amp; import Excel, dan reset semua password.</li>
+            <li style="color:#e6d9c4;"><strong style="color:#f6d9b8;">Admin</strong> bisa semua kecuali aksi sensitif — <strong style="color:#f6d9b8;">hapus data, tempel/import/export santri inti, template &amp; import Excel, dan reset semua password</strong> — yang hanya untuk Super Admin.</li>
+            <li style="color:#e6d9c4;"><strong style="color:#f6d9b8;">Semua pengurus lain</strong> (termasuk Mudir/Mudiroh) juga bisa mengakses halaman ini, tapi sama seperti Mudir — hanya mode lihat: tidak bisa menambah, mengedit, menyimpan, mengubah status, mengunduh PDF, atau menghapus santri.</li>
+            <li style="color:#e6d9c4;">Pengurus berjenis <strong style="color:#f6d9b8;">Pengabdian</strong> dikecualikan — tidak bisa membuka halaman ini sama sekali, apa pun jabatannya.</li>
+          </ul>
+          <p style="margin:14px 0 6px;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#e8b98f;">Kenapa warna kartu &amp; badge beda-beda</p>
+          <ul style="margin:0; padding-left:18px; display:grid; gap:8px; font-size:13px; line-height:1.6;">
+            <li style="color:#e6d9c4;">Warna latar kartu menandai <strong style="color:#f6d9b8;">jenis kelamin</strong>: <strong style="color:#f6d9b8;">biru</strong> = laki-laki, <strong style="color:#f6d9b8;">pink</strong> = perempuan, krem polos = jenis kelamin belum diisi.</li>
+            <li style="color:#e6d9c4;">Kartu jadi <strong style="color:#f6d9b8;">gradasi abu-abu</strong> kalau santrinya tidak dalam status Aktif normal — abu-abu <strong style="color:#f6d9b8;">gelap</strong> (#888) berarti <strong style="color:#f6d9b8;">Nonaktif</strong> (sudah keluar/lulus), abu-abu <strong style="color:#f6d9b8;">terang</strong> (#d0d0d0) berarti <strong style="color:#f6d9b8;">Dibekukan</strong> (cuti/sedang menunggu). Warna gender aslinya tetap kelihatan samar di sisi gradasinya.</li>
+            <li style="color:#e6d9c4;">Badge kecil <strong style="color:#f6d9b8;">Status Akad</strong> (bukan status aktif/nonaktif) punya warna sendiri: krem = <strong style="color:#f6d9b8;">Santri Biasa</strong>, oranye = <strong style="color:#f6d9b8;">Calon Pengabdian</strong>, <strong style="color:#f6d9b8;">biru</strong> = <strong style="color:#f6d9b8;">Pengabdian</strong> (santri yang sedang menjalani masa pengabdian, beda dari "Pengurus Pengabdian" di atas), hijau = <strong style="color:#f6d9b8;">Selesai</strong>.</li>
+          </ul>
+        </section>
+        <section class="panel">
+          <div class="section-head">
+            <h2>Daftar santri</h2>
+            <div class="section-head-actions">
+              <button class="secondary section-help-button" id="statusInfoButton" type="button" aria-label="Penjelasan status santri">?</button>
+              <button class="secondary section-help-button" id="statusConsequenceInfoButton" type="button" aria-label="Penjelasan data yang berubah saat status diubah" style="font-size:18px;">i</button>
+            </div>
+          </div>
+          <div class="filters" id="filtersPanel">
+            <label>
+              Cari nama, NIS, NIK, program
+              <input type="search" id="searchInput" placeholder="Mis. Abdan, 232401..., subsidi">
+            </label>
+            <label>
+              Status
+              <select id="statusFilter">
+                <option value="">Semua</option>
+                <option value="active">Aktif</option>
+                <option value="dibekukan">Dibekukan</option>
+                <option value="inactive">Nonaktif</option>
+              </select>
+            </label>
+            <label>
+              Jenis kelamin
+              <select id="genderFilter">
+                <option value="">Semua</option>
+                <option value="male">🧊 Laki-laki</option>
+                <option value="female">🌸 Perempuan</option>
+              </select>
+            </label>
+            <label>
+              Status Akad
+              <select id="statusAkadFilter">
+                <option value="">Semua</option>
+                <option value="santri_biasa">Santri Biasa</option>
+                <option value="calon_pengabdian">Calon Pengabdian</option>
+                <option value="pengabdian">Pengabdian</option>
+                <option value="selesai">Selesai</option>
+              </select>
+            </label>
+            <label>
+              Urutkan
+              <select id="sortSelect">
+                <option value="updated_desc" selected>Edit terbaru</option>
+                <option value="updated_asc">Edit terlama</option>
+                <option value="created_desc">Tambah terbaru</option>
+                <option value="created_asc">Tambah terlama</option>
+                <option value="name_asc">Nama A-Z</option>
+                <option value="name_desc">Nama Z-A</option>
+                <option value="id_asc">ID kecil-besar</option>
+                <option value="id_desc">ID besar-kecil</option>
+                <option value="gender_asc">Gender L-P</option>
+                <option value="gender_desc">Gender P-L</option>
+                <option value="no_induk_asc">NIS kecil-besar</option>
+                <option value="no_induk_desc">NIS besar-kecil</option>
+                <option value="tanggal_masuk_dianggap_asc">Tanggal masuk terlama</option>
+                <option value="tanggal_masuk_dianggap_desc">Tanggal masuk terbaru</option>
+              </select>
+            </label>
+            <label>
+              Jumlah per halaman
+              <select id="pageSizeSelect">
+                <option value="10">10</option>
+                <option value="25" selected>25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </label>
+          </div>
+          <div class="bulk-toolbar" id="bulkToolbar"></div>
+          <div class="toolbar" id="actionToolbar">
+            <button class="primary" id="addButton" type="button">Tambah santri</button>
+            <button class="secondary" id="refreshButton" type="button">Muat ulang</button>
+            <button class="secondary" id="toggleExpandButton" type="button" data-expand-state="collapsed">Buka semua</button>
+            <button class="secondary toolbar-extra-action" id="quickImportButton" type="button" hidden data-super-admin="true">Tempel santri inti</button>
+            <button class="secondary toolbar-extra-action" id="exportQuickImportTxtButton" type="button" hidden data-super-admin="true">Export TXT tempel</button>
+            <button class="secondary toolbar-extra-action" id="downloadSummaryPdfButton" type="button" hidden>Download PDF</button>
+            <button class="secondary toolbar-extra-action" id="downloadTemplateButton" type="button" hidden data-super-admin="true">Template Excel</button>
+            <button class="secondary toolbar-extra-action" id="importExcelButton" type="button" hidden data-super-admin="true">Import Excel</button>
+            <button class="secondary toolbar-extra-action" id="exportExcelButton" type="button" hidden data-super-admin="true">Export Excel</button>
+            <button class="secondary toolbar-extra-action" id="duplicateNameButton" type="button">Nama duplikat</button>
+            <button class="secondary toolbar-extra-action" id="resetAllPasswordsButton" type="button" hidden data-super-admin="true">Reset semua password</button>
+            <button class="danger toolbar-extra-action" id="deleteAllButton" type="button" hidden data-super-admin="true">Hapus semua data</button>
+            <button class="secondary toolbar-collapse-toggle" id="toolbarCollapseToggle" type="button" aria-expanded="false" aria-label="Buka aksi tambahan">+</button>
+          </div>
+          <div class="paging-host" id="paginationTop"></div>
+          <div class="list" id="list"></div>
+          <div class="paging-host" id="paginationBottom"></div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <div id="dialogRoot">
+  <dialog class="ps-floating-dialog" id="dialog">
+    <form class="dialog-body duplicate-dialog-body ps-dialog-shell" id="form" method="dialog">
+      <div class="duplicate-dialog-head ps-dialog-header">
+        <div>
+          <h3 id="dialogTitle">Tambah santri</h3>
+        </div>
+      </div>
+      <input type="hidden" name="id">
+      <div class="dialog-photo-area" id="dialogPhotoArea" data-existing-url="" data-item-name="">
+        <div class="dialog-photo-avatar" id="dialogPhotoAvatar">?</div>
+        <div>
+          <div class="dialog-photo-actions">
+            <label class="secondary" style="min-height:36px;padding:0 14px;font-size:12px;cursor:pointer;display:inline-flex;align-items:center" for="dialogPhotoInput">Upload Foto</label>
+            <button type="button" class="secondary" style="min-height:36px;padding:0 14px;font-size:12px" id="dialogPhotoResetBtn">Foto Default</button>
+          </div>
+          <div class="dialog-photo-hint">Maks 5 MB · JPG PNG WEBP GIF</div>
+        </div>
+      </div>
+      <input type="file" id="dialogPhotoInput" accept="image/png,image/jpeg,image/webp,image/gif" style="display:none">
+      <div id="formSections"></div>
+      <div class="toolbar ps-dialog-footer">
+        <button class="primary" id="saveFormButton" type="submit">Simpan</button>
+        <button class="secondary" id="closeDialog" type="button">Batal</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="ps-floating-dialog" id="viewSantriDialog">
+    <div class="dialog-body duplicate-dialog-body ps-dialog-shell">
+      <div class="duplicate-dialog-head ps-dialog-header">
+        <div>
+          <h3 id="viewSantriTitle">Data Santri</h3>
+          <p style="margin:2px 0 0;font-size:12px;color:var(--muted);">Mode lihat saja — tidak bisa diubah dari sini.</p>
+        </div>
+      </div>
+      <div class="dialog-photo-area" id="viewSantriPhotoArea">
+        <div class="dialog-photo-avatar" id="viewSantriPhotoAvatar">?</div>
+      </div>
+      <div id="viewSantriSections"></div>
+      <div class="toolbar ps-dialog-footer">
+        <button class="secondary" id="closeViewSantriDialog" type="button">Tutup</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog class="ps-floating-dialog" id="statusInfoDialog">
+    <div class="dialog-body duplicate-dialog-body ps-dialog-shell">
+      <div class="duplicate-dialog-head ps-dialog-header">
+        <div>
+          <h3>Penjelasan Status Santri</h3>
+          <p>Santri memiliki 3 status: Aktif, Nonaktif, dan Dibekukan.</p>
+        </div>
+      </div>
+      <div class="status-help-copy">
+        <div>
+          <p><strong>Aktif:</strong></p>
+          <ul>
+            <li>Berarti bisa masuk halaqoh, regu, dan kelas.</li>
+          </ul>
+        </div>
+        <div>
+          <p><strong>Nonaktif:</strong></p>
+          <ul>
+            <li>Berarti tidak bisa masuk halaqoh, regu, dan kelas.</li>
+            <li>Kalau ada santri dinonaktifkan, maka dia otomatis akan dikeluarkan dari halaqoh, regu, dan kelas. Jadi hampir seperti dihapus datanya.</li>
+            <li>Biasanya yang nonaktif adalah santri yang sudah lulus, keluar, atau dikeluarkan.</li>
+          </ul>
+        </div>
+        <div>
+          <p><strong>Dibekukan:</strong></p>
+          <ul>
+            <li>Santri yang keluar atau cuti di tengah-tengah tahun ajaran akan dibekukan sampai ajaran baru, lalu baru kemudian dinonaktifkan.</li>
+            <li>Kalau ada santri dibekukan, maka belum ada konsekuensi seperti dikeluarkan dari kelompok tertentu atau kelas. Jadi statusnya masih seperti santri aktif.</li>
+            <li>Biasanya santri yang dibekukan adalah santri yang putus mondok di pertengahan tahun sehingga tidak langsung dinonaktifkan, menunggu ajaran baru, dan juga anak-anak yang cuti.</li>
+            <li>Ada 3 kategori santri dibekukan: baru keluar, cuti, dan pengabdian.</li>
+            <li>Kalau Status Akad (otomatis) santri sudah menunjukkan "Pengabdian", status santri harus diubah jadi Dibekukan (dengan keterangan "pengabdian"). Perubahan ini hanya bisa dilakukan oleh Admin/Super Admin.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="toolbar ps-dialog-footer">
+        <button class="secondary" id="closeStatusInfoDialog" type="button">Tutup</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog class="ps-floating-dialog" id="statusConsequenceInfoDialog">
+    <div class="dialog-body duplicate-dialog-body ps-dialog-shell">
+      <div class="duplicate-dialog-head ps-dialog-header">
+        <div>
+          <h3>Apa Saja yang Berubah Saat Status Diubah</h3>
+          <p>Ringkasan data yang ikut terpengaruh untuk tiap perubahan status/penghapusan santri.</p>
+        </div>
+      </div>
+      <div class="status-help-copy">
+        <div>
+          <p><strong>Aktif → Nonaktif:</strong></p>
+          <ul>
+            <li>Santri otomatis dikeluarkan dari halaqoh, kelas siang, dan regu yang sedang diikutinya.</li>
+            <li>Semua riwayat yang sudah tercatat (nilai, hafalan, absensi, dll) tetap tersimpan utuh, tidak hilang.</li>
+            <li>Kalau nanti diaktifkan lagi, dia harus dimasukkan ulang secara manual ke halaqoh/kelas/regu — tidak otomatis kembali.</li>
+          </ul>
+        </div>
+        <div>
+          <p><strong>Dibekukan:</strong></p>
+          <ul>
+            <li>Keanggotaan di halaqoh/kelas/regu TIDAK dicabut — santri tetap ada di kelompoknya seperti biasa.</li>
+            <li>Bedanya: selama dibekukan, dia tidak lagi dihitung "wajib diisi datanya" di pengingat harian pengampu/pembina/pengajar (hafalan, perkembangan, tasmi', nilai ujian) — supaya mereka tidak terus ditagih untuk santri yang sudah tidak hadir.</li>
+            <li>Muncul badge "Dibekukan" di halaman-halaman input tersebut, sebagai penanda.</li>
+            <li>Sewaktu-waktu bisa dikembalikan ke Aktif tanpa kehilangan data apa pun.</li>
+          </ul>
+        </div>
+        <div>
+          <p><strong>Hapus Permanen (Super Admin):</strong></p>
+          <ul>
+            <li>Ini beda dari Nonaktif — bukan cuma dikeluarkan dari kelompok, tapi SEMUA data yang tercatat atas nama santri ini ikut dihapus habis: nilai, hafalan, absensi, catatan perkembangan, riwayat pindah halaqoh/regu, izin, sakit, pelanggaran, dan foto profilnya.</li>
+            <li>Tidak bisa dipulihkan lagi setelah dihapus — makanya konfirmasinya diperketat, harus ketik "HAPUS" 5 kali berturut-turut.</li>
+            <li>Fitur ini dimaksudkan untuk membuang data yang salah input/duplikat, BUKAN untuk santri yang lulus/keluar secara normal (untuk itu pakai Nonaktifkan).</li>
+          </ul>
+        </div>
+      </div>
+      <div class="toolbar ps-dialog-footer">
+        <button class="secondary" id="closeStatusConsequenceInfoDialog" type="button">Tutup</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog class="ps-floating-dialog" id="duplicateDialog">
+    <div class="dialog-body duplicate-dialog-body ps-dialog-shell">
+      <div class="duplicate-dialog-head ps-dialog-header">
+        <div>
+          <div class="duplicate-dialog-title">
+            <h3>Nama Santri Duplikat</h3>
+            <button class="secondary duplicate-close" id="closeDuplicateDialog" type="button" aria-label="Tutup popup nama duplikat">&times;</button>
+          </div>
+          <p class="duplicate-summary" id="duplicateSummary">Memuat data nama santri duplikat...</p>
+        </div>
+      </div>
+      <div class="duplicate-list" id="duplicateList"></div>
+      <div class="toolbar ps-dialog-footer">
+        <button class="secondary" id="refreshDuplicateButton" type="button">Muat ulang</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog class="ps-floating-dialog danger-dialog" id="deleteAllDialog">
+    <form class="dialog-body duplicate-dialog-body ps-dialog-shell" id="deleteAllForm" method="dialog">
+      <div class="duplicate-dialog-head ps-dialog-header danger-dialog-copy">
+        <div>
+          <h3>Hapus semua data santri</h3>
+          <p>Semua santri akan dihapus permanen. Relasi halaqoh, kelas, dan regu, serta SEMUA riwayat (nilai, hafalan, absensi, dll) ikut dibersihkan.</p>
+        </div>
+      </div>
+
+      <div class="dialog-main">
+        <strong>Untuk lanjut, ketik:</strong>
+        <code>HAPUS SEMUA</code>
+        <br>
+        <label>
+          Konfirmasi
+          <input id="deleteAllConfirmInput" type="text" autocomplete="off" placeholder="Ketik HAPUS SEMUA">
+        </label>
+      </div>
+
+      <div class="toolbar ps-dialog-footer">
+        <button class="danger" id="confirmDeleteAllButton" type="submit" disabled>Konfirmasi</button>
+        <button class="secondary" id="closeDeleteAllDialog" type="button">Batal</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="ps-floating-dialog" id="editHistoryDialog">
+    <div class="dialog-body duplicate-dialog-body ps-dialog-shell">
+      <div class="duplicate-dialog-head ps-dialog-header">
+        <div>
+          <h3>Riwayat Edit Santri</h3>
+          <p id="editHistorySubtitle" class="edit-history-subtitle"></p>
+        </div>
+      </div>
+      <div class="edit-history-list" id="editHistoryList"></div>
+      <div class="toolbar ps-dialog-footer">
+        <button class="secondary" id="closeEditHistoryDialog" type="button">Tutup</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog class="ps-floating-dialog" id="placementsDialog">
+    <div class="dialog-body duplicate-dialog-body ps-dialog-shell">
+      <div class="duplicate-dialog-head ps-dialog-header">
+        <div>
+          <h3>Penempatan Santri</h3>
+          <p id="placementsSubtitle" class="edit-history-subtitle"></p>
+        </div>
+      </div>
+      <div class="placements-list" id="placementsList"></div>
+      <div class="toolbar ps-dialog-footer">
+        <button class="secondary" id="closePlacementsDialog" type="button">Tutup</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog class="ps-floating-dialog" id="santriPdfDialog">
+    <div class="dialog-body duplicate-dialog-body ps-dialog-shell">
+      <div class="duplicate-dialog-head ps-dialog-header">
+        <div>
+          <h3>Download Detail Santri (Excel)</h3>
+          <p id="santriPdfSubtitle" class="edit-history-subtitle"></p>
+        </div>
+      </div>
+      <label>
+        Tahun Ajaran
+        <select id="santriPdfTaSelect"></select>
+      </label>
+      <p style="font-size:12px;color:var(--muted);margin:0;line-height:1.6;">Excel berwarna: biodata lengkap santri ini beserta seluruh data yang terikat dengannya (keanggotaan halaqoh/kelas/regu, absensi, nilai, hafalan, akhlak, pelanggaran, izin pulang, riwayat sakit, dan lainnya) pada tahun ajaran yang dipilih, satu sheet per bagian data.</p>
+      <p style="font-size:12px;color:var(--muted);margin:0;line-height:1.6;">Atau download tabel mentah (Excel, berwarna): satu sheet per tabel DB yang terikat dengan santri ini (kolomnya sama persis dengan DB, cuma kolom berisi ID diterjemahkan jadi nama).</p>
+      <div class="toolbar ps-dialog-footer">
+        <button class="secondary" id="closeSantriPdfDialog" type="button">Batal</button>
+        <button class="secondary" id="downloadSantriTablePdfBtn" type="button">Download Tabel Mentah (Excel)</button>
+        <button class="primary" id="downloadSantriPdfBtn" type="button">Download Excel</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog class="ps-floating-dialog" id="catatanDialog">
+    <div class="dialog-body duplicate-dialog-body ps-dialog-shell">
+      <div class="duplicate-dialog-head ps-dialog-header">
+        <div>
+          <h3>Keterangan Status Santri</h3>
+          <p id="catatanSubtitle" class="edit-history-subtitle"></p>
+        </div>
+      </div>
+      <textarea id="catatanTextarea" rows="6" placeholder="Contoh: cuti / keluar / keluar tapi belum jelas / lulus / dll" style="width:100%;resize:vertical;font:inherit;padding:10px 12px;box-sizing:border-box;"></textarea>
+      <div class="toolbar ps-dialog-footer">
+        <button class="secondary" id="closeCatatanDialog" type="button">Batal</button>
+        <button class="primary" id="saveCatatanBtn" type="button">Simpan</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog class="ps-floating-dialog quick-import-dialog" id="quickImportDialog">
+    <form class="dialog-body duplicate-dialog-body ps-dialog-shell quick-import-shell" id="quickImportForm" method="dialog">
+      <div class="duplicate-dialog-head ps-dialog-header">
+        <div>
+          <h3>Tempel cepat santri inti</h3>
+          <p>Format ini fokus ke data inti santri. Cocok untuk input cepat tanpa harus membuka semua field detail.</p>
+        </div>
+      </div>
+      <div class="quick-import-stack">
+        <div>
+          <label for="quickImportInput">Data tempelan</label>
+          <textarea class="quick-import-textarea" id="quickImportInput" placeholder="SANTRI:
+Ahmad Fauzi
+NAMA UBAH:
+Ahmad Fauzi
+PANGGILAN:
+Fauzi
+NIS:
+202401
+NIK:
+1234567890
+GENDER:
+Laki-laki
+STATUS:
+Active
+PROGRAM:
+Tahfidz
+NO HP:
+08123456789
+CATATAN:
+Masuk gelombang 1"></textarea>
+        </div>
+        <div>
+          <label>Contoh format</label>
+          <button class="quick-import-example" type="button">SANTRI:
+Ahmad Fauzi
+NAMA UBAH:
+Ahmad Fauzi
+PANGGILAN:
+Fauzi
+NIS:
+202401
+NIK:
+1234567890
+GENDER:
+Laki-laki
+STATUS:
+Active
+PROGRAM:
+Tahfidz
+NO HP:
+08123456789
+CATATAN:
+Masuk gelombang 1</button>
+        </div>
+      </div>
+      <div class="toolbar quick-import-actions-inline">
+        <button class="secondary" id="quickImportParseButton" type="button">Buat preview</button>
+        <button class="secondary" id="quickImportClearButton" type="button">Kosongkan</button>
+        <button class="secondary" id="closeQuickImportDialog" type="button">Tutup</button>
+      </div>
+      <section class="quick-import-summary" id="quickImportSummary">
+        <div class="quick-import-summary-head">
+          <span class="pill">Belum ada preview</span>
+        </div>
+        <p class="quick-import-summary-copy">Tempel data lalu klik <strong>Buat preview</strong> untuk memeriksa data inti dan warning duplikat.</p>
+      </section>
+      <div class="quick-import-table-wrap" hidden id="quickImportTableWrap">
+        <table class="quick-import-table">
+          <thead>
+            <tr>
+              <th>No</th>
+              <th>Nama santri</th>
+              <th>Nama ubah</th>
+              <th>Gender</th>
+              <th>Status</th>
+              <th>NIS</th>
+              <th>Program</th>
+              <th>No HP</th>
+              <th>Catatan</th>
+            </tr>
+          </thead>
+          <tbody id="quickImportTableBody"></tbody>
+        </table>
+      </div>
+      <div class="toolbar ps-dialog-footer">
+        <button class="primary" id="quickImportSaveButton" type="submit" disabled>Simpan data valid</button>
+      </div>
+    </form>
+  </dialog>
+
+  </div>
+
+  <div id="nameSimilarOverlay" class="name-similar-overlay">
+    <div class="name-similar-box">
+      <h3><i class="fa-solid fa-triangle-exclamation" style="color:var(--warning);margin-right:8px;"></i>Nama Mirip/Sama Sudah Terdaftar</h3>
+      <p class="name-similar-intro">Nama yang kamu masukkan (<strong id="nameSimilarInputName"></strong>) mirip atau sama dengan santri yang sudah ada:</p>
+      <div id="nameSimilarList" class="name-similar-list"></div>
+      <p class="name-similar-warn">Pastikan ini benar-benar <u>orang yang berbeda</u>, bukan input ganda untuk santri yang sama. Kalau sudah yakin ini orang berbeda, ketik <strong>"Ya"</strong> di bawah untuk lanjut menyimpan.</p>
+      <input type="text" id="nameSimilarConfirmInput" class="ps-input ps-border-radius-lg" placeholder='Ketik &quot;Ya&quot; untuk konfirmasi' autocomplete="off">
+      <div class="name-similar-actions">
+        <button type="button" class="secondary" id="nameSimilarCancelBtn">Batal, ini orang yang sama</button>
+        <button type="button" class="primary" id="nameSimilarConfirmBtn" disabled>Ya, Lanjut Simpan</button>
+      </div>
+    </div>
+  </div>
+
+  <input class="file-input-proxy" id="importExcelInput" type="file" accept=".xlsx,.xls">
+  <script src="../../shared-audit.js"></script>
+  <script src="../../shared-access.js"></script>
+  <script src="../../shared-nav.js"></script>
+  <script src="../../shared-shell.js"></script>
+  <script src="../../shared-excel.js"></script>
+  <script src="../../shared-export.js"></script>
+  <script>
+    const API_BASE = window.location.origin + '/api';
+    const STORAGE = { apiBase: 'ps_api_base', token: 'ps_token', session: 'ps_session' };
+    localStorage.setItem(STORAGE.apiBase, API_BASE);
+    const DATASET_KEY = 'santri';
+    const SANTRI_SECTIONS = [
+      {
+        title: 'Identitas inti',
+        fields: [
+          { key: 'nama_lengkap_akte', label: 'Nama lengkap sesuai akte', required: true },
+          { key: 'nama_lengkap_kk', label: 'Nama lengkap sesuai KK' },
+          { key: 'nama_setelah_diubah', label: 'Nama setelah diubah' },
+          { key: 'nama_panggilan', label: 'Nama panggilan' },
+          { key: 'catatan', label: 'Catatan', type: 'textarea' },
+          { key: 'password', label: 'Password (kosongkan jika tidak ingin mengubah)', type: 'password' },
+          { key: 'username', label: 'Username login (opsional, selain NIS)' },
+          { key: 'no_induk', label: 'NIS', type: 'digits' },
+          { key: 'nik', label: 'NIK', type: 'digits' },
+          { key: 'jenis_kelamin_singkat', label: 'Jenis kelamin', type: 'select', options: ['L', 'P'] },
+          { key: 'status', label: 'Status', type: 'select', options: ['Active', 'Dibekukan', 'Inactive'] },
+          { key: 'keterangan_status', label: 'Keterangan status', type: 'textarea', placeholder: 'Contoh: cuti / baru keluar (belum lewat satu semester) / pengabdian / lulus / dll' },
+          { key: 'periode', label: 'Periode' },
+          { key: 'angkatan', label: 'Angkatan' },
+          { key: 'akad', label: 'Akad', legacy: true },
+          { key: 'status_pengecekan', label: 'Status pengecekan', legacy: true },
+          { key: 'nama_lama', label: 'Nama lama di data sebelumnya', legacy: true }
+        ]
+      },
+      {
+        title: 'Akad',
+        fields: [
+          { key: '_status_akad', label: 'Status Akad', type: 'akad_status' },
+          { key: 'tanggal_masuk_dianggap', label: 'Tanggal masuk', type: 'date' },
+          { key: 'masa_belajar', label: 'Masa belajar sesuai akad', type: 'number', suffix: 'tahun' },
+          { key: 'masa_pengabdian', label: 'Masa wajib pengabdian', type: 'number', suffix: 'tahun' },
+          { key: 'akad_tambahan', label: 'Masa belajar tambahan', type: 'number', suffix: 'tahun' },
+          { key: 'akad_tambahan_alasan', label: 'Alasan masa belajar tambahan', type: 'textarea' },
+          { key: 'jenis_akad', label: 'Jenis akad', type: 'select', options: ['Mandiri', 'Subsidi', 'Beasiswa'] },
+          { key: 'catatan_akad', label: 'Catatan tentang akad', type: 'textarea' }
+        ]
+      },
+      {
+        title: 'Data kelahiran',
+        fields: [
+          { key: 'tempat_tanggal_lahir', label: 'Tempat tanggal lahir' },
+          { key: 'tempat_lahir', label: 'Tempat lahir' },
+          { key: 'tanggal_lahir', label: 'Tanggal lahir', type: 'date' }
+        ]
+      },
+      {
+        title: 'Alamat sekarang',
+        fields: [
+          { key: 'alamat_sekarang_tempat', label: 'Tempat alamat sekarang' },
+          { key: 'alamat_sekarang_rt', label: 'RT alamat sekarang' },
+          { key: 'alamat_sekarang_rw', label: 'RW alamat sekarang' },
+          { key: 'alamat_sekarang_desa', label: 'Kel/Desa alamat sekarang' },
+          { key: 'alamat_sekarang_kecamatan', label: 'Kecamatan alamat sekarang' },
+          { key: 'alamat_sekarang_kota', label: 'Kota/Kab alamat sekarang' },
+          { key: 'alamat_sekarang_provinsi', label: 'Provinsi alamat sekarang' },
+          { key: 'alamat_sekarang_kode_pos', label: 'Kode pos alamat sekarang' }
+        ]
+      },
+      {
+        title: 'Orang tua dan wali',
+        fields: [
+          { key: 'ayah_nama', label: 'Nama ayah' },
+          { key: 'ayah_ttl', label: 'TTL ayah' },
+          { key: 'ayah_pekerjaan', label: 'Pekerjaan ayah' },
+          { key: 'ibu_nama', label: 'Nama ibu' },
+          { key: 'ibu_ttl', label: 'TTL ibu' },
+          { key: 'ibu_pekerjaan', label: 'Pekerjaan ibu' },
+          { key: 'wali_nama', label: 'Nama wali' },
+          { key: 'wali_ttl', label: 'TTL wali' },
+          { key: 'wali_pekerjaan', label: 'Pekerjaan wali' }
+        ]
+      },
+      {
+        title: 'Alamat KTP',
+        fields: [
+          { key: 'alamat_ktp_tempat', label: 'Tempat alamat KTP' },
+          { key: 'alamat_ktp_rt', label: 'RT alamat KTP' },
+          { key: 'alamat_ktp_rw', label: 'RW alamat KTP' },
+          { key: 'alamat_ktp_desa', label: 'Kel/Desa alamat KTP' },
+          { key: 'alamat_ktp_kecamatan', label: 'Kecamatan alamat KTP' },
+          { key: 'alamat_ktp_kota', label: 'Kota/Kab alamat KTP' },
+          { key: 'alamat_ktp_provinsi', label: 'Provinsi alamat KTP' }
+        ]
+      },
+      {
+        title: 'Administrasi',
+        fields: [
+          { key: 'admin_kk', label: 'KK administrasi', type: 'file_doc' },
+          { key: 'admin_ktp', label: 'KTP administrasi', type: 'file_doc' },
+          { key: 'admin_akta', label: 'Akta administrasi', type: 'file_doc' },
+          { key: 'no_hp', label: 'No HP' }
+        ]
+      },
+      {
+        title: 'Program dan jaminan',
+        fields: [
+          { key: 'tanggal_masuk', label: 'Tanggal masuk Al Bashiroh', legacy: true },
+          { key: 'tanggal_keluar', label: 'Tanggal keluar Al Bashiroh', type: 'date' },
+          { key: 'program', label: 'Program', legacy: true },
+          { key: 'infaq_pengajar', label: 'Infaq pengajar' },
+          { key: 'jaminan_uang', label: 'Jaminan uang', legacy: true },
+          { key: 'jaminan_kk', label: 'KK jaminan surat', legacy: true },
+          { key: 'jaminan_akta', label: 'Akta jaminan surat', legacy: true },
+          { key: 'jaminan_ijazah', label: 'Ijazah jaminan surat', legacy: true },
+          { key: 'jaminan_bpkb', label: 'BPKB jaminan surat', legacy: true },
+          { key: 'jaminan', label: 'Jaminan', type: 'file_doc' },
+          { key: 'asal_sekolah', label: 'Asal sekolah' }
+        ]
+      }
+    ];
+
+    const pendingDocFiles = {};
+    const pendingPhotoState = { dataUrl: '', fileName: '', fileType: '', useDefault: false };
+
+    function resolveAssetUrl(url) {
+      if (!url) return '';
+      const s = String(url);
+      if (s.startsWith('data:') || s.startsWith('http://') || s.startsWith('https://') || s.startsWith('/')) return s;
+      return '../../' + s;
+    }
+
+    function getPhotoInitials(name) {
+      return String(name || '?').split(/\s+/).filter(Boolean).slice(0, 2).map(p => p.charAt(0).toUpperCase()).join('') || '?';
+    }
+
+    function updateDialogPhotoPreview(name, existingUrl) {
+      const avatar = document.getElementById('dialogPhotoAvatar');
+      if (!avatar) return;
+      const src = pendingPhotoState.dataUrl || (pendingPhotoState.useDefault ? '' : resolveAssetUrl(existingUrl));
+      if (src) {
+        avatar.innerHTML = `<img src="${escapeHtml(src)}" alt="Foto">`;
+      } else {
+        avatar.textContent = getPhotoInitials(name);
+      }
+    }
+
+    function handleDialogPhotoChange(e) {
+      const file = e.target.files && e.target.files[0];
+      e.target.value = '';
+      if (!file) return;
+      if (file.size > 5 * 1024 * 1024) { showNotice('Ukuran foto maksimal 5 MB.', 'error'); return; }
+      const reader = new FileReader();
+      reader.onload = function(ev) {
+        pendingPhotoState.dataUrl = String(ev.target.result || '');
+        pendingPhotoState.fileName = file.name;
+        pendingPhotoState.fileType = file.type || '';
+        pendingPhotoState.useDefault = false;
+        const area = document.getElementById('dialogPhotoArea');
+        updateDialogPhotoPreview(area.dataset.itemName || '', area.dataset.existingUrl || '');
+      };
+      reader.onerror = function() { showNotice('Gagal membaca file foto.', 'error'); };
+      reader.readAsDataURL(file);
+    }
+
+    function resetDialogPhoto() {
+      pendingPhotoState.dataUrl = '';
+      pendingPhotoState.fileName = '';
+      pendingPhotoState.fileType = '';
+      pendingPhotoState.useDefault = true;
+      document.getElementById('dialogPhotoInput').value = '';
+      const area = document.getElementById('dialogPhotoArea');
+      updateDialogPhotoPreview(area.dataset.itemName || '', area.dataset.existingUrl || '');
+    }
+
+    function handleDocFileChange(input) {
+      const key = input.dataset.docKey;
+      if (!key) return;
+      const file = input.files && input.files[0];
+      if (!file) return;
+      if (!file.type.startsWith('image/')) { showNotice('Hanya file gambar (JPG, PNG, WEBP, GIF) yang diizinkan.', 'error'); input.value = ''; return; }
+      if (file.size > 20 * 1024 * 1024) { showNotice('Ukuran file maksimal 20 MB.', 'error'); input.value = ''; return; }
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = String(reader.result || '');
+        pendingDocFiles[key] = { dataUrl, name: file.name };
+        const previewEl = document.getElementById('docpreview_' + key);
+        if (previewEl) previewEl.innerHTML = `<img src="${dataUrl}" class="doc-preview-img" alt="preview"><button type="button" class="doc-delete-btn" onclick="deleteDocFile('${key}')">Hapus</button>`;
+        const nameEl = document.getElementById('docpending_' + key);
+        if (nameEl) nameEl.textContent = '';
+      };
+      reader.onerror = () => showNotice('Gagal membaca file.', 'error');
+      reader.readAsDataURL(file);
+    }
+
+    function deleteDocFile(key) {
+      pendingDocFiles[key] = { delete: true };
+      const hiddenEl = document.getElementById('hidden_' + key);
+      if (hiddenEl) hiddenEl.value = '';
+      const previewEl = document.getElementById('docpreview_' + key);
+      if (previewEl) previewEl.innerHTML = '<span class="doc-no-file">Belum ada file</span>';
+      const pickEl = document.getElementById('docpick_' + key);
+      if (pickEl) pickEl.value = '';
+    }
+
+    const state = {
+      items: [],
+      page: 1,
+      pageSize: 25,
+      totalPages: 1,
+      total: 0,
+      pendingSaveCount: 0,
+      duplicateGroups: [],
+      expandedIds: new Set(),
+      selectedIds: new Set(),
+      toolbarExpanded: false
+    };
+    const quickImportState = {
+      entries: [],
+      busy: false,
+      hasInput: false,
+      dirty: false,
+      parsed: false
+    };
+    const ISSUE_GROUP_CONFIG = {
+      santri_incomplete_data: true,
+      kegiatan_sop_without_jabatan: true,
+      kegiatan_sop_without_primary_jabatan: true,
+      kegiatan_sop_without_category: true,
+      duplicate_nik: true,
+      duplicate_no_induk: true,
+    };
+    const uiState = {
+      currentNoticeId: '',
+      noticeCounter: 0,
+      noticeShownAt: 0,
+      pendingNotice: null,
+      desktopSidebar: null
+    };
+
+    function getApiBase() {
+      return localStorage.getItem(STORAGE.apiBase) || '';
+    }
+
+    function getToken() {
+      return localStorage.getItem(STORAGE.token) || '';
+    }
+
+    function clearSession() {
+      localStorage.removeItem(STORAGE.token);
+      localStorage.removeItem(STORAGE.session);
+    }
+
+    function getStoredSession() {
+      try {
+        return JSON.parse(localStorage.getItem(STORAGE.session) || 'null');
+      } catch (error) {
+        return null;
+      }
+    }
+
+    function getScopedSession() {
+      const session = window.PSAccess && typeof window.PSAccess.getScopedSession === 'function'
+        ? window.PSAccess.getScopedSession(getStoredSession())
+        : getStoredSession();
+      return session;
+    }
+
+    function canManageRecords() {
+      const session = getScopedSession();
+      return !!(session && session.permissions && session.permissions.canManageSantri);
+    }
+
+    function canDeleteRecords() {
+      const session = getScopedSession();
+      return !!(session && session.permissions && session.permissions.canDelete);
+    }
+
+    function canDownloadSummaryPdf() {
+      const session = getScopedSession();
+      return !!(session && session.permissions && (session.permissions.canManageSantri || session.permissions.canDelete));
+    }
+
+    function canToggleInactiveRecords() {
+      return canManageRecords();
+    }
+
+    function canUseExcelTools() {
+      if (window.PSAccess && typeof window.PSAccess.canUseExcelTools === 'function') {
+        return window.PSAccess.canUseExcelTools(getStoredSession());
+      }
+      return false;
+    }
+
+    function updateHeaderMeta(session) {
+      window.PSShell.syncIdentity({
+        currentPage: window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : '/pages/daftarSantri/',
+        session: session || getStoredSession(),
+        getStoredSession,
+        storageKey: STORAGE.session
+      });
+    }
+
+    function toParams(data) {
+      const params = new URLSearchParams();
+      Object.entries(data).forEach(([key, value]) => {
+        if (value === undefined || value === null) return;
+        params.append(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
+      });
+      return params;
+    }
+
+    function createNoticeElement(text, type = 'info') {
+      const element = document.createElement('section');
+      element.className = `notice show ${type}`;
+      element.dataset.noticeId = `notice-${Date.now()}-${uiState.noticeCounter += 1}`;
+      element.textContent = text;
+      function dismiss() {
+        if (!element.parentNode) return;
+        element.classList.add('notice-dismissing');
+        window.setTimeout(() => {
+          element.remove();
+          const stack = document.getElementById('noticeStack');
+          if (stack && !stack.hasChildNodes() && stack.matches(':popover-open')) stack.hidePopover();
+        }, 220);
+      }
+      element.addEventListener('click', dismiss);
+      window.setTimeout(dismiss, type === 'error' ? 10000 : 6000);
+      return element;
+    }
+
+    function removeNoticeById(id) {
+      const element = document.querySelector(`[data-notice-id="${id}"]`);
+      if (element) element.remove();
+      if (uiState.currentNoticeId === id) uiState.currentNoticeId = '';
+      const stack = document.getElementById('noticeStack');
+      if (stack && !stack.hasChildNodes() && stack.matches(':popover-open')) stack.hidePopover();
+    }
+
+    function showNotice(text, type = 'info') {
+      if (uiState.pendingNotice) { clearTimeout(uiState.pendingNotice); uiState.pendingNotice = null; }
+      const elapsed = Date.now() - uiState.noticeShownAt;
+      if (elapsed < 2000 && uiState.currentNoticeId) {
+        uiState.pendingNotice = window.setTimeout(() => { uiState.pendingNotice = null; showNotice(text, type); }, 2000 - elapsed);
+        return uiState.currentNoticeId;
+      }
+      clearNotice();
+      const element = createNoticeElement(text, type);
+      const stack = document.getElementById('noticeStack');
+      stack.prepend(element);
+      uiState.currentNoticeId = element.dataset.noticeId;
+      uiState.noticeShownAt = Date.now();
+      if (stack.matches(':popover-open')) stack.hidePopover();
+      stack.showPopover();
+      return uiState.currentNoticeId;
+    }
+
+    function clearNotice() {
+      if (uiState.pendingNotice) { clearTimeout(uiState.pendingNotice); uiState.pendingNotice = null; }
+      if (!uiState.currentNoticeId) return;
+      removeNoticeById(uiState.currentNoticeId);
+    }
+
+    function flashNotice(text, type = 'info', timeout = 2800) {
+      const element = createNoticeElement(text, type);
+      const stack = document.getElementById('noticeStack');
+      stack.prepend(element);
+      const id = element.dataset.noticeId;
+      if (stack.matches(':popover-open')) stack.hidePopover();
+      stack.showPopover();
+      window.setTimeout(() => removeNoticeById(id), timeout);
+      return id;
+    }
+
+    function startTaskNotice(text, type = 'info') {
+      const element = createNoticeElement(text, type);
+      const stack = document.getElementById('noticeStack');
+      stack.prepend(element);
+      if (stack.matches(':popover-open')) stack.hidePopover();
+      stack.showPopover();
+      return element.dataset.noticeId;
+    }
+
+    function updateTaskNotice(id, text, type = 'info') {
+      const element = document.querySelector(`[data-notice-id="${id}"]`);
+      if (!element) return;
+      element.className = `notice show ${type}`;
+      element.textContent = text;
+    }
+
+    function finishTaskNotice(id, text = '', type = 'success', timeout = 2400) {
+      if (!id) return;
+      if (text) {
+        updateTaskNotice(id, text, type);
+        window.setTimeout(() => removeNoticeById(id), timeout);
+        return;
+      }
+      removeNoticeById(id);
+    }
+
+    function mountShell(session) {
+      return window.PSShell.mount({
+        currentPage: window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : '/pages/daftarSantri/',
+        session,
+        getStoredSession,
+        storageKey: STORAGE.session
+      });
+    }
+
+    function escapeHtml(text) {
+      return String(text ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    // Cek nama santri BARU (bukan edit) mirip/sama dengan yang sudah ada, lalu minta konfirmasi
+    // eksplisit lewat overlay non-<dialog> (biar tidak konflik top-layer dengan #dialog form yang
+    // sudah ditutup duluan sebelum overlay ini ditampilkan). Return true = boleh lanjut simpan.
+    function showNameSimilarOverlay(namaCek, matches) {
+      return new Promise(resolve => {
+        const overlay = document.getElementById('nameSimilarOverlay');
+        const input = document.getElementById('nameSimilarConfirmInput');
+        const confirmBtn = document.getElementById('nameSimilarConfirmBtn');
+        const cancelBtn = document.getElementById('nameSimilarCancelBtn');
+
+        document.getElementById('nameSimilarInputName').textContent = namaCek;
+        document.getElementById('nameSimilarList').innerHTML = matches.map(m => {
+          const metaParts = [];
+          metaParts.push('NIS: ' + (m.noInduk ? escapeHtml(m.noInduk) : '-'));
+          if (m.jenisKelamin) metaParts.push(m.jenisKelamin === 'L' ? 'Laki-laki' : 'Perempuan');
+          const lahir = [m.tempatLahir, m.tanggalLahir].filter(Boolean).join(', ');
+          if (lahir) metaParts.push('Lahir: ' + escapeHtml(lahir));
+          if (m.angkatan) metaParts.push('Angkatan: ' + escapeHtml(m.angkatan));
+          metaParts.push('Status: ' + escapeHtml(m.status || '-'));
+          return `
+            <div class="name-similar-item">
+              <div class="name-similar-item-name">${escapeHtml(m.name)}${m.exact ? '<span class="name-similar-tag">Nama Persis Sama</span>' : ''}</div>
+              <div class="name-similar-item-meta">${metaParts.join(' &bull; ')}</div>
+            </div>
+          `;
+        }).join('');
+
+        input.value = '';
+        confirmBtn.disabled = true;
+
+        function cleanup(result) {
+          overlay.classList.remove('show');
+          input.removeEventListener('input', onInput);
+          confirmBtn.removeEventListener('click', onConfirm);
+          cancelBtn.removeEventListener('click', onCancel);
+          overlay.removeEventListener('keydown', onKeydown);
+          resolve(result);
+        }
+        function onInput() { confirmBtn.disabled = input.value.trim() !== 'Ya'; }
+        function onConfirm() { if (input.value.trim() === 'Ya') cleanup(true); }
+        function onCancel() { cleanup(false); }
+        function onKeydown(event) {
+          if (event.key === 'Escape') cleanup(false);
+          else if (event.key === 'Enter' && input.value.trim() === 'Ya') cleanup(true);
+        }
+
+        input.addEventListener('input', onInput);
+        confirmBtn.addEventListener('click', onConfirm);
+        cancelBtn.addEventListener('click', onCancel);
+        overlay.addEventListener('keydown', onKeydown);
+        overlay.classList.add('show');
+        input.focus();
+      });
+    }
+
+    // Dipanggil dari saveForm sebelum santri BARU disimpan. Return true = boleh lanjut.
+    async function checkNewSantriNameSimilarity(namaCek) {
+      let matches = [];
+      try {
+        const data = await api('santri.nameSimilar', { name: namaCek });
+        matches = data.matches || [];
+      } catch (_) {
+        return true; // gagal cek jangan sampai memblokir simpan
+      }
+      if (!matches.length) return true;
+      return showNameSimilarOverlay(namaCek, matches);
+    }
+
+    async function api(action, payload = {}, method = 'GET') {
+      const apiBase = getApiBase();
+      const token = getToken();
+      if (!apiBase || !token) {
+        clearSession();
+        window.location.replace('/pages/login/');
+        throw new Error('Sesi tidak ditemukan.');
+      }
+      if (method === 'GET') {
+        const params = toParams({ action, token, ...payload });
+        const response = await fetch(`${apiBase}?${params.toString()}`);
+        const json = await response.json();
+        if (!json.ok) {
+          const error = new Error(json.error?.message ? `Server mengatakan: ${json.error.message}` : 'Permintaan gagal.');
+          error.code = json.error?.code || response.status || 500;
+          if (error.code === 401) {
+            clearSession();
+            window.location.replace('/pages/login/');
+          }
+          throw error;
+        }
+        return json.data;
+      }
+      const response = await fetch(apiBase, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, token, ...payload })
+      });
+      const json = await response.json();
+      if (!json.ok) {
+        const error = new Error(json.error?.message ? `Server mengatakan: ${json.error.message}` : 'Permintaan gagal.');
+        error.code = json.error?.code || response.status || 500;
+        if (error.code === 401) {
+          clearSession();
+          window.location.replace('/pages/login/');
+        }
+        throw error;
+      }
+      return json.data;
+    }
+
+    const issuePanelController = createIssuePanelController(api, { issueConfig: ISSUE_GROUP_CONFIG });
+
+    function normalizeSantriStatusValue(value) {
+      const normalized = String(value || '').trim().toLowerCase();
+      if (normalized === 'aktif' || normalized === 'active') return 'Active';
+      if (normalized === 'dibekukan' || normalized === 'beku' || normalized === 'frozen') return 'Dibekukan';
+      if (normalized === 'nonaktif' || normalized === 'inactive' || normalized === 'inavtive') return 'Inactive';
+      return String(value || '').trim();
+    }
+
+    function truncateWords(text, maxWords) {
+      const trimmed = String(text || '').trim();
+      if (!trimmed) return '(belum diisi)';
+      const words = trimmed.split(/\s+/);
+      if (words.length <= maxWords) return trimmed;
+      return words.slice(0, maxWords).join(' ') + '…';
+    }
+
+    function formatSantriStatusLabel(value) {
+      const normalized = normalizeSantriStatusValue(value).toLowerCase();
+      if (normalized === 'active') return 'Aktif';
+      if (normalized === 'dibekukan') return 'Dibekukan';
+      if (normalized === 'inactive') return 'Nonaktif';
+      return String(value || '').trim() || '-';
+    }
+
+    function getSantriStatusPillClass(value) {
+      const normalized = getSantriStatusKey(value);
+      if (normalized === 'inactive') return 'inactive';
+      if (normalized === 'dibekukan') return 'warn';
+      return '';
+    }
+
+    function getSantriStatusKey(value) {
+      const normalized = normalizeSantriStatusValue(value).toLowerCase();
+      if (normalized === 'inactive') return 'inactive';
+      if (normalized === 'dibekukan') return 'dibekukan';
+      return 'active';
+    }
+
+    function countEmptySantriFields(record) {
+      const r = record || {};
+      const SKIP_TYPES = { password: true, akad_status: true };
+      let count = 0;
+      SANTRI_SECTIONS.forEach(function(section) {
+        section.fields.forEach(function(field) {
+          if (SKIP_TYPES[field.type]) return;
+          const val = String(r[field.key] || '').trim().toLowerCase();
+          if (!val || val === '-' || val === 'tidak ada' || val === 'none' || val === 'n/a') count++;
+        });
+      });
+      return count;
+    }
+
+    function isSantriBaru(item) {
+      const createdAt = item?.record?.created_at;
+      if (!createdAt) return false;
+      const created = new Date(createdAt);
+      if (isNaN(created)) return false;
+      const oneMonthLater = new Date(created);
+      oneMonthLater.setMonth(oneMonthLater.getMonth() + 1);
+      return new Date() < oneMonthLater;
+    }
+
+    function getCardRowClass(gender, statusKey) {
+      if (statusKey === 'inactive') {
+        if (gender === 'male') return 'row-male-inactive';
+        if (gender === 'female') return 'row-female-inactive';
+        return 'row-nogender-inactive';
+      }
+      if (statusKey === 'dibekukan') {
+        if (gender === 'male') return 'row-male-frozen';
+        if (gender === 'female') return 'row-female-frozen';
+        return 'row-nogender-frozen';
+      }
+      if (gender === 'male') return 'row-male';
+      if (gender === 'female') return 'row-female';
+      return '';
+    }
+
+    function normalizeSantriGenderSingkat(value) {
+      const v = String(value || '').trim().toLowerCase();
+      if (['l', 'lk', 'laki-laki', 'laki', 'pria', 'male'].includes(v)) return 'L';
+      if (['p', 'pr', 'perempuan', 'wanita', 'female'].includes(v)) return 'P';
+      return String(value || '').trim().toUpperCase();
+    }
+
+    function normalizeSantriGenderPanjang(value) {
+      const v = String(value || '').trim().toLowerCase();
+      if (['l', 'lk', 'laki-laki', 'laki', 'pria', 'male'].includes(v)) return 'Laki-laki';
+      if (['p', 'pr', 'perempuan', 'wanita', 'female'].includes(v)) return 'Perempuan';
+      return String(value || '').trim();
+    }
+
+    function normalizeSantriGender(value) {
+      const v = String(value || '').trim().toLowerCase();
+      if (['l', 'lk', 'laki-laki', 'laki', 'pria', 'male'].includes(v)) return 'male';
+      if (['p', 'pr', 'perempuan', 'wanita', 'female'].includes(v)) return 'female';
+      return '';
+    }
+
+    function getQuickImportElements() {
+      return {
+        dialog: document.getElementById('quickImportDialog'),
+        form: document.getElementById('quickImportForm'),
+        input: document.getElementById('quickImportInput'),
+        summary: document.getElementById('quickImportSummary'),
+        tableWrap: document.getElementById('quickImportTableWrap'),
+        tableBody: document.getElementById('quickImportTableBody'),
+        saveButton: document.getElementById('quickImportSaveButton'),
+        parseButton: document.getElementById('quickImportParseButton'),
+        clearButton: document.getElementById('quickImportClearButton')
+      };
+    }
+
+    function normalizeLookupValue(value) {
+      const text = String(value == null ? '' : value);
+      const normalized = typeof text.normalize === 'function'
+        ? text.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        : text;
+      return normalized
+        .toLowerCase()
+        .replace(/[^0-9a-z\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
+    function cleanQuickImportText(value) {
+      return String(value == null ? '' : value)
+        .replace(/\r\n/g, '\n')
+        .replace(/^\s*```(?:[\w-]+)?\s*$/gm, '')
+        .trim();
+    }
+
+    function normalizeMultilineValue(value) {
+      return String(value == null ? '' : value)
+        .replace(/\r\n/g, '\n')
+        .split('\n')
+        .map(line => line.replace(/\s+$/g, ''))
+        .join('\n')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+    }
+
+    function takeFirstMeaningfulLine(value) {
+      return normalizeMultilineValue(value)
+        .split('\n')
+        .map(line => line.trim())
+        .find(Boolean) || '';
+    }
+
+    function createQuickImportDraft() {
+      return {
+        name: '',
+        renamedName: '',
+        nickname: '',
+        noInduk: '',
+        nik: '',
+        gender: '',
+        status: '',
+        program: '',
+        noHp: '',
+        catatan: ''
+      };
+    }
+
+    function hasQuickImportDraftContent(draft) {
+      return Object.values(draft || {}).some(value => String(value == null ? '' : value).trim());
+    }
+
+    function detectQuickImportField(line) {
+      const patterns = [
+        { key: 'name', pattern: /^(?:\W+\s*)?santri\s*:\s*(.*)$/i },
+        { key: 'renamedName', pattern: /^(?:nama\s+ubah|nama\s+setelah\s+diubah)\s*:\s*(.*)$/i },
+        { key: 'nickname', pattern: /^(?:panggilan|nama\s+panggilan)\s*:\s*(.*)$/i },
+        { key: 'noInduk', pattern: /^(?:nis|no\s+induk|nomor\s+induk)\s*:\s*(.*)$/i },
+        { key: 'nik', pattern: /^nik\s*:\s*(.*)$/i },
+        { key: 'gender', pattern: /^(?:gender|jenis\s+kelamin)\s*:\s*(.*)$/i },
+        { key: 'status', pattern: /^status\s*:\s*(.*)$/i },
+        { key: 'noHp', pattern: /^(?:no\s*hp|hp|telepon|phone)\s*:\s*(.*)$/i },
+        { key: 'catatan', pattern: /^(?:catatan|keterangan)\s*:\s*(.*)$/i }
+      ];
+      return patterns.reduce((result, item) => {
+        if (result) return result;
+        const match = line.match(item.pattern);
+        return match ? { key: item.key, value: match[1] || '' } : null;
+      }, null);
+    }
+
+    function appendQuickImportDraftValue(draft, key, line) {
+      if (!draft || !key) return;
+      const value = String(line == null ? '' : line).replace(/\s+$/g, '');
+      if (!value && key !== 'catatan') return;
+      draft[key] = draft[key]
+        ? `${draft[key]}\n${value}`
+        : value;
+    }
+
+    function parseQuickImportEntries(rawText) {
+      const cleaned = cleanQuickImportText(rawText);
+      if (!cleaned) return [];
+
+      const drafts = [];
+      let current = createQuickImportDraft();
+      let currentField = '';
+
+      cleaned.split('\n').forEach(line => {
+        const field = detectQuickImportField(line.trim());
+        if (field) {
+          if (field.key === 'name' && hasQuickImportDraftContent(current)) {
+            drafts.push(current);
+            current = createQuickImportDraft();
+          }
+          currentField = field.key;
+          appendQuickImportDraftValue(current, currentField, field.value);
+          return;
+        }
+        if (!currentField) return;
+        appendQuickImportDraftValue(current, currentField, line);
+      });
+
+      if (hasQuickImportDraftContent(current)) drafts.push(current);
+      return drafts;
+    }
+
+    async function refreshQuickImportPreviewEntries(rawText, options = {}) {
+      const drafts = parseQuickImportEntries(rawText);
+      if (!drafts.length) {
+        quickImportState.entries = [];
+        return [];
+      }
+      if (!options.silent) {
+        showNotice('Memeriksa data inti santri dan warning duplikat terbaru...', 'info');
+      }
+      const data = await api('santri.quickImportPreview', { drafts }, 'POST');
+      const entries = Array.isArray(data?.entries) ? data.entries : [];
+      quickImportState.entries = entries;
+      return entries;
+    }
+
+    function formatQuickImportNotes(entry) {
+      const items = [
+        ...entry.blockingIssues.map(message => `<li class="is-error">${escapeHtml(message)}</li>`),
+        ...entry.warnings.map(message => `<li class="is-warning">${escapeHtml(message)}</li>`)
+      ];
+      if (!items.length) {
+        return '<span class="quick-import-empty">Siap disimpan</span>';
+      }
+      return `<ul class="quick-import-note-list">${items.join('')}</ul>`;
+    }
+
+    function renderQuickImportPreview() {
+      const elements = getQuickImportElements();
+      const entries = quickImportState.entries.slice();
+      const validCount = entries.filter(entry => entry.isValid).length;
+      const invalidCount = entries.length - validCount;
+      const warningCount = entries.reduce((sum, entry) => sum + entry.warnings.length, 0);
+
+      elements.parseButton.disabled = quickImportState.busy;
+      elements.clearButton.disabled = quickImportState.busy;
+      elements.saveButton.disabled = quickImportState.busy || quickImportState.dirty || validCount === 0;
+      elements.saveButton.textContent = validCount ? `Simpan ${validCount} data valid` : 'Simpan data valid';
+
+      if (!entries.length) {
+        elements.tableWrap.hidden = true;
+        elements.tableBody.innerHTML = '';
+        if (quickImportState.dirty && quickImportState.hasInput) {
+          elements.summary.innerHTML = `
+            <div class="quick-import-summary-head">
+              <span class="pill warn">Preview perlu dibuat ulang</span>
+            </div>
+            <p class="quick-import-summary-copy">Isi textarea sudah berubah. Klik <strong>Buat preview</strong> lagi agar data yang akan disimpan sesuai dengan tempelan terbaru.</p>
+          `;
+          return;
+        }
+        if (quickImportState.hasInput && !quickImportState.parsed) {
+          elements.summary.innerHTML = `
+            <div class="quick-import-summary-head">
+              <span class="pill">Siap diparse</span>
+            </div>
+            <p class="quick-import-summary-copy">Data tempelan sudah ada. Klik <strong>Buat preview</strong> untuk memeriksa field inti dan warning duplikat.</p>
+          `;
+          return;
+        }
+        elements.summary.innerHTML = quickImportState.hasInput
+          ? `
+            <div class="quick-import-summary-head">
+              <span class="pill inactive">Format belum terbaca</span>
+            </div>
+            <p class="quick-import-summary-copy">Belum ada blok santri yang berhasil diparse. Pastikan format mengandung label <strong>SANTRI</strong>, <strong>NIS</strong>, <strong>GENDER</strong>, <strong>STATUS</strong>, dan field inti lain yang ingin dipakai.</p>
+          `
+          : `
+            <div class="quick-import-summary-head">
+              <span class="pill">Belum ada preview</span>
+            </div>
+            <p class="quick-import-summary-copy">Tempel data lalu klik <strong>Buat preview</strong> untuk memeriksa hasil parse dan warning penting sebelum simpan.</p>
+          `;
+        return;
+      }
+
+      elements.summary.innerHTML = `
+        <div class="quick-import-summary-head">
+          <span class="pill">Total ${entries.length}</span>
+          <span class="pill">${validCount} siap disimpan</span>
+          <span class="pill ${invalidCount ? 'inactive' : ''}">${invalidCount} perlu dicek</span>
+          <span class="pill ${warningCount ? 'warn' : ''}">${warningCount} warning</span>
+        </div>
+        <p class="quick-import-summary-copy">${invalidCount
+          ? 'Baris yang valid bisa langsung disimpan. Baris bermasalah akan tetap ditahan agar bisa diperbaiki dari textarea.'
+          : 'Semua baris sudah valid. Anda bisa langsung menyimpan semuanya.'}</p>
+      `;
+
+      elements.tableBody.innerHTML = entries.map(entry => `
+        <tr class="${entry.isValid ? 'is-valid' : 'is-invalid'}">
+          <td>${entry.rowNumber}</td>
+          <td><strong>${escapeHtml(entry.display.name || '-')}</strong></td>
+          <td>${escapeHtml(entry.display.renamedName || '-')}</td>
+          <td>${escapeHtml(entry.display.gender || '-')}</td>
+          <td>${escapeHtml(formatSantriStatusLabel(entry.display.status || '-'))}</td>
+          <td>${escapeHtml(entry.display.noInduk || '-')}</td>
+          <td>${escapeHtml(entry.display.program || '-')}</td>
+          <td>${escapeHtml(entry.display.noHp || '-')}</td>
+          <td>${entry.display.catatan ? `<div style="margin-bottom:8px">${escapeHtml(entry.display.catatan)}</div>` : ''}${formatQuickImportNotes(entry)}</td>
+        </tr>
+      `).join('');
+      elements.tableWrap.hidden = false;
+    }
+
+    function resetQuickImportDialog(options) {
+      const settings = options || {};
+      const elements = getQuickImportElements();
+      if (!settings.keepText) {
+        elements.input.value = '';
+      }
+      quickImportState.entries = [];
+      quickImportState.busy = false;
+      quickImportState.hasInput = !!(settings.keepText && elements.input.value.trim());
+      quickImportState.dirty = false;
+      quickImportState.parsed = false;
+      renderQuickImportPreview();
+    }
+
+    function openQuickImportDialog() {
+      if (!canDeleteRecords()) {
+        showNotice('Hanya Super Admin yang bisa memakai fitur tempel santri inti.', 'error');
+        return;
+      }
+      const elements = getQuickImportElements();
+      quickImportState.hasInput = !!elements.input.value.trim();
+      quickImportState.dirty = false;
+      quickImportState.parsed = quickImportState.entries.length > 0;
+      renderQuickImportPreview();
+      elements.dialog.showModal();
+      elements.input.focus();
+    }
+
+    async function parseQuickImportPreview() {
+      const elements = getQuickImportElements();
+      quickImportState.hasInput = !!elements.input.value.trim();
+      quickImportState.dirty = false;
+      quickImportState.parsed = true;
+      quickImportState.busy = true;
+      renderQuickImportPreview();
+      try {
+        await refreshQuickImportPreviewEntries(elements.input.value);
+        clearNotice();
+      } catch (error) {
+        quickImportState.entries = [];
+        showNotice(error.message || 'Gagal membuat preview tempel santri inti.', 'error');
+      } finally {
+        quickImportState.busy = false;
+        renderQuickImportPreview();
+      }
+    }
+
+    async function saveQuickImport(event) {
+      event.preventDefault();
+      if (quickImportState.busy) return;
+
+      const elements = getQuickImportElements();
+      quickImportState.hasInput = !!elements.input.value.trim();
+      quickImportState.dirty = false;
+      quickImportState.parsed = true;
+      quickImportState.busy = true;
+      renderQuickImportPreview();
+
+      try {
+        await refreshQuickImportPreviewEntries(elements.input.value, { silent: true });
+      } catch (error) {
+        quickImportState.busy = false;
+        renderQuickImportPreview();
+        showNotice(error.message || 'Gagal memeriksa ulang preview tempel santri inti.', 'error');
+        return;
+      }
+
+      quickImportState.busy = false;
+      renderQuickImportPreview();
+
+      const validEntries = quickImportState.entries.filter(entry => entry.isValid);
+      const invalidEntries = quickImportState.entries.filter(entry => !entry.isValid);
+      if (!validEntries.length) {
+        showNotice('Belum ada baris valid untuk disimpan.', 'error');
+        return;
+      }
+
+      const confirmMessage = invalidEntries.length
+        ? `Simpan ${validEntries.length} santri yang valid? ${invalidEntries.length} baris lain belum ikut disimpan.`
+        : `Simpan ${validEntries.length} santri dari tempelan cepat?`;
+      if (!confirm(confirmMessage)) return;
+
+      quickImportState.busy = true;
+      renderQuickImportPreview();
+
+      let savedCount = 0;
+      const failedEntries = [];
+
+      for (let index = 0; index < validEntries.length; index += 1) {
+        const entry = validEntries[index];
+        showNotice(`Menyimpan santri ${index + 1}/${validEntries.length}: ${entry.record.nama_lengkap_akte}...`, 'info');
+        try {
+          await api('santri.save', { record: entry.record }, 'POST');
+          savedCount += 1;
+        } catch (error) {
+          failedEntries.push({
+            ...entry,
+            blockingIssues: entry.blockingIssues.concat(error.message || 'Gagal menyimpan santri ini.'),
+            isValid: false
+          });
+        }
+      }
+
+      quickImportState.busy = false;
+
+      try {
+        await loadData();
+        await issuePanelController.load();
+      } catch (error) {
+        showNotice(error.message || 'Data santri tersimpan, tetapi daftar gagal dimuat ulang.', 'error');
+      }
+
+      const remainingEntries = invalidEntries.concat(failedEntries);
+      if (remainingEntries.length) {
+        quickImportState.entries = remainingEntries;
+        quickImportState.hasInput = true;
+        quickImportState.dirty = false;
+        quickImportState.parsed = true;
+        elements.input.value = remainingEntries.map(entry => entry.sourceBlock).join('\n\n');
+        renderQuickImportPreview();
+        showNotice(
+          savedCount
+            ? `Berhasil menyimpan ${savedCount} santri. ${remainingEntries.length} baris masih perlu ditinjau.`
+            : 'Belum ada santri yang tersimpan. Periksa catatan di preview tempel santri inti.',
+          savedCount ? 'info' : 'error'
+        );
+        return;
+      }
+
+      resetQuickImportDialog();
+      elements.dialog.close();
+      showNotice(`Berhasil menyimpan ${savedCount} santri dari tempelan cepat.`, 'info');
+    }
+
+    async function handleExportQuickImportText() {
+      if (!canDeleteRecords()) {
+        showNotice('Hanya Super Admin yang bisa export format tempel santri inti.', 'error');
+        return;
+      }
+      showNotice('Menyiapkan export TXT tempel santri inti...', 'info');
+      try {
+        const data = await api('santri.quickImportExport');
+        const filename = data?.filename || `santri-tempel-${window.PSExport.formatExportFileTimestamp(new Date().toISOString())}.txt`;
+        const blob = new Blob([String(data?.text || '')], { type: 'text/plain;charset=utf-8' });
+        window.PSExport.downloadBlobFile(blob, filename);
+        showNotice(`Export TXT tempel santri siap diunduh. Total ${Number(data?.count || 0)} santri.`, 'info');
+      } catch (error) {
+        showNotice(error.message || 'Gagal export TXT tempel santri inti.', 'error');
+      }
+    }
+
+    function getSantriSummaryPdfAccent(item) {
+      const gender = normalizeSantriGender(item?.jenisKelamin);
+      const statusKey = getSantriStatusKey(item?.status);
+      if (statusKey === 'inactive') return [144, 139, 122];
+      if (statusKey === 'dibekukan') return [207, 200, 175];
+      if (gender === 'male') return [87, 107, 149];
+      if (gender === 'female') return [171, 102, 88];
+      return [151, 110, 77];
+    }
+
+    async function handleDownloadSummaryPdf() {
+      if (!canDownloadSummaryPdf()) {
+        showNotice('Download PDF santri hanya untuk Admin dan Super Admin.', 'error');
+        return;
+      }
+      showNotice('Menyusun ringkasan santri PDF...', 'info');
+      try {
+        const data = await api('santri.summaryPdfData', {
+          page: 1,
+          pageSize: 100000,
+          q: document.getElementById('searchInput').value.trim(),
+          status: document.getElementById('statusFilter').value,
+          gender: document.getElementById('genderFilter').value,
+          statusAkad: document.getElementById('statusAkadFilter').value,
+          sort: document.getElementById('sortSelect').value
+        });
+        const blob = window.PSExport.buildCardSummaryPdfBlob({
+          title: 'Ringkasan Santri',
+          subtitle: 'Format cetak ringkas untuk pengecekan status dan identitas inti.',
+          exportedAt: data?.exportedAt,
+          summaryText: `Total ${Number(data?.count || 0)} santri`,
+          emptyText: 'Belum ada santri yang cocok dengan filter saat ini.',
+          items: (Array.isArray(data?.items) ? data.items : []).map(item => ({
+            title: item.name || 'Tanpa nama',
+            accentColor: getSantriSummaryPdfAccent(item),
+            badges: [
+              formatSantriStatusLabel(item.status || '-'),
+              item.jenisKelamin ? (normalizeSantriGender(item.jenisKelamin) === 'male' ? 'Laki-laki' : 'Perempuan') : 'Gender kosong',
+              `NIS ${item.noInduk || '-'}`,
+              `Program ${item.program || '-'}`,
+              `Halaqoh ${Number(item.halaqohCount || 0)}`,
+              `Kelas ${Number(item.kelasCount || 0)}`,
+              `Regu ${Number(item.reguCount || 0)}`
+            ],
+            lines: [
+              `Nama panggilan: ${item.namaPanggilan || '-'}`,
+              `NIK: ${item.nik || '-'}`,
+              `No HP: ${item.noHp || '-'}`,
+              `Angkatan: ${item.angkatan || '-'}`,
+              `Program: ${item.program || '-'}`
+            ]
+          }))
+        });
+        window.PSExport.downloadBlobFile(blob, `santri-${window.PSExport.formatExportFileTimestamp(data?.exportedAt)}.pdf`);
+        showNotice('PDF santri siap diunduh.', 'info');
+      } catch (error) {
+        showNotice(error.message || 'Gagal membuat PDF santri.', 'error');
+      }
+    }
+
+    function buildField(field, record) {
+      const value = record?.[field.key] ?? '';
+      const required = field.required ? 'required' : '';
+      if (field.legacy) {
+        return `
+          <label>
+            ${field.label}
+            <input type="text" value="${escapeHtml(value)}" disabled style="background:#e9e6e1;color:#8a8378;border-color:rgba(91,73,57,0.15);cursor:not-allowed;">
+          </label>
+          <p style="margin:-4px 0 0;font-size:11px;color:var(--muted);font-style:italic;">Kolom ini sudah dihapus (sisa data lama), tidak bisa diinput atau diedit lagi.</p>
+        `;
+      }
+      if (field.type === 'file_doc') {
+        const fileUrl = record[field.key + '_file'] || '';
+        const hasFile = !!fileUrl;
+        const fileHref = fileUrl ? '../../' + fileUrl : '';
+        return `
+          <div>
+            <label>
+              ${field.label}
+              <input type="text" name="${field.key}" value="${escapeHtml(value)}" placeholder="${escapeHtml(field.placeholder || '')}">
+            </label>
+            <input type="hidden" name="${field.key}_file" id="hidden_${field.key}" value="${escapeHtml(fileUrl)}">
+            <div class="doc-upload-area">
+              <div id="docpreview_${field.key}" class="doc-preview-wrap">
+                ${hasFile
+                  ? `<a href="${escapeHtml(fileHref)}" target="_blank" rel="noopener"><img src="${escapeHtml(fileHref)}" class="doc-preview-img" alt="${escapeHtml(field.label)}"></a>
+                     <button type="button" class="doc-delete-btn" onclick="deleteDocFile('${field.key}')">Hapus</button>`
+                  : `<span class="doc-no-file">Belum ada file</span>`}
+              </div>
+              <div class="doc-upload-row">
+                <label class="doc-pick-btn" for="docpick_${field.key}">Pilih gambar</label>
+                <input type="file" id="docpick_${field.key}" accept="image/jpeg,image/png,image/webp,image/gif" style="display:none" data-doc-key="${field.key}">
+                <span class="doc-pending-name" id="docpending_${field.key}"></span>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+      if (field.type === 'akad_status') {
+        const tgl = record.tanggal_masuk_dianggap;
+        const mb = parseInt(record.masa_belajar) || 0;
+        const mp = parseInt(record.masa_pengabdian) || 0;
+        const at = parseInt(record.akad_tambahan) || 0;
+        let statusKey = null, statusLabel = '—', statusColor = '#999';
+        if (tgl && mb) {
+          const masuk = new Date(tgl);
+          if (!isNaN(masuk)) {
+            const total = mb + at;
+            const akhirBelajar = new Date(masuk); akhirBelajar.setFullYear(akhirBelajar.getFullYear() + total);
+            const akhirPengabdian = new Date(akhirBelajar); akhirPengabdian.setFullYear(akhirPengabdian.getFullYear() + mp);
+            const today = new Date(); today.setHours(0,0,0,0);
+            const calonStart = new Date(akhirBelajar); calonStart.setFullYear(calonStart.getFullYear() - 1);
+            if (mp > 0 && today >= akhirPengabdian) { statusKey = 'selesai'; statusLabel = 'Selesai'; statusColor = '#2e7d32'; }
+            else if (today >= akhirBelajar) { statusKey = 'pengabdian'; statusLabel = 'Pengabdian'; statusColor = '#1565c0'; }
+            else if (today >= calonStart) { statusKey = 'calon_pengabdian'; statusLabel = 'Calon Pengabdian'; statusColor = '#e65100'; }
+            else { statusKey = 'santri_biasa'; statusLabel = 'Santri Biasa'; statusColor = '#4d4034'; }
+          }
+        }
+        const bgMap = { selesai: '#e8f5e9', pengabdian: '#e3f2fd', calon_pengabdian: '#fff3e0', santri_biasa: '#f5f0eb' };
+        const bg = statusKey ? (bgMap[statusKey] || '#f5f0eb') : '#f5f0eb';
+        const note = !tgl ? 'Isi Tanggal Masuk Dianggap untuk menghitung' : !mb ? 'Isi Masa Belajar untuk menghitung' : '';
+        const pengabdianReminder = (statusKey === 'pengabdian' && getSantriStatusKey(record.status) !== 'dibekukan')
+          ? 'Santri sudah masuk masa Pengabdian — status santri harus diubah jadi Dibekukan (keterangan "pengabdian"). Hanya Admin/Super Admin yang bisa mengubahnya.'
+          : '';
+        return `
+          <div style="display:flex;flex-direction:column;gap:4px;">
+            <span style="font-size:13px;font-weight:600;color:var(--ink);">Status Akad (otomatis)</span>
+            <span style="display:inline-block;padding:5px 14px;border-radius:99px;background:${bg};color:${statusColor};font-weight:700;font-size:13px;width:fit-content;">${escapeHtml(statusLabel)}</span>
+            ${note ? `<span style="font-size:12px;color:var(--muted);">${escapeHtml(note)}</span>` : ''}
+            ${pengabdianReminder ? `<span style="font-size:12px;color:#c45300;font-weight:600;">${escapeHtml(pengabdianReminder)}</span>` : ''}
+          </div>
+        `;
+      }
+      if (field.type === 'date') {
+        return `
+          <label>
+            ${field.label}
+            <input type="date" name="${field.key}" value="${escapeHtml(value)}" ${required}>
+          </label>
+        `;
+      }
+      if (field.type === 'digits') {
+        return `
+          <label>
+            ${field.label}
+            <input type="text" name="${field.key}" value="${escapeHtml(value)}" inputmode="numeric" pattern="[0-9]*" autocomplete="off" oninput="this.value=this.value.replace(/\\D/g,'')" ${required}>
+          </label>
+        `;
+      }
+      if (field.type === 'number') {
+        return `
+          <label>
+            ${field.label}
+            <div style="display:flex;align-items:center;gap:8px;">
+              <input type="number" name="${field.key}" value="${escapeHtml(value)}" min="0" step="1" ${required} style="flex:1;min-width:0;">
+              ${field.suffix ? `<span style="color:var(--muted);font-size:14px;white-space:nowrap;">${escapeHtml(field.suffix)}</span>` : ''}
+            </div>
+          </label>
+        `;
+      }
+      if (field.type === 'textarea') {
+        return `
+          <label>
+            ${field.label}
+            <textarea name="${field.key}" rows="4" ${required} ${field.placeholder ? `placeholder="${escapeHtml(field.placeholder)}"` : ''}>${escapeHtml(value)}</textarea>
+          </label>
+        `;
+      }
+      if (field.type === 'select') {
+        const isStatusField = field.key === 'status';
+        const normalizedValue = field.key === 'status' ? normalizeSantriStatusValue(value)
+          : field.key === 'jenis_kelamin_singkat' ? normalizeSantriGenderSingkat(value)
+          : field.key === 'jenis_kelamin' ? normalizeSantriGenderPanjang(value)
+          : String(value);
+        const isInactiveStatus = isStatusField && getSantriStatusKey(normalizedValue) === 'inactive';
+        const options = isStatusField && !canToggleInactiveRecords()
+          ? (isInactiveStatus ? ['Inactive'] : field.options.filter(option => getSantriStatusKey(option) !== 'inactive'))
+          : field.options;
+        const disabled = isStatusField && isInactiveStatus && !canToggleInactiveRecords() ? 'disabled' : '';
+        const hiddenValue = isStatusField && isInactiveStatus && !canToggleInactiveRecords()
+          ? `<input type="hidden" name="${field.key}" value="Inactive">`
+          : '';
+        return `
+          <label>
+            ${field.label}
+            <select name="${field.key}" ${required} ${disabled}>
+              <option value="">-- Pilih --</option>
+              ${options.map(option => {
+                const optionValue = String(option);
+                const optionLabel = field.key === 'status' ? formatSantriStatusLabel(option)
+                  : field.key === 'jenis_kelamin_singkat' ? (option === 'L' ? '🧊 Laki-laki' : '🌸 Perempuan')
+                  : field.key === 'jenis_kelamin' ? (option === 'Laki-laki' ? '🧊 Laki-laki' : '🌸 Perempuan')
+                  : option;
+                return `<option value="${escapeHtml(optionValue)}" ${normalizedValue === optionValue ? 'selected' : ''}>${escapeHtml(optionLabel)}</option>`;
+              }).join('')}
+            </select>
+            ${hiddenValue}
+          </label>
+        `;
+      }
+      if (field.type === 'password') {
+        return `
+          <label>
+            ${field.label}
+            <div style="display:flex;gap:8px;align-items:center">
+              <input type="password" name="${field.key}" value="" autocomplete="new-password" style="flex:1;min-width:0">
+              <button type="button" class="secondary js-reset-default-password" style="white-space:nowrap;padding:10px 14px;font-size:12px;flex-shrink:0">Reset default</button>
+            </div>
+          </label>
+        `;
+      }
+      if (field.key === 'username') {
+        return `
+          <label>
+            ${field.label}
+            <div style="display:flex;gap:8px;align-items:center">
+              <input type="text" name="${field.key}" value="${escapeHtml(value)}" autocomplete="off" style="flex:1;min-width:0">
+              <button type="button" class="secondary js-generate-username" style="white-space:nowrap;padding:10px 14px;font-size:12px;flex-shrink:0">Dari nama</button>
+            </div>
+          </label>
+        `;
+      }
+      return `
+        <label>
+          ${field.label}
+          <input type="text" name="${field.key}" value="${escapeHtml(value)}" ${required} ${field.placeholder ? `placeholder="${escapeHtml(field.placeholder)}"` : ''}>
+        </label>
+      `;
+    }
+
+    function renderFormSections(record = {}) {
+      document.getElementById('formSections').innerHTML = SANTRI_SECTIONS.map((section, index) => `
+        <details>
+          <summary>${section.title}</summary>
+          <div class="field-grid">
+            ${section.fields.map(field => buildField(field, record)).join('')}
+          </div>
+        </details>
+      `).join('');
+    }
+
+    function fmtViewDate(value) {
+      if (!value) return '';
+      const d = new Date(value);
+      if (isNaN(d)) return String(value);
+      return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+    }
+
+    function buildViewField(field, record) {
+      if (field.type === 'password') return '';
+      const raw = record?.[field.key] ?? '';
+      const empty = `<span class="view-field-value is-empty">Belum diisi</span>`;
+
+      if (field.legacy) {
+        const valueHtml = raw ? `<span class="view-field-value">${escapeHtml(String(raw))}</span>` : empty;
+        return `<div class="view-field"><span class="view-field-label">${escapeHtml(field.label)}</span>${valueHtml}<span style="font-size:11px;color:var(--muted);font-style:italic;">Kolom ini sudah dihapus (sisa data lama).</span></div>`;
+      }
+      if (field.type === 'file_doc') {
+        const fileUrl = record[field.key + '_file'] || '';
+        const fileHref = fileUrl ? '../../' + fileUrl : '';
+        const valueHtml = fileUrl
+          ? `<a class="view-doc-link" href="${escapeHtml(fileHref)}" target="_blank" rel="noopener"><img src="${escapeHtml(fileHref)}" alt="${escapeHtml(field.label)}">Lihat file</a>`
+          : empty;
+        return `<div class="view-field"><span class="view-field-label">${escapeHtml(field.label)}</span>${valueHtml}</div>`;
+      }
+      if (field.type === 'akad_status') {
+        const tgl = record.tanggal_masuk_dianggap;
+        const mb = parseInt(record.masa_belajar) || 0;
+        const mp = parseInt(record.masa_pengabdian) || 0;
+        const at = parseInt(record.akad_tambahan) || 0;
+        let statusLabel = '—', statusColor = '#999';
+        if (tgl && mb) {
+          const masuk = new Date(tgl);
+          if (!isNaN(masuk)) {
+            const total = mb + at;
+            const akhirBelajar = new Date(masuk); akhirBelajar.setFullYear(akhirBelajar.getFullYear() + total);
+            const akhirPengabdian = new Date(akhirBelajar); akhirPengabdian.setFullYear(akhirPengabdian.getFullYear() + mp);
+            const today = new Date(); today.setHours(0,0,0,0);
+            const calonStart = new Date(akhirBelajar); calonStart.setFullYear(calonStart.getFullYear() - 1);
+            if (mp > 0 && today >= akhirPengabdian) { statusLabel = 'Selesai'; statusColor = '#2e7d32'; }
+            else if (today >= akhirBelajar) { statusLabel = 'Pengabdian'; statusColor = '#1565c0'; }
+            else if (today >= calonStart) { statusLabel = 'Calon Pengabdian'; statusColor = '#e65100'; }
+            else { statusLabel = 'Santri Biasa'; statusColor = '#4d4034'; }
+          }
+        }
+        return `<div class="view-field"><span class="view-field-label">Status Akad</span><span style="display:inline-block;padding:4px 12px;border-radius:99px;background:rgba(0,0,0,0.05);color:${statusColor};font-weight:700;font-size:13px;width:fit-content;">${escapeHtml(statusLabel)}</span></div>`;
+      }
+      if (field.type === 'date') {
+        const valueHtml = raw ? `<span class="view-field-value">${escapeHtml(fmtViewDate(raw))}</span>` : empty;
+        return `<div class="view-field"><span class="view-field-label">${escapeHtml(field.label)}</span>${valueHtml}</div>`;
+      }
+      if (field.type === 'select') {
+        let label = String(raw || '');
+        if (field.key === 'status') label = formatSantriStatusLabel(normalizeSantriStatusValue(raw));
+        else if (field.key === 'jenis_kelamin_singkat') label = normalizeSantriGenderSingkat(raw) === 'L' ? '🧊 Laki-laki' : normalizeSantriGenderSingkat(raw) === 'P' ? '🌸 Perempuan' : '';
+        else if (field.key === 'jenis_kelamin') label = normalizeSantriGenderPanjang(raw) === 'Laki-laki' ? '🧊 Laki-laki' : normalizeSantriGenderPanjang(raw) === 'Perempuan' ? '🌸 Perempuan' : '';
+        const valueHtml = label ? `<span class="view-field-value">${escapeHtml(label)}</span>` : empty;
+        return `<div class="view-field"><span class="view-field-label">${escapeHtml(field.label)}</span>${valueHtml}</div>`;
+      }
+      const text = field.type === 'number' && raw !== '' ? `${raw}${field.suffix ? ' ' + field.suffix : ''}` : String(raw || '');
+      const valueHtml = text ? `<span class="view-field-value">${escapeHtml(text)}</span>` : empty;
+      return `<div class="view-field"><span class="view-field-label">${escapeHtml(field.label)}</span>${valueHtml}</div>`;
+    }
+
+    function renderViewSections(record = {}) {
+      document.getElementById('viewSantriSections').innerHTML = SANTRI_SECTIONS.map((section, index) => `
+        <details ${index === 0 ? 'open' : ''}>
+          <summary>${section.title}</summary>
+          <div class="field-grid">
+            ${section.fields.map(field => buildViewField(field, record)).join('')}
+          </div>
+        </details>
+      `).join('');
+    }
+
+    function openViewDialog(item) {
+      const record = item?.record || {};
+      document.getElementById('viewSantriTitle').textContent = item?.name || 'Data Santri';
+      renderViewSections(record);
+      const avatar = document.getElementById('viewSantriPhotoAvatar');
+      const photoUrl = item?.photoUrl || record.photo_url || '';
+      const resolvedPhoto = resolveAssetUrl(photoUrl);
+      avatar.innerHTML = resolvedPhoto ? `<img src="${escapeHtml(resolvedPhoto)}" alt="Foto">` : escapeHtml(getPhotoInitials(item?.name));
+      document.getElementById('viewSantriDialog').showModal();
+    }
+
+    function buildPaginationList(page, totalPages) {
+      const maxNumbers = 10;
+      if (totalPages <= maxNumbers) {
+        return Array.from({ length: totalPages }, (_, index) => index + 1);
+      }
+      const middleSlots = maxNumbers - 2;
+      const pages = [1];
+      let start = Math.max(2, page - Math.floor(middleSlots / 2));
+      let end = start + middleSlots - 1;
+      if (end > totalPages - 1) {
+        end = totalPages - 1;
+        start = end - middleSlots + 1;
+      }
+      if (start > 2) pages.push('...');
+      for (let value = start; value <= end; value += 1) pages.push(value);
+      if (end < totalPages - 1) pages.push('...');
+      pages.push(totalPages);
+      return pages;
+    }
+
+    function renderPagination() {
+      const markup = state.total
+        ? `
+          <div class="paging">
+            <button class="secondary" type="button" data-page="${state.page - 1}" ${state.page <= 1 ? 'disabled aria-disabled="true"' : ''}>Sebelumnya</button>
+            <div class="page-center">
+              <div class="page-numbers">
+                ${buildPaginationList(state.page, state.totalPages).map(item => (
+                  item === '...'
+                    ? '<span class="page-summary">...</span>'
+                    : `<button class="secondary page-btn ${item === state.page ? 'active' : ''}" type="button" data-page="${item}">${item}</button>`
+                )).join('')}
+              </div>
+              <div class="page-summary">Halaman ${state.page} dari ${state.totalPages} | total ${state.total} data</div>
+            </div>
+            <button class="secondary" type="button" data-page="${state.page + 1}" ${state.page >= state.totalPages ? 'disabled aria-disabled="true"' : ''}>Berikutnya</button>
+          </div>
+        `
+        : '';
+      window.PSUI.syncPaginationHosts({ markup, visibleCount: state.items.length, totalCount: state.total, topId: 'paginationTop', bottomId: 'paginationBottom' });
+    }
+
+    function isItemExpanded(id) {
+      return state.expandedIds.has(id);
+    }
+
+    function pruneExpandedIds() {
+      const visibleIds = new Set(state.items.map(item => item.id));
+      Array.from(state.expandedIds).forEach(id => {
+        if (!visibleIds.has(id)) {
+          state.expandedIds.delete(id);
+        }
+      });
+    }
+
+    function syncExpandToggleButton() {
+      const button = document.getElementById('toggleExpandButton');
+      if (!button) return;
+      const hasItems = state.items.length > 0;
+      const allExpanded = hasItems && state.items.every(item => state.expandedIds.has(item.id));
+      button.disabled = !hasItems;
+      button.dataset.expandState = allExpanded ? 'expanded' : 'collapsed';
+      button.textContent = allExpanded ? 'Tutup semua' : 'Buka semua';
+    }
+
+    function syncActionToolbar() {
+      const toolbar = document.getElementById('actionToolbar');
+      const toggle = document.getElementById('toolbarCollapseToggle');
+      const extras = document.querySelectorAll('#actionToolbar .toolbar-extra-action');
+      if (!toolbar || !toggle) return;
+      toolbar.classList.toggle('is-expanded', !!state.toolbarExpanded);
+      extras.forEach(button => {
+        button.classList.toggle('is-visible', !!state.toolbarExpanded);
+      });
+      toggle.setAttribute('aria-expanded', state.toolbarExpanded ? 'true' : 'false');
+      toggle.setAttribute('aria-label', state.toolbarExpanded ? 'Tutup aksi tambahan' : 'Buka aksi tambahan');
+      toggle.textContent = state.toolbarExpanded ? '\u2212' : '+';
+    }
+
+    function syncFiltersVisibility() {
+      const filters = document.getElementById('filtersPanel');
+      if (filters) filters.hidden = false;
+    }
+
+    function syncConceptPanel() {
+      const panel = document.getElementById('pageConceptPanel');
+      if (panel) panel.style.display = canDeleteRecords() ? 'block' : 'none';
+    }
+
+    function syncRestrictedActions() {
+      const canUseExcel = canUseExcelTools();
+      const canDeleteAll = canDeleteRecords();
+      const canQuickImport = canDeleteRecords();
+      const canDownloadPdf = canDownloadSummaryPdf();
+      window.PSUI.applyPermissionLock(document.getElementById('addButton'), canManageRecords(), 'Mudir hanya bisa melihat data santri, tidak bisa menambah santri.');
+      document.getElementById('quickImportButton').hidden = !canQuickImport;
+      document.getElementById('exportQuickImportTxtButton').hidden = !canQuickImport;
+      document.getElementById('downloadSummaryPdfButton').hidden = !canDownloadPdf;
+      document.getElementById('downloadTemplateButton').hidden = !canDeleteAll;
+      document.getElementById('importExcelButton').hidden = !canDeleteAll;
+      document.getElementById('exportExcelButton').hidden = !canUseExcel;
+      document.getElementById('resetAllPasswordsButton').hidden = !canDeleteAll;
+      document.getElementById('deleteAllButton').hidden = !canDeleteAll;
+      document.getElementById('deleteAllButton').classList.toggle('is-unavailable', !canDeleteAll);
+    }
+
+    function toggleActionToolbar() {
+      state.toolbarExpanded = !state.toolbarExpanded;
+      syncActionToolbar();
+    }
+
+    function toggleItemExpanded(id) {
+      if (!id) return;
+      if (state.expandedIds.has(id)) {
+        state.expandedIds.delete(id);
+      } else {
+        state.expandedIds.add(id);
+      }
+      renderList();
+    }
+
+    function toggleExpandedList() {
+      const allExpanded = state.items.length > 0 && state.items.every(item => state.expandedIds.has(item.id));
+      if (allExpanded) {
+        state.expandedIds.clear();
+      } else {
+        state.items.forEach(item => state.expandedIds.add(item.id));
+      }
+      renderList();
+    }
+
+    function getSelectedIds() {
+      return Array.from(state.selectedIds);
+    }
+
+    function toggleSelectedId(id, checked) {
+      if (checked) {
+        state.selectedIds.add(id);
+      } else {
+        state.selectedIds.delete(id);
+      }
+      renderBulkToolbar();
+    }
+
+    function clearSelectedIds() {
+      state.selectedIds.clear();
+      renderList();
+      renderBulkToolbar();
+    }
+
+    function selectVisibleItems() {
+      state.items.forEach(item => state.selectedIds.add(item.id));
+      renderList();
+      renderBulkToolbar();
+    }
+
+    function renderBulkToolbar() {
+      const count = state.selectedIds.size;
+      const canToggleInactive = canToggleInactiveRecords();
+      const canDelete = canDeleteRecords();
+      const lockAttr = canToggleInactive ? '' : 'disabled aria-disabled="true" title="Mudir hanya bisa melihat data santri, tidak bisa mengubah status aktif/nonaktif."';
+      window.PSUI.mountBulkToolbar('bulkToolbar', `
+        <div class="bulk-toolbar-head">
+          <strong>${count} item dipilih</strong>
+          <div class="bulk-toolbar-actions">
+            <button class="secondary" id="selectVisibleButton" type="button">Pilih halaman ini</button>
+            <button class="secondary" id="clearSelectedButton" type="button">Kosongkan pilihan</button>
+            <button class="secondary${canToggleInactive ? '' : ' ps-locked'}" id="bulkActivateButton" type="button" ${lockAttr}>Aktifkan</button>
+            <button class="secondary${canToggleInactive ? '' : ' ps-locked'}" id="bulkDeactivateButton" type="button" ${lockAttr}>Nonaktifkan</button>
+            ${canDelete ? '<button class="danger" id="bulkDeleteButton" type="button">Hapus permanen</button>' : ''}
+          </div>
+        </div>
+      `, count > 0);
+    }
+
+    async function handleBulkToggle(active) {
+      if (!canToggleInactiveRecords()) {
+        showNotice('Hanya Admin dan Super Admin yang bisa mengubah status aktif/nonaktif santri.', 'error');
+        return;
+      }
+      const ids = getSelectedIds();
+      if (!ids.length) {
+        showNotice('Pilih minimal satu santri.', 'error');
+        return;
+      }
+      const yes = confirm(`${active ? 'Aktifkan' : 'Nonaktifkan'} ${ids.length} santri terpilih?`);
+      if (!yes) return;
+      try {
+        await api('bulk.toggle', { sheetKey: DATASET_KEY, ids, active }, 'POST');
+        clearSelectedIds();
+        await loadData();
+        await issuePanelController.load();
+      } catch (error) {
+        showNotice(error.message || 'Gagal memproses aksi massal.', 'error');
+      }
+    }
+
+    // Hapus permanen santri sekarang cascade ke SEMUA riwayatnya (nilai, hafalan, absensi,
+    // dll ikut terhapus, bukan cuma keluar dari halaqoh/kelas/regu) -- karena dampaknya jauh
+    // lebih besar dari sebelumnya, konfirmasinya diperketat: harus ketik HAPUS 5 kali berturut-
+    // turut (5 prompt terpisah), batal di prompt mana pun langsung membatalkan semuanya.
+    async function confirmHapusPermanenBerlapis(message) {
+      for (let i = 1; i <= 5; i++) {
+        const typed = prompt(`${message}\n\nKetik HAPUS untuk lanjut (konfirmasi ${i} dari 5).`);
+        if (typed === null) return false;
+        if ((typed || '').trim().toUpperCase() !== 'HAPUS') {
+          showNotice(`Konfirmasi ke-${i} tidak valid, hapus permanen dibatalkan.`, 'error');
+          return false;
+        }
+      }
+      return true;
+    }
+
+    async function handleBulkDelete() {
+      const ids = getSelectedIds();
+      if (!ids.length) {
+        showNotice('Pilih minimal satu santri.', 'error');
+        return;
+      }
+      const ok = await confirmHapusPermanenBerlapis(`Hapus permanen ${ids.length} santri terpilih? SEMUA riwayat (nilai, hafalan, absensi, dll) ikut terhapus dan TIDAK BISA dipulihkan.`);
+      if (!ok) return;
+      try {
+        await api('bulk.delete', { sheetKey: DATASET_KEY, ids, confirm: 'HAPUS' }, 'POST');
+        clearSelectedIds();
+        await loadData();
+        await issuePanelController.load();
+      } catch (error) {
+        showNotice(error.message || 'Gagal menghapus data terpilih.', 'error');
+      }
+    }
+
+    async function handleDownloadTemplate() {
+      try {
+        await window.PSExcel.downloadTemplate(api, DATASET_KEY);
+      } catch (error) {
+        showNotice(error.message || 'Gagal membuat template Excel.', 'error');
+      }
+    }
+
+    async function handleExportExcel() {
+      try {
+        await window.PSExcel.exportDatasets(api, [DATASET_KEY], 'export-santri.xlsx');
+      } catch (error) {
+        showNotice(error.message || 'Gagal export Excel.', 'error');
+      }
+    }
+
+    function normalizeDuplicateGroups(groups) {
+      return (Array.isArray(groups) ? groups : []).map(group => {
+        const candidates = Array.isArray(group?.candidates) ? group.candidates.slice() : [];
+        return {
+          key: group?.key || '',
+          name: group?.name || '',
+          candidates,
+          count: candidates.length,
+          keepId: candidates[0]?.id || '',
+          keepSummary: candidates[0]?.summary || '',
+          deleteIds: candidates.slice(1).map(candidate => candidate.id),
+          deleteCount: Math.max(0, candidates.length - 1)
+        };
+      }).filter(group => group.candidates.length > 1);
+    }
+
+    function buildDuplicatePayload(groups) {
+      const normalizedGroups = normalizeDuplicateGroups(groups);
+      return {
+        groups: normalizedGroups,
+        totalGroups: normalizedGroups.length,
+        totalCandidates: normalizedGroups.reduce((sum, group) => sum + group.count, 0),
+        totalDeletable: normalizedGroups.reduce((sum, group) => sum + group.deleteCount, 0)
+      };
+    }
+
+    function renderDuplicateGroups(data) {
+      const payload = buildDuplicatePayload(Array.isArray(data?.groups) ? data.groups : []);
+      const groups = payload.groups;
+      const totalGroups = payload.totalGroups;
+      const totalDeletable = payload.totalDeletable;
+      const canDelete = canDeleteRecords();
+      const summary = document.getElementById('duplicateSummary');
+      const list = document.getElementById('duplicateList');
+      state.duplicateGroups = groups;
+
+      if (!groups.length) {
+        summary.textContent = 'Tidak ada nama santri yang terdeteksi sama saat ini.';
+        list.innerHTML = '<article class="duplicate-group"><p class="duplicate-note">Semua nama santri saat ini unik atau perbedaannya tidak terdeteksi sebagai duplikat.</p></article>';
+        return;
+      }
+
+      summary.textContent = `${totalGroups} kelompok nama sama ditemukan. ${totalDeletable} data selain rekomendasi bisa dihapus setelah dicek.`;
+      list.innerHTML = groups.map(group => `
+        <article class="duplicate-group">
+          <div class="duplicate-group-head">
+            <div>
+              <h4>${escapeHtml(group.name || '-')}</h4>
+              <p class="duplicate-note">Simpan data yang paling lengkap. Kandidat lain bisa dihapus jika memang santri yang sama.</p>
+            </div>
+          </div>
+          <p class="duplicate-recommendation">Rekomendasi simpan: ${escapeHtml(group.keepSummary || 'Data pertama paling lengkap.')}</p>
+          <div class="duplicate-candidate-list">
+            ${group.candidates.map((candidate, index) => `
+              <section class="duplicate-candidate ${index === 0 ? 'recommended' : ''}">
+                <div class="duplicate-candidate-head">
+                  <strong>${escapeHtml(candidate.name || '-')}</strong>
+                  <span class="pill ${getSantriStatusPillClass(candidate.status)}">${escapeHtml(formatSantriStatusLabel(candidate.status || '-'))}</span>
+                </div>
+                <p>ID ${escapeHtml(candidate.id || '-')} | NIS ${escapeHtml(candidate.noInduk || '-')} | NIK ${escapeHtml(candidate.nik || '-')}</p>
+                <p>Program ${escapeHtml(candidate.program || '-')} | Skor kelengkapan ${Number(candidate.score || 0)} | ${Number(candidate.filledFields || 0)} field terisi</p>
+                <p>${escapeHtml(candidate.summary || '-')}</p>
+                ${index === 0 ? '<p class="duplicate-recommendation">Ini kandidat paling lengkap untuk dipertahankan saat ini.</p>' : ''}
+                <div class="toolbar">
+                  ${canDelete ? `<button class="danger" type="button" data-duplicate-delete="${escapeHtml(candidate.id || '')}" data-duplicate-label="${escapeHtml(candidate.name || '-')}" data-duplicate-group="${escapeHtml(group.name || '-')}">Hapus duplikat ini</button>` : '<p class="duplicate-note">Mode baca saja. Hanya Super Admin yang bisa menghapus data duplikat.</p>'}
+                </div>
+              </section>
+            `).join('')}
+          </div>
+        </article>
+      `).join('');
+    }
+
+    async function loadDuplicateGroups() {
+      document.getElementById('duplicateSummary').textContent = 'Memuat data nama santri duplikat...';
+      document.getElementById('duplicateList').innerHTML = '';
+      try {
+        const data = await api('santri.duplicates');
+        renderDuplicateGroups(data);
+      } catch (error) {
+        document.getElementById('duplicateSummary').textContent = error.message || 'Gagal memuat nama santri duplikat.';
+        document.getElementById('duplicateList').innerHTML = '<article class="duplicate-group"><p class="duplicate-note">Data duplikat tidak bisa dimuat saat ini.</p></article>';
+      }
+    }
+
+    async function openDuplicateDialog() {
+      if (!document.getElementById('duplicateDialog').open) {
+        document.getElementById('duplicateDialog').showModal();
+      }
+      await loadDuplicateGroups();
+    }
+
+    async function deleteDuplicateIds(ids, label) {
+      if (!ids.length) {
+        showNotice('Tidak ada data duplikat yang bisa dihapus.', 'error');
+        return;
+      }
+      const ok = await confirmHapusPermanenBerlapis(`Hapus permanen duplikat "${label}"? SEMUA riwayat (nilai, hafalan, absensi, dll) ikut terhapus dan TIDAK BISA dipulihkan.`);
+      if (!ok) return;
+      const noticeId = startTaskNotice(`Menghapus duplikat: ${label}...`, 'info');
+      try {
+        await api('santri.delete', { id: ids[0], confirm: 'HAPUS' }, 'POST');
+        state.duplicateGroups = normalizeDuplicateGroups(state.duplicateGroups.map(group => ({
+          key: group.key,
+          name: group.name,
+          candidates: (group.candidates || []).filter(candidate => candidate.id !== ids[0])
+        })));
+        renderDuplicateGroups({ groups: state.duplicateGroups });
+        finishTaskNotice(noticeId, `Duplikat "${label}" berhasil dihapus.`, 'info', 2600);
+        clearSelectedIds();
+        loadData();
+        issuePanelController.load();
+      } catch (error) {
+        finishTaskNotice(noticeId, error.message || 'Gagal menghapus data duplikat.', 'error', 4200);
+      }
+    }
+
+    function closeDeleteAllDialog() {
+      document.getElementById('deleteAllDialog').close();
+      document.getElementById('deleteAllConfirmInput').value = '';
+      document.getElementById('confirmDeleteAllButton').disabled = true;
+    }
+
+    function syncDeleteAllConfirmState() {
+      const matched = document.getElementById('deleteAllConfirmInput').value.trim() === 'HAPUS SEMUA';
+      document.getElementById('confirmDeleteAllButton').disabled = !matched;
+    }
+
+    function openDeleteAllDialog() {
+      if (!canDeleteRecords()) {
+        showNotice('Hanya Super Admin yang bisa menghapus semua data santri.', 'error');
+        return;
+      }
+      document.getElementById('deleteAllDialog').showModal();
+      document.getElementById('deleteAllConfirmInput').value = '';
+      document.getElementById('confirmDeleteAllButton').disabled = true;
+      window.setTimeout(() => {
+        document.getElementById('deleteAllConfirmInput').focus();
+      }, 20);
+    }
+
+    async function deleteAllSantri(event) {
+      event.preventDefault();
+      const confirmation = document.getElementById('deleteAllConfirmInput').value.trim();
+      if (confirmation !== 'HAPUS SEMUA') {
+        showNotice('Tulis HAPUS SEMUA untuk melanjutkan.', 'error');
+        return;
+      }
+      closeDeleteAllDialog();
+      const noticeId = startTaskNotice('Menghapus semua data santri...', 'info');
+      try {
+        const data = await api('santri.deleteAll', {}, 'POST');
+        state.page = 1;
+        clearSelectedIds();
+        finishTaskNotice(noticeId, data.message || 'Semua data santri berhasil dihapus.', 'info', 4200);
+        await loadData();
+        await issuePanelController.load();
+        if (document.getElementById('duplicateDialog').open) {
+          await loadDuplicateGroups();
+        }
+      } catch (error) {
+        finishTaskNotice(noticeId, error.message || 'Gagal menghapus semua data santri.', 'error', 4200);
+      }
+    }
+
+    function handleImportRequest() {
+      document.getElementById('importExcelInput').click();
+    }
+
+    async function handleImportChange(event) {
+      const file = event.target.files && event.target.files[0];
+      event.target.value = '';
+      if (!file) return;
+      showNotice('Memproses import Excel santri...', 'info');
+      try {
+        await window.PSExcel.importDataset(api, DATASET_KEY, file, {
+          onProgress(done, total) {
+            showNotice(`Import santri ${done}/${total}...`, 'info');
+          }
+        });
+        await loadData();
+        await issuePanelController.load();
+        showNotice('Import Excel santri selesai.', 'info');
+      } catch (error) {
+        showNotice(error.message || 'Gagal import Excel.', 'error');
+      }
+    }
+
+    function renderList() {
+      const target = document.getElementById('list');
+      const canManage = canManageRecords();
+      const canToggleInactive = canToggleInactiveRecords();
+      const canDelete = canDeleteRecords();
+      if (!state.items.length) {
+        target.innerHTML = `<p class="empty-state">Belum ada santri pada halaman ini.</p>`;
+      } else {
+        target.innerHTML = state.items.map((item, index) => {
+          const gender = normalizeSantriGender(item.jenisKelamin);
+          const statusKey = getSantriStatusKey(item.status);
+          const genderBadge = gender === 'male'
+            ? `<span class="pill male" title="Laki-laki">🧊</span>`
+            : gender === 'female'
+            ? `<span class="pill female" title="Perempuan">🌸</span>`
+            : '';
+          const akadLabelMap = { santri_biasa: 'Santri Biasa', calon_pengabdian: 'Calon Pengabdian', pengabdian: 'Pengabdian', selesai: 'Selesai' };
+          const akadBgMap = { santri_biasa: '#f5f0eb', calon_pengabdian: '#fff3e0', pengabdian: '#e3f2fd', selesai: '#e8f5e9' };
+          const akadInkMap = { santri_biasa: '#4d4034', calon_pengabdian: '#e65100', pengabdian: '#1565c0', selesai: '#2e7d32' };
+          const akadBadge = item.statusAkad ? `<span style="display:inline-flex;align-items:center;padding:3px 9px;border-radius:99px;font-size:11.5px;font-weight:700;background:${akadBgMap[item.statusAkad]};color:${akadInkMap[item.statusAkad]};">${escapeHtml(akadLabelMap[item.statusAkad])}</span>` : '';
+          const newBadge = isSantriBaru(item) ? `<span style="display:inline-flex;align-items:center;padding:2px 8px;border-radius:99px;font-size:10.5px;font-weight:800;letter-spacing:.03em;background:#dff5df;color:#1e7e34;">NEW</span>` : '';
+          const haqCount = Number(item.halaqohCountAktifTa || 0);
+          const kelasCount = Number(item.kelasCountAktifTa || 0);
+          const reguCount = Number(item.reguCountAktifTa || 0);
+          const placementHint = (label, count, ok) => `<strong style="color:${ok ? '#2e7d32' : '#e65100'};">${label} ${count}</strong>`;
+          const placementHintText = [
+            placementHint('Halaqoh', haqCount, haqCount === 1),
+            placementHint('Kelas', kelasCount, kelasCount > 0 && kelasCount <= 3),
+            placementHint('Regu', reguCount, reguCount >= 1)
+          ].join(' &nbsp;·&nbsp; ');
+          return `
+          <article class="card minimal-list-card ${isItemExpanded(item.id) ? 'is-expanded' : ''} ${getCardRowClass(gender, statusKey)}">
+            <div class="minimal-list-card-head">
+              <label class="card-select minimal-list-card-select">
+                <input type="checkbox" data-select="${item.id}" ${state.selectedIds.has(item.id) ? 'checked' : ''}>
+                <span>Pilih</span>
+              </label>
+              <div class="minimal-list-card-main" data-collapse="${item.id}" role="button" tabindex="0" aria-expanded="${isItemExpanded(item.id) ? 'true' : 'false'}" aria-label="${isItemExpanded(item.id) ? 'Tutup detail santri' : 'Buka detail santri'}">
+                <div class="minimal-list-card-title-row">
+                  ${newBadge}
+                  <strong class="minimal-list-card-name">${escapeHtml(item.name || '-')}</strong>
+                  ${genderBadge}
+                  ${akadBadge}
+                </div>
+                <span class="minimal-list-card-hint">${index + 1} pada halaman ini &nbsp;\u00b7&nbsp; NIS ${escapeHtml(item.noInduk || '-')} &nbsp;\u00b7&nbsp; Program ${escapeHtml(item.program || '-')} &nbsp;\u00b7&nbsp; ${placementHintText} &nbsp;\u00b7&nbsp; Keterangan Status: ${escapeHtml(truncateWords(item.catatan, 7))}</span>
+              </div>
+              <button class="secondary minimal-list-card-toggle" type="button" data-view="${item.id}" aria-label="Lihat data santri ${escapeHtml(item.name || '-')}">Lihat</button>
+              <button class="secondary minimal-list-card-toggle${canManage ? '' : ' ps-locked'}" type="button" data-edit="${item.id}" aria-label="Edit santri ${escapeHtml(item.name || '-')}" ${canManage ? '' : 'disabled aria-disabled="true" title="Mudir hanya bisa melihat data santri, tidak bisa mengedit data."'}>Edit</button>
+            </div>
+            <div class="minimal-list-card-detail">
+              <div class="minimal-list-card-meta">
+                <span class="pill ${getSantriStatusPillClass(item.status)}">${escapeHtml(formatSantriStatusLabel(item.status))}</span>
+                ${akadBadge}
+                <span class="pill ${item.adminComplete ? '' : 'warn'}">${item.adminComplete ? 'Admin lengkap' : 'Data admin belum lengkap'}</span>
+                ${(() => { const e = countEmptySantriFields(item.record); return e ? `<span class="pill warn">${e} field kosong</span>` : `<span class="pill" style="background:rgba(116,132,108,0.15);color:#3a6040">Data lengkap</span>`; })()}
+              </div>
+              <div class="minimal-list-card-summary">
+                <p><strong>NIS:</strong> ${escapeHtml(item.noInduk || '-')}</p>
+                <p><strong>NIK:</strong> ${escapeHtml(item.nik || '-')}</p>
+                <p><strong>Program:</strong> ${escapeHtml(item.program || '-')}</p>
+                <p><strong>Keterangan Status:</strong> ${item.catatan ? escapeHtml(item.catatan) : '<em style="color:var(--muted);">Belum ada keterangan status.</em>'}</p>
+                <p><strong>Halaqoh:</strong> ${Number(item.halaqohCountAktifTa || 0)} &nbsp;·&nbsp; <strong>Kelas:</strong> ${Number(item.kelasCountAktifTa || 0)} &nbsp;·&nbsp; <strong>Regu:</strong> ${Number(item.reguCountAktifTa || 0)} <span style="font-size:11px;color:var(--muted);">(Tahun Ajaran Aktif${item.tahunAjaranAktifNama ? ': ' + escapeHtml(item.tahunAjaranAktifNama) : ''})</span></p>
+              </div>
+              <div class="toolbar minimal-list-card-actions">
+                <button class="secondary" type="button" data-view="${item.id}">Lihat</button>
+                <button class="secondary" type="button" data-placements="${item.id}">Penempatan</button>
+                ${canDownloadSummaryPdf() ? `<button class="secondary" type="button" data-pdf="${item.id}">Download Detail (Excel)</button>` : ''}
+                <button class="secondary${canManage ? '' : ' ps-locked'}" type="button" data-edit="${item.id}" ${canManage ? '' : 'disabled aria-disabled="true" title="Mudir hanya bisa melihat data santri, tidak bisa mengedit data."'}>Edit</button>
+                <button class="secondary${canManage ? '' : ' ps-locked'}" type="button" data-catatan="${item.id}" ${canManage ? '' : 'disabled aria-disabled="true" title="Mudir hanya bisa melihat data santri, tidak bisa mengedit keterangan status."'}>Edit Keterangan Status</button>
+                <button class="secondary" type="button" data-history="${item.id}" title="Riwayat pengedit">Riwayat Edit</button>
+                ${statusKey !== 'inactive' ? `<button class="${statusKey === 'dibekukan' ? 'primary' : 'secondary'}${canManage ? '' : ' ps-locked'}" type="button" data-freeze="${item.id}" ${canManage ? '' : 'disabled aria-disabled="true" title="Mudir hanya bisa melihat data santri, tidak bisa mengubah status."'}>${statusKey === 'dibekukan' ? 'Aktifkan normal' : 'Dibekukan'}</button>` : ''}
+                <button class="${item.active ? 'danger' : 'primary'}${canToggleInactive ? '' : ' ps-locked'}" type="button" data-toggle="${item.id}" ${canToggleInactive ? '' : 'disabled aria-disabled="true" title="Mudir hanya bisa melihat data santri, tidak bisa mengubah status aktif/nonaktif."'}>${item.active ? 'Nonaktifkan' : 'Aktifkan'}</button>
+                ${canDelete ? `<button class="danger" type="button" data-delete="${item.id}" title="Hapus permanen, hanya Super Admin">Hapus Permanen</button>` : ''}
+              </div>
+            </div>
+          </article>
+        `;
+        }).join('');
+      }
+      renderPagination();
+      syncExpandToggleButton();
+      window.PSUI.syncScrollButtons();
+    }
+
+    async function loadData() {
+      clearNotice();
+      showNotice('Memuat data santri...', 'info');
+      try {
+        const data = await api('santri.list', {
+          page: state.page,
+          pageSize: state.pageSize,
+          q: document.getElementById('searchInput').value.trim(),
+          status: document.getElementById('statusFilter').value,
+          gender: document.getElementById('genderFilter').value,
+          statusAkad: document.getElementById('statusAkadFilter').value,
+          sort: document.getElementById('sortSelect').value
+        });
+        state.items = data.items || [];
+        state.totalPages = data.totalPages || 1;
+        state.total = data.total || 0;
+        state.page = data.page || 1;
+        pruneExpandedIds();
+        renderList();
+        renderBulkToolbar();
+        clearNotice();
+      } catch (error) {
+        showNotice(error.message || 'Gagal memuat santri.', 'error');
+      }
+    }
+
+    function openDialog(item = null) {
+      Object.keys(pendingDocFiles).forEach(k => delete pendingDocFiles[k]);
+      pendingPhotoState.dataUrl = '';
+      pendingPhotoState.fileName = '';
+      pendingPhotoState.fileType = '';
+      pendingPhotoState.useDefault = false;
+      const record = item?.record || {};
+      document.getElementById('dialogTitle').textContent = item ? 'Edit santri' : 'Tambah santri';
+      document.querySelector('#form input[name="id"]').value = item?.id || '';
+      renderFormSections(record);
+      document.getElementById('dialogPhotoInput').value = '';
+      const photoArea = document.getElementById('dialogPhotoArea');
+      photoArea.dataset.existingUrl = item?.photoUrl || item?.record?.photo_url || '';
+      photoArea.dataset.itemName = item?.name || '';
+      updateDialogPhotoPreview(item?.name || '', item?.photoUrl || item?.record?.photo_url || '');
+      window.PSUI.applyPermissionLock(document.getElementById('saveFormButton'), canManageRecords(), 'Mudir hanya bisa melihat data santri, tidak bisa menyimpan perubahan.');
+      document.getElementById('dialog').showModal();
+    }
+
+    async function saveForm(event) {
+      event.preventDefault();
+      const form = event.currentTarget;
+      const formData = new FormData(form);
+      const record = Object.fromEntries(formData.entries());
+      record.status = normalizeSantriStatusValue(record.status);
+
+      if (!record.id) {
+        const namaCek = (record.nama_lengkap_akte || record.nama_setelah_diubah || record.nama_panggilan || '').trim();
+        if (namaCek) {
+          document.getElementById('dialog').close();
+          const lanjut = await checkNewSantriNameSimilarity(namaCek);
+          if (!lanjut) {
+            document.getElementById('dialog').showModal();
+            return;
+          }
+        }
+      }
+
+      Object.keys(pendingDocFiles).forEach(key => {
+        if (pendingDocFiles[key].delete) {
+          record[key + '_file_delete'] = 'true';
+        } else {
+          record[key + '_data_url'] = pendingDocFiles[key].dataUrl;
+          record[key + '_file_name'] = pendingDocFiles[key].name;
+        }
+      });
+      if (pendingPhotoState.dataUrl) {
+        record.photo_file_data_url = pendingPhotoState.dataUrl;
+        record.photo_file_name = pendingPhotoState.fileName;
+        record.photo_file_type = pendingPhotoState.fileType;
+      } else if (pendingPhotoState.useDefault) {
+        record.use_default_photo = 'true';
+      }
+      const label = record.nama_lengkap_akte || record.nama_setelah_diubah || record.no_induk || 'santri';
+      const noticeId = startTaskNotice(`Menyimpan data santri: ${label}...`, 'info');
+      state.pendingSaveCount += 1;
+      document.getElementById('dialog').close();
+      flashNotice('Form ditutup. Anda bisa lanjut edit santri lain, tetapi belum bisa pindah halaman sampai simpan selesai.', 'info', 3200);
+      try {
+        await api('santri.save', { record }, 'POST');
+        finishTaskNotice(noticeId, `Data santri tersimpan: ${label}.`, 'info');
+        await loadData();
+        await issuePanelController.load();
+      } catch (error) {
+        finishTaskNotice(noticeId, error.message || `Gagal menyimpan santri: ${label}.`, 'error', 4800);
+      } finally {
+        state.pendingSaveCount = Math.max(0, state.pendingSaveCount - 1);
+      }
+    }
+
+    function showEditHistory(item) {
+      const record = item.record || {};
+      document.getElementById('editHistorySubtitle').textContent = escapeHtml(item.name || '-');
+      const history = (() => {
+        try { return JSON.parse(record.edit_history || '[]'); } catch (_) { return []; }
+      })();
+      const formatDate = iso => {
+        if (!iso) return '-';
+        const d = new Date(iso);
+        return isNaN(d) ? iso : d.toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
+      };
+      const actionLabel = a => a === 'create' ? 'Dibuat' : 'Diedit';
+      const rows = history.map((entry, i) => `
+        <div class="edit-history-entry">
+          <div class="edit-history-order">#${i + 1}</div>
+          <div class="edit-history-info">
+            <div class="edit-history-name">${escapeHtml(entry.name || '-')}</div>
+            ${entry.jabatan ? `<div class="edit-history-jabatan">${escapeHtml(entry.jabatan)}</div>` : ''}
+            <div class="edit-history-meta">${actionLabel(entry.action)} &bull; ${escapeHtml(formatDate(entry.at))}</div>
+          </div>
+        </div>
+      `).join('');
+      document.getElementById('editHistoryList').innerHTML = rows ||
+        '<p class="edit-history-empty">Belum ada riwayat pengedit tersimpan.</p>';
+      document.getElementById('editHistoryDialog').showModal();
+    }
+
+    function renderPlacementGroup(title, items, buildMeta) {
+      const itemsHtml = items.length
+        ? items.map(entry => `
+          <div class="placement-card">
+            <div class="placement-card-name">${escapeHtml(entry.name || '-')}</div>
+            <div class="placement-card-meta">${buildMeta(entry)}</div>
+          </div>
+        `).join('')
+        : '<p class="placements-empty">Belum masuk ' + escapeHtml(title.toLowerCase()) + '.</p>';
+      return `
+        <div>
+          <p class="placements-group-title">${escapeHtml(title)} (${items.length})</p>
+          <div class="placements-group-items">${itemsHtml}</div>
+        </div>
+      `;
+    }
+
+    function formatPersonList(labels) {
+      return labels && labels.length ? escapeHtml(labels.join(', ')) : '<em>belum diisi</em>';
+    }
+
+    async function openPlacementsDialog(item) {
+      document.getElementById('placementsSubtitle').textContent = item.name || '-';
+      document.getElementById('placementsList').innerHTML = '<p class="placements-empty">Memuat data penempatan...</p>';
+      document.getElementById('placementsDialog').showModal();
+      try {
+        const data = await api('santri.placements', { id: item.id });
+        const taNote = data?.tahunAjaranAktifNama
+          ? `<p style="margin:-4px 0 4px;font-size:12px;color:var(--muted);">Tahun Ajaran Aktif: ${escapeHtml(data.tahunAjaranAktifNama)}</p>`
+          : '';
+        const halaqohHtml = renderPlacementGroup('Halaqoh', data?.halaqoh || [], h =>
+          `Pengampu: ${formatPersonList(h.pengampuLabels)}<br>Pengampu badal: ${formatPersonList(h.badalLabels)}`);
+        const kelasHtml = renderPlacementGroup('Kelas', data?.kelasSiang || [], k =>
+          `Pengajar: ${formatPersonList(k.pengajarLabels)}<br>Pengajar badal: ${formatPersonList(k.badalLabels)}${k.jam ? `<br>Jam: ${escapeHtml(k.jam)}` : ''}${k.jenis ? `<br>Jenis: ${escapeHtml(k.jenis)}` : ''}`);
+        const reguHtml = renderPlacementGroup('Regu', data?.regu || [], r =>
+          `Pembina: ${formatPersonList(r.pembinaLabels)}<br>Pembina badal: ${formatPersonList(r.badalLabels)}`);
+        document.getElementById('placementsList').innerHTML = taNote + halaqohHtml + kelasHtml + reguHtml;
+      } catch (error) {
+        document.getElementById('placementsList').innerHTML =
+          `<p class="placements-empty">${escapeHtml(error.message || 'Gagal memuat data penempatan.')}</p>`;
+      }
+    }
+
+    /* ── Download Detail Santri: dialog pilih tahun ajaran, lalu Excel warna-warni berisi
+       biodata + SEMUA data yang terikat dengan santri ini, satu sheet per section (ganti dari
+       PDF kartu warna-warni yang lama, per permintaan user — "biar gampang jadikan excel aja...
+       tapi pakai warna"). Pakai window.PSExcel.buildColoredSectionsWorkbookAndDownload
+       (ExcelJS), bukan window.PSExport (builder PDF lama). ─────── */
+    let santriPdfItem = null;
+    let santriPdfTaCache = null;
+
+    async function loadSantriPdfTaOptions() {
+      if (santriPdfTaCache) return santriPdfTaCache;
+      try {
+        const data = await api('tahunAjaran.list');
+        const items = (data.items || []).slice().sort((a, b) => (a.isAktif === b.isAktif) ? 0 : (a.isAktif ? -1 : 1));
+        santriPdfTaCache = items.map(t => ({ id: t.id, label: (t.namaDisplay || t.nama || '-') + (t.isAktif ? ' (Aktif)' : ''), isAktif: !!t.isAktif }));
+      } catch (error) {
+        santriPdfTaCache = [];
+      }
+      return santriPdfTaCache;
+    }
+
+    async function openSantriPdfDialog(item) {
+      santriPdfItem = item;
+      document.getElementById('santriPdfSubtitle').textContent = item.name || '-';
+      const select = document.getElementById('santriPdfTaSelect');
+      select.innerHTML = '<option value="">Memuat tahun ajaran...</option>';
+      document.getElementById('santriPdfDialog').showModal();
+      const options = await loadSantriPdfTaOptions();
+      select.innerHTML = options.length
+        ? options.map(t => `<option value="${escapeHtml(t.id)}">${escapeHtml(t.label)}</option>`).join('')
+        : '<option value="">-- belum ada tahun ajaran --</option>';
+    }
+
+    function closeSantriPdfDialog() {
+      document.getElementById('santriPdfDialog').close();
+      santriPdfItem = null;
+    }
+
+    async function handleDownloadSantriDetailExcel() {
+      if (!santriPdfItem) return;
+      const tahunAjaranId = document.getElementById('santriPdfTaSelect').value;
+      if (!tahunAjaranId) { showNotice('Pilih tahun ajaran terlebih dahulu.', 'error'); return; }
+      showNotice('Menyusun Excel detail santri...', 'info');
+      try {
+        const data = await api('santri.detailPdfData', { id: santriPdfItem.id, tahunAjaranId });
+        await window.PSExcel.buildColoredSectionsWorkbookAndDownload({
+          fileName: `santri-detail-${(data?.santri?.noInduk || santriPdfItem.id)}-${window.PSExport.formatExportFileTimestamp(data?.exportedAt)}.xlsx`,
+          sections: data?.sections || []
+        });
+        showNotice('Excel detail santri siap diunduh.', 'info');
+        closeSantriPdfDialog();
+      } catch (error) {
+        showNotice(error.message || 'Gagal membuat Excel detail santri.', 'error');
+      }
+    }
+
+    // Beda dari handleDownloadSantriDetailExcel: ini tabel MENTAH apa adanya sesuai DB (satu
+    // SHEET Excel per tabel DB, kolomnya sama persis dgn DB), cuma kolom berisi ID yang sudah
+    // diterjemahkan jadi nama oleh backend — bukan diringkas jadi kartu warna-warni. Formatnya
+    // Excel (.xlsx) berwarna, bukan PDF — dipakai window.PSExcel.buildColoredTablesWorkbookAndDownload
+    // (ExcelJS via CDN, bukan XLSX/SheetJS yg dipakai fitur Excel lain di halaman ini, karena cuma
+    // ExcelJS yang bisa nulis warna cell saat export).
+    async function handleDownloadSantriDetailTableExcel() {
+      if (!santriPdfItem) return;
+      const tahunAjaranId = document.getElementById('santriPdfTaSelect').value;
+      if (!tahunAjaranId) { showNotice('Pilih tahun ajaran terlebih dahulu.', 'error'); return; }
+      showNotice('Menyusun tabel mentah santri (Excel)...', 'info');
+      try {
+        const data = await api('santri.detailTablePdfData', { id: santriPdfItem.id, tahunAjaranId });
+        const tables = (data?.tables || []).map(tbl => ({
+          title: tbl.tableName,
+          columns: (tbl.columns || []).map(c => ({ key: c.key, header: c.header || c.key })),
+          rows: tbl.rows || []
+        }));
+        await window.PSExcel.buildColoredTablesWorkbookAndDownload({
+          fileName: `santri-tabel-mentah-${(data?.santri?.noInduk || santriPdfItem.id)}-${window.PSExport.formatExportFileTimestamp(data?.exportedAt)}.xlsx`,
+          tables
+        });
+        showNotice('Tabel mentah santri (Excel) siap diunduh.', 'info');
+        closeSantriPdfDialog();
+      } catch (error) {
+        showNotice(error.message || 'Gagal membuat tabel mentah santri.', 'error');
+      }
+    }
+
+    let catatanDialogItemId = '';
+    let pendingStatusChangeAfterCatatan = null;
+    function openCatatanDialog(item) {
+      if (!canManageRecords()) {
+        showNotice('Hanya Admin dan Super Admin yang bisa mengubah keterangan status santri.', 'error');
+        return;
+      }
+      catatanDialogItemId = item.id;
+      document.getElementById('catatanSubtitle').textContent = item.name || '-';
+      document.getElementById('catatanTextarea').value = item.catatan || '';
+      document.getElementById('catatanDialog').showModal();
+    }
+
+    async function saveCatatan() {
+      const id = catatanDialogItemId;
+      if (!id) return;
+      const textarea = document.getElementById('catatanTextarea');
+      const catatan = textarea.value;
+      const saveBtn = document.getElementById('saveCatatanBtn');
+      saveBtn.disabled = true;
+      try {
+        await api('santri.catatan.save', { id, catatan }, 'POST');
+        const item = state.items.find(entry => entry.id === id);
+        if (item) item.catatan = catatan;
+        const pending = (pendingStatusChangeAfterCatatan && pendingStatusChangeAfterCatatan.id === id) ? pendingStatusChangeAfterCatatan : null;
+        pendingStatusChangeAfterCatatan = null;
+        document.getElementById('catatanDialog').close();
+        renderList();
+        showNotice('Keterangan status berhasil disimpan.', 'success');
+        if (pending && catatan.trim()) {
+          if (pending.kind === 'toggle') await toggleItem(id);
+          else if (pending.kind === 'freeze') await toggleFrozenItem(id);
+        }
+      } catch (error) {
+        showNotice(error.message || 'Gagal menyimpan keterangan status.', 'error');
+      } finally {
+        saveBtn.disabled = false;
+      }
+    }
+
+    async function toggleItem(id) {
+      if (!canToggleInactiveRecords()) {
+        showNotice('Hanya Admin dan Super Admin yang bisa mengubah status aktif/nonaktif santri.', 'error');
+        return;
+      }
+      const item = state.items.find(entry => entry.id === id);
+      if (!item) return;
+      const nextActive = !item.active;
+      if (!nextActive && !String(item.catatan || '').trim()) {
+        showNotice('Isi Keterangan Status dulu sebelum menonaktifkan santri ini.', 'info');
+        pendingStatusChangeAfterCatatan = { kind: 'toggle', id };
+        openCatatanDialog(item);
+        return;
+      }
+      const yes = confirm(`${nextActive ? 'Aktifkan' : 'Nonaktifkan'} santri "${item.name}"?`);
+      if (!yes) return;
+      try {
+        await api('santri.toggle', { id, active: nextActive }, 'POST');
+        await loadData();
+        await issuePanelController.load();
+      } catch (error) {
+        showNotice(error.message || 'Gagal mengubah status santri.', 'error');
+      }
+    }
+
+    async function toggleFrozenItem(id) {
+      if (!canManageRecords()) {
+        showNotice('Hanya Admin dan Super Admin yang bisa mengubah status dibekukan.', 'error');
+        return;
+      }
+      const item = state.items.find(entry => entry.id === id);
+      if (!item) return;
+      const currentStatusKey = getSantriStatusKey(item.status);
+      if (currentStatusKey === 'inactive') {
+        showNotice('Santri nonaktif hanya bisa diaktifkan kembali oleh Admin atau Super Admin.', 'error');
+        return;
+      }
+      const nextStatus = currentStatusKey === 'dibekukan' ? 'Active' : 'Dibekukan';
+      if (nextStatus === 'Dibekukan' && !String(item.catatan || '').trim()) {
+        showNotice('Isi Keterangan Status dulu sebelum membekukan santri ini.', 'info');
+        pendingStatusChangeAfterCatatan = { kind: 'freeze', id };
+        openCatatanDialog(item);
+        return;
+      }
+      const yes = confirm(
+        currentStatusKey === 'dibekukan'
+          ? `Aktifkan kembali status normal santri "${item.name}"?`
+          : `Bekukan santri "${item.name}"? Santri tetap bisa masuk kelas, halaqoh, dan regu.`
+      );
+      if (!yes) return;
+      const noticeId = startTaskNotice(
+        currentStatusKey === 'dibekukan'
+          ? `Mengaktifkan normal ${item.name}...`
+          : `Membekukan ${item.name}...`,
+        'info'
+      );
+      try {
+        await api('santri.save', { record: { id, status: nextStatus } }, 'POST');
+        finishTaskNotice(
+          noticeId,
+          currentStatusKey === 'dibekukan'
+            ? `Status normal dipulihkan untuk ${item.name}.`
+            : `Santri ${item.name} dibekukan.`,
+          'info',
+          3200
+        );
+        await loadData();
+        await issuePanelController.load();
+      } catch (error) {
+        finishTaskNotice(noticeId, error.message || 'Gagal mengubah status dibekukan.', 'error', 4200);
+      }
+    }
+
+    async function deleteItem(id) {
+      if (!canDeleteRecords()) {
+        showNotice('Hanya Super Admin yang bisa menghapus santri.', 'error');
+        return;
+      }
+      const item = state.items.find(entry => entry.id === id);
+      if (!item) return;
+      const ok = await confirmHapusPermanenBerlapis(`Hapus permanen santri "${item.name}"? SEMUA riwayat (nilai, hafalan, absensi, dll) ikut terhapus. Data ini akan hilang total dan TIDAK BISA dipulihkan lagi.`);
+      if (!ok) return;
+      try {
+        await api('santri.delete', { id, confirm: 'HAPUS' }, 'POST');
+        flashNotice(`Santri "${item.name}" dihapus permanen.`, 'info', 3000);
+        await loadData();
+        await issuePanelController.load();
+      } catch (error) {
+        showNotice(error.message || 'Gagal menghapus santri.', 'error');
+      }
+    }
+
+    function preventPageLeaveWhileSaving(event) {
+      const link = event.target.closest('a[href]');
+      if (!link || !state.pendingSaveCount) return;
+      event.preventDefault();
+      flashNotice('Tunggu penyimpanan santri selesai sebelum pindah halaman lain.', 'error', 3000);
+    }
+
+    const currentPage = window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : '/pages/daftarSantri/';
+    const initialSession = getStoredSession();
+    if (!initialSession) {
+      clearSession();
+      window.location.replace('/pages/login/');
+    }
+    if (!(window.PSAccess && window.PSAccess.redirectIfForbidden(initialSession, currentPage))) {
+      mountShell();
+      syncConceptPanel();
+      syncRestrictedActions();
+      syncFiltersVisibility();
+      syncActionToolbar();
+      renderBulkToolbar();
+      document.getElementById('addButton').addEventListener('click', () => openDialog());
+      document.getElementById('refreshButton').addEventListener('click', async () => {
+        await loadData();
+        await issuePanelController.load();
+      });
+      document.getElementById('toolbarCollapseToggle').addEventListener('click', toggleActionToolbar);
+      document.getElementById('quickImportButton').addEventListener('click', openQuickImportDialog);
+      document.getElementById('exportQuickImportTxtButton').addEventListener('click', handleExportQuickImportText);
+      document.getElementById('downloadSummaryPdfButton').addEventListener('click', handleDownloadSummaryPdf);
+      document.getElementById('downloadTemplateButton').addEventListener('click', handleDownloadTemplate);
+      document.getElementById('importExcelButton').addEventListener('click', handleImportRequest);
+      document.getElementById('exportExcelButton').addEventListener('click', handleExportExcel);
+      document.getElementById('toggleExpandButton').addEventListener('click', toggleExpandedList);
+      document.getElementById('duplicateNameButton').addEventListener('click', openDuplicateDialog);
+      document.getElementById('resetAllPasswordsButton').addEventListener('click', async () => {
+        if (!confirm('Reset SEMUA password seluruh santri ke "password123"?\n\nSemua santri harus ganti password setelah ini.')) return;
+        try {
+          showNotice('Mereset semua password santri...', 'info');
+          const data = await api('santri.resetAllPasswords', {}, 'POST');
+          showNotice(`Selesai. ${data.count} password santri berhasil direset ke default.`, 'success');
+        } catch (err) {
+          showNotice(err.message || 'Gagal mereset password.', 'error');
+        }
+      });
+      document.getElementById('deleteAllButton').addEventListener('click', openDeleteAllDialog);
+      document.getElementById('importExcelInput').addEventListener('change', handleImportChange);
+      document.getElementById('statusInfoButton').addEventListener('click', () => document.getElementById('statusInfoDialog').showModal());
+      document.getElementById('statusConsequenceInfoButton').addEventListener('click', () => document.getElementById('statusConsequenceInfoDialog').showModal());
+      document.getElementById('closeDialog').addEventListener('click', () => document.getElementById('dialog').close());
+      document.getElementById('closeStatusInfoDialog').addEventListener('click', () => document.getElementById('statusInfoDialog').close());
+      document.getElementById('closeStatusConsequenceInfoDialog').addEventListener('click', () => document.getElementById('statusConsequenceInfoDialog').close());
+      document.getElementById('closeQuickImportDialog').addEventListener('click', () => document.getElementById('quickImportDialog').close());
+      document.getElementById('closeDuplicateDialog').addEventListener('click', () => document.getElementById('duplicateDialog').close());
+      document.getElementById('closeDeleteAllDialog').addEventListener('click', closeDeleteAllDialog);
+      document.getElementById('closeEditHistoryDialog').addEventListener('click', () => document.getElementById('editHistoryDialog').close());
+      document.getElementById('closePlacementsDialog').addEventListener('click', () => document.getElementById('placementsDialog').close());
+      document.getElementById('closeSantriPdfDialog').addEventListener('click', closeSantriPdfDialog);
+      document.getElementById('downloadSantriPdfBtn').addEventListener('click', handleDownloadSantriDetailExcel);
+      document.getElementById('downloadSantriTablePdfBtn').addEventListener('click', handleDownloadSantriDetailTableExcel);
+      document.getElementById('closeCatatanDialog').addEventListener('click', () => { pendingStatusChangeAfterCatatan = null; document.getElementById('catatanDialog').close(); });
+      document.getElementById('catatanDialog').addEventListener('cancel', () => { pendingStatusChangeAfterCatatan = null; });
+      document.getElementById('saveCatatanBtn').addEventListener('click', saveCatatan);
+      document.getElementById('closeViewSantriDialog').addEventListener('click', () => document.getElementById('viewSantriDialog').close());
+      document.getElementById('deleteAllDialog').addEventListener('close', () => {
+        document.getElementById('deleteAllConfirmInput').value = '';
+        document.getElementById('confirmDeleteAllButton').disabled = true;
+      });
+      document.getElementById('deleteAllConfirmInput').addEventListener('input', syncDeleteAllConfirmState);
+      document.getElementById('deleteAllForm').addEventListener('submit', deleteAllSantri);
+      document.getElementById('refreshDuplicateButton').addEventListener('click', loadDuplicateGroups);
+      document.getElementById('quickImportParseButton').addEventListener('click', parseQuickImportPreview);
+      document.getElementById('quickImportClearButton').addEventListener('click', () => {
+        resetQuickImportDialog();
+        document.getElementById('quickImportInput').focus();
+      });
+      document.getElementById('quickImportInput').addEventListener('input', event => {
+        const hadPreview = quickImportState.entries.length > 0 || quickImportState.parsed;
+        quickImportState.hasInput = !!event.target.value.trim();
+        quickImportState.dirty = hadPreview && quickImportState.hasInput;
+        quickImportState.parsed = false;
+        quickImportState.entries = [];
+        renderQuickImportPreview();
+      });
+      document.getElementById('quickImportInput').addEventListener('keydown', event => {
+        if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+          event.preventDefault();
+          parseQuickImportPreview();
+        }
+      });
+      document.getElementById('quickImportForm').addEventListener('submit', saveQuickImport);
+      document.getElementById('form').addEventListener('submit', saveForm);
+      document.getElementById('formSections').addEventListener('change', e => { if (e.target.dataset.docKey) handleDocFileChange(e.target); });
+      document.getElementById('dialogPhotoInput').addEventListener('change', handleDialogPhotoChange);
+      document.getElementById('dialogPhotoResetBtn').addEventListener('click', resetDialogPhoto);
+      document.getElementById('form').addEventListener('click', event => {
+        if (event.target.classList.contains('js-generate-username')) {
+          const form = document.getElementById('form');
+          const nameVal = (form.querySelector('[name="nama_setelah_diubah"]')?.value ||
+                           form.querySelector('[name="nama_lengkap_akte"]')?.value ||
+                           form.querySelector('[name="nama_panggilan"]')?.value || '').trim();
+          if (!nameVal) { showNotice('Isi nama santri terlebih dahulu.', 'error'); return; }
+          const generated = nameVal.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim().replace(/\s+/g, '_');
+          const usernameInput = form.querySelector('[name="username"]');
+          if (usernameInput) usernameInput.value = generated;
+          return;
+        }
+      });
+      document.getElementById('form').addEventListener('click', async event => {
+        if (!event.target.classList.contains('js-reset-default-password')) return;
+        const id = document.querySelector('#form input[name="id"]').value.trim();
+        if (!id) { showNotice('Simpan santri terlebih dahulu sebelum mereset password.', 'error'); return; }
+        if (!confirm('Reset password santri ini ke "password123"?')) return;
+        try {
+          await api('santri.resetPassword', { id }, 'POST');
+          showNotice('Password berhasil direset ke default (password123).', 'success');
+        } catch (err) {
+          showNotice(err.message || 'Gagal mereset password.', 'error');
+        }
+      });
+      document.getElementById('searchInput').addEventListener('input', () => { state.page = 1; loadData(); });
+      document.getElementById('statusFilter').addEventListener('change', () => { state.page = 1; loadData(); });
+      document.getElementById('genderFilter').addEventListener('change', () => { state.page = 1; loadData(); });
+      document.getElementById('statusAkadFilter').addEventListener('change', () => { state.page = 1; loadData(); });
+      document.getElementById('sortSelect').addEventListener('change', () => { state.page = 1; loadData(); });
+      document.getElementById('pageSizeSelect').addEventListener('change', event => {
+        state.pageSize = Number(event.target.value);
+        state.page = 1;
+        loadData();
+      });
+    }
+    document.addEventListener('click', preventPageLeaveWhileSaving, true);
+    document.addEventListener('click', event => {
+      const page = event.target.getAttribute('data-page');
+      if (!page) return;
+      const nextPage = Number(page);
+      if (!nextPage || nextPage < 1 || nextPage > state.totalPages || nextPage === state.page) return;
+      state.page = nextPage;
+      loadData();
+    });
+    document.getElementById('list').addEventListener('click', event => {
+      const actionButton = event.target.closest('[data-edit], [data-view], [data-placements], [data-pdf], [data-catatan], [data-freeze], [data-toggle], [data-delete], [data-history]');
+      const collapseTrigger = actionButton ? null : event.target.closest('[data-collapse]');
+      const collapseId = collapseTrigger ? collapseTrigger.getAttribute('data-collapse') : '';
+      const editId = actionButton ? actionButton.getAttribute('data-edit') : '';
+      const viewId = actionButton ? actionButton.getAttribute('data-view') : '';
+      const placementsId = actionButton ? actionButton.getAttribute('data-placements') : '';
+      const pdfId = actionButton ? actionButton.getAttribute('data-pdf') : '';
+      const catatanId = actionButton ? actionButton.getAttribute('data-catatan') : '';
+      const freezeId = actionButton ? actionButton.getAttribute('data-freeze') : '';
+      const toggleId = actionButton ? actionButton.getAttribute('data-toggle') : '';
+      const deleteId = actionButton ? actionButton.getAttribute('data-delete') : '';
+      const historyId = actionButton ? actionButton.getAttribute('data-history') : '';
+      if (editId) {
+        const item = state.items.find(entry => entry.id === editId);
+        if (item) openDialog(item);
+        return;
+      }
+      if (viewId) {
+        const item = state.items.find(entry => entry.id === viewId);
+        if (item) openViewDialog(item);
+        return;
+      }
+      if (placementsId) {
+        const item = state.items.find(entry => entry.id === placementsId);
+        if (item) openPlacementsDialog(item);
+        return;
+      }
+      if (pdfId) {
+        const item = state.items.find(entry => entry.id === pdfId);
+        if (item) openSantriPdfDialog(item);
+        return;
+      }
+      if (catatanId) {
+        pendingStatusChangeAfterCatatan = null;
+        const item = state.items.find(entry => entry.id === catatanId);
+        if (item) openCatatanDialog(item);
+        return;
+      }
+      if (historyId) {
+        const item = state.items.find(entry => entry.id === historyId);
+        if (item) showEditHistory(item);
+        return;
+      }
+      if (freezeId) {
+        toggleFrozenItem(freezeId);
+        return;
+      }
+      if (toggleId) {
+        toggleItem(toggleId);
+        return;
+      }
+      if (deleteId) {
+        deleteItem(deleteId);
+        return;
+      }
+      if (collapseId) {
+        toggleItemExpanded(collapseId);
+      }
+    });
+    document.getElementById('list').addEventListener('keydown', event => {
+      const collapseTarget = event.target.closest('[data-collapse]');
+      if (!collapseTarget) return;
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      event.preventDefault();
+      toggleItemExpanded(collapseTarget.getAttribute('data-collapse'));
+    });
+    document.getElementById('list').addEventListener('change', event => {
+      const selectId = event.target.getAttribute('data-select');
+      if (!selectId) return;
+      toggleSelectedId(selectId, event.target.checked);
+    });
+    document.getElementById('bulkToolbar').addEventListener('click', event => {
+      const { id } = event.target;
+      if (id === 'selectVisibleButton') selectVisibleItems();
+      if (id === 'clearSelectedButton') clearSelectedIds();
+      if (id === 'bulkActivateButton') handleBulkToggle(true);
+      if (id === 'bulkDeactivateButton') handleBulkToggle(false);
+      if (id === 'bulkDeleteButton') handleBulkDelete();
+    });
+    document.getElementById('duplicateList').addEventListener('click', event => {
+      const singleId = event.target.getAttribute('data-duplicate-delete');
+      const singleLabel = event.target.getAttribute('data-duplicate-label');
+      if (singleId) {
+        deleteDuplicateIds([singleId], singleLabel || 'santri');
+      }
+    });
+    window.addEventListener('beforeunload', event => {
+      if (!state.pendingSaveCount) return;
+      event.preventDefault();
+      event.returnValue = '';
+    });
+    window.addEventListener('load', async () => {
+      if (window.PSAccess && window.PSAccess.redirectIfForbidden(getStoredSession(), currentPage)) {
+        return;
+      }
+      document.getElementById('pageSizeSelect').value = String(state.pageSize);
+      syncFiltersVisibility();
+      await loadData();
+      await issuePanelController.load();
+    });
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,1554 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#9e2f22">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="../../shared-ui.css">
+  <script src="../../shared-ui.js"></script>
+  <title>Nilai Ujian</title>
+  <link rel="stylesheet" href="../../shared-shell.css">
+  <link rel="stylesheet" href="../../vendor/fontawesome/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700&display=swap');
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+
+    /* ── notice (shared-ui.css set .notice{display:none} by default -- tiap halaman wajib
+       nambahin .notice.show sendiri, halaman ini sebelumnya lupa) ── */
+    .notice.show { display: block; }
+
+    /* ── layout ── */
+    .panel { padding: 22px; margin-bottom: 10px; }
+    .panel h1 { margin: 8px 0 10px; font-size: clamp(2rem, 5vw, 3.4rem); line-height: 0.94; text-transform: uppercase; }
+      .toolbar {
+          display: flex;
+          gap: 10px;
+          flex-wrap: wrap;
+          margin-bottom: 16px;
+          flex-direction: row-reverse;
+      }    
+      .btn { display: inline-flex; align-items: center; justify-content: center; min-height: 42px; padding: 0 18px; font-weight: 700; cursor: pointer; text-decoration: none; }
+
+    /* ── kelas list (dashboard) ── */
+    .kelas-grid { display: flex; flex-direction: column; gap: 8px; }
+    .kelas-card { display: flex; align-items: center; gap: 14px; padding: 12px 16px; cursor: pointer; transition: box-shadow 0.15s; }
+    .kelas-card:hover { box-shadow: 0 4px 18px rgba(0,0,0,0.12); }
+    .kelas-card-body { flex: 1 1 auto; min-width: 0; }
+    .kelas-card-name { font-size: 1rem; font-weight: 700; margin: 0; }
+    .kelas-card-guru { font-size: 0.78em; opacity: 0.65; margin: 2px 0 0; }
+    .kelas-card.row-ikhwan           { background: #ddeeff; border-color: #6fa3d6; }
+    .kelas-card.row-akhowat          { background: #ffe4f0; border-color: #d987a0; }
+    .kelas-card.row-campur           { background: #f5f0e8; border-color: #b284b3; }
+    .kelas-card.row-ikhwan-inactive  { background: linear-gradient(135deg, #888 0%, #cce6ff 100%); border-color: #6fa3d6; }
+    .kelas-card.row-akhowat-inactive { background: linear-gradient(135deg, #888 0%, #ffd6e8 100%); border-color: #d987a0; }
+    .kelas-card.row-campur-inactive  { background: linear-gradient(135deg, #888 0%, #f5e8c8 100%); border-color: #b284b3; }
+    .summary-chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+    .chip-up     { background: #fffbf0; color: #8a6a20; border: 1px solid #d4b070; }
+    .chip-uas    { background: #f0fbf0; color: #305530; border: 1px solid #90c890; }
+    .chip-adab   { background: #f7f0fb; color: #6a3a8a; border: 1px solid #c0a0d8; }
+    .chip-abs    { background: #f0f4f8; color: #2a3a5a; border: 1px solid #a0a8c8; }
+    .chip-empty  { opacity: 0.4; }
+
+    /* ── pagination ── */
+    .paging { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
+    .page-center { flex: 1; display: flex; flex-direction: column; gap: 4px; align-items: center; }
+    .page-numbers { display: flex; gap: 4px; flex-wrap: wrap; justify-content: center; }
+    .page-btn { min-height: 34px; padding: 0 10px; font-size: 13px; }
+    .page-btn.active { font-weight: 800; }
+    .page-summary { font-size: 11px; opacity: .55; text-align: center; }
+    .tahun-select { padding: 10px 12px; font: inherit; font-weight: 600; cursor: pointer; }
+
+    /* ── nilai section ── */
+    #nilaiSection { display: none; }
+    .section-nav { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; flex-wrap: wrap; }
+    .section-nav h2 { margin: 0; font-size: 1.3rem; }
+    .no-santri-notice { margin: 16px 0; padding: 16px 20px; border-radius: 10px; border: 1.5px dashed rgba(0,0,0,.15); font-size: 14px; opacity: .6; text-align: center; }
+
+    /* ── nilai table ── */
+    .table-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid rgba(0,0,0,0.1); }
+    .nilai-table { border-collapse: collapse; width: 100%; min-width: 500px; }
+    .nilai-table th, .nilai-table td { padding: 10px 12px; text-align: center; white-space: nowrap; vertical-align: middle; }
+    .nilai-table th { font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;}
+    .nilai-table tr:not(:last-child) td { border-bottom: 1px solid rgba(0,0,0,0.06); }
+    .nilai-table th { border-bottom: 2px solid rgba(0,0,0,0.12); }
+    .nilai-table th + th { border-left: 1px solid rgba(0,0,0,0.08); }
+    .nilai-table td + td { border-left: 1px solid rgba(0,0,0,0.06); }
+
+    /* sticky first column */
+    .col-santri { position: sticky; left: 0; z-index: 2; text-align: left !important; width: 160px; min-width: 140px; max-width: 200px; background: aliceblue; }
+    .nilai-table td.col-santri, .nilai-table th.col-santri { white-space: normal; }
+    .santri-name-wrap { max-width: 160px; white-space: normal; overflow-wrap: break-word; word-break: break-word; }
+    .nilai-table thead .col-santri { z-index: 3; }
+
+    /* column header styles */
+    .th-up       { background: #fffbf0; color: #7a5a10; }
+    .th-uas      { background: #f0fbf0; color: #305530; }
+    .th-adab     { background: #f7f0fb; color: #6a3a8a; }
+    .th-abs      { background: #f0f4f8; color: #2a3a5a; }
+    .th-add      { background: transparent; }
+    .th-up-virtual .th-label { opacity: 0.4; }
+    .th-up-virtual .th-date  { opacity: 0.3; font-style: italic; }
+
+    /* row bg alternating */
+    .nilai-table tbody tr:nth-child(even) td { background: rgba(0,0,0,0.02); }
+    .nilai-table tbody tr:nth-child(even) td.col-santri { background: rgba(255,251,240,0.7); }
+    .nilai-table tbody tr:nth-child(odd)  td.col-santri { background: rgba(255,251,240,0.95); }
+
+    .santri-name { font-weight: 600; font-size: 13px; }
+    .santri-dibekukan-badge { display: inline-flex; margin-left: 6px; padding: 1px 8px; font-size: 10px; font-weight: 700; border-radius: 999px; background: rgba(181,132,57,0.18); color: var(--warning, #b8860b); text-transform: uppercase; vertical-align: middle; }
+    .nilai-cell { font-size: 14px; font-weight: 700; }
+    .nilai-cell.empty { color: rgba(0,0,0,0.25); font-weight: 400; }
+    .nilai-catatan { font-size: 11px; color: rgba(0,0,0,0.5); margin-top: 2px; }
+
+    /* header action buttons */
+    .th-inner { display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; padding: 2px 4px; border-radius: 6px; transition: background 0.12s; }
+    .th-inner:hover { background: rgba(0,0,0,0.07); }
+    .th-label { font-size: 12px; font-weight: 800; }
+    .th-date  { font-size: 10px; font-weight: 400; opacity: 0.7; }
+    .th-actions { display: flex; gap: 4px; margin-top: 3px; }
+    .th-btn { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 4px; border: none; cursor: pointer; font-size: 11px; font-weight: 700; line-height: 1; }
+    .th-btn-edit   { background: rgba(0,0,0,0.08); color: inherit; }
+    .th-btn-delete { background: rgba(180,50,50,0.12); color: #aa2222; }
+    .th-btn:hover { filter: brightness(0.88); }
+    .th-add-btn { width: 32px; height: 32px; border-radius: 8px; border: 2px dashed #c4a055; background: transparent; color: #8a6a20; cursor: pointer; font-size: 18px; font-weight: 400; transition: background 0.12s; }
+    .th-add-btn:hover { background: rgba(196,160,85,0.12); }
+
+    /* ── persen badge & akumulasi ── */
+    .th-persen { display: inline-block; margin-top: 2px; padding: 1px 7px; border-radius: 999px; font-size: 10px; font-weight: 800; background: rgba(0,0,0,0.07); color: inherit; }
+    .th-persen-total { font-size: 12px; padding: 2px 9px; }
+    .persen-over  { background: rgba(180,50,50,0.16); color: #aa2222; }
+    .persen-under { background: rgba(181,132,57,0.18); color: #8a6310; }
+    .th-akumulasi { background: #fff7e8; color: #7a5510; border-left: 2px solid #d9b066 !important; }
+    .col-akumulasi { background: #fffaf0; border-left: 2px solid #d9b066 !important; }
+    .nilai-table tbody tr:nth-child(even) td.col-akumulasi { background: #fdf3df; }
+    .akum-val { font-size: 15px; font-weight: 800; color: #7a5510; }
+    .persen-hint { margin: 6px 0 0; font-size: 12px; opacity: 0.7; }
+    .persen-hint.persen-hint-over { opacity: 1; color: #aa2222; font-weight: 700; }
+
+    /* ── excel toolbar (super admin only) ── */
+    .excel-toolbar { display: none; }
+    .excel-toolbar .btn { background: #b8860b; color: #fff; border: none; gap: 6px; }
+    .excel-toolbar .btn:hover { background: #9a6f00; }
+
+    /* ── dialog ── */
+    dialog { padding: 0; border-radius: 12px; border: none; box-shadow: 0 8px 40px rgba(0,0,0,0.18); }
+    dialog::backdrop { background: rgba(0,0,0,0.5); }
+    .dialog-body { width: min(720px, calc(100vw - 24px)); max-height: 90dvh; overflow-y: auto; display: grid; gap: 14px; padding: 24px; }
+    .dialog-title { margin: 0; font-size: 1.2rem; }
+    .dialog-sub { margin: 4px 0 0; font-size: 13px; opacity: 0.65; }
+    input[type="date"], input[type="number"], input[type="text"], textarea, select {
+      width: 100%; min-height: 44px; padding: 10px 13px; font: inherit; border-radius: 8px;
+    }
+
+    .student-grid-wrap { max-height: 340px; overflow-y: auto; border-radius: 8px; border: 1px solid rgba(0,0,0,0.1); }
+    .student-grid-header { display: grid; grid-template-columns: 2fr 1fr 1fr 2fr; gap: 8px; padding: 8px 12px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.55; border-bottom: 1px solid rgba(0,0,0,0.08); }
+    .student-grid-header.absensi { grid-template-columns: 2fr repeat(4, 0.9fr); }
+    .student-row { display: grid; grid-template-columns: 2fr 1fr 1fr 2fr; gap: 8px; padding: 6px 12px; align-items: center; }
+    .student-row.absensi { grid-template-columns: 2fr repeat(4, 0.9fr); }
+    .student-row:not(:last-child) { border-bottom: 1px solid rgba(0,0,0,0.05); }
+    .student-row input, .student-row select { min-height: 36px; padding: 6px 10px; font-size: 13px; }
+    .student-name { font-size: 13px; font-weight: 600; }
+
+    .row-fields { display: flex; gap: 12px; flex-wrap: wrap; }
+    .row-fields label { flex: 1; min-width: 140px; }
+
+    .dialog-footer { display: flex; gap: 10px; flex-wrap: wrap; padding-top: 4px; }
+    .btn-danger { --btn-bg: #c0392b; }
+
+    /* ── nilai wajib badge & dialog ── */
+    .nw-badge { display:inline-flex; align-items:center; gap:4px; padding:3px 8px; border-radius:999px; font-size:10px; font-weight:800; margin-top:2px; }
+    .nw-badge.nw-lengkap { background:#d4edda; color:#155724; }
+    .nw-badge.nw-belum { background:#fff3cd; color:#856404; }
+    .nw-badge.nw-terlambat { background:#f8d7da; color:#721c24; }
+    .nw-item { display:flex; align-items:center; gap:8px; padding:8px; border:1px solid rgba(0,0,0,.08); border-radius:8px; margin-bottom:6px; background:#fafafa; flex-wrap:wrap; }
+    .nw-item-info { flex:1; min-width:120px; }
+    .nw-item-title { font-weight:700; font-size:13px; }
+    .nw-item-meta { font-size:11px; opacity:.6; }
+    .nw-item-del { background:rgba(180,50,50,.12); color:#aa2222; border:none; border-radius:4px; padding:4px 8px; cursor:pointer; font-weight:700; }
+    .nw-item-edit { background:rgba(21,87,36,.12); color:#155724; border:none; border-radius:4px; padding:4px 8px; cursor:pointer; font-weight:700; }
+    .nw-item.is-editing { border-color:#155724; box-shadow:0 0 0 2px rgba(21,87,36,.15); }
+
+    @media (max-width: 600px) {
+      .student-grid-header, .student-row { grid-template-columns: 1fr; }
+      .student-grid-header { display: none; }
+      .student-row.absensi { grid-template-columns: 1fr 1fr; }
+    }
+
+    .nav a, button {
+        font-weight: 800 !important;
+        text-transform: uppercase;
+    }
+
+    .toolbar button {
+      padding: 12px 18px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: 'Poppins';
+    }
+
+    html body .list > article {
+        display: flex;
+        flex-direction: row;
+    }
+  </style>
+</head>
+<body>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+  <main>
+    <section class="shell-sidebar" id="nav" aria-label="Sidebar navigasi"></section>
+    <!-- Dashboard: daftar kelas -->
+    <section class="panel" id="dashSection">
+      <h1>Nilai Kelas<sup style="font-size: small;"> (10 Ujian · UAS · Akhlak · Absensi)</sup></h1>
+      <div class="filters" id="filtersPanel">
+        <label>
+          Cari Kelas
+          <input id="searchInput" type="search" placeholder="Ketik nama kelas, jam, pengajar, atau nama santri">
+        </label>
+        <label>
+          Tahun ajaran
+          <select id="tahunSelect" class="tahun-select"></select>
+        </label>
+        <label>
+          Status
+          <select id="statusFilter">
+            <option value="">Semua</option>
+            <option value="active" selected>Aktif</option>
+            <option value="inactive">Nonaktif</option>
+          </select>
+        </label>
+        <label>
+          Gender
+          <select id="genderFilter">
+            <option value="">Semua</option>
+            <option value="Ikhwan">Ikhwan</option>
+            <option value="Akhowat">Akhowat</option>
+            <option value="Campur">Campur</option>
+            <option value="Tidak ada">Tidak ada</option>
+          </select>
+        </label>
+        <label>
+          Jam
+          <select id="jamFilter">
+            <option value="">Semua jam</option>
+            <option value="-">-</option>
+            <option value="Jam 1">Jam 1</option>
+            <option value="Jam 2">Jam 2</option>
+            <option value="Jam 3">Jam 3</option>
+            <option value="Jam 4">Jam 4</option>
+            <option value="Jam 5">Jam 5</option>
+            <option value="Jam 6">Jam 6</option>
+            <option value="Jam 7">Jam 7</option>
+            <option value="Jam 8">Jam 8</option>
+            <option value="Jam 9">Jam 9</option>
+            <option value="Jam 10">Jam 10</option>
+            <option value="Jam 11">Jam 11</option>
+          </select>
+        </label>
+        <label>
+          Urutkan
+          <select id="sortSelect">
+            <option value="name_asc" selected>Nama A-Z</option>
+            <option value="name_desc">Nama Z-A</option>
+            <option value="jam_asc">Jam A-Z</option>
+            <option value="jam_desc">Jam Z-A</option>
+            <option value="gender_asc">Gender Ikhwan-Akhowat</option>
+            <option value="gender_desc">Gender Akhowat-Ikhwan</option>
+            <option value="santri_desc">Murid terbanyak</option>
+            <option value="santri_asc">Murid tersedikit</option>
+          </select>
+        </label>
+        <label>
+          Jumlah per halaman
+          <select id="pageSizeSelect">
+            <option value="10">10</option>
+            <option value="15" selected>15</option>
+            <option value="25">25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
+        </label>
+      </div>
+      <div class="toolbar" id="actionToolbar">
+        <button class="btn" id="refreshButton" type="button">Muat ulang</button>
+      </div>
+      <div class="toolbar" id="nilaiWajibToolbar" style="display:none;gap:8px;align-items:center;margin-bottom:8px;">
+        <button class="btn" id="nilaiWajibBtn" type="button" style="background:#155724;color:#fff;border:none;gap:6px;"><i class="fa-solid fa-flag-checkered"></i> Atur Nilai Wajib (Semua Kelas)</button>
+        <span id="nilaiWajibSummary" style="font-size:12px;color:#666;"></span>
+      </div>
+      <div class="paging" id="paginationTop"></div>
+      <div class="kelas-grid list" id="kelasList"></div>
+      <div class="paging" id="paginationBottom"></div>
+    </section>
+
+    <!-- Tabel nilai untuk kelas yang dipilih -->
+    <section class="panel" id="nilaiSection">
+      <div class="section-nav">
+        <button class="btn" id="backButton" type="button" style=" font-family: system-ui; "><-</button>
+        <h2 id="kelasTitle"></h2>
+      </div>
+      <div class="toolbar excel-toolbar" id="excelToolbar">
+        <button class="btn" id="downloadTemplateBtn" type="button"><i class="fa-solid fa-file-arrow-down"></i> Download Template Excel</button>
+        <button class="btn" id="uploadExcelBtn" type="button"><i class="fa-solid fa-file-arrow-up"></i> Upload Nilai Excel</button>
+        <input type="file" id="excelFileInput" accept=".xlsx,.xls,.csv" style="display:none">
+      </div>
+      <div id="tableWrap"></div>
+    </section>
+  </main>
+
+  <!-- Dialog konfirmasi hapus -->
+  <dialog class="ps-floating-dialog" id="deleteConfirmDlg">
+    <div class="dialog-body duplicate-dialog-body ps-dialog-shell">
+      <div class="duplicate-dialog-head ps-dialog-header">
+        <div>
+          <h3 class="dialog-title">Hapus Data Nilai</h3>
+          <p class="dialog-sub">Tindakan ini tidak bisa dibatalkan. Semua nilai pada sesi ini akan dihapus.</p>
+        </div>
+      </div>
+      <label>Ketik <strong>hapus</strong> untuk konfirmasi
+        <input type="text" id="deleteConfirmInput" placeholder="ketik hapus" autocomplete="off">
+      </label>
+      <div class="toolbar ps-dialog-footer">
+        <button class="btn btn-danger" id="deleteConfirmBtn" type="button" disabled>Hapus</button>
+        <button class="btn" id="deleteConfirmCancel" type="button">Batal</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Dialog edit nilai -->
+  <dialog class="ps-floating-dialog" id="dialog">
+    <form class="dialog-body duplicate-dialog-body ps-dialog-shell" id="form" method="dialog">
+      <div class="duplicate-dialog-head ps-dialog-header">
+        <div>
+          <h3 class="dialog-title" id="dialogTitle">Edit nilai</h3>
+          <p class="dialog-sub" id="dialogSub"></p>
+        </div>
+      </div>
+      <input type="hidden" name="id">
+      <input type="hidden" name="jenis">
+      <input type="hidden" name="sesi">
+      <input type="hidden" name="kelasId">
+      <div id="jenisRow">
+        <label>Nama ujian <input type="text" name="jenisLabel" placeholder="Contoh: UTS, Mid Semester 1, Ujian Akhir..."></label>
+      </div>
+      <div id="tanggalRow">
+        <label>Tanggal <input type="date" name="tanggal"></label>
+      </div>
+      <div id="persenRow">
+        <label>Bobot akumulasi (%)
+          <input type="number" name="persen" min="0" max="100" step="0.5" placeholder="1 - 100 · kosong = tidak dihitung">
+        </label>
+        <p class="persen-hint" id="persenHint">Total bobot semua nilai pada kelas ini tidak boleh lebih dari 100%.</p>
+      </div>
+      <div id="catatanRow"><label>Catatan <input type="text" name="catatan" placeholder="Opsional"></label></div>
+      <div id="absensiSyncRow" style="display:none">
+        <button type="button" class="btn secondary" id="syncAbsensiBtn" style="gap:6px;font-size:13px;">
+          <i class="fa-solid fa-rotate"></i> Sinkron dari Absensi Kelas
+        </button>
+        <span id="syncAbsensiStatus" style="font-size:12px;opacity:0.6;margin-left:8px;"></span>
+      </div>
+      <div>
+        <div class="student-grid-wrap">
+          <div class="student-grid-header"><div>Santri</div><div>Nilai</div><div>Catatan</div></div>
+          <div id="studentGrid"></div>
+        </div>
+      </div>
+      <div class="toolbar ps-dialog-footer">
+        <button class="btn primary" type="button" id="saveBtn">Simpan</button>
+<button class="btn" id="closeDialog" type="button">Batal</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Dialog kelola nilai wajib -->
+  <dialog class="ps-floating-dialog" id="nilaiWajibDlg">
+    <div class="dialog-body duplicate-dialog-body ps-dialog-shell">
+      <div class="duplicate-dialog-head ps-dialog-header">
+        <div>
+          <h3 class="dialog-title">Atur Nilai Wajib</h3>
+          <p class="dialog-sub" id="nwDlgSub">Berlaku untuk SEMUA kelas. Tetapkan nama nilai yang wajib ada + tanggal + batas terlambat pengumpulan.</p>
+        </div>
+      </div>
+      <div id="nwList" style="max-height:200px;overflow:auto;border:1px solid rgba(0,0,0,.1);border-radius:8px;padding:8px;"></div>
+      <div class="row-fields">
+        <label>Nama nilai wajib <input type="text" id="nwJenis" placeholder="mis. ujian-1, ujian-2, uas, akhlak, absensi"></label>
+        <label>Tanggal ujian (wajib) <input type="date" id="nwTanggal" required></label>
+        <label>Maks. terlambat (wajib) <input type="date" id="nwMax" required></label>
+      </div>
+      <label>Catatan <input type="text" id="nwCatatan" placeholder="opsional"></label>
+      <div class="toolbar ps-dialog-footer">
+        <button class="btn primary" type="button" id="nwSaveBtn">Simpan Aturan</button>
+        <button class="btn" type="button" id="nwCancelEditBtn" hidden>Batal Edit</button>
+        <button class="btn" type="button" id="nwCloseBtn">Tutup</button>
+      </div>
+    </div>
+  </dialog>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+  <script src="../../shared-access.js"></script>
+  <script src="../../shared-nav.js"></script>
+  <script src="../../shared-shell.js"></script>
+  <script>
+    const API_BASE = window.location.origin + '/api';
+    const STORAGE = { apiBase: 'ps_api_base', token: 'ps_token', session: 'ps_session' };
+    localStorage.setItem(STORAGE.apiBase, API_BASE);
+
+    const JENIS_CFG = {
+      ujian:   { label: 'Ujian',   chipClass: 'chip-up',   thClass: 'th-up',   hasDate: true  },
+      uas:     { label: 'UAS',     chipClass: 'chip-uas',  thClass: 'th-uas',  hasDate: true  },
+      akhlak:  { label: 'Akhlak', chipClass: 'chip-adab', thClass: 'th-adab', hasDate: false },
+      absensi: { label: 'Absensi', chipClass: 'chip-abs',  thClass: 'th-abs',  hasDate: false },
+      adab:    { label: 'Adab (lama)', chipClass: 'chip-adab', thClass: 'th-adab', hasDate: false },
+    };
+
+    const JENIS_DEFAULT_PERSEN = { ujian: 2, uas: 60, akhlak: 10, absensi: 10 };
+    const JENIS_FIXED_KNOWN = new Set(['uas', 'akhlak', 'absensi']);
+
+    function getJenisCfg(jenis) {
+      if (JENIS_CFG[jenis]) return JENIS_CFG[jenis];
+      const label = jenis ? jenis.charAt(0).toUpperCase() + jenis.slice(1) : 'Ujian';
+      return { label, chipClass: 'chip-abs', thClass: 'th-abs', hasDate: true };
+    }
+
+    function persenBadge(persen) {
+      const p = parseFloat(persen);
+      if (isNaN(p) || p <= 0) return '';
+      return `<span class="th-persen">${Math.round(p * 100) / 100}%</span>`;
+    }
+
+    const state = {
+      session: null,
+      kelasItems: [],
+      selectedKelasId: null,
+      nilaiData: null,
+      page: 1,
+      pageSize: 15,
+      tahunList: [],
+      selectedTahun: '',
+      searchQuery: '',
+      statusFilter: 'active',
+      genderFilter: '',
+      jamFilter: '',
+      sortMode: 'name_asc',
+      dialogUsedOther: 0,
+      dialogJenis: '',
+      canEditNilai: false
+    };
+
+    let noticeCounter = 0;
+    let noticeId = '';
+
+    /* ── auth & api ─────────────────────────────────── */
+    function getToken() { return localStorage.getItem(STORAGE.token) || ''; }
+    function clearSession() { localStorage.removeItem(STORAGE.token); localStorage.removeItem(STORAGE.session); }
+    function getStoredSession() { try { return JSON.parse(localStorage.getItem(STORAGE.session) || 'null'); } catch (e) { return null; } }
+
+    function toParams(data) {
+      const p = new URLSearchParams();
+      Object.entries(data).forEach(([k, v]) => {
+        if (v === undefined || v === null) return;
+        p.append(k, typeof v === 'object' ? JSON.stringify(v) : String(v));
+      });
+      return p;
+    }
+
+    async function api(action, payload = {}, method = 'GET') {
+      const token = getToken();
+      if (!token) { clearSession(); window.location.replace('/pages/login/'); throw new Error('Sesi tidak ditemukan.'); }
+      const scopeLabel = window.PSAccess ? (window.PSAccess.getActiveRoleScopeLabel(getStoredSession()) || '') : '';
+      const resp = method === 'GET'
+        ? await fetch(`${API_BASE}?${toParams({ action, token, scopeLabel, ...payload })}`)
+        : await fetch(API_BASE, { method, body: toParams({ action, token, scopeLabel, ...payload }) });
+      const json = await resp.json();
+      if (!json.ok) {
+        const err = new Error(json.error?.message ? `Server: ${json.error.message}` : 'Permintaan gagal.');
+        err.code = json.error?.code || resp.status || 500;
+        if (err.code === 401) { clearSession(); window.location.replace('/pages/login/'); }
+        throw err;
+      }
+      return json.data;
+    }
+
+    function mountShell() {
+      return window.PSShell.mount({
+        currentPage: window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : 'nilaiUjian.html',
+        session: getStoredSession(),
+        getStoredSession,
+        storageKey: STORAGE.session
+      });
+    }
+
+    /* ── notice ──────────────────────────────────────── */
+    function showNotice(text, type) {
+      if (noticeId) { const x = document.querySelector(`[data-notice-id="${noticeId}"]`); if (x) x.remove(); }
+      const e = document.createElement('div');
+      e.className = `notice show ${type || ''}`.trim();
+      e.dataset.noticeId = `n-${Date.now()}-${noticeCounter += 1}`;
+      e.textContent = text;
+      function dismiss() {
+        if (!e.parentNode) return;
+        e.classList.add('notice-dismissing');
+        setTimeout(() => {
+          e.remove();
+          const s = document.getElementById('noticeStack');
+          if (s && !s.hasChildNodes() && s.matches(':popover-open')) s.hidePopover();
+        }, 220);
+      }
+      e.addEventListener('click', dismiss);
+      setTimeout(dismiss, type === 'error' ? 10000 : 5000);
+      const stack = document.getElementById('noticeStack');
+      stack.prepend(e);
+      noticeId = e.dataset.noticeId;
+      if (stack.matches(':popover-open')) stack.hidePopover();
+      stack.showPopover();
+    }
+    function clearNotice() {
+      if (!noticeId) return;
+      const x = document.querySelector(`[data-notice-id="${noticeId}"]`);
+      if (x) x.remove();
+      noticeId = '';
+      const stack = document.getElementById('noticeStack');
+      if (stack && !stack.hasChildNodes() && stack.matches(':popover-open')) stack.hidePopover();
+    }
+
+    /* ── dashboard ───────────────────────────────────── */
+    function buildKelasChips(kelasId) {
+      const nd = state.nilaiData;
+      if (!nd || nd.kelas.id !== kelasId) {
+        return `<span class="summary-chip chip-up chip-empty">Ujian: -</span>
+                <span class="summary-chip chip-uas chip-empty">UAS</span>
+                <span class="summary-chip chip-adab chip-empty">Akhlak</span>
+                <span class="summary-chip chip-abs chip-empty">Absensi</span>`;
+      }
+      const ujianCount = nd.upSessions.length;
+      const fixedChips = (nd.fixedColumns || [])
+        .filter(col => JENIS_FIXED_KNOWN.has(col.jenis))
+        .map(col => {
+          const cfg = getJenisCfg(col.jenis);
+          return `<span class="summary-chip ${cfg.chipClass}${col.session ? '' : ' chip-empty'}">${col.session ? '✓ ' : ''}${cfg.label}</span>`;
+        }).join('');
+      return `<span class="summary-chip chip-up${ujianCount ? '' : ' chip-empty'}">Ujian: ${ujianCount}/10</span>${fixedChips}`;
+    }
+
+    function buildPaginationList(page, totalPages) {
+      const max = 10;
+      if (totalPages <= max) return Array.from({ length: totalPages }, (_, i) => i + 1);
+      const mid = max - 2;
+      const pages = [1];
+      let start = Math.max(2, page - Math.floor(mid / 2));
+      let end = start + mid - 1;
+      if (end > totalPages - 1) { end = totalPages - 1; start = end - mid + 1; }
+      if (start > 2) pages.push('...');
+      for (let i = start; i <= end; i++) pages.push(i);
+      if (end < totalPages - 1) pages.push('...');
+      pages.push(totalPages);
+      return pages;
+    }
+
+    function renderPaging(currentPage, totalPages) {
+      const start = Math.max(1, Math.min(currentPage - 4, totalPages - 9));
+      const end = Math.min(totalPages, start + 9);
+      let html = '';
+      for (let p = start; p <= end; p++) {
+        html += `<button class="secondary page-btn${p === currentPage ? ' active' : ''}" type="button" data-page="${p}">${p}</button>`;
+      }
+      return html;
+    }
+
+    function compareKelasItems(a, b, sortMode) {
+      switch (sortMode) {
+        case 'name_desc': return (b.name || '').localeCompare(a.name || '');
+        case 'jam_asc': return (a.jam || '').localeCompare(b.jam || '');
+        case 'jam_desc': return (b.jam || '').localeCompare(a.jam || '');
+        case 'gender_asc': return normalizeGenderGroupLabel(a.genderGroup).localeCompare(normalizeGenderGroupLabel(b.genderGroup));
+        case 'gender_desc': return normalizeGenderGroupLabel(b.genderGroup).localeCompare(normalizeGenderGroupLabel(a.genderGroup));
+        case 'santri_desc': return (b.santriCount || 0) - (a.santriCount || 0);
+        case 'santri_asc': return (a.santriCount || 0) - (b.santriCount || 0);
+        case 'name_asc':
+        default: return (a.name || '').localeCompare(b.name || '');
+      }
+    }
+
+    function getFilteredKelasItems() {
+      const query = (state.searchQuery || '').trim().toLowerCase();
+      const genderFilter = state.genderFilter || '';
+      const jamFilter = state.jamFilter || '';
+      let items = state.kelasItems.filter(k => {
+        if (genderFilter && normalizeGenderGroupLabel(k.genderGroup) !== genderFilter) return false;
+        if (jamFilter && (k.jam || '') !== jamFilter) return false;
+        if (query) {
+          const haystack = [
+            k.name,
+            k.jam,
+            (k.pengajarLabels || []).join(' '),
+            (k.badalLabels || []).join(' '),
+            (k.santriLabels || []).join(' ')
+          ].join(' ').toLowerCase();
+          if (!haystack.includes(query)) return false;
+        }
+        return true;
+      });
+      items.sort((a, b) => compareKelasItems(a, b, state.sortMode));
+      return items;
+    }
+
+    function renderPagination() {
+      const displayItems = getFilteredKelasItems();
+      const total = displayItems.length;
+      const totalPages = Math.ceil(total / state.pageSize);
+      const markup = total > 0 ?
+          `<div class="page-center">
+            <div class="page-numbers">
+              ${renderPaging(state.page, totalPages)}
+            </div>
+            <div class="page-summary">Halaman ${state.page} dari ${totalPages} · ${total} kelas</div>
+          </div>` : '';
+      window.PSUI.syncPaginationHosts({ markup, visibleCount: Math.min(state.pageSize, total), totalCount: total, minimumCount: 0, topId: 'paginationTop', bottomId: 'paginationBottom' });
+    }
+
+    function normalizeGenderGroupLabel(value) {
+      const text = String(value == null ? '' : value).trim().toLowerCase().replace(/\s+/g, ' ');
+      if (!text || text === '-' || text === 'tidak ada' || text === 'none') return 'Tidak ada';
+      if (['ikhwan', 'putra', 'l', 'lk', 'laki laki', 'laki-laki', 'male'].includes(text)) return 'Ikhwan';
+      if (['akhowat', 'akhawat', 'akhwat', 'putri', 'p', 'pr', 'perempuan', 'female'].includes(text)) return 'Akhowat';
+      if (['campur', 'mixed', 'mix', 'gabung', 'bersama', 'umum'].includes(text)) return 'Campur';
+      return 'Tidak ada';
+    }
+    function getGenderGroupCardClass(value, active) {
+      const label = normalizeGenderGroupLabel(value);
+      const inactive = !active;
+      if (label === 'Ikhwan') return inactive ? 'row-ikhwan-inactive' : 'row-ikhwan';
+      if (label === 'Akhowat') return inactive ? 'row-akhowat-inactive' : 'row-akhowat';
+      if (label === 'Campur') return inactive ? 'row-campur-inactive' : 'row-campur';
+      return '';
+    }
+
+    function renderDashboard() {
+      const displayItems = getFilteredKelasItems();
+      const target = document.getElementById('kelasList');
+      if (!displayItems.length) {
+        target.innerHTML = state.kelasItems.length
+          ? `<p>Tidak ada kelas yang cocok dengan pencarian.</p>`
+          : `<p>Belum ada kelas yang dapat diakses.</p>`;
+        renderPagination();
+        return;
+      }
+      const totalPages = Math.ceil(displayItems.length / state.pageSize);
+      if (state.page > totalPages) state.page = totalPages;
+      const paged = displayItems.slice((state.page - 1) * state.pageSize, state.page * state.pageSize);
+      target.innerHTML = paged.map(k => {
+        const guruText = (k.pengajarLabels || []).join(', ');
+        const badalText = (k.badalLabels || []).join(', ');
+        return `
+        <article class="card kelas-card ${getGenderGroupCardClass(k.genderGroup, k.active)}" data-kelas="${k.id}">
+          <div class="kelas-card-body">
+            <p class="kelas-card-name">${k.name}${k.jam ? `<span style="font-weight:400;font-size:0.85em;opacity:0.6"> · ${k.jam}</span>` : ''}</p>
+            ${(guruText || badalText) ? `<p class="kelas-card-guru">${guruText ? `Guru: ${guruText}` : ''}${guruText && badalText ? ' · ' : ''}${badalText ? `Badal: ${badalText}` : ''}</p>` : ''}
+          </div>
+        </article>
+      `;
+      }).join('');
+      renderPagination();
+    }
+
+    async function loadTahunSelect() {
+      try {
+        const data = await api('tahunAjaran.list');
+        state.tahunList = data.items || [];
+        const activeTa = state.tahunList.find(t => t.isAktif) || state.tahunList[0];
+        state.selectedTahun = activeTa?.id || '';
+        const sel = document.getElementById('tahunSelect');
+        sel.innerHTML = `<option value="">— Semua tahun —</option>` + state.tahunList.map(t =>
+          `<option value="${t.id}" ${t.id === state.selectedTahun ? 'selected' : ''}>${t.namaDisplay || t.nama || t.id}</option>`
+        ).join('');
+        sel.value = state.selectedTahun;
+        sel.addEventListener('change', () => { state.selectedTahun = sel.value; loadDashboard(); });
+      } catch { /* silent */ }
+    }
+
+    async function loadDashboard() {
+      clearNotice();
+      showNotice('Memuat data kelas...', '');
+      try {
+        const tahunAjaranId = state.selectedTahun;
+        const data = await api('kelas.list', { page: 1, pageSize: 200, status: state.statusFilter, ...(tahunAjaranId ? { tahunAjaranId } : {}) });
+        let items = data.items || [];
+        const perms = state.session?.permissions;
+        const isFullAccess = perms?.isAdmin || perms?.isSuperAdmin || perms?.canManageKelasSiang;
+        if (!isFullAccess) {
+          const assigned = new Set(state.session?.kelasIds || []);
+          items = items.filter(k => assigned.has(k.id));
+        }
+        state.kelasItems = items;
+        renderDashboard();
+        clearNotice();
+      } catch (err) {
+        showNotice(err.message || 'Gagal memuat kelas.', 'error');
+      }
+    }
+
+    /* ── nilai table ─────────────────────────────────── */
+    function entryMap(entries) {
+      const m = {};
+      (entries || []).forEach(e => { m[e.santriId] = e; });
+      return m;
+    }
+
+    function renderNilaiTable() {
+      const wrap = document.getElementById('tableWrap');
+      if (!state.nilaiData) { wrap.innerHTML = ''; return; }
+      const { kelas, upSessions, fixedColumns = [] } = state.nilaiData;
+
+      if (!kelas.santriIds || !kelas.santriIds.length) {
+        wrap.innerHTML = `<div class="no-santri-notice">Belum ada santri yang terdaftar di kelas ini.<br><span style="font-size:12px;opacity:.7">Tambahkan santri ke kelas melalui menu <strong>Edit Kelas</strong>.</span></div>`;
+        return;
+      }
+
+      /* Selalu tampilkan min 10 slot ujian (virtual jika belum ada di DB) */
+      const maxExistingSesi = upSessions.length ? Math.max(...upSessions.map(s => s.sesi)) : 0;
+      const totalSlots = Math.max(10, maxExistingSesi);
+      const nextSesi = totalSlots + 1;
+      const ujianSlots = Array.from({ length: totalSlots }, (_, i) => {
+        const sesi = i + 1;
+        return upSessions.find(s => s.sesi === sesi) || { id: null, sesi, persen: 2, tanggal: null, entries: [] };
+      });
+
+      const canEdit = state.canEditNilai;
+      const canInput = state.canInputNilai;
+
+      /* ujian (multi-sesi) header cells */
+      const ujianHeaders = ujianSlots.map(slot => {
+        const isVirtual = !slot.id;
+        const clickable = (canEdit || canInput)
+          ? `data-edit-up="${slot.id || ''}" data-sesi="${slot.sesi}" data-virtual="${isVirtual ? '1' : '0'}"`
+          : '';
+        return `<th class="th-up${isVirtual ? ' th-up-virtual' : ''}">
+          <div class="th-inner" ${clickable} style="${clickable ? '' : 'cursor:default'}">
+            <span class="th-label">Ujian-${slot.sesi}</span>
+            <span class="th-date">${slot.tanggal || (isVirtual ? 'kosong' : '-')}</span>
+            ${isVirtual ? '' : persenBadge(slot.persen)}
+            ${!isVirtual && canInput ? `<div class="th-actions">
+              <button class="th-btn th-btn-edit" type="button" data-edit-up="${slot.id}" title="${canEdit ? 'Edit' : 'Input Nilai'}">✎</button>
+              ${canEdit ? `<button class="th-btn th-btn-delete" type="button" data-delete-up="${slot.id}" title="Hapus">✕</button>` : ''}
+            </div>` : ''}
+          </div>
+        </th>`;
+      }).join('');
+
+      /* fixed-type header cells (dynamic) */
+      const fixedHeaders = fixedColumns.map(col => {
+        const cfg = getJenisCfg(col.jenis);
+        const hasData = !!col.session;
+        const canClickFixed = canEdit || canInput;
+        return `<th class="${cfg.thClass}">
+          <div class="th-inner" ${canClickFixed ? `data-edit-fixed="${col.jenis}"` : ''} style="${canClickFixed ? '' : 'cursor:default'}">
+            <span class="th-label">${cfg.label}</span>
+            <span class="th-date">${col.session?.tanggal || (hasData ? '–' : 'Belum ada')}</span>
+            ${persenBadge(col.session?.persen)}
+            ${canClickFixed ? `<div class="th-actions">
+              <button class="th-btn th-btn-edit" type="button" data-edit-fixed="${col.jenis}" title="${hasData ? (canEdit ? 'Edit' : 'Input Nilai') : 'Input'}">${hasData ? '✎' : '+'}</button>
+              ${canEdit && hasData ? `<button class="th-btn th-btn-delete" type="button" data-delete-fixed="${col.session.id}" title="Hapus">✕</button>` : ''}
+            </div>` : ''}
+          </div>
+        </th>`;
+      }).join('');
+
+      /* data row maps */
+      const ujianMaps = ujianSlots.map(slot => slot.id ? entryMap(slot.entries) : {});
+      const fixedMaps = fixedColumns.map(col => entryMap(col.session?.entries));
+
+      /* kolom berbobot untuk akumulasi (hanya yang punya persen > 0) */
+      const weightedCols = [];
+      ujianSlots.forEach(s => {
+        if (!s.id) return;
+        const p = parseFloat(s.persen);
+        if (!isNaN(p) && p > 0) weightedCols.push({ map: entryMap(s.entries), persen: p });
+      });
+      fixedColumns.forEach(col => {
+        const p = parseFloat(col.session?.persen);
+        if (col.session && !isNaN(p) && p > 0) weightedCols.push({ map: entryMap(col.session.entries), persen: p });
+      });
+      const totalPersen = Math.round(weightedCols.reduce((a, c) => a + c.persen, 0) * 100) / 100;
+
+      function cell(map, santriId) {
+        const e = map[santriId];
+        if (!e || (!e.nilai && !e.catatan)) return `<td><span class="nilai-cell empty">–</span></td>`;
+        return `<td>
+          <div class="nilai-cell">${e.nilai || '–'}</div>
+          ${e.tipe === 'tidak_ujian' ? `<div class="nilai-catatan">Tidak Ujian</div>` : ''}
+          ${e.catatan ? `<div class="nilai-catatan">${e.catatan}</div>` : ''}
+        </td>`;
+      }
+
+      function fixedCell(map, santriId, jenis) {
+        if (jenis !== 'absensi') return cell(map, santriId);
+        const e = map[santriId];
+        if (!e || e.nilai === '') return `<td><span class="nilai-cell empty">–</span></td>`;
+        let subtitle = '';
+        try {
+          const c = JSON.parse(e.catatan || '{}');
+          subtitle = `<div class="nilai-catatan">H:${c.h||0} S:${c.s||0} I:${c.i||0} A:${c.a||0}</div>`;
+        } catch {}
+        return `<td><div class="nilai-cell">${e.nilai || '–'}</div>${subtitle}</td>`;
+      }
+
+      function akumCell(santriId) {
+        if (!weightedCols.length) return `<td class="col-akumulasi"><span class="nilai-cell empty">–</span></td>`;
+        let sum = 0;
+        weightedCols.forEach(c => {
+          const e = c.map[santriId];
+          const v = e ? parseFloat(e.nilai) : NaN;
+          if (!isNaN(v)) sum += v * c.persen / 100;
+        });
+        const rounded = Math.round(sum * 100) / 100;
+        return `<td class="col-akumulasi"><div class="nilai-cell akum-val">${rounded}</div></td>`;
+      }
+
+      const rows = kelas.santriIds.map((sid, idx) => {
+        const name = kelas.santriLabels[idx] || sid;
+        const isDibekukan = (kelas.santriStatusById || {})[sid] === 'dibekukan';
+        const ujianCells = ujianMaps.map(m => cell(m, sid)).join('');
+        const fixedCells = fixedColumns.map((col, ci) => fixedCell(fixedMaps[ci], sid, col.jenis)).join('');
+        return `<tr>
+          <td class="col-santri"><div class="santri-name-wrap"><span class="santri-name">${name}</span>${isDibekukan ? '<span class="santri-dibekukan-badge">Dibekukan</span>' : ''}</div></td>
+          ${ujianCells}
+          <td class="th-add-sep"></td>
+          ${fixedCells}
+          <td class="th-add-sep"></td>
+          ${akumCell(sid)}
+        </tr>`;
+      }).join('');
+
+      wrap.innerHTML = `
+        <div class="table-wrap">
+          <table class="nilai-table">
+            <thead>
+              <tr>
+                <th class="col-santri">Santri</th>
+                ${ujianHeaders}
+                ${canEdit ? `<th class="th-add">
+                  <button class="th-add-btn" type="button" id="addUjianBtn" title="Tambah sesi Ujian baru" data-next-sesi="${nextSesi}">+</button>
+                </th>` : '<th></th>'}
+                ${fixedHeaders}
+                ${canEdit ? `<th class="th-add">
+                  <button class="th-add-btn" type="button" id="addFixedBtn" title="Tambah jenis nilai baru">+</button>
+                </th>` : '<th></th>'}
+                <th class="th-akumulasi col-akumulasi">
+                  <div class="th-inner" style="cursor:default">
+                    <span class="th-label">Akumulasi</span>
+                    <span class="th-persen th-persen-total ${totalPersen > 100 ? 'persen-over' : (totalPersen > 0 && totalPersen < 100 ? 'persen-under' : '')}">${totalPersen}%</span>
+                  </div>
+                </th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`;
+
+      /* events */
+      wrap.querySelector('#addUjianBtn')?.addEventListener('click', e => {
+        openDialog({ jenis: 'ujian', sesi: parseInt(e.currentTarget.dataset.nextSesi, 10), kelasId: kelas.id });
+      });
+      wrap.querySelector('#addFixedBtn')?.addEventListener('click', () => {
+        openDialog({ jenis: '_new_', kelasId: kelas.id });
+      });
+      wrap.querySelectorAll('[data-edit-up]').forEach(btn => {
+        btn.addEventListener('click', ev => {
+          ev.stopPropagation();
+          const sessId = btn.dataset.editUp;
+          const isVirtual = btn.closest('[data-virtual="1"]') || btn.dataset.virtual === '1';
+          if (!sessId || isVirtual) {
+            const sesi = parseInt(btn.closest('[data-sesi]')?.dataset.sesi || btn.dataset.sesi || '1', 10);
+            openDialog({ jenis: 'ujian', sesi, persen: 2, kelasId: kelas.id });
+          } else {
+            const sess = ujianSlots.find(s => s.id === sessId);
+            if (sess) openDialog({ ...sess, kelasId: kelas.id });
+          }
+        });
+      });
+      wrap.querySelectorAll('[data-delete-up]').forEach(btn => {
+        btn.addEventListener('click', ev => {
+          ev.stopPropagation();
+          confirmDeleteSession(btn.dataset.deleteUp);
+        });
+      });
+      wrap.querySelectorAll('[data-delete-fixed]').forEach(btn => {
+        btn.addEventListener('click', ev => {
+          ev.stopPropagation();
+          confirmDeleteSession(btn.dataset.deleteFixed);
+        });
+      });
+      wrap.querySelectorAll('[data-edit-fixed]').forEach(btn => {
+        btn.addEventListener('click', ev => {
+          ev.stopPropagation();
+          const jenis = btn.dataset.editFixed;
+          const col = fixedColumns.find(c => c.jenis === jenis);
+          openDialog(col?.session
+            ? { ...col.session, kelasId: kelas.id }
+            : { jenis, kelasId: kelas.id });
+        });
+      });
+    }
+
+    async function openKelas(kelasId) {
+      state.selectedKelasId = kelasId;
+      const kelas = state.kelasItems.find(k => k.id === kelasId);
+      document.getElementById('kelasTitle').textContent = kelas?.name || kelasId;
+      document.getElementById('dashSection').style.display = 'none';
+      document.getElementById('nilaiSection').style.display = 'block';
+      document.getElementById('tableWrap').innerHTML = '<p style="opacity:0.5">Memuat...</p>';
+      try {
+        const data = await api('nilaiup.by.kelas', { kelasId });
+        state.nilaiData = data;
+        renderNilaiTable();
+      } catch (err) {
+        showNotice(err.message || 'Gagal memuat nilai.', 'error');
+        document.getElementById('tableWrap').innerHTML = '';
+      }
+    }
+
+    function backToDashboard() {
+      state.selectedKelasId = null;
+      state.nilaiData = null;
+      document.getElementById('nilaiSection').style.display = 'none';
+      document.getElementById('dashSection').style.display = '';
+      renderDashboard();
+    }
+
+    /* ── persen / akumulasi helpers ──────────────────── */
+    // Semua kolom nilai (ujian multi-sesi + kolom tetap) yang punya record tersimpan.
+    function allColumnSessions() {
+      const nd = state.nilaiData;
+      if (!nd) return [];
+      const cols = (nd.upSessions || []).slice();
+      (nd.fixedColumns || []).forEach(col => { if (col.session) cols.push(col.session); });
+      return cols;
+    }
+    // Jumlah persen seluruh kolom kecuali kolom dengan id tertentu (yang sedang diedit).
+    function sumPersenExcluding(excludeId) {
+      return allColumnSessions().reduce((sum, s) => {
+        if (excludeId && s.id === excludeId) return sum;
+        const p = parseFloat(s.persen);
+        return sum + (isNaN(p) || p <= 0 ? 0 : p);
+      }, 0);
+    }
+
+    // Perbarui info sisa bobot secara live saat mengetik di field persen.
+    function updatePersenHint() {
+      const hint = document.getElementById('persenHint');
+      if (!hint) return;
+      const used = state.dialogUsedOther || 0;
+      const sisa = Math.round((100 - used) * 100) / 100;
+      const raw = document.getElementById('form').elements.namedItem('persen').value.trim();
+      const val = raw === '' ? 0 : parseFloat(raw);
+      const usedR = Math.round(used * 100) / 100;
+      if (!isNaN(val) && val > 0 && used + val > 100.0001) {
+        hint.textContent = `⚠ Melebihi 100%! Kolom lain sudah pakai ${usedR}%, sisa hanya ${sisa < 0 ? 0 : sisa}%. Turunkan bobot kolom lain dulu.`;
+        hint.classList.add('persen-hint-over');
+      } else {
+        const totalNow = Math.round((used + (isNaN(val) ? 0 : val)) * 100) / 100;
+        hint.textContent = `Kolom lain pakai ${usedR}% · sisa tersedia ${sisa < 0 ? 0 : sisa}% · total jika disimpan: ${totalNow}%.`;
+        hint.classList.remove('persen-hint-over');
+      }
+    }
+
+    /* ── dialog ──────────────────────────────────────── */
+    function openDialog(opts) {
+      /* opts: { id?, jenis, sesi?, kelasId, tanggal?, catatan?, entries? } */
+      const fields = document.getElementById('form').elements;
+      const jenis = opts.jenis || 'ujian';
+      const isNewCustom = jenis === '_new_';
+      const isUjian = jenis === 'ujian';
+      const isAbsensi = jenis === 'absensi';
+      const cfg = getJenisCfg(isNewCustom ? 'uas' : jenis);
+      const isNew = !opts.id;
+
+      state.dialogJenis = jenis;
+
+      if (isNewCustom) {
+        document.getElementById('dialogTitle').textContent = 'Tambah Jenis Nilai Baru';
+        document.getElementById('dialogSub').textContent = 'Beri nama jenis nilai baru, lalu isi nilai santri.';
+      } else if (isUjian) {
+        document.getElementById('dialogTitle').textContent = isNew ? `Input Ujian-${opts.sesi}` : `Edit Ujian-${opts.sesi}`;
+        document.getElementById('dialogSub').textContent = isNew ? 'Bobot default 2% (20% ÷ 10 ujian).' : '';
+      } else {
+        document.getElementById('dialogTitle').textContent = isNew ? `Input ${cfg.label}` : `Edit ${cfg.label}`;
+        document.getElementById('dialogSub').textContent = isNew ? `Bobot default ${JENIS_DEFAULT_PERSEN[jenis] || 0}%.` : '';
+      }
+
+      fields.namedItem('id').value = opts.id || '';
+      fields.namedItem('jenis').value = isNewCustom ? '' : jenis;
+      fields.namedItem('sesi').value = opts.sesi || '1';
+      fields.namedItem('kelasId').value = opts.kelasId || '';
+      fields.namedItem('tanggal').value = opts.tanggal || '';
+
+      // Pre-fill default persen jika belum ada
+      const savedPersen = opts.persen != null && Number(opts.persen) > 0 ? opts.persen : null;
+      const defaultPersen = JENIS_DEFAULT_PERSEN[jenis] || 0;
+      fields.namedItem('persen').value = savedPersen ?? (defaultPersen > 0 ? defaultPersen : '');
+
+      fields.namedItem('catatan').value = (!isAbsensi && opts.catatan) ? opts.catatan : '';
+
+      // Sisa bobot yang masih tersedia (di luar kolom yang sedang diedit) → batasi input & info live.
+      state.dialogUsedOther = sumPersenExcluding(opts.id || '');
+      const sisa = Math.round((100 - state.dialogUsedOther) * 100) / 100;
+      const persenInput = fields.namedItem('persen');
+      persenInput.max = sisa < 0 ? 0 : sisa;
+      updatePersenHint();
+
+      const isMetaEditor = state.canEditNilai;
+
+      // jenisRow: hidden untuk ujian multi-sesi, jenis fixed yang sudah dikenal, atau bukan editor
+      const hideJenisRow = isUjian || JENIS_FIXED_KNOWN.has(jenis) || !isMetaEditor;
+      document.getElementById('jenisRow').style.display = hideJenisRow ? 'none' : '';
+      fields.namedItem('jenisLabel').value = isNewCustom ? '' : cfg.label;
+
+      // tanggal wajib untuk jenis ujian (backend enforces) → tampilkan untuk semua user
+      document.getElementById('tanggalRow').style.display = cfg.hasDate ? '' : 'none';
+
+      // persen row: hanya untuk editor
+      document.getElementById('persenRow').style.display = isMetaEditor ? '' : 'none';
+
+      // catatan row: hidden untuk absensi dan bukan editor
+      document.getElementById('catatanRow').style.display = (isAbsensi || !isMetaEditor) ? 'none' : '';
+
+      // absensi sync row: hanya untuk absensi
+      document.getElementById('absensiSyncRow').style.display = isAbsensi ? '' : 'none';
+      document.getElementById('syncAbsensiStatus').textContent = '';
+
+      // render santri grid
+      const kelas = state.nilaiData?.kelas;
+      renderStudentGrid(kelas?.santriIds || [], kelas?.santriLabels || [], opts.entries || [], jenis, kelas?.santriStatusById || {});
+
+      document.getElementById('dialog').showModal();
+
+      // Auto-fetch absensi summary untuk record baru
+      if (isAbsensi && !opts.id) {
+        fetchAbsensiSummary(opts.kelasId || kelas?.id, true);
+      }
+    }
+
+    function renderStudentGrid(santriIds, santriLabels, existingEntries, jenis, santriStatusById) {
+      santriStatusById = santriStatusById || {};
+      const byId = {};
+      (existingEntries || []).forEach(e => { byId[e.santriId] = e; });
+      const target = document.getElementById('studentGrid');
+      const header = target.previousElementSibling;
+      if (!santriIds.length) {
+        target.innerHTML = `<p style="padding:12px;opacity:0.5">Belum ada santri di kelas ini.</p>`;
+        return;
+      }
+      const isAbsensi = jenis === 'absensi';
+      if (header && header.classList.contains('student-grid-header')) {
+        if (isAbsensi) {
+          header.className = 'student-grid-header absensi';
+          header.innerHTML = '<div>Santri</div><div>Hadir</div><div>Sakit</div><div>Izin</div><div>Alfa</div>';
+        } else {
+          header.className = 'student-grid-header';
+          header.innerHTML = '<div>Santri</div><div>Nilai</div><div>Tipe</div><div>Catatan</div>';
+        }
+      }
+      target.innerHTML = santriIds.map((sid, i) => {
+        const e = byId[sid] || {};
+        if (isAbsensi) {
+          let counts = { h: 0, s: 0, i: 0, a: 0 };
+          try { counts = JSON.parse(e.catatan || '{}'); } catch {}
+          return `<div class="student-row absensi">
+            <input type="hidden" name="sid_${i}" value="${sid}">
+            <span class="student-name">${santriLabels[i] || sid}</span>${santriStatusById[sid] === 'dibekukan' ? '<span class="santri-dibekukan-badge">Dibekukan</span>' : ''}
+            <input type="number" min="0" step="1" name="h_${i}" placeholder="0" value="${counts.h || ''}">
+            <input type="number" min="0" step="1" name="s_${i}" placeholder="0" value="${counts.s || ''}">
+            <input type="number" min="0" step="1" name="iz_${i}" placeholder="0" value="${counts.i || ''}">
+            <input type="number" min="0" step="1" name="a_${i}" placeholder="0" value="${counts.a || ''}">
+          </div>`;
+        }
+        const tipe = e.tipe === 'tidak_ujian' ? 'tidak_ujian' : 'ujian';
+        return `<div class="student-row">
+          <input type="hidden" name="sid_${i}" value="${sid}">
+          <span class="student-name">${santriLabels[i] || sid}</span>${santriStatusById[sid] === 'dibekukan' ? '<span class="santri-dibekukan-badge">Dibekukan</span>' : ''}
+          <input type="number" step="0.01" min="0" max="100" name="nilai_${i}" placeholder="–" value="${e.nilai || ''}">
+          <select name="tipe_${i}">
+            <option value="ujian" ${tipe === 'ujian' ? 'selected' : ''}>Ujian</option>
+            <option value="tidak_ujian" ${tipe === 'tidak_ujian' ? 'selected' : ''}>Tidak Ujian</option>
+          </select>
+          <input type="text" name="cat_${i}" placeholder="Catatan" value="${e.catatan || ''}">
+        </div>`;
+      }).join('');
+    }
+
+    function collectEntries() {
+      const rows = Array.from(document.querySelectorAll('#studentGrid .student-row'));
+      if (state.dialogJenis === 'absensi') {
+        return rows.map((row, i) => {
+          const sid = row.querySelector(`[name="sid_${i}"]`)?.value;
+          const h  = Math.max(0, parseInt(row.querySelector(`[name="h_${i}"]`)?.value)  || 0);
+          const s  = Math.max(0, parseInt(row.querySelector(`[name="s_${i}"]`)?.value)  || 0);
+          const iz = Math.max(0, parseInt(row.querySelector(`[name="iz_${i}"]`)?.value) || 0);
+          const a  = Math.max(0, parseInt(row.querySelector(`[name="a_${i}"]`)?.value)  || 0);
+          const total = h + s + iz + a;
+          if (!sid || total === 0) return null;
+          const nilai = Math.round(100 * h / total * 100) / 100;
+          return { id_santri: sid, nilai: String(nilai), catatan: JSON.stringify({ h, s, i: iz, a }) };
+        }).filter(Boolean);
+      }
+      return rows.map((row, i) => ({
+        id_santri: row.querySelector(`[name="sid_${i}"]`)?.value,
+        nilai: row.querySelector(`[name="nilai_${i}"]`)?.value.trim() || '',
+        tipe: row.querySelector(`[name="tipe_${i}"]`)?.value === 'tidak_ujian' ? 'tidak_ujian' : 'ujian',
+        catatan: row.querySelector(`[name="cat_${i}"]`)?.value.trim() || ''
+      })).filter(e => e.id_santri && (e.nilai !== '' || e.catatan));
+    }
+
+    async function saveForm() {
+      const fields = document.getElementById('form').elements;
+      const saveBtn = document.getElementById('saveBtn');
+      const currentJenis = fields.namedItem('jenis').value;
+      const isUjian = currentJenis === 'ujian';
+      const jenisToSave = isUjian
+        ? 'ujian'
+        : (fields.namedItem('jenisLabel').value.trim().toLowerCase() || currentJenis);
+      // Validasi nama hanya untuk kolom non-ujian. Kolom ujian multi-sesi memang ber-jenis "ujian".
+      if (!isUjian) {
+        if (!jenisToSave) { showNotice('Nama ujian harus diisi.', 'error'); return; }
+        if (jenisToSave === 'ujian') { showNotice('Nama "ujian" sudah dipakai untuk ujian multi-sesi.', 'error'); return; }
+      }
+
+      const persenRaw = fields.namedItem('persen').value.trim();
+      let persenNum = 0;
+      if (persenRaw !== '') {
+        persenNum = parseFloat(persenRaw);
+        if (isNaN(persenNum) || persenNum < 0 || persenNum > 100) { showNotice('Bobot akumulasi harus antara 0 dan 100%.', 'error'); return; }
+        const totalOther = sumPersenExcluding(fields.namedItem('id').value.trim());
+        if (totalOther + persenNum > 100.0001) {
+          const sisa = Math.round((100 - totalOther) * 100) / 100;
+          showNotice(`Total bobot melebihi 100%. Terpakai ${Math.round(totalOther * 100) / 100}% di kolom lain, sisa hanya ${sisa < 0 ? 0 : sisa}%.`, 'error');
+          return;
+        }
+      }
+
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Menyimpan...';
+      try {
+        await api('nilaiup.save', {
+          record: {
+            id: fields.namedItem('id').value.trim(),
+            jenis: jenisToSave,
+            sesi: fields.namedItem('sesi').value,
+            kelasId: fields.namedItem('kelasId').value,
+            tanggal: fields.namedItem('tanggal').value,
+            persen: persenRaw === '' ? '' : String(persenNum),
+            catatan: fields.namedItem('catatan').value.trim(),
+            entries: collectEntries()
+          }
+        }, 'POST');
+        document.getElementById('dialog').close();
+        await reloadNilai();
+      } catch (err) {
+        showNotice(err.message || 'Gagal menyimpan.', 'error');
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Simpan';
+      }
+    }
+
+    function confirmDeleteSession(id) {
+      const dlg = document.getElementById('deleteConfirmDlg');
+      const input = document.getElementById('deleteConfirmInput');
+      const btn = document.getElementById('deleteConfirmBtn');
+      input.value = '';
+      btn.disabled = true;
+      btn.dataset.pendingId = id;
+      dlg.showModal();
+      input.focus();
+    }
+
+    async function executeDeleteSession(id) {
+      const dlg = document.getElementById('deleteConfirmDlg');
+      try {
+        await api('nilaiup.session.delete', { id }, 'POST');
+        dlg.close();
+        document.getElementById('dialog').close();
+        await reloadNilai();
+      } catch (err) {
+        showNotice(err.message || 'Gagal menghapus.', 'error');
+      }
+    }
+
+    function downloadNilaiTemplate() {
+      const nd = state.nilaiData;
+      if (!nd) { showNotice('Buka kelas terlebih dahulu.', 'error'); return; }
+      const { kelas, upSessions, fixedColumns } = nd;
+
+      const headers = ['No', 'Nama Santri'];
+      upSessions.forEach(s => headers.push(`Ujian-${s.sesi}`));
+      (fixedColumns || []).forEach(col => headers.push(getJenisCfg(col.jenis).label));
+
+      const rows = [headers];
+      (kelas.santriIds || []).forEach((sid, i) => {
+        rows.push([i + 1, kelas.santriLabels[i] || sid, ...Array(headers.length - 2).fill('')]);
+      });
+
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+      // bold header row
+      const range = XLSX.utils.decode_range(ws['!ref']);
+      for (let c = range.s.c; c <= range.e.c; c++) {
+        const cell = ws[XLSX.utils.encode_cell({ r: 0, c })];
+        if (cell) cell.s = { font: { bold: true } };
+      }
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Nilai');
+      XLSX.writeFile(wb, `Template_Nilai_${(kelas.name || 'Kelas').replace(/[^a-z0-9]/gi, '_')}.xlsx`);
+    }
+
+    async function uploadNilaiExcel(file) {
+      const nd = state.nilaiData;
+      if (!nd) { showNotice('Buka kelas terlebih dahulu.', 'error'); return; }
+      const { kelas, upSessions, fixedColumns } = nd;
+
+      showNotice('Membaca file...', '');
+      try {
+        const buf = await file.arrayBuffer();
+        const wb = XLSX.read(buf, { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+        if (rows.length < 2) { showNotice('File kosong atau tidak ada data santri.', 'error'); return; }
+
+        const headers = rows[0].map(h => String(h).trim());
+
+        // build name → santriId map
+        const nameMap = {};
+        (kelas.santriIds || []).forEach((sid, i) => {
+          nameMap[(kelas.santriLabels[i] || sid).toLowerCase().trim()] = sid;
+        });
+
+        // resolve each column (index >= 2) to a session
+        const colSessions = headers.slice(2).map((h, i) => {
+          const colIdx = i + 2;
+          const m = h.match(/^ujian[-\s](\d+)$/i);
+          if (m) {
+            const sesi = parseInt(m[1]);
+            const sess = upSessions.find(s => s.sesi === sesi);
+            return sess ? { colIdx, record: { id: sess.id, jenis: 'ujian', sesi: sess.sesi, kelasId: kelas.id, tanggal: sess.tanggal || '', catatan: sess.catatan || '', entries: [] } } : null;
+          }
+          const fixed = (fixedColumns || []).find(col => getJenisCfg(col.jenis).label.toLowerCase() === h.toLowerCase());
+          if (fixed) {
+            return { colIdx, record: { id: fixed.session?.id || '', jenis: fixed.jenis, sesi: fixed.session?.sesi || 1, kelasId: kelas.id, tanggal: fixed.session?.tanggal || '', catatan: fixed.session?.catatan || '', entries: [] } };
+          }
+          return null;
+        }).filter(Boolean);
+
+        if (!colSessions.length) { showNotice('Tidak ada kolom nilai yang cocok ditemukan.', 'error'); return; }
+
+        // collect entries per column
+        for (let r = 1; r < rows.length; r++) {
+          const row = rows[r];
+          const nameRaw = String(row[1] || '').toLowerCase().trim();
+          const sid = nameMap[nameRaw];
+          if (!sid) continue;
+          colSessions.forEach(({ colIdx, record }) => {
+            const raw = String(row[colIdx] ?? '').replace(',', '.').trim();
+            if (raw === '') return;
+            const nilai = parseFloat(raw);
+            if (!isNaN(nilai)) record.entries.push({ id_santri: sid, nilai: String(nilai), catatan: '' });
+          });
+        }
+
+        let saved = 0;
+        for (const { record } of colSessions) {
+          if (!record.entries.length) continue;
+          await api('nilaiup.excel.save', { record }, 'POST');
+          saved++;
+        }
+
+        if (!saved) { showNotice('Tidak ada nilai yang dapat disimpan.', 'error'); return; }
+        await reloadNilai();
+        showNotice(`${saved} kolom nilai berhasil diimpor.`, 'success');
+      } catch (err) {
+        showNotice(err.message || 'Gagal membaca file.', 'error');
+      }
+    }
+
+    async function reloadNilai() {
+      if (!state.selectedKelasId) return;
+      try {
+        const data = await api('nilaiup.by.kelas', { kelasId: state.selectedKelasId });
+        state.nilaiData = data;
+        renderNilaiTable();
+        renderDashboard(); // update chips
+      } catch (err) {
+        showNotice(err.message || 'Gagal memuat ulang.', 'error');
+      }
+    }
+
+    /* ── absensi summary ────────────────────────────── */
+    async function fetchAbsensiSummary(kelasId, overwrite) {
+      const statusEl = document.getElementById('syncAbsensiStatus');
+      if (statusEl) statusEl.textContent = 'Memuat...';
+      try {
+        const data = await api('nilaiup.absensi.summary', { kelasId });
+        const summary = data.summary || {};
+        const rows = document.querySelectorAll('#studentGrid .student-row.absensi');
+        rows.forEach((row, i) => {
+          const sid = row.querySelector(`[name="sid_${i}"]`)?.value;
+          if (!sid) return;
+          const c = summary[sid] || { h: 0, s: 0, i: 0, a: 0 };
+          const hInput  = row.querySelector(`[name="h_${i}"]`);
+          const sInput  = row.querySelector(`[name="s_${i}"]`);
+          const izInput = row.querySelector(`[name="iz_${i}"]`);
+          const aInput  = row.querySelector(`[name="a_${i}"]`);
+          if (overwrite || !hInput?.value) { if (hInput)  hInput.value  = c.h || ''; }
+          if (overwrite || !sInput?.value) { if (sInput)  sInput.value  = c.s || ''; }
+          if (overwrite || !izInput?.value){ if (izInput) izInput.value = c.i || ''; }
+          if (overwrite || !aInput?.value) { if (aInput)  aInput.value  = c.a || ''; }
+        });
+        const total = Object.keys(summary).length;
+        if (statusEl) statusEl.textContent = total ? `Tersinkron (${total} santri)` : 'Belum ada data absensi kelas.';
+      } catch (err) {
+        if (statusEl) statusEl.textContent = 'Gagal memuat data absensi.';
+      }
+    }
+
+    /* ── nilai wajib (router terpisah /api/nilaiwajib/*) ── */
+    async function nwApi(path, payload = {}, method = 'GET') {
+      const token = getToken();
+      const qs = new URLSearchParams();
+      qs.append('token', token);
+      if (method === 'GET') Object.entries(payload).forEach(([k,v]) => qs.append(k, v));
+      // cache: 'no-store' + parameter _t (cache-buster) -- lapisan pertahanan KEDUA di sisi
+      // browser/proxy, selain header no-cache yg sudah dipasang server (lihat
+      // noStoreMiddleware_ di backend/nilaiwajib.js).
+      if (method === 'GET') qs.append('_t', Date.now());
+      const url = `${window.location.origin}/api/nilaiwajib/${path}${method === 'GET' ? '?' + qs.toString() : '?' + qs.toString()}`;
+      const resp = method === 'GET'
+        ? await fetch(url, { cache: 'no-store' })
+        : await fetch(url, { method, cache: 'no-store', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token, ...payload }) });
+      const json = await resp.json();
+      if (!json.ok) throw new Error(json.error?.message || 'Gagal.');
+      return json.data;
+    }
+
+    function nwStatusBadge(c) {
+      if (!c) return '';
+      const map = {
+        lengkap: { cls: 'nw-lengkap', icon: '✓', text: 'Lengkap di semua kelas' },
+        belum: { cls: 'nw-belum', icon: '⏳', text: `${c.kelasLengkap||0}/${c.totalKelas||0} kelas lengkap` },
+        terlambat: { cls: 'nw-terlambat', icon: '⚠', text: `Terlambat di ${c.kelasTerlambat||0} kelas` },
+      };
+      const s = map[c.status] || map.belum;
+      return `<span class="nw-badge ${s.cls}">${s.icon} ${s.text}</span>`;
+    }
+
+    async function loadNilaiWajibStatus() {
+      try {
+        const data = await nwApi('list');
+        const items = data.items || [];
+        const toolbar = document.getElementById('nilaiWajibToolbar');
+        const summaryEl = document.getElementById('nilaiWajibSummary');
+        toolbar.style.display = state.canEditNilai ? 'flex' : (items.length ? 'flex' : 'none');
+        if (!items.length) { summaryEl.innerHTML = '<em>Tidak ada nilai wajib diatur.</em>'; return items; }
+        const lengkap = items.filter(i => i.completeness?.status === 'lengkap').length;
+        const belum = items.filter(i => i.completeness?.status === 'belum').length;
+        const terlambat = items.filter(i => i.completeness?.status === 'terlambat').length;
+        summaryEl.innerHTML = `📊 ${lengkap} lengkap · ${belum} belum · <span style="color:#c0392b;font-weight:700">${terlambat} terlambat</span>`;
+        return items;
+      } catch (e) { return []; }
+    }
+
+    let nwEditingId = null;
+
+    function resetNilaiWajibForm() {
+      nwEditingId = null;
+      ['nwJenis','nwTanggal','nwMax','nwCatatan'].forEach(id => document.getElementById(id).value = '');
+      document.getElementById('nwSaveBtn').textContent = 'Simpan Aturan';
+      document.getElementById('nwCancelEditBtn').hidden = true;
+      document.querySelectorAll('.nw-item.is-editing').forEach(el => el.classList.remove('is-editing'));
+    }
+
+    async function openNilaiWajibDialog() {
+      const dlg = document.getElementById('nilaiWajibDlg');
+      const listEl = document.getElementById('nwList');
+      listEl.innerHTML = '<p style="opacity:.5;padding:8px">Memuat...</p>';
+      resetNilaiWajibForm();
+      dlg.showModal();
+      const items = await loadNilaiWajibStatus();
+      if (!items.length) { listEl.innerHTML = '<p style="opacity:.5;padding:8px">Belum ada aturan nilai wajib. Tambahkan di bawah.</p>'; return; }
+      listEl.innerHTML = items.map(it => {
+        const c = it.completeness || {};
+        const displayName = it.jenis === 'ujian' ? `Ujian-${it.sesi || 1}` : (it.jenis.charAt(0).toUpperCase() + it.jenis.slice(1));
+        const meta = `${it.tanggal ? 'ujian ' + it.tanggal : ''}${it.maxTerlambat ? ' · maks ' + it.maxTerlambat : ''}${it.catatan ? ' · ' + it.catatan : ''}`;
+        return `<div class="nw-item" data-nw-id="${it.id}">
+          <div class="nw-item-info">
+            <div class="nw-item-title">${displayName}</div>
+            <div class="nw-item-meta">${meta}</div>
+            ${nwStatusBadge(c)}
+          </div>
+          <button class="nw-item-edit" type="button" data-nw-edit="${it.id}">Edit</button>
+          <button class="nw-item-del" type="button" data-nw-del="${it.id}">Hapus</button>
+        </div>`;
+      }).join('');
+      listEl.querySelectorAll('[data-nw-del]').forEach(b => b.addEventListener('click', async () => {
+        if (!confirm('Hapus aturan nilai wajib ini? Berlaku untuk semua kelas.')) return;
+        try { await nwApi('delete', { id: b.dataset.nwDel }, 'POST'); await openNilaiWajibDialog(); }
+        catch (e) { showNotice(e.message, 'error'); }
+      }));
+      listEl.querySelectorAll('[data-nw-edit]').forEach(b => b.addEventListener('click', () => {
+        const it = items.find(x => String(x.id) === b.dataset.nwEdit);
+        if (!it) return;
+        nwEditingId = it.id;
+        document.getElementById('nwJenis').value = it.jenis === 'ujian' ? `ujian-${it.sesi || 1}` : it.jenis;
+        document.getElementById('nwTanggal').value = it.tanggal || '';
+        document.getElementById('nwMax').value = it.maxTerlambat || '';
+        document.getElementById('nwCatatan').value = it.catatan || '';
+        document.getElementById('nwSaveBtn').textContent = 'Simpan Perubahan';
+        document.getElementById('nwCancelEditBtn').hidden = false;
+        document.querySelectorAll('.nw-item.is-editing').forEach(el => el.classList.remove('is-editing'));
+        const row = listEl.querySelector(`[data-nw-id="${it.id}"]`);
+        if (row) row.classList.add('is-editing');
+        document.getElementById('nwJenis').focus();
+      }));
+    }
+
+    async function saveNilaiWajibAturan() {
+      const btn = document.getElementById('nwSaveBtn');
+      const jenis = document.getElementById('nwJenis').value.trim().toLowerCase();
+      const tanggal = document.getElementById('nwTanggal').value;
+      const maxTerlambat = document.getElementById('nwMax').value;
+      const catatan = document.getElementById('nwCatatan').value.trim();
+      if (!jenis) { showNotice('Nama nilai wajib harus diisi.', 'error'); return; }
+      if (!tanggal) { showNotice('Tanggal ujian wajib diisi.', 'error'); return; }
+      if (!maxTerlambat) { showNotice('Tanggal maksimal terlambat wajib diisi.', 'error'); return; }
+      btn.disabled = true; btn.textContent = 'Menyimpan...';
+      try {
+        const payload = { jenis, tanggal, maxTerlambat, catatan };
+        if (nwEditingId) payload.id = nwEditingId;
+        await nwApi('save', payload, 'POST');
+        showNotice(nwEditingId ? 'Aturan nilai wajib diperbarui.' : 'Aturan nilai wajib disimpan.', 'success');
+        await openNilaiWajibDialog();
+      } catch (e) { showNotice(e.message, 'error'); }
+      finally { btn.disabled = false; btn.textContent = nwEditingId ? 'Simpan Perubahan' : 'Simpan Aturan'; }
+    }
+
+    /* ── init ──────────────────────────────────────── */
+    async function init() {
+      const stored = getStoredSession();
+      if (!stored) { clearSession(); window.location.replace('/pages/login/'); return; }
+
+      let freshSession = stored;
+      try {
+        const data = await api('session');
+        if (data?.session) {
+          freshSession = data.session;
+          // Jangan simpan ke localStorage — session scoped yang tersimpan akan
+          // membuat refreshSessionInBackground() mendeteksi perubahan dan me-render
+          // ulang sidebar, yang menghapus shellSidebarBrandLogo tanpa memulihkannya.
+        }
+      } catch (e) {
+        window.location.replace('/pages/login/');
+        return;
+      }
+
+      const perms = freshSession?.permissions;
+      if (!perms || !(perms.canManageNilaiUp || perms.isAdmin || perms.isSuperAdmin)) {
+        window.location.replace('/pages/accountProfile/');
+        return;
+      }
+
+      state.session = freshSession;
+      state.canEditNilai = !!(perms.isSuperAdmin || perms.isAdmin || perms.isAcademic);
+      state.canInputNilai = !!perms.canManageNilaiUp;
+      if (window.PSAccess && window.PSAccess.canUseExcelTools(freshSession)) document.getElementById('excelToolbar').style.display = 'flex';
+      mountShell();
+
+      /* events */
+      document.getElementById('refreshButton').addEventListener('click', loadDashboard);
+      document.getElementById('backButton').addEventListener('click', backToDashboard);
+      document.getElementById('downloadTemplateBtn').addEventListener('click', downloadNilaiTemplate);
+      document.getElementById('uploadExcelBtn').addEventListener('click', () => document.getElementById('excelFileInput').click());
+      document.getElementById('excelFileInput').addEventListener('change', e => {
+        const f = e.target.files[0];
+        if (f) { uploadNilaiExcel(f); e.target.value = ''; }
+      });
+      document.getElementById('saveBtn').addEventListener('click', saveForm);
+      document.getElementById('syncAbsensiBtn').addEventListener('click', () => {
+        const kelasId = document.getElementById('form').elements.namedItem('kelasId').value;
+        fetchAbsensiSummary(kelasId, true);
+      });
+      document.getElementById('form').elements.namedItem('persen').addEventListener('input', updatePersenHint);
+      document.getElementById('closeDialog').addEventListener('click', () => document.getElementById('dialog').close());
+      document.getElementById('deleteConfirmInput').addEventListener('input', e => {
+        document.getElementById('deleteConfirmBtn').disabled = e.target.value.trim().toLowerCase() !== 'hapus';
+      });
+      document.getElementById('deleteConfirmBtn').addEventListener('click', e => {
+        const id = e.currentTarget.dataset.pendingId;
+        if (id) executeDeleteSession(id);
+      });
+      document.getElementById('deleteConfirmCancel').addEventListener('click', () => {
+        document.getElementById('deleteConfirmDlg').close();
+      });
+      document.getElementById('kelasList').addEventListener('click', e => {
+        const card = e.target.closest('[data-kelas]');
+        if (card) openKelas(card.dataset.kelas);
+      });
+      document.addEventListener('click', e => {
+        const btn = e.target.closest('[data-page]');
+        if (!btn || !document.getElementById('paginationTop')?.contains(btn) && !document.getElementById('paginationBottom')?.contains(btn)) return;
+        const p = parseInt(btn.dataset.page, 10);
+        const filtered = getFilteredKelasItems();
+        const totalPages = Math.ceil(filtered.length / state.pageSize);
+        if (p >= 1 && p <= totalPages) { state.page = p; renderDashboard(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+      });
+      document.getElementById('searchInput').addEventListener('input', function () {
+        state.searchQuery = this.value.trim();
+        state.page = 1;
+        renderDashboard();
+      });
+      document.getElementById('statusFilter').addEventListener('change', function () {
+        state.statusFilter = this.value;
+        state.page = 1;
+        loadDashboard();
+      });
+      document.getElementById('genderFilter').addEventListener('change', function () {
+        state.genderFilter = this.value;
+        state.page = 1;
+        renderDashboard();
+      });
+      document.getElementById('jamFilter').addEventListener('change', function () {
+        state.jamFilter = this.value;
+        state.page = 1;
+        renderDashboard();
+      });
+      document.getElementById('sortSelect').addEventListener('change', function () {
+        state.sortMode = this.value;
+        renderDashboard();
+      });
+      document.getElementById('pageSizeSelect').addEventListener('change', function () {
+        state.pageSize = parseInt(this.value, 10) || 15;
+        state.page = 1;
+        renderDashboard();
+      });
+      document.getElementById('nilaiWajibBtn').addEventListener('click', () => openNilaiWajibDialog());
+      document.getElementById('nwSaveBtn').addEventListener('click', saveNilaiWajibAturan);
+      document.getElementById('nwCancelEditBtn').addEventListener('click', resetNilaiWajibForm);
+      document.getElementById('nwCloseBtn').addEventListener('click', () => document.getElementById('nilaiWajibDlg').close());
+
+      await loadTahunSelect();
+      await loadDashboard();
+      loadNilaiWajibStatus(); // async, jangan tunggu — tampil setelah dashboard siap
+
+      // Deep-link dari tombol "Bereskan" popup audit nilai wajib (kind 'nilaiWajib' di
+      // shared-shell.js) -- langsung buka tabel nilai kelas terkait.
+      const openKelasId = new URLSearchParams(location.search).get('openKelas');
+      if (openKelasId) {
+        history.replaceState(null, '', location.pathname);
+        await openKelas(openKelasId);
+      }
+    }
+
+    init();
+
+    if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {}); }
+  </script>
+</body>
+</html>

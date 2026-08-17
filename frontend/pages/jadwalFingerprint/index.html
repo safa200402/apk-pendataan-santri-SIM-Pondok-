@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#9e2f22">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="../../shared-ui.css">
+  <script src="../../shared-ui.js"></script>
+  <title>Jadwal Fingerprint</title>
+  <link rel="stylesheet" href="../../shared-shell.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700&display=swap');
+    :root {
+      --paper: #f6efe0;
+      --ink: #4d4034;
+      --muted: #7b6a58;
+      --line: rgba(91, 73, 57, 0.15);
+      --accent: #b97650;
+      --success: #74846c;
+      --danger: #a55a52;
+      --warning: #b58439;
+      --shadow: 0 18px 45px rgba(87, 67, 51, 0.18);
+      --radius: 24px;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; }
+    body::before { content: ''; position: fixed; inset: 0; pointer-events: none; opacity: 0.15 !important; mix-blend-mode: multiply; }
+
+    .panel { padding: 22px; }
+    h1, h2, h3 { margin: 0 0 10px; }
+    p { margin: 0; line-height: 1.6; }
+    button, input, select, textarea { font: inherit; }
+
+    /* Cegah <select> dgn opsi teks panjang (nama jabatan) "meledakkan" lebar kolom grid filter
+       (grid blowout) -- tanpa ini, kolom lain di grid jadi kegencet di layar sempit. */
+    #filtersPanel select, #filtersPanel input { min-width: 0; width: 100%; }
+
+    .toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0; }
+    .toolbar button { padding: 12px 18px; font-weight: 700; cursor: pointer; }
+
+    .table-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid var(--line); margin-top: 10px; }
+    .jfp-table { border-collapse: collapse; width: 100%; min-width: 980px; }
+    .jfp-table th, .jfp-table td {
+      padding: 8px 10px;
+      text-align: center;
+      white-space: nowrap;
+      vertical-align: middle;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    }
+    .jfp-table thead th {
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      border-bottom: 2px solid rgba(0, 0, 0, 0.14);
+      background: rgba(244, 228, 191, 0.65);
+      color: #2a1712;
+    }
+    .col-no { width: 36px; color: var(--muted); font-size: 12px; }
+    .col-nama {
+      position: sticky;
+      left: 0;
+      z-index: 2;
+      text-align: left !important;
+      min-width: 170px;
+      max-width: 220px;
+      background: #fffaf0;
+      padding: 12px 14px !important;
+    }
+    .jfp-table thead .col-nama { z-index: 3; }
+    .jfp-nama { font-weight: 700; font-size: 13px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 4px; }
+    .jfp-jabatan { font-size: 11px; color: var(--muted); font-weight: 500; margin-top: 3px; }
+    .jfp-id { font-size: 11px; color: var(--muted); font-family: monospace; margin-top: 3px; }
+    .jfp-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      padding: 1px 8px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .jfp-badge.auto { background: rgba(116, 132, 108, 0.16); color: var(--success); }
+    .jfp-badge.manual { background: rgba(181, 132, 57, 0.18); color: var(--warning); }
+    .jfp-table tr.row-override td.col-nama { background: #f9f1e1; }
+    .jfp-input {
+      width: 92px;
+      padding: 6px 8px;
+      font-size: 13px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      text-align: center;
+      background: #fff;
+    }
+    .jfp-input:focus { border-color: var(--accent); outline: none; }
+    .jfp-input.overridden { border-color: var(--warning); background: #fdf6e8; }
+    .jfp-reset-btn {
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 12px;
+      padding: 2px 4px;
+    }
+    .jfp-reset-btn:hover { color: var(--danger); }
+    .empty-state { text-align: center; padding: 30px 16px; color: var(--muted); }
+    .jfp-scancount { font-size: 10px; color: var(--muted); margin-top: 3px; }
+
+    .paging-host { display: grid; gap: 8px; margin: 16px 0; }
+    .paging { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; }
+    .page-center { display: grid; gap: 8px; justify-items: center; }
+    .page-numbers { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+    .page-summary { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+    @media (max-width: 960px) { .paging { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-left">
+      <button class="drawer-toggle" id="navToggle" type="button" aria-label="Toggle sidebar">Menu</button>
+      <div class="header-brand">Pendataan Santri</div>
+      <div class="header-page">Jadwal Fingerprint</div>
+    </div>
+    <div class="header-right">
+      <span class="header-chip" id="headerRole">Admin</span>
+    </div>
+  </header>
+  <div class="drawer-backdrop" id="navBackdrop"></div>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+  <main>
+    <div class="app-layout">
+      <section class="panel nav" id="nav"></section>
+      <div class="content-stack">
+        <section class="panel">
+          <h1 style="font-family:'Playfair Display',serif;font-size:1.9rem;letter-spacing:-0.02em;">Jadwal Fingerprint</h1>
+          <p style="color:var(--muted);font-size:14px;">Jam kehadiran pengurus dihitung otomatis dari scan alat fingerprint. Kolom bisa dikoreksi manual kalau alat sedang bermasalah -- sel yang dikoreksi ditandai warna berbeda.</p>
+          <div class="filters" id="filtersPanel" style="margin-top:14px;">
+            <label>
+              Tahun Ajaran
+              <select id="taSelect"></select>
+            </label>
+            <label>
+              Tanggal
+              <input type="date" id="tanggalInput">
+            </label>
+            <label>
+              Gender
+              <select id="genderFilter">
+                <option value="">Semua</option>
+                <option value="male">Laki-laki</option>
+                <option value="female">Perempuan</option>
+              </select>
+            </label>
+            <label>
+              Jabatan
+              <select id="jabatanFilter">
+                <option value="">Semua</option>
+              </select>
+            </label>
+          </div>
+          <div class="toolbar">
+            <button class="secondary" id="refreshButton" type="button">Muat Ulang</button>
+            <button class="primary" id="saveAllButton" type="button">Simpan Koreksi</button>
+          </div>
+          <div class="paging-host" id="paginationTop"></div>
+          <div id="tableArea">
+            <div class="empty-state"><i class="fa-solid fa-spinner fa-spin"></i><p style="margin-top:8px;">Memuat data...</p></div>
+          </div>
+          <div class="paging-host" id="paginationBottom"></div>
+        </section>
+        <section class="panel" id="bridgeSettingsPanel" style="display:none;">
+          <h2 style="font-size:1.1rem;">Pengaturan Bridge Fingerprint</h2>
+          <p style="color:var(--muted);font-size:13px;">Kunci ini dipakai script bridge lokal (tools/fingerprintBridge) untuk autentikasi saat mengirim data scan ke server. Salin nilai ini ke file <code>.env</code> script bridge, isi <code>FINGERPRINT_BRIDGE_KEY</code>. Tidak dipakai kalau alat memakai jalur ADMS push langsung.</p>
+          <div class="toolbar" style="align-items:center;">
+            <input type="password" id="bridgeKeyInput" class="jfp-input" style="width:320px;font-family:monospace;text-align:left;" placeholder="Belum diatur" readonly>
+            <button class="secondary" id="toggleBridgeKeyVisible" type="button" title="Tampilkan/sembunyikan kunci"><i class="fa-solid fa-eye"></i></button>
+            <button class="secondary" id="copyBridgeKeyButton" type="button">Salin</button>
+            <button class="primary" id="generateBridgeKeyButton" type="button">Generate Kunci Baru</button>
+          </div>
+          <h2 style="font-size:1.1rem;margin-top:18px;">Status Koneksi Alat</h2>
+          <p style="color:var(--muted);font-size:13px;">Cek apakah alat sudah pernah berhasil menghubungi server ini -- terlepas dari ID pengurus di alat sudah benar atau belum.</p>
+          <div id="connectionStatusArea" style="font-size:13px;line-height:1.8;"></div>
+          <div class="toolbar">
+            <button class="secondary" id="refreshConnectionButton" type="button">Cek Ulang Status Koneksi</button>
+          </div>
+        </section>
+        <section class="panel" id="unmatchedScansPanel" style="display:none;">
+          <h2 style="font-size:1.1rem;">Scan PIN Tidak Dikenal</h2>
+          <p style="color:var(--muted);font-size:13px;">Scan mentah dari alat yang PIN-nya tidak cocok id_pengurus manapun -- tetap tersimpan ke database, tapi tidak ikut muncul di tabel jadwal di atas karena tidak bisa dikaitkan ke pengurus mana pun. Cek di sini kalau ada PIN yang salah setting di alat.</p>
+          <div id="unmatchedScansArea" style="font-size:13px;">
+            <span style="color:var(--muted);">Memuat...</span>
+          </div>
+          <div class="toolbar">
+            <button class="secondary" id="refreshUnmatchedButton" type="button">Muat Ulang</button>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <script src="../../shared-audit.js"></script>
+  <script src="../../shared-access.js"></script>
+  <script src="../../shared-nav.js"></script>
+  <script src="../../shared-shell.js"></script>
+  <script>
+    const API_BASE = window.location.origin + '/api';
+    const STORAGE = { apiBase: 'ps_api_base', token: 'ps_token', session: 'ps_session' };
+    localStorage.setItem(STORAGE.apiBase, API_BASE);
+
+    const FIELD_DEFS = [
+      { key: 'jam_hadir_shubuh', label: 'Shubuh' },
+      { key: 'jam_0800', label: '08:00' },
+      { key: 'jam_0900', label: '09:00' },
+      { key: 'jam_1000', label: '10:00' },
+      { key: 'jam_1300', label: '13:00' },
+      { key: 'jam_1400', label: '14:00' },
+      { key: 'jam_hadir_isya', label: "Ba'da Isya'" }
+    ];
+
+    const PAGE_SIZE = 21;
+
+    const state = {
+      tahunAjaranId: '',
+      tahunAjaranList: [],
+      tanggal: todayStr(),
+      gender: '',
+      jabatanId: '',
+      jabatanList: [],
+      items: [],
+      page: 1
+    };
+
+    function todayStr() {
+      const n = new Date();
+      return n.getFullYear() + '-' + String(n.getMonth() + 1).padStart(2, '0') + '-' + String(n.getDate()).padStart(2, '0');
+    }
+
+    function escapeHtml(text) {
+      return String(text == null ? '' : text)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    /* ── Auth / API ── */
+    function getToken() { return localStorage.getItem(STORAGE.token) || ''; }
+    function clearSession() { localStorage.removeItem(STORAGE.token); localStorage.removeItem(STORAGE.session); }
+    function getStoredSession() { try { return JSON.parse(localStorage.getItem(STORAGE.session) || 'null'); } catch (e) { return null; } }
+
+    function toParams(data) {
+      const params = new URLSearchParams();
+      Object.entries(data).forEach(([key, value]) => {
+        if (value === undefined || value === null) return;
+        params.append(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
+      });
+      return params;
+    }
+
+    async function api(action, payload = {}, method = 'GET') {
+      const token = getToken();
+      if (!token) { clearSession(); window.location.replace('/pages/login/'); throw new Error('Sesi tidak ditemukan.'); }
+      const scopeLabel = window.PSAccess ? (window.PSAccess.getActiveRoleScopeLabel(getStoredSession()) || '') : '';
+      const response = method === 'GET'
+        ? await fetch(`${API_BASE}?${toParams({ action, token, scopeLabel, ...payload })}`)
+        : await fetch(API_BASE, { method, body: toParams({ action, token, scopeLabel, ...payload }) });
+      const json = await response.json();
+      if (!json.ok) {
+        const error = new Error(json.error && json.error.message ? `Server: ${json.error.message}` : 'Permintaan gagal.');
+        error.code = (json.error && json.error.code) || response.status || 500;
+        if (error.code === 401) { clearSession(); window.location.replace('/pages/login/'); }
+        throw error;
+      }
+      return json.data;
+    }
+
+    function mountShell() {
+      return window.PSShell.mount({
+        currentPage: window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : 'jadwalFingerprint.html',
+        session: getStoredSession(),
+        getStoredSession,
+        storageKey: STORAGE.session
+      });
+    }
+
+    /* ── Notice ── */
+    let noticeId = '', noticeCounter = 0;
+    function showNotice(text, type) {
+      if (noticeId) { const x = document.querySelector(`[data-notice-id="${noticeId}"]`); if (x) x.remove(); }
+      const el = document.createElement('div');
+      el.className = `notice ${type || ''}`.trim();
+      el.dataset.noticeId = `n-${Date.now()}-${noticeCounter += 1}`;
+      el.textContent = text;
+      function dismiss() {
+        if (!el.parentNode) return;
+        el.classList.add('notice-dismissing');
+        window.setTimeout(() => {
+          el.remove();
+          const stack = document.getElementById('noticeStack');
+          if (stack && !stack.hasChildNodes() && stack.matches(':popover-open')) stack.hidePopover();
+        }, 220);
+      }
+      el.addEventListener('click', dismiss);
+      window.setTimeout(dismiss, type === 'error' ? 9000 : 5000);
+      const stack = document.getElementById('noticeStack');
+      stack.prepend(el);
+      noticeId = el.dataset.noticeId;
+      if (stack.matches(':popover-open')) stack.hidePopover();
+      stack.showPopover();
+    }
+
+    /* ── Tahun Ajaran select ── */
+    function renderTaSelect() {
+      const sel = document.getElementById('taSelect');
+      sel.innerHTML = state.tahunAjaranList.map(t =>
+        `<option value="${escapeHtml(t.id)}" ${t.id === state.tahunAjaranId ? 'selected' : ''}>${escapeHtml(t.namaDisplay || t.nama)}${t.isAktif ? ' (Aktif)' : ''}</option>`
+      ).join('') || '<option value="">-- Belum ada tahun ajaran --</option>';
+    }
+
+    /* ── Jabatan filter select ── */
+    function renderJabatanFilter() {
+      const sel = document.getElementById('jabatanFilter');
+      const options = state.jabatanList.map(j =>
+        `<option value="${escapeHtml(j.id)}" ${j.id === state.jabatanId ? 'selected' : ''}>${escapeHtml(j.name)}</option>`
+      ).join('');
+      sel.innerHTML = `<option value="">Semua</option>${options}`;
+    }
+
+    /* ── Table ── */
+    function renderTable() {
+      const area = document.getElementById('tableArea');
+      if (!state.items.length) {
+        area.innerHTML = '<div class="empty-state"><i class="fa-solid fa-user-slash"></i><p style="margin-top:8px;font-weight:600;">Tidak ada pengurus aktif yang cocok dengan filter.</p></div>';
+        return;
+      }
+      const headCols = FIELD_DEFS.map(f => `<th>${escapeHtml(f.label)}</th>`).join('');
+      const pageStart = (state.page - 1) * PAGE_SIZE;
+      const pageItems = state.items.slice(pageStart, pageStart + PAGE_SIZE);
+      const rows = pageItems.map((item, idx) => {
+        const entry = item.entry || {};
+        const cells = FIELD_DEFS.map(f =>
+          `<td><input type="text" class="jfp-input${item.hasOverride ? ' overridden' : ''}" data-field="${f.key}" value="${escapeHtml(entry[f.key] || '')}"></td>`
+        ).join('');
+        return `<tr data-pengurus-id="${escapeHtml(item.id)}"${item.hasOverride ? ' class="row-override"' : ''}>
+          <td class="col-no">${pageStart + idx + 1}</td>
+          <td class="col-nama">
+            <div class="jfp-nama">${escapeHtml(item.name)}${item.hasOverride
+              ? '<span class="jfp-badge manual"><i class="fa-solid fa-pen"></i> Dikoreksi</span>'
+              : '<span class="jfp-badge auto"><i class="fa-solid fa-fingerprint"></i> Otomatis</span>'}
+              ${item.hasOverride ? `<button type="button" class="jfp-reset-btn" data-reset-id="${escapeHtml(item.id)}" title="Hapus koreksi, kembali ke data otomatis"><i class="fa-solid fa-rotate-left"></i></button>` : ''}
+            </div>
+            <div class="jfp-id">ID: ${escapeHtml(item.id)}</div>
+            ${item.primaryJabatanLabel ? `<div class="jfp-jabatan">${escapeHtml(item.primaryJabatanLabel)}</div>` : ''}
+            <div class="jfp-scancount">${item.scanCount || 0} scan hari ini</div>
+          </td>
+          ${cells}
+        </tr>`;
+      }).join('');
+
+      area.innerHTML = `<div class="table-wrap">
+        <table class="jfp-table">
+          <thead>
+            <tr>
+              <th class="col-no">No</th>
+              <th class="col-nama">Nama</th>
+              ${headCols}
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+    }
+
+    /* ── Pagination (angka saja, maks 21 orang per halaman) ── */
+    function renderPaging(currentPage, totalPages) {
+      const start = Math.max(1, Math.min(currentPage - 4, totalPages - 9));
+      const end = Math.min(totalPages, start + 9);
+      let html = '';
+      for (let p = start; p <= end; p++) {
+        html += `<button ${p === currentPage ? 'class="active"' : ''} data-page="${p}">${p}</button>`;
+      }
+      return html;
+    }
+    function renderPagination() {
+      const total = state.items.length;
+      const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+      if (state.page > totalPages) state.page = totalPages;
+      const markup = total ? `
+        <div class="paging">
+          <div class="page-center">
+            <div class="page-numbers">
+              ${renderPaging(state.page, totalPages)}
+            </div>
+            <div class="page-summary">Halaman ${state.page} dari ${totalPages} | total ${total} pengurus</div>
+          </div>
+        </div>` : '';
+      window.PSUI.syncPaginationHosts({ markup, visibleCount: Math.min(PAGE_SIZE, total), totalCount: total, topId: 'paginationTop', bottomId: 'paginationBottom' });
+    }
+
+    // Entri dikumpulkan dari state.items (bukan cuma DOM halaman aktif) supaya koreksi di
+    // halaman lain yang belum disimpan tidak hilang saat pindah halaman/save.
+    function collectEntries() {
+      return state.items.map(item => {
+        const entry = { id_pengurus: item.id };
+        FIELD_DEFS.forEach(f => { entry[f.key] = (item.entry && item.entry[f.key]) || ''; });
+        return entry;
+      });
+    }
+
+    /* ── Load / Save ── */
+    async function loadTable() {
+      const area = document.getElementById('tableArea');
+      area.innerHTML = '<div class="empty-state"><i class="fa-solid fa-spinner fa-spin"></i><p style="margin-top:8px;">Memuat data...</p></div>';
+      try {
+        const data = await api('jadwalFingerprint.list', {
+          tahunAjaranId: state.tahunAjaranId,
+          tanggal: state.tanggal,
+          gender: state.gender,
+          jabatanId: state.jabatanId
+        });
+        state.tahunAjaranId = data.tahunAjaranId || '';
+        state.tahunAjaranList = data.tahunAjaranList || [];
+        state.tanggal = data.tanggal || state.tanggal;
+        state.jabatanList = data.jabatanList || [];
+        state.items = data.items || [];
+        state.page = 1;
+        renderTaSelect();
+        renderJabatanFilter();
+        document.getElementById('tanggalInput').value = state.tanggal;
+        renderTable();
+        renderPagination();
+      } catch (error) {
+        area.innerHTML = `<div class="empty-state"><i class="fa-solid fa-triangle-exclamation" style="color:var(--danger);"></i><p style="margin-top:8px;color:var(--danger);font-weight:600;">${escapeHtml(error.message)}</p></div>`;
+        showNotice(error.message || 'Gagal memuat data.', 'error');
+      }
+    }
+
+    async function saveAll() {
+      const entries = collectEntries();
+      showNotice('Menyimpan koreksi...', '');
+      try {
+        const data = await api('jadwalFingerprint.saveOverride', {
+          tanggal: state.tanggal,
+          tahunAjaranId: state.tahunAjaranId,
+          entries: JSON.stringify(entries)
+        }, 'POST');
+        showNotice(data && data.message ? data.message : 'Koreksi berhasil disimpan.', 'success');
+        await loadTable();
+      } catch (error) {
+        showNotice(error.message || 'Gagal menyimpan koreksi.', 'error');
+      }
+    }
+
+    async function resetOverride(pengurusId) {
+      try {
+        const data = await api('jadwalFingerprint.resetOverride', {
+          pengurusId,
+          tanggal: state.tanggal
+        }, 'POST');
+        showNotice(data && data.message ? data.message : 'Koreksi dihapus.', 'success');
+        await loadTable();
+      } catch (error) {
+        showNotice(error.message || 'Gagal menghapus koreksi.', 'error');
+      }
+    }
+
+    /* ── Pengaturan Bridge (Admin/Super Admin saja) ── */
+    function formatWaktuLalu(iso) {
+      if (!iso) return null;
+      const d = new Date(iso);
+      if (isNaN(d.getTime())) return null;
+      const diffMin = Math.round((Date.now() - d.getTime()) / 60000);
+      let relatif;
+      if (diffMin < 1) relatif = 'baru saja';
+      else if (diffMin < 60) relatif = `${diffMin} menit lalu`;
+      else if (diffMin < 1440) relatif = `${Math.round(diffMin / 60)} jam lalu`;
+      else relatif = `${Math.round(diffMin / 1440)} hari lalu`;
+      return `${d.toLocaleString('id-ID')} (${relatif})`;
+    }
+
+    function renderConnectionStatus(conn) {
+      const area = document.getElementById('connectionStatusArea');
+      if (!conn) { area.innerHTML = ''; return; }
+      const handshake = formatWaktuLalu(conn.admsHandshakeAt);
+      const push = formatWaktuLalu(conn.admsPushAt);
+      const bridge = formatWaktuLalu(conn.bridgePushAt);
+      const rows = [];
+      rows.push(`<div><strong>ADMS -- handshake terakhir:</strong> ${handshake ? escapeHtml(handshake) + (conn.admsHandshakeSn ? ` (SN: ${escapeHtml(conn.admsHandshakeSn)})` : '') : '<span style="color:var(--danger);">Belum pernah</span>'}</div>`);
+      rows.push(`<div><strong>ADMS -- kiriman data terakhir:</strong> ${push ? escapeHtml(push) + ` (${conn.admsPushLineCount || 0} baris)` : '<span style="color:var(--danger);">Belum pernah</span>'}</div>`);
+      if (conn.admsPushSample) {
+        rows.push(`<div style="font-family:monospace;font-size:11px;color:var(--muted);">Contoh baris terakhir: ${escapeHtml(conn.admsPushSample)}</div>`);
+      }
+      rows.push(`<div><strong>Bridge lokal -- kiriman terakhir:</strong> ${bridge ? escapeHtml(bridge) : '<span style="color:var(--danger);">Belum pernah</span>'}</div>`);
+      area.innerHTML = rows.join('');
+    }
+
+    async function loadBridgeSettings() {
+      try {
+        const data = await api('fingerprint.settings.get');
+        document.getElementById('bridgeKeyInput').value = data.bridgeKey || '';
+        renderConnectionStatus(data.connection);
+      } catch (error) {
+        // Panel memang cuma ditampilkan utk admin; kalau tetap gagal, diamkan saja.
+      }
+    }
+
+    async function generateBridgeKey() {
+      if (!confirm('Generate kunci baru? Kunci lama tidak berlaku lagi, script bridge yang sudah jalan harus diupdate .env-nya.')) return;
+      try {
+        const data = await api('fingerprint.settings.save', { generate: 'true' }, 'POST');
+        document.getElementById('bridgeKeyInput').value = data.bridgeKey || '';
+        document.getElementById('bridgeKeyInput').type = 'text';
+        showNotice('Kunci bridge baru berhasil dibuat.', 'success');
+      } catch (error) {
+        showNotice(error.message || 'Gagal generate kunci.', 'error');
+      }
+    }
+
+    /* ── Scan PIN tidak dikenal (Admin/Super Admin saja; hapus khusus Super Admin) ── */
+    async function loadUnmatchedScans() {
+      const area = document.getElementById('unmatchedScansArea');
+      area.innerHTML = '<span style="color:var(--muted);">Memuat...</span>';
+      try {
+        const data = await api('jadwalFingerprint.unmatchedList');
+        renderUnmatchedScans(data);
+      } catch (error) {
+        area.innerHTML = `<span style="color:var(--danger);">${escapeHtml(error.message || 'Gagal memuat.')}</span>`;
+      }
+    }
+
+    function renderUnmatchedScans(data) {
+      const area = document.getElementById('unmatchedScansArea');
+      const items = (data && data.items) || [];
+      if (!items.length) {
+        area.innerHTML = '<span style="color:var(--muted);">Tidak ada scan dengan PIN tak dikenal.</span>';
+        return;
+      }
+      const canDeleteRow = !!(initialSession && initialSession.permissions && initialSession.permissions.canDelete);
+      const rows = items.map(item => `
+        <tr>
+          <td>${escapeHtml(item.idPengurus)}</td>
+          <td>${escapeHtml(item.tanggal)} ${escapeHtml(item.waktu)}</td>
+          <td>${escapeHtml(item.tipe)}</td>
+          <td>${escapeHtml(item.sumber)}</td>
+          <td>${escapeHtml(item.deviceSn)}</td>
+          ${canDeleteRow ? `<td><button class="secondary" type="button" data-delete-unmatched-id="${escapeHtml(item.id)}">Hapus</button></td>` : ''}
+        </tr>
+      `).join('');
+      area.innerHTML = `
+        <p style="color:var(--muted);">Total ${data.totalCount} baris${data.totalCount > items.length ? ` (menampilkan ${items.length} terbaru)` : ''}.</p>
+        <div class="table-wrap"><table class="jfp-table" style="min-width:0;">
+          <thead><tr><th>PIN (id_pengurus)</th><th>Tanggal &amp; Jam</th><th>Tipe</th><th>Sumber</th><th>SN Alat</th>${canDeleteRow ? '<th></th>' : ''}</tr></thead>
+          <tbody>${rows}</tbody>
+        </table></div>
+      `;
+    }
+
+    async function deleteUnmatchedScan(id) {
+      if (!confirm('Hapus baris scan ini secara permanen dari database?')) return;
+      try {
+        await api('jadwalFingerprint.deleteUnmatchedScan', { id }, 'POST');
+        showNotice('Data scan dihapus.', 'success');
+        loadUnmatchedScans();
+      } catch (error) {
+        showNotice(error.message || 'Gagal menghapus.', 'error');
+      }
+    }
+
+    function toggleBridgeKeyVisible() {
+      const input = document.getElementById('bridgeKeyInput');
+      input.type = input.type === 'password' ? 'text' : 'password';
+    }
+
+    function copyBridgeKey() {
+      const input = document.getElementById('bridgeKeyInput');
+      if (!input.value) { showNotice('Belum ada kunci untuk disalin, klik Generate Kunci Baru dulu.', 'error'); return; }
+      navigator.clipboard.writeText(input.value)
+        .then(() => showNotice('Kunci disalin ke clipboard.', 'success'))
+        .catch(() => showNotice('Gagal menyalin, salin manual saja.', 'error'));
+    }
+
+    /* ── Events ── */
+    const currentPage = window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : '/pages/jadwalFingerprint/';
+    const initialSession = getStoredSession();
+    if (!initialSession) { clearSession(); window.location.replace('/pages/login/'); }
+
+    if (!(window.PSAccess && window.PSAccess.redirectIfForbidden(initialSession, currentPage))) {
+      mountShell();
+
+      document.getElementById('taSelect').addEventListener('change', function () {
+        state.tahunAjaranId = this.value;
+        loadTable();
+      });
+      document.getElementById('tanggalInput').addEventListener('change', function () {
+        state.tanggal = this.value || todayStr();
+        loadTable();
+      });
+      document.getElementById('genderFilter').addEventListener('change', function () {
+        state.gender = this.value;
+        loadTable();
+      });
+      document.getElementById('jabatanFilter').addEventListener('change', function () {
+        state.jabatanId = this.value;
+        loadTable();
+      });
+      document.getElementById('refreshButton').addEventListener('click', loadTable);
+      document.getElementById('saveAllButton').addEventListener('click', saveAll);
+      document.getElementById('tableArea').addEventListener('click', event => {
+        const btn = event.target.closest('[data-reset-id]');
+        if (!btn) return;
+        resetOverride(btn.getAttribute('data-reset-id'));
+      });
+      document.getElementById('tableArea').addEventListener('input', event => {
+        const input = event.target.closest('.jfp-input');
+        if (!input) return;
+        const row = input.closest('tr[data-pengurus-id]');
+        const field = input.getAttribute('data-field');
+        if (!row || !field) return;
+        const item = state.items.find(i => String(i.id) === row.getAttribute('data-pengurus-id'));
+        if (!item) return;
+        item.entry = item.entry || {};
+        item.entry[field] = input.value.trim();
+      });
+      document.addEventListener('click', event => {
+        const page = event.target.getAttribute && event.target.getAttribute('data-page');
+        if (!page) return;
+        const totalPages = Math.max(1, Math.ceil(state.items.length / PAGE_SIZE));
+        const nextPage = Number(page);
+        if (!nextPage || nextPage < 1 || nextPage > totalPages || nextPage === state.page) return;
+        state.page = nextPage;
+        renderTable();
+        renderPagination();
+      });
+
+      document.getElementById('tanggalInput').value = state.tanggal;
+      loadTable();
+
+      const perm = initialSession && initialSession.permissions;
+      if (perm && (perm.isAdmin || perm.canDelete)) {
+        document.getElementById('bridgeSettingsPanel').style.display = '';
+        document.getElementById('toggleBridgeKeyVisible').addEventListener('click', toggleBridgeKeyVisible);
+        document.getElementById('copyBridgeKeyButton').addEventListener('click', copyBridgeKey);
+        document.getElementById('generateBridgeKeyButton').addEventListener('click', generateBridgeKey);
+        document.getElementById('refreshConnectionButton').addEventListener('click', loadBridgeSettings);
+        loadBridgeSettings();
+
+        document.getElementById('unmatchedScansPanel').style.display = '';
+        document.getElementById('refreshUnmatchedButton').addEventListener('click', loadUnmatchedScans);
+        document.getElementById('unmatchedScansArea').addEventListener('click', event => {
+          const btn = event.target.closest('[data-delete-unmatched-id]');
+          if (!btn) return;
+          deleteUnmatchedScan(btn.getAttribute('data-delete-unmatched-id'));
+        });
+        loadUnmatchedScans();
+      }
+    }
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
+    }
+  </script>
+</body>
+</html>

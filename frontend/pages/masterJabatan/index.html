@@ -1,0 +1,1736 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#9e2f22">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+    <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="stylesheet" href="../../shared-ui.css">
+    <script src="../../shared-ui.js"></script>
+  <title>Master Jabatan</title>
+  <link rel="stylesheet" href="../../shared-shell.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700&display=swap');
+    :root {
+      --paper: #f6efe0;
+      --ink: #4d4034;
+      --muted: #7b6a58;
+      --line: rgba(91, 73, 57, 0.15);
+      --accent: #b97650;
+      --success: #74846c;
+      --danger: #a55a52;
+      --shadow: 0 18px 45px rgba(87, 67, 51, 0.18);
+      --radius: 24px;
+    }
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.26;
+    }
+
+    .panel {
+      padding: 22px;
+    }
+
+    h1, h2, h3 {
+      margin: 0 0 10px;
+    }
+
+    p { margin: 0; line-height: 1.65; }
+
+    .eyebrow {
+      display: inline-block;
+      margin-bottom: 12px;
+      padding: 7px 12px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .nav {
+      display: grid;
+      gap: 10px;
+    }
+
+    .nav a {
+      padding: 12px 14px;
+      text-decoration: none;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    button, input, select, textarea {
+      font: inherit;
+    }
+
+    button {
+      padding: 12px 18px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .primary {
+      box-shadow: 0 14px 28px rgba(185, 118, 80, 0.22);
+    }
+
+    input, select, textarea {
+      width: 100%;
+      padding: 13px 14px;
+      outline: none;
+    }
+    label {
+      display: grid;
+      gap: 7px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .controls {
+      display: grid;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .card {
+      padding: 16px;
+    }
+
+    .card-head {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 12px;
+      align-items: start;
+    }
+
+    .item-order {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 52px;
+      min-height: 52px;
+      padding: 8px 10px;
+      font-weight: 900;
+      font-size: 14px;
+    }
+
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .pill {
+      display: inline-flex;
+      padding: 7px 11px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .notice {
+      display: none;
+      padding: 14px 16px;
+      line-height: 1.55;
+    }
+
+    .notice.show { display: block; }
+
+    dialog {
+      width: min(640px, calc(100vw - 20px));
+      padding: 0;
+    }
+
+    .dialog-body {
+        padding: 22px;
+        display: grid;
+        gap: 14px;
+        max-height: 135vh;
+        overflow: auto;
+    }
+
+    .paging-host {
+      display: grid;
+      gap: 8px;
+      margin: 16px 0;
+    }
+
+    .paging {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .page-center {
+      display: grid;
+      gap: 8px;
+      justify-items: center;
+    }
+
+    .page-numbers {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .page-summary {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    @media (max-width: 960px) {
+
+    .paging {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    body::before {
+      opacity: 0.15 !important;
+      mix-blend-mode: multiply;
+    }
+
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.23;
+    }
+
+    h1, h2, h3 {
+      text-transform: uppercase;
+    }
+
+    .nav a, button {
+      font-weight: 800 !important;
+      text-transform: uppercase;
+    }
+
+    .list {
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    }
+
+    @media (max-width: 960px) {
+
+    .list {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    #quickImportForm {
+      height: 100%;
+    }
+
+    .relasi-label {
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      display: block;
+    }
+
+    .relasi-search {
+      width: 100%;
+      padding: 9px 12px;
+      margin-bottom: 8px;
+      font: inherit;
+      font-size: 13px;
+    }
+
+    .relasi-checkbox-list {
+      max-height: 180px;
+      overflow-y: auto;
+      border: 1px solid var(--line, rgba(91,73,57,0.15));
+      border-radius: 10px;
+      padding: 6px 4px;
+      display: grid;
+      gap: 2px;
+    }
+
+    .relasi-checkbox-list label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    .relasi-checkbox-list label:hover {
+      background: rgba(185,118,80,0.07);
+    }
+
+    .relasi-checkbox-list input[type="checkbox"] {
+      width: auto;
+      padding: 0;
+      flex-shrink: 0;
+    }
+
+    .relasi-empty {
+      padding: 10px;
+      font-size: 12px;
+      color: var(--muted, #7b6a58);
+      text-align: center;
+    }
+
+    .relasi-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-top: 4px;
+    }
+
+    .relasi-chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 9px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 600;
+      background: rgba(91,73,57,0.08);
+      border: 1px solid rgba(91,73,57,0.14);
+    }
+
+    .relasi-chip.atasan { background: rgba(37,99,235,0.08); border-color: rgba(37,99,235,0.18); color: #1d4ed8; }
+    .relasi-chip.bawahan { background: rgba(5,150,105,0.08); border-color: rgba(5,150,105,0.18); color: #047857; }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-left">
+      <button class="drawer-toggle" id="navToggle" type="button" aria-label="Toggle sidebar">Menu</button>
+      <div class="header-brand">Pendataan Santri</div>
+      <div class="header-page">Master Jabatan</div>
+    </div>
+    <div class="header-right">
+      <span class="header-chip" id="headerRole">Admin</span>
+    </div>
+  </header>
+  <div class="drawer-backdrop" id="navBackdrop"></div>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+  <main>
+    <div class="app-layout">
+      <section class="panel nav" id="nav"></section>
+      <div class="content-stack">
+        <section class="notice info" id="notice"></section>
+        <section class="issue-panel">
+          <h2>Masalah Terkait</h2>
+          <p>Temuan audit yang relevan dengan jabatan dan penugasan akan muncul di sini.</p>
+          <div class="issue-summary" id="issueSummary">Belum ada data audit.</div>
+          <ul class="issue-warning-list" id="issueList"></ul>
+        </section>
+        <section class="panel">
+          <div class="section-head">
+            <h2>Daftar jabatan</h2>
+          </div>
+          <div class="bulk-toolbar" id="bulkToolbar"></div>
+          <div class="toolbar" id="actionToolbar">
+            <button class="primary" id="addButton" type="button">Tambah jabatan</button>
+            <button class="secondary" id="refreshButton" type="button">Muat ulang</button>
+            <button class="secondary" id="toggleExpandButton" type="button" data-expand-state="collapsed">Buka semua</button>
+            <button class="secondary" data-toolbar-extra="true" id="quickImportButton" type="button" hidden data-super-admin="true">Tempel jabatan</button>
+            <button class="secondary" data-toolbar-extra="true" id="exportQuickImportTxtButton" type="button" hidden data-super-admin="true">Export TXT tempel</button>
+            <button class="secondary" data-toolbar-extra="true" id="downloadSummaryPdfButton" type="button" hidden>Download PDF</button>
+            <button class="secondary" data-toolbar-extra="true" id="downloadTemplateButton" type="button" hidden data-super-admin="true">Template Excel</button>
+            <button class="secondary" data-toolbar-extra="true" id="importExcelButton" type="button" hidden data-super-admin="true">Import Excel</button>
+            <button class="secondary" data-toolbar-extra="true" id="exportExcelButton" type="button" hidden data-super-admin="true">Export Excel</button>
+            <button class="danger" data-toolbar-extra="true" id="deleteAllButton" type="button" hidden data-super-admin="true">Hapus Semua Jabatan</button>
+            <button class="secondary toolbar-collapse-toggle" id="toolbarCollapseToggle" type="button" aria-expanded="false" aria-label="Buka aksi tambahan">+</button>
+          </div>
+          <div class="filters" id="filtersPanel">
+            <label>
+              Cari nama atau level
+              <input type="search" id="searchInput" placeholder="Mis. mudir, musyrif, level 1">
+            </label>
+            <label>
+              Status
+              <select id="statusFilter">
+                <option value="">Semua</option>
+                <option value="active">Aktif</option>
+                <option value="inactive">Inactive</option>
+              </select>
+            </label>
+            <label>
+              Urutkan
+              <select id="sortSelect">
+                <option value="updated_desc" selected>Edit terbaru</option>
+                <option value="updated_asc">Edit terlama</option>
+                <option value="created_desc">Tambah terbaru</option>
+                <option value="created_asc">Tambah terlama</option>
+                <option value="name_asc">Nama A-Z</option>
+                <option value="name_desc">Nama Z-A</option>
+                <option value="id_asc">ID kecil-besar</option>
+                <option value="id_desc">ID besar-kecil</option>
+                <option value="level_asc">Level kecil-besar</option>
+                <option value="level_desc">Level besar-kecil</option>
+              </select>
+            </label>
+            <label>
+              Jumlah per halaman
+              <select id="pageSizeSelect">
+                <option value="10">10</option>
+                <option value="25" selected>25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </label>
+          </div>
+          <div class="paging-host" id="paginationTop"></div>
+          <div class="list" id="list"></div>
+          <div class="paging-host" id="paginationBottom"></div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <div id="dialogRoot">
+  <dialog class="ps-floating-dialog" id="dialog">
+    <form class="dialog-body duplicate-dialog-body ps-dialog-shell" id="form" method="dialog">
+      <div class="duplicate-dialog-head ps-dialog-header">
+        <div>
+          <h3 id="dialogTitle">Tambah jabatan</h3>
+          <p>Data sederhana ini akan dipakai sebagai referensi di pengurus.</p>
+        </div>
+      </div>
+      <input type="hidden" name="id">
+      <label>
+        Nama jabatan
+        <input type="text" name="name" required>
+      </label>
+      <label>
+        Level
+        <input type="text" name="level" placeholder="1">
+      </label>
+      <label>
+        Deskripsi
+        <textarea name="deskription" rows="4" placeholder="Tugas utama jabatan"></textarea>
+      </label>
+      <div>
+        <span class="relasi-label">Atasan <span style="font-weight:400;opacity:.6;font-size:11px;">(jabatan yang menjadi atasan jabatan ini — boleh lebih dari satu)</span></span>
+        <input class="relasi-search" id="atasanSearchInput" type="search" placeholder="Cari nama jabatan...">
+        <div class="relasi-checkbox-list" id="atasanCheckboxList"><span class="relasi-empty">Memuat daftar jabatan...</span></div>
+      </div>
+      <label>
+        Status
+        <select name="status">
+          <option value="Active">Active</option>
+          <option value="Inactive">Inactive</option>
+        </select>
+      </label>
+      <div class="toolbar ps-dialog-footer">
+        <button class="primary" type="submit">Simpan</button>
+        <button class="secondary" id="closeDialog" type="button">Batal</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="ps-floating-dialog quick-import-dialog" id="quickImportDialog">
+    <form class="dialog-body duplicate-dialog-body ps-dialog-shell quick-import-shell" id="quickImportForm" method="dialog">
+      <div class="duplicate-dialog-head ps-dialog-header">
+        <div>
+          <h3>Tempel cepat jabatan</h3>
+          <p>Format ini cocok untuk menambah daftar jabatan lebih cepat tanpa buka form satu-satu.</p>
+        </div>
+      </div>
+      <div class="quick-import-stack">
+        <div>
+          <label for="quickImportInput">Data tempelan</label>
+          <textarea class="quick-import-textarea" id="quickImportInput" placeholder="JABATAN:
+Musyrif
+LEVEL:
+2
+DESKRIPSI:
+Mendampingi santri dan halaqoh
+STATUS:
+Active"></textarea>
+        </div>
+        <div>
+          <label>Contoh format</label>
+          <button class="quick-import-example" type="button">JABATAN:
+Musyrif
+LEVEL:
+2
+DESKRIPSI:
+Mendampingi santri dan halaqoh
+STATUS:
+Active</button>
+        </div>
+      </div>
+      <div class="toolbar quick-import-actions-inline">
+        <button class="secondary" id="quickImportParseButton" type="button">Buat preview</button>
+        <button class="secondary" id="quickImportClearButton" type="button">Kosongkan</button>
+        <button class="secondary" id="closeQuickImportDialog" type="button">Tutup</button>
+      </div>
+      <section class="quick-import-summary" id="quickImportSummary">
+        <div class="quick-import-summary-head">
+          <span class="pill">Belum ada preview</span>
+        </div>
+        <p class="quick-import-summary-copy">Tempel data lalu klik <strong>Buat preview</strong> untuk memeriksa hasil parse dan warning penting sebelum simpan.</p>
+      </section>
+      <div class="quick-import-table-wrap" hidden id="quickImportTableWrap">
+        <table class="quick-import-table">
+          <thead>
+            <tr>
+              <th>No</th>
+              <th>Nama jabatan</th>
+              <th>Level</th>
+              <th>Status</th>
+              <th>Deskripsi</th>
+              <th>Catatan</th>
+            </tr>
+          </thead>
+          <tbody id="quickImportTableBody"></tbody>
+        </table>
+      </div>
+      <div class="toolbar ps-dialog-footer">
+        <button class="primary" id="quickImportSaveButton" type="submit" disabled>Simpan data valid</button>
+      </div>
+    </form>
+  </dialog>
+
+  </div>
+
+  <input id="importExcelInput" type="file" accept=".xlsx,.xls" hidden>
+  <script src="../../shared-audit.js"></script>
+  <script src="../../shared-access.js"></script>
+  <script src="../../shared-nav.js"></script>
+  <script src="../../shared-shell.js"></script>
+  <script src="../../shared-excel.js"></script>
+  <script src="../../shared-export.js"></script>
+  <script>
+    const API_BASE = window.location.origin + '/api';
+    const STORAGE = { apiBase: 'ps_api_base', token: 'ps_token', session: 'ps_session' };
+    localStorage.setItem(STORAGE.apiBase, API_BASE);
+    const DATASET_KEY = 'jabatan';
+    const state = {
+      items: [],
+      page: 1,
+      pageSize: 25,
+      totalPages: 1,
+      total: 0,
+      selectedIds: new Set(),
+      expandedIds: new Set(),
+      toolbarExpanded: false
+    };
+    const quickImportState = {
+      entries: [],
+      busy: false,
+      hasInput: false,
+      dirty: false,
+      parsed: false
+    };
+    const dialogState = {
+      allJabatan: [],
+      selectedAtasanIds: new Set()
+    };
+
+    const ISSUE_GROUP_CONFIG = {
+      pengurus_without_jabatan: true,
+      halaqoh_without_pengampu: true,
+      kelas_without_pengajar: true,
+      regu_without_pembina: true
+    };
+    const PROTECTED_JABATAN_NAMES = new Set(['super admin', 'superadmin']);
+    const uiState = {
+      currentNoticeId: '',
+      noticeCounter: 0,
+      noticeShownAt: 0,
+      pendingNotice: null,
+      desktopSidebar: null
+    };
+
+    function escapeHtml(text) {
+      return String(text == null ? '' : text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function getApiBase() {
+      return localStorage.getItem(STORAGE.apiBase) || '';
+    }
+
+    function getToken() {
+      return localStorage.getItem(STORAGE.token) || '';
+    }
+
+    function clearSession() {
+      localStorage.removeItem(STORAGE.token);
+      localStorage.removeItem(STORAGE.session);
+    }
+
+    function getStoredSession() {
+      try {
+        return JSON.parse(localStorage.getItem(STORAGE.session) || 'null');
+      } catch (error) {
+        return null;
+      }
+    }
+
+    function canDeleteRecords() {
+      const session = window.PSAccess && typeof window.PSAccess.getScopedSession === 'function'
+        ? window.PSAccess.getScopedSession(getStoredSession())
+        : getStoredSession();
+      return !!(session && session.permissions && session.permissions.canDelete);
+    }
+
+    function canUseExcelTools() {
+      if (window.PSAccess && typeof window.PSAccess.canUseExcelTools === 'function') {
+        return window.PSAccess.canUseExcelTools(getStoredSession());
+      }
+      return false;
+    }
+
+    function canDownloadSummaryPdf() {
+      const session = window.PSAccess && typeof window.PSAccess.getScopedSession === 'function'
+        ? window.PSAccess.getScopedSession(getStoredSession())
+        : getStoredSession();
+      return !!(session && session.permissions && (session.permissions.canManageJabatan || session.permissions.canDelete));
+    }
+
+    function updateHeaderMeta(session) {
+      window.PSShell.syncIdentity({
+        currentPage: window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : '/pages/masterJabatan/',
+        session: session || getStoredSession(),
+        getStoredSession,
+        storageKey: STORAGE.session
+      });
+    }
+
+    function toParams(data) {
+      const params = new URLSearchParams();
+      Object.entries(data).forEach(([key, value]) => {
+        if (value === undefined || value === null) return;
+        params.append(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
+      });
+      return params;
+    }
+
+    function createNoticeElement(text, type = 'info') {
+      const element = document.createElement('section');
+      element.className = `notice show ${type}`;
+      element.dataset.noticeId = `notice-${Date.now()}-${uiState.noticeCounter += 1}`;
+      element.textContent = text;
+      function dismiss() {
+        if (!element.parentNode) return;
+        element.classList.add('notice-dismissing');
+        window.setTimeout(() => {
+          element.remove();
+          const stack = document.getElementById('noticeStack');
+          if (stack && !stack.hasChildNodes() && stack.matches(':popover-open')) stack.hidePopover();
+        }, 220);
+      }
+      element.addEventListener('click', dismiss);
+      window.setTimeout(dismiss, type === 'error' ? 10000 : 6000);
+      return element;
+    }
+
+    function removeNoticeById(id) {
+      const element = document.querySelector(`[data-notice-id="${id}"]`);
+      if (element) element.remove();
+      if (uiState.currentNoticeId === id) uiState.currentNoticeId = '';
+      const stack = document.getElementById('noticeStack');
+      if (stack && !stack.hasChildNodes() && stack.matches(':popover-open')) stack.hidePopover();
+    }
+
+    function showNotice(text, type = 'info') {
+      if (uiState.pendingNotice) { clearTimeout(uiState.pendingNotice); uiState.pendingNotice = null; }
+      const elapsed = Date.now() - uiState.noticeShownAt;
+      if (elapsed < 2000 && uiState.currentNoticeId) {
+        uiState.pendingNotice = window.setTimeout(() => { uiState.pendingNotice = null; showNotice(text, type); }, 2000 - elapsed);
+        return uiState.currentNoticeId;
+      }
+      clearNotice();
+      const element = createNoticeElement(text, type);
+      const stack = document.getElementById('noticeStack');
+      stack.prepend(element);
+      uiState.currentNoticeId = element.dataset.noticeId;
+      uiState.noticeShownAt = Date.now();
+      if (stack.matches(':popover-open')) stack.hidePopover();
+      stack.showPopover();
+      return uiState.currentNoticeId;
+    }
+
+    function clearNotice() {
+      if (uiState.pendingNotice) { clearTimeout(uiState.pendingNotice); uiState.pendingNotice = null; }
+      if (!uiState.currentNoticeId) return;
+      removeNoticeById(uiState.currentNoticeId);
+    }
+
+    function mountShell(session) {
+      return window.PSShell.mount({
+        currentPage: window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : '/pages/masterJabatan/',
+        session,
+        getStoredSession,
+        storageKey: STORAGE.session
+      });
+    }
+
+    async function api(action, payload = {}, method = 'GET') {
+      const apiBase = getApiBase();
+      const token = getToken();
+      if (!apiBase || !token) {
+        clearSession();
+        window.location.replace('/pages/login/');
+        throw new Error('Sesi tidak ditemukan.');
+      }
+      if (method === 'GET') {
+        const params = toParams({ action, token, ...payload });
+        const response = await fetch(`${apiBase}?${params.toString()}`);
+        const json = await response.json();
+        if (!json.ok) {
+          const error = new Error(json.error?.message ? `Server mengatakan: ${json.error.message}` : 'Permintaan gagal.');
+          error.code = json.error?.code || response.status || 500;
+          if (error.code === 401) {
+            clearSession();
+            window.location.replace('/pages/login/');
+          }
+          throw error;
+        }
+        return json.data;
+      }
+      const response = await fetch(apiBase, {
+        method,
+        body: toParams({ action, token, ...payload })
+      });
+      const json = await response.json();
+      if (!json.ok) {
+        const error = new Error(json.error?.message ? `Server mengatakan: ${json.error.message}` : 'Permintaan gagal.');
+        error.code = json.error?.code || response.status || 500;
+        if (error.code === 401) {
+          clearSession();
+          window.location.replace('/pages/login/');
+        }
+        throw error;
+      }
+      return json.data;
+    }
+
+    const issuePanelController = createIssuePanelController(api, { issueConfig: ISSUE_GROUP_CONFIG });
+
+    function buildPaginationList(page, totalPages) {
+      const maxNumbers = 10;
+      if (totalPages <= maxNumbers) {
+        return Array.from({ length: totalPages }, (_, index) => index + 1);
+      }
+      const middleSlots = maxNumbers - 2;
+      const pages = [1];
+      let start = Math.max(2, page - Math.floor(middleSlots / 2));
+      let end = start + middleSlots - 1;
+      if (end > totalPages - 1) {
+        end = totalPages - 1;
+        start = end - middleSlots + 1;
+      }
+      if (start > 2) pages.push('...');
+      for (let value = start; value <= end; value += 1) pages.push(value);
+      if (end < totalPages - 1) pages.push('...');
+      pages.push(totalPages);
+      return pages;
+    }
+
+    function normalizeJabatanName(value) {
+      return String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ').trim();
+    }
+
+    function isProtectedJabatan(item) {
+      return PROTECTED_JABATAN_NAMES.has(normalizeJabatanName(item?.name));
+    }
+
+    function isJabatanBaru(item) {
+      const createdAt = item?.record?.created_at;
+      if (!createdAt) return false;
+      const created = new Date(createdAt);
+      if (isNaN(created)) return false;
+      const oneMonthLater = new Date(created);
+      oneMonthLater.setMonth(oneMonthLater.getMonth() + 1);
+      return new Date() < oneMonthLater;
+    }
+
+    function renderPaging(currentPage, totalPages) {
+      const start = Math.max(1, Math.min(currentPage - 4, totalPages - 9));
+      const end = Math.min(totalPages, start + 9);
+      let html = '';
+      for (let p = start; p <= end; p++) {
+        html += `<button ${p === currentPage ? 'class="active"' : ''} data-page="${p}">${p}</button>`;
+      }
+      return html;
+    }
+
+    function renderPagination() {
+      const markup = state.total
+        ? `
+          <div class="paging">
+            <div class="page-center">
+              <div class="page-numbers">
+                ${renderPaging(state.page, state.totalPages)}
+              </div>
+              <div class="page-summary">Halaman ${state.page} dari ${state.totalPages} | total ${state.total} data</div>
+            </div>
+          </div>
+        `
+        : '';
+      window.PSUI.syncPaginationHosts({ markup, visibleCount: state.items.length, totalCount: state.total, topId: 'paginationTop', bottomId: 'paginationBottom' });
+    }
+
+    function isItemExpanded(id) {
+      return state.expandedIds.has(id);
+    }
+
+    function pruneExpandedIds() {
+      const visibleIds = new Set(state.items.map(item => item.id));
+      Array.from(state.expandedIds).forEach(id => {
+        if (!visibleIds.has(id)) {
+          state.expandedIds.delete(id);
+        }
+      });
+    }
+
+    function syncExpandToggleButton() {
+      const button = document.getElementById('toggleExpandButton');
+      if (!button) return;
+      const hasItems = state.items.length > 0;
+      const allExpanded = hasItems && state.items.every(item => state.expandedIds.has(item.id));
+      button.disabled = !hasItems;
+      button.dataset.expandState = allExpanded ? 'expanded' : 'collapsed';
+      button.textContent = allExpanded ? 'Tutup semua' : 'Buka semua';
+    }
+
+    function syncActionToolbar() {
+      window.PSUI.syncActionToolbar({
+        toolbarId: 'actionToolbar',
+        toggleId: 'toolbarCollapseToggle',
+        expanded: state.toolbarExpanded
+      });
+    }
+
+    function syncFiltersVisibility() {
+      const filters = document.getElementById('filtersPanel');
+      if (filters) filters.hidden = false;
+    }
+
+    function syncRestrictedActions() {
+      const canUseExcel = canUseExcelTools();
+      const canQuickImport = canDeleteRecords();
+      const canDownloadPdf = canDownloadSummaryPdf();
+      document.getElementById('quickImportButton').hidden = !canQuickImport;
+      document.getElementById('exportQuickImportTxtButton').hidden = !canQuickImport;
+      document.getElementById('downloadSummaryPdfButton').hidden = !canDownloadPdf;
+      document.getElementById('downloadTemplateButton').hidden = !canQuickImport;
+      document.getElementById('importExcelButton').hidden = !canQuickImport;
+      document.getElementById('exportExcelButton').hidden = !canUseExcel;
+      document.getElementById('deleteAllButton').hidden = !canQuickImport;
+    }
+
+    function toggleActionToolbar() {
+      state.toolbarExpanded = !state.toolbarExpanded;
+      syncActionToolbar();
+    }
+
+    function toggleExpandedList() {
+      const allExpanded = state.items.length > 0 && state.items.every(item => state.expandedIds.has(item.id));
+      if (allExpanded) {
+        state.expandedIds.clear();
+      } else {
+        state.items.forEach(item => state.expandedIds.add(item.id));
+      }
+      renderList();
+    }
+
+    function toggleItemExpanded(id) {
+      if (!id) return;
+      if (state.expandedIds.has(id)) {
+        state.expandedIds.delete(id);
+      } else {
+        state.expandedIds.add(id);
+      }
+      renderList();
+    }
+
+    function getSelectedIds() {
+      return Array.from(state.selectedIds);
+    }
+
+    function toggleSelectedId(id, checked) {
+      if (checked) state.selectedIds.add(id);
+      else state.selectedIds.delete(id);
+      renderBulkToolbar();
+    }
+
+    function clearSelectedIds() {
+      state.selectedIds.clear();
+      renderList();
+      renderBulkToolbar();
+    }
+
+    function selectVisibleItems() {
+      state.items.filter(item => !isProtectedJabatan(item)).forEach(item => state.selectedIds.add(item.id));
+      renderList();
+      renderBulkToolbar();
+    }
+
+    function renderBulkToolbar() {
+      const count = state.selectedIds.size;
+      const canDelete = canDeleteRecords();
+      window.PSUI.mountBulkToolbar('bulkToolbar', `
+        <div class="bulk-toolbar-head">
+          <strong>${count} item dipilih</strong>
+          <div class="bulk-toolbar-actions">
+            <button class="secondary" id="selectVisibleButton" type="button">Pilih halaman ini</button>
+            <button class="secondary" id="clearSelectedButton" type="button">Kosongkan pilihan</button>
+            <button class="secondary" id="bulkActivateButton" type="button">Aktifkan</button>
+            <button class="secondary" id="bulkDeactivateButton" type="button">Nonaktifkan</button>
+            ${canDelete ? '<button class="danger" id="bulkDeleteButton" type="button">Hapus permanen</button>' : ''}
+          </div>
+        </div>
+        <p class="toolbar-note">Jabatan terlindungi seperti Admin dan Super Admin tidak bisa diedit, dinonaktifkan, atau dihapus massal.</p>
+      `, count > 0);
+    }
+
+    async function handleBulkToggle(active) {
+      const ids = getSelectedIds();
+      if (!ids.length) return showNotice('Pilih minimal satu jabatan.', 'error');
+      if (!confirm(`${active ? 'Aktifkan' : 'Nonaktifkan'} ${ids.length} jabatan terpilih?`)) return;
+      try {
+        await api('bulk.toggle', { sheetKey: DATASET_KEY, ids, active }, 'POST');
+        clearSelectedIds();
+        await loadData();
+        await issuePanelController.load();
+      } catch (error) {
+        showNotice(error.message || 'Gagal memproses aksi massal.', 'error');
+      }
+    }
+
+    async function handleBulkDelete() {
+      const ids = getSelectedIds();
+      if (!ids.length) return showNotice('Pilih minimal satu jabatan.', 'error');
+      if (!confirm(`Hapus permanen ${ids.length} jabatan terpilih?`)) return;
+      try {
+        await api('bulk.delete', { sheetKey: DATASET_KEY, ids }, 'POST');
+        clearSelectedIds();
+        await loadData();
+        await issuePanelController.load();
+      } catch (error) {
+        showNotice(error.message || 'Gagal menghapus data terpilih.', 'error');
+      }
+    }
+
+    async function handleDownloadTemplate() {
+      try {
+        await window.PSExcel.downloadTemplate(api, DATASET_KEY);
+      } catch (error) {
+        showNotice(error.message || 'Gagal membuat template Excel.', 'error');
+      }
+    }
+
+    async function handleExportExcel() {
+      try {
+        await window.PSExcel.exportDatasets(api, [DATASET_KEY], 'export-jabatan.xlsx');
+      } catch (error) {
+        showNotice(error.message || 'Gagal export Excel.', 'error');
+      }
+    }
+
+    async function handleDeleteAll() {
+      if (!canDeleteRecords()) {
+        showNotice('Hapus semua jabatan hanya untuk Super Admin.', 'error');
+        return;
+      }
+      if (!confirm('HAPUS SEMUA jabatan secara permanen (kecuali jabatan sistem yang dilindungi)? Tindakan ini tidak dapat dibatalkan.')) return;
+      try {
+        showNotice('Memuat daftar jabatan...', 'info');
+        const data = await api('jabatan.list', { page: 1, pageSize: 100000 });
+        const allItems = Array.isArray(data?.items) ? data.items : [];
+        const ids = allItems.filter(item => !isProtectedJabatan(item)).map(item => item.id);
+        if (!ids.length) {
+          showNotice('Tidak ada jabatan yang bisa dihapus — semua dilindungi.', 'info');
+          return;
+        }
+        await api('bulk.delete', { sheetKey: DATASET_KEY, ids }, 'POST');
+        await loadData();
+        await issuePanelController.load();
+        showNotice(`${ids.length} jabatan berhasil dihapus. Jabatan sistem tetap dipertahankan.`, 'info');
+      } catch (error) {
+        showNotice(error.message || 'Gagal menghapus semua jabatan.', 'error');
+      }
+    }
+
+    function handleImportRequest() {
+      document.getElementById('importExcelInput').click();
+    }
+
+    async function handleImportChange(event) {
+      const file = event.target.files && event.target.files[0];
+      event.target.value = '';
+      if (!file) return;
+      showNotice('Memproses import Excel jabatan...', 'info');
+      try {
+        await window.PSExcel.importDataset(api, DATASET_KEY, file, {
+          onProgress(done, total) {
+            showNotice(`Import jabatan ${done}/${total}...`, 'info');
+          }
+        });
+        await loadData();
+        await issuePanelController.load();
+        showNotice('Import Excel jabatan selesai.', 'info');
+      } catch (error) {
+        showNotice(error.message || 'Gagal import Excel.', 'error');
+      }
+    }
+
+    function cleanQuickImportText(value) {
+      return String(value == null ? '' : value)
+        .replace(/\r\n/g, '\n')
+        .replace(/^\s*```(?:[\w-]+)?\s*$/gm, '')
+        .trim();
+    }
+
+    function createQuickImportDraft() {
+      return {
+        name: '',
+        level: '',
+        description: '',
+        status: ''
+      };
+    }
+
+    function hasQuickImportDraftContent(draft) {
+      return Object.values(draft || {}).some(value => String(value == null ? '' : value).trim());
+    }
+
+    function detectQuickImportField(line) {
+      const patterns = [
+        { key: 'name', pattern: /^(?:\W+\s*)?jabatan\s*:\s*(.*)$/i },
+        { key: 'level', pattern: /^level\s*:\s*(.*)$/i },
+        { key: 'description', pattern: /^(?:deskripsi|description|deskription|catatan)\s*:\s*(.*)$/i },
+        { key: 'status', pattern: /^status\s*:\s*(.*)$/i }
+      ];
+      return patterns.reduce((result, item) => {
+        if (result) return result;
+        const match = line.match(item.pattern);
+        return match ? { key: item.key, value: match[1] || '' } : null;
+      }, null);
+    }
+
+    function appendQuickImportDraftValue(draft, key, line) {
+      if (!draft || !key) return;
+      const value = String(line == null ? '' : line).replace(/\s+$/g, '');
+      if (!value) return;
+      draft[key] = draft[key] ? `${draft[key]}\n${value}` : value;
+    }
+
+    function parseQuickImportEntries(rawText) {
+      const cleaned = cleanQuickImportText(rawText);
+      if (!cleaned) return [];
+      const drafts = [];
+      let current = createQuickImportDraft();
+      let currentField = '';
+
+      cleaned.split('\n').forEach(line => {
+        const field = detectQuickImportField(line.trim());
+        if (field) {
+          if (field.key === 'name' && hasQuickImportDraftContent(current)) {
+            drafts.push(current);
+            current = createQuickImportDraft();
+          }
+          currentField = field.key;
+          appendQuickImportDraftValue(current, currentField, field.value);
+          return;
+        }
+        if (!currentField) return;
+        appendQuickImportDraftValue(current, currentField, line);
+      });
+
+      if (hasQuickImportDraftContent(current)) drafts.push(current);
+      return drafts;
+    }
+
+    function getQuickImportElements() {
+      return {
+        dialog: document.getElementById('quickImportDialog'),
+        form: document.getElementById('quickImportForm'),
+        input: document.getElementById('quickImportInput'),
+        summary: document.getElementById('quickImportSummary'),
+        tableWrap: document.getElementById('quickImportTableWrap'),
+        tableBody: document.getElementById('quickImportTableBody'),
+        saveButton: document.getElementById('quickImportSaveButton'),
+        parseButton: document.getElementById('quickImportParseButton'),
+        clearButton: document.getElementById('quickImportClearButton')
+      };
+    }
+
+    async function refreshQuickImportPreviewEntries(rawText, options = {}) {
+      const drafts = parseQuickImportEntries(rawText);
+      if (!drafts.length) {
+        quickImportState.entries = [];
+        return [];
+      }
+      if (!options.silent) {
+        showNotice('Memeriksa data jabatan terbaru...', 'info');
+      }
+      const data = await api('jabatan.quickImportPreview', { drafts }, 'POST');
+      const entries = Array.isArray(data?.entries) ? data.entries : [];
+      quickImportState.entries = entries;
+      return entries;
+    }
+
+    function formatQuickImportNotes(entry) {
+      const items = [
+        ...(Array.isArray(entry?.blockingIssues) ? entry.blockingIssues : []).map(message => `<li class="is-error">${escapeHtml(message)}</li>`),
+        ...(Array.isArray(entry?.warnings) ? entry.warnings : []).map(message => `<li class="is-warning">${escapeHtml(message)}</li>`)
+      ];
+      if (!items.length) {
+        return '<span class="quick-import-empty">Siap disimpan</span>';
+      }
+      return `<ul class="quick-import-note-list">${items.join('')}</ul>`;
+    }
+
+    function renderQuickImportPreview() {
+      const elements = getQuickImportElements();
+      const entries = quickImportState.entries.slice();
+      const validCount = entries.filter(entry => entry.isValid).length;
+      const invalidCount = entries.length - validCount;
+      const warningCount = entries.reduce((sum, entry) => sum + (Array.isArray(entry.warnings) ? entry.warnings.length : 0), 0);
+
+      elements.parseButton.disabled = quickImportState.busy;
+      elements.clearButton.disabled = quickImportState.busy;
+      elements.saveButton.disabled = quickImportState.busy || quickImportState.dirty || validCount === 0;
+      elements.saveButton.textContent = validCount ? `Simpan ${validCount} data valid` : 'Simpan data valid';
+
+      if (!entries.length) {
+        elements.tableWrap.hidden = true;
+        elements.tableBody.innerHTML = '';
+
+        if (quickImportState.dirty && quickImportState.hasInput) {
+          elements.summary.innerHTML = `
+            <div class="quick-import-summary-head">
+              <span class="pill warn">Preview perlu dibuat ulang</span>
+            </div>
+            <p class="quick-import-summary-copy">Isi textarea sudah berubah. Klik <strong>Buat preview</strong> lagi agar data yang akan disimpan sesuai dengan tempelan terbaru.</p>
+          `;
+          return;
+        }
+
+        if (quickImportState.hasInput && !quickImportState.parsed) {
+          elements.summary.innerHTML = `
+            <div class="quick-import-summary-head">
+              <span class="pill">Siap diparse</span>
+            </div>
+            <p class="quick-import-summary-copy">Data tempelan sudah ada. Klik <strong>Buat preview</strong> untuk memeriksa field dan duplikat.</p>
+          `;
+          return;
+        }
+
+        elements.summary.innerHTML = quickImportState.hasInput
+          ? `
+            <div class="quick-import-summary-head">
+              <span class="pill inactive">Format belum terbaca</span>
+            </div>
+            <p class="quick-import-summary-copy">Belum ada blok jabatan yang berhasil diparse. Pastikan format mengandung label <strong>JABATAN</strong> dan field lain yang ingin dipakai.</p>
+          `
+          : `
+            <div class="quick-import-summary-head">
+              <span class="pill">Belum ada preview</span>
+            </div>
+            <p class="quick-import-summary-copy">Tempel data lalu klik <strong>Buat preview</strong> untuk memeriksa hasil parse dan warning penting sebelum simpan.</p>
+          `;
+        return;
+      }
+
+      elements.summary.innerHTML = `
+        <div class="quick-import-summary-head">
+          <span class="pill">Total ${entries.length}</span>
+          <span class="pill">${validCount} siap disimpan</span>
+          <span class="pill ${invalidCount ? 'inactive' : ''}">${invalidCount} perlu dicek</span>
+          <span class="pill ${warningCount ? 'warn' : ''}">${warningCount} warning</span>
+        </div>
+        <p class="quick-import-summary-copy">${invalidCount
+          ? 'Baris yang valid bisa langsung disimpan. Baris bermasalah akan tetap ditahan agar bisa diperbaiki dari textarea.'
+          : 'Semua baris sudah valid. Anda bisa langsung menyimpan semuanya.'}</p>
+      `;
+      elements.tableBody.innerHTML = entries.map(entry => `
+        <tr class="${entry.isValid ? 'is-valid' : 'is-invalid'}">
+          <td>${entry.rowNumber}</td>
+          <td>${escapeHtml(entry.display?.name || '-')}</td>
+          <td>${escapeHtml(entry.display?.level || '-')}</td>
+          <td>${escapeHtml(entry.display?.status || '-')}</td>
+          <td>${escapeHtml(entry.display?.description || '-')}</td>
+          <td>${formatQuickImportNotes(entry)}</td>
+        </tr>
+      `).join('');
+      elements.tableWrap.hidden = false;
+    }
+
+    function resetQuickImportDialog(options = {}) {
+      const elements = getQuickImportElements();
+      const settings = { keepText: false, ...options };
+      if (!settings.keepText) {
+        elements.input.value = '';
+      }
+      quickImportState.entries = [];
+      quickImportState.busy = false;
+      quickImportState.hasInput = !!(settings.keepText && elements.input.value.trim());
+      quickImportState.dirty = false;
+      quickImportState.parsed = false;
+      renderQuickImportPreview();
+    }
+
+    function openQuickImportDialog() {
+      if (!canDeleteRecords()) {
+        showNotice('Tempel cepat jabatan hanya untuk Super Admin.', 'error');
+        return;
+      }
+      const elements = getQuickImportElements();
+      quickImportState.hasInput = !!elements.input.value.trim();
+      quickImportState.dirty = false;
+      quickImportState.parsed = quickImportState.entries.length > 0;
+      renderQuickImportPreview();
+      elements.dialog.showModal();
+      elements.input.focus();
+    }
+
+    async function parseQuickImportPreview() {
+      const elements = getQuickImportElements();
+      quickImportState.hasInput = !!elements.input.value.trim();
+      quickImportState.dirty = false;
+      quickImportState.parsed = true;
+      quickImportState.busy = true;
+      renderQuickImportPreview();
+      try {
+        await refreshQuickImportPreviewEntries(elements.input.value);
+        clearNotice();
+      } catch (error) {
+        quickImportState.entries = [];
+        showNotice(error.message || 'Gagal membuat preview tempel jabatan.', 'error');
+      } finally {
+        quickImportState.busy = false;
+        renderQuickImportPreview();
+      }
+    }
+
+    async function saveQuickImport(event) {
+      event.preventDefault();
+      if (quickImportState.busy) return;
+      const elements = getQuickImportElements();
+      quickImportState.hasInput = !!elements.input.value.trim();
+      quickImportState.dirty = false;
+      quickImportState.parsed = true;
+      quickImportState.busy = true;
+      renderQuickImportPreview();
+
+      try {
+        await refreshQuickImportPreviewEntries(elements.input.value, { silent: true });
+      } catch (error) {
+        quickImportState.busy = false;
+        renderQuickImportPreview();
+        showNotice(error.message || 'Preview tempel jabatan gagal diperbarui.', 'error');
+        return;
+      }
+
+      const validEntries = quickImportState.entries.filter(entry => entry.isValid);
+      const invalidEntries = quickImportState.entries.filter(entry => !entry.isValid);
+      if (!validEntries.length) {
+        quickImportState.busy = false;
+        renderQuickImportPreview();
+        showNotice('Tidak ada baris valid untuk disimpan.', 'error');
+        return;
+      }
+
+      let successCount = 0;
+      const failedEntries = [];
+      quickImportState.busy = true;
+      renderQuickImportPreview();
+      for (const entry of validEntries) {
+        try {
+          await api('jabatan.save', { record: entry.record }, 'POST');
+          successCount += 1;
+        } catch (error) {
+          failedEntries.push({
+            ...entry,
+            isValid: false,
+            blockingIssues: (entry.blockingIssues || []).concat([error.message || 'Gagal menyimpan data.'])
+          });
+        }
+      }
+
+      quickImportState.busy = false;
+      if (successCount) {
+        await loadData();
+        await issuePanelController.load();
+      }
+      const remainingEntries = invalidEntries.concat(failedEntries);
+      if (remainingEntries.length) {
+        quickImportState.entries = remainingEntries;
+        quickImportState.hasInput = true;
+        quickImportState.dirty = false;
+        quickImportState.parsed = true;
+        renderQuickImportPreview();
+        showNotice(`Tersimpan ${successCount} jabatan. ${remainingEntries.length} baris masih perlu diperbaiki.`, successCount ? 'info' : 'error');
+        return;
+      }
+
+      resetQuickImportDialog();
+      elements.dialog.close();
+      showNotice(`Import cepat jabatan selesai. ${successCount} data disimpan.`, 'info');
+    }
+
+    async function handleExportQuickImportText() {
+      if (!canDeleteRecords()) {
+        showNotice('Export TXT tempel jabatan hanya untuk Super Admin.', 'error');
+        return;
+      }
+      showNotice('Menyiapkan export TXT tempel jabatan...', 'info');
+      try {
+        const data = await api('jabatan.quickImportExport');
+        const blob = new Blob([String(data?.text || '')], { type: 'text/plain;charset=utf-8' });
+        const filename = data?.filename || `jabatan-tempel-${window.PSExport.formatExportFileTimestamp(new Date().toISOString())}.txt`;
+        window.PSExport.downloadBlobFile(blob, filename);
+        showNotice(`Export TXT tempel jabatan siap diunduh. Total ${Number(data?.count || 0)} jabatan.`, 'info');
+      } catch (error) {
+        showNotice(error.message || 'Gagal export TXT tempel jabatan.', 'error');
+      }
+    }
+
+    function formatPdfNameBlock(label, values) {
+      const list = Array.isArray(values) ? values.filter(Boolean) : [];
+      return `${label}:\n${list.length ? list.join('\n') : '-'}`;
+    }
+
+    async function handleDownloadSummaryPdf() {
+      if (!canDownloadSummaryPdf()) {
+        showNotice('Download PDF jabatan hanya untuk Admin dan Super Admin.', 'error');
+        return;
+      }
+      showNotice('Menyusun ringkasan jabatan PDF...', 'info');
+      try {
+        const data = await api('jabatan.summaryPdfData', {
+          page: 1,
+          pageSize: 100000,
+          q: document.getElementById('searchInput').value.trim(),
+          status: document.getElementById('statusFilter').value,
+          sort: document.getElementById('sortSelect').value
+        });
+        const blob = window.PSExport.buildCardSummaryPdfBlob({
+          title: 'Ringkasan Jabatan',
+          subtitle: 'Format cetak ringkas untuk pengecekan level, status, dan penggunaan jabatan.',
+          exportedAt: data?.exportedAt,
+          summaryText: `Total ${Number(data?.count || 0)} jabatan`,
+          emptyText: 'Belum ada jabatan yang cocok dengan filter saat ini.',
+          columns: 3,
+          items: (Array.isArray(data?.items) ? data.items : []).map(item => ({
+            title: item.name || 'Tanpa nama',
+            accentColor: item.active ? [151, 110, 77] : [128, 112, 94],
+            badges: [
+              item.status || '-',
+              `Level ${item.level || '-'}`,
+              `Dipakai ${Number(item.assignedPengurusCount || 0)} pengurus`
+            ],
+            lines: [
+              item.deskription || 'Tanpa deskripsi.',
+              formatPdfNameBlock('Pengurus', item.assignedPengurusLabels)
+            ]
+          }))
+        });
+        window.PSExport.downloadBlobFile(blob, `jabatan-${window.PSExport.formatExportFileTimestamp(data?.exportedAt)}.pdf`);
+        showNotice('PDF jabatan siap diunduh.', 'info');
+      } catch (error) {
+        showNotice(error.message || 'Gagal membuat PDF jabatan.', 'error');
+      }
+    }
+
+    function renderList() {
+      const target = document.getElementById('list');
+      const items = state.items;
+      if (!items.length) {
+        target.innerHTML = `<p class="empty-state">Belum ada jabatan yang cocok dengan filter.</p>`;
+      } else {
+        const startIndex = ((state.page - 1) * state.pageSize) + 1;
+        target.innerHTML = items.map((item, index) => `
+          <article class="card minimal-list-card ${isItemExpanded(item.id) ? 'is-expanded' : ''}">
+            <div class="minimal-list-card-head">
+              <label class="card-select minimal-list-card-select">
+                <input type="checkbox" data-select="${item.id}" ${state.selectedIds.has(item.id) ? 'checked' : ''} ${isProtectedJabatan(item) ? 'disabled' : ''}>
+                <span>Pilih</span>
+              </label>
+              <div class="minimal-list-card-main" data-collapse="${item.id}" role="button" tabindex="0" aria-expanded="${isItemExpanded(item.id) ? 'true' : 'false'}" aria-label="${isItemExpanded(item.id) ? `Tutup detail jabatan ${escapeHtml(item.name || '-')}` : `Buka detail jabatan ${escapeHtml(item.name || '-')}`}">
+                <div class="minimal-list-card-title-row">
+                  ${isJabatanBaru(item) ? `<span style="display:inline-flex;align-items:center;padding:2px 8px;border-radius:99px;font-size:10.5px;font-weight:800;letter-spacing:.03em;background:#dff5df;color:#1e7e34;">NEW</span>` : ''}
+                  <strong class="minimal-list-card-name">${escapeHtml(item.name || '-')}</strong>
+                  ${isProtectedJabatan(item) ? '<span class="pill">Terlindungi</span>' : ''}
+                </div>
+                <span class="minimal-list-card-hint">Level ${escapeHtml(item.level || '-')} &nbsp;·&nbsp; Dipakai ${Number(item.assignedPengurusCount || 0)} pengurus</span>
+              </div>
+              <button class="secondary minimal-list-card-toggle" type="button" data-edit="${item.id}" aria-label="Edit jabatan ${escapeHtml(item.name || '-')}">Edit</button>
+            </div>
+            <div class="minimal-list-card-detail">
+              <div class="minimal-list-card-meta">
+                <span class="pill ${item.active ? '' : 'inactive'}">${escapeHtml(item.status || '-')}</span>
+                <span class="pill">Level ${escapeHtml(item.level || '-')}</span>
+                <span class="pill">Pengurus ${Number(item.assignedPengurusCount || 0)}</span>
+              </div>
+              <div class="minimal-list-card-summary">
+                <p><strong>Deskripsi:</strong> ${escapeHtml(item.deskription || 'Tanpa deskripsi.')}</p>
+                <p><strong>Dipakai oleh:</strong> ${escapeHtml((item.assignedPengurusLabels || []).join(', ') || '-')}</p>
+                <div style="margin-top:8px">
+                  <p style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Atasan</p>
+                  <div class="relasi-chips">
+                    ${(item.atasanLabels || []).length
+                      ? (item.atasanLabels || []).map(l => `<span class="relasi-chip atasan">${escapeHtml(l)}</span>`).join('')
+                      : '<span style="font-size:12px;opacity:.5">—</span>'}
+                  </div>
+                </div>
+                <div style="margin-top:8px">
+                  <p style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Bawahan</p>
+                  <div class="relasi-chips">
+                    ${(item.bawahanLabels || []).length
+                      ? (item.bawahanLabels || []).map(l => `<span class="relasi-chip bawahan">${escapeHtml(l)}</span>`).join('')
+                      : '<span style="font-size:12px;opacity:.5">—</span>'}
+                  </div>
+                </div>
+                <p><strong>Urutan daftar:</strong> ${startIndex + index}</p>
+              </div>
+              <div class="toolbar minimal-list-card-actions">
+                ${isProtectedJabatan(item)
+                  ? '<button class="secondary" type="button" disabled>Jabatan sistem</button>'
+                  : `<button class="secondary" type="button" data-edit="${item.id}">Edit</button>`}
+                ${isProtectedJabatan(item)
+                  ? '<button class="secondary" type="button" disabled>Terlindungi</button>'
+                  : `<button class="secondary" type="button" data-toggle="${item.id}">${item.active ? 'Nonaktifkan' : 'Aktifkan'}</button>`}
+                ${isProtectedJabatan(item) ? '' : `<button class="secondary" type="button" data-duplicate="${item.id}">Duplikat</button>`}
+                ${canDeleteRecords() && !isProtectedJabatan(item) ? `<button class="danger" type="button" data-delete="${item.id}">Hapus</button>` : ''}
+              </div>
+            </div>
+          </article>
+        `).join('');
+      }
+      renderPagination();
+      syncExpandToggleButton();
+      window.PSUI.syncScrollButtons();
+    }
+
+    async function loadData() {
+      clearNotice();
+      showNotice('Memuat daftar jabatan...', 'info');
+      try {
+        const data = await api('jabatan.list', {
+          page: state.page,
+          pageSize: state.pageSize,
+          q: document.getElementById('searchInput').value.trim(),
+          status: document.getElementById('statusFilter').value,
+          sort: document.getElementById('sortSelect').value
+        });
+        state.items = data.items || [];
+        state.page = data.page || 1;
+        state.pageSize = data.pageSize || state.pageSize;
+        state.totalPages = data.totalPages || 1;
+        state.total = data.total || 0;
+        pruneExpandedIds();
+        renderList();
+        renderBulkToolbar();
+        clearNotice();
+      } catch (error) {
+        showNotice(error.message || 'Gagal memuat jabatan.', 'error');
+      }
+    }
+
+    function filterAtasanCheckboxList(q) {
+      const lower = q.toLowerCase();
+      document.querySelectorAll('#atasanCheckboxList label').forEach(label => {
+        const text = label.textContent.toLowerCase();
+        label.style.display = (!q || text.includes(lower)) ? '' : 'none';
+      });
+    }
+
+    function renderAtasanCheckboxList(allJabatan, currentId, selectedIds) {
+      const list = document.getElementById('atasanCheckboxList');
+      const eligible = allJabatan.filter(j => j.id !== currentId);
+      const eligibleIdSet = new Set(eligible.map(j => j.id));
+      const orphanIds = Array.from(selectedIds).filter(id => !eligibleIdSet.has(id) && id !== currentId);
+      if (!eligible.length && !orphanIds.length) {
+        list.innerHTML = '<span class="relasi-empty">Belum ada jabatan lain.</span>';
+        return;
+      }
+      const orphanHtml = orphanIds.map(id => `
+        <label style="opacity:.6" title="Jabatan ini sudah dihapus. Uncheck untuk membersihkan.">
+          <input type="checkbox" value="${escapeHtml(id)}" checked>
+          <span style="text-decoration:line-through;color:var(--danger)">(Jabatan dihapus — ${escapeHtml(id)})</span>
+        </label>
+      `).join('');
+      list.innerHTML = orphanHtml + eligible.map(j => `
+        <label>
+          <input type="checkbox" value="${escapeHtml(j.id)}" ${selectedIds.has(j.id) ? 'checked' : ''}>
+          <span>${escapeHtml(j.name)}${j.level ? ' <span style="opacity:.5;font-size:11px">Lv.'+escapeHtml(j.level)+'</span>' : ''}</span>
+        </label>
+      `).join('');
+      list.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+        cb.addEventListener('change', () => {
+          if (cb.checked) dialogState.selectedAtasanIds.add(cb.value);
+          else dialogState.selectedAtasanIds.delete(cb.value);
+        });
+      });
+    }
+
+    async function openDialog(record = {}) {
+      if (record.id && isProtectedJabatan(record)) {
+        showNotice(`Jabatan "${record.name}" dilindungi dan tidak bisa diubah.`, 'error');
+        return;
+      }
+      document.getElementById('dialogTitle').textContent = record.id ? 'Edit jabatan' : 'Tambah jabatan';
+      const form = document.getElementById('form');
+      const fields = form.elements;
+      fields.namedItem('id').value = record.id || '';
+      fields.namedItem('name').value = record.name || '';
+      fields.namedItem('level').value = record.level || '';
+      fields.namedItem('deskription').value = record.deskription || '';
+      fields.namedItem('status').value = record.status || 'Active';
+
+      dialogState.selectedAtasanIds = new Set(record.atasanIds || []);
+      document.getElementById('atasanSearchInput').value = '';
+      document.getElementById('atasanCheckboxList').innerHTML = '<span class="relasi-empty">Memuat...</span>';
+      document.getElementById('dialog').showModal();
+
+      try {
+        const data = await api('jabatan.list', { page: 1, pageSize: 1000 });
+        dialogState.allJabatan = (data.items || []);
+        renderAtasanCheckboxList(dialogState.allJabatan, record.id || '', dialogState.selectedAtasanIds);
+      } catch {
+        document.getElementById('atasanCheckboxList').innerHTML = '<span class="relasi-empty">Gagal memuat jabatan.</span>';
+      }
+    }
+
+    async function saveForm(event) {
+      event.preventDefault();
+      const form = event.currentTarget;
+      const fields = form.elements;
+      const jabatanId = fields.namedItem('id').value.trim();
+      const payload = {
+        id: jabatanId,
+        name: fields.namedItem('name').value.trim(),
+        level: fields.namedItem('level').value.trim(),
+        deskription: fields.namedItem('deskription').value.trim(),
+        status: fields.namedItem('status').value
+      };
+      try {
+        const saved = await api('jabatan.save', { record: payload }, 'POST');
+        const savedId = saved.id || jabatanId;
+        const atasanIds = Array.from(dialogState.selectedAtasanIds);
+        if (savedId) {
+          await api('jabatan.saveRelasi', { jabatan_id: savedId, atasan_ids: JSON.stringify(atasanIds) }, 'POST');
+        }
+        document.getElementById('dialog').close();
+        await loadData();
+        await issuePanelController.load();
+      } catch (error) {
+        showNotice(error.message || 'Gagal menyimpan jabatan.', 'error');
+      }
+    }
+
+    async function toggleItem(id) {
+      const item = state.items.find(entry => entry.id === id);
+      if (!item) return;
+      if (isProtectedJabatan(item)) {
+        showNotice(`Jabatan "${item.name}" dilindungi dan tidak bisa dinonaktifkan.`, 'error');
+        return;
+      }
+      const nextActive = !item.active;
+      const yes = confirm(`${nextActive ? 'Aktifkan' : 'Nonaktifkan'} jabatan "${item.name}"?`);
+      if (!yes) return;
+      try {
+        await api('jabatan.toggle', { id, active: nextActive }, 'POST');
+        await loadData();
+        await issuePanelController.load();
+      } catch (error) {
+        showNotice(error.message || 'Gagal mengubah status jabatan.', 'error');
+      }
+    }
+
+    async function deleteItem(id) {
+      const item = state.items.find(entry => entry.id === id);
+      if (!item) return;
+      if (isProtectedJabatan(item)) {
+        showNotice(`Jabatan "${item.name}" dilindungi dan tidak bisa dihapus.`, 'error');
+        return;
+      }
+      const yes = confirm(`Hapus permanen jabatan "${item.name}"? Relasi jabatan pengurus juga akan dibersihkan.`);
+      if (!yes) return;
+      try {
+        await api('jabatan.delete', { id }, 'POST');
+        showNotice(`Jabatan "${item.name}" dihapus permanen.`, 'info');
+        await loadData();
+        await issuePanelController.load();
+      } catch (error) {
+        showNotice(error.message || 'Gagal menghapus jabatan.', 'error');
+      }
+    }
+
+    const currentPage = window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : '/pages/masterJabatan/';
+    const initialSession = getStoredSession();
+    if (!initialSession) {
+      clearSession();
+      window.location.replace('/pages/login/');
+    }
+    if (!(window.PSAccess && window.PSAccess.redirectIfForbidden(initialSession, currentPage))) {
+      mountShell();
+      syncRestrictedActions();
+      renderBulkToolbar();
+      syncActionToolbar();
+      syncFiltersVisibility();
+      syncExpandToggleButton();
+      document.getElementById('addButton').addEventListener('click', () => openDialog());
+      document.getElementById('refreshButton').addEventListener('click', async () => {
+        await loadData();
+        await issuePanelController.load();
+      });
+      document.getElementById('toggleExpandButton').addEventListener('click', toggleExpandedList);
+      document.getElementById('toolbarCollapseToggle').addEventListener('click', toggleActionToolbar);
+      document.getElementById('quickImportButton').addEventListener('click', openQuickImportDialog);
+      document.getElementById('exportQuickImportTxtButton').addEventListener('click', handleExportQuickImportText);
+      document.getElementById('downloadSummaryPdfButton').addEventListener('click', handleDownloadSummaryPdf);
+      document.getElementById('downloadTemplateButton').addEventListener('click', handleDownloadTemplate);
+      document.getElementById('importExcelButton').addEventListener('click', handleImportRequest);
+      document.getElementById('exportExcelButton').addEventListener('click', handleExportExcel);
+      document.getElementById('deleteAllButton').addEventListener('click', handleDeleteAll);
+      document.getElementById('importExcelInput').addEventListener('change', handleImportChange);
+      document.getElementById('closeDialog').addEventListener('click', () => document.getElementById('dialog').close());
+      document.getElementById('atasanSearchInput').addEventListener('input', e => filterAtasanCheckboxList(e.target.value));
+      document.getElementById('closeQuickImportDialog').addEventListener('click', () => document.getElementById('quickImportDialog').close());
+      document.getElementById('form').addEventListener('submit', saveForm);
+      document.getElementById('searchInput').addEventListener('input', () => { state.page = 1; loadData(); });
+      document.getElementById('statusFilter').addEventListener('change', () => { state.page = 1; loadData(); });
+      document.getElementById('sortSelect').addEventListener('change', () => { state.page = 1; loadData(); });
+      document.getElementById('pageSizeSelect').addEventListener('change', event => {
+        state.pageSize = Number(event.target.value);
+        state.page = 1;
+        loadData();
+      });
+      document.getElementById('quickImportParseButton').addEventListener('click', parseQuickImportPreview);
+      document.getElementById('quickImportClearButton').addEventListener('click', () => {
+        resetQuickImportDialog();
+        document.getElementById('quickImportInput').focus();
+      });
+      document.getElementById('quickImportInput').addEventListener('input', event => {
+        const hadPreview = quickImportState.entries.length > 0 || quickImportState.parsed;
+        quickImportState.hasInput = !!event.target.value.trim();
+        quickImportState.dirty = hadPreview && quickImportState.hasInput;
+        quickImportState.parsed = false;
+        quickImportState.entries = [];
+        renderQuickImportPreview();
+      });
+      document.getElementById('quickImportInput').addEventListener('keydown', event => {
+        if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+          event.preventDefault();
+          parseQuickImportPreview();
+        }
+      });
+      document.getElementById('quickImportForm').addEventListener('submit', saveQuickImport);
+    }
+    document.addEventListener('click', event => {
+      const page = event.target.getAttribute('data-page');
+      if (!page) return;
+      const nextPage = Number(page);
+      if (!nextPage || nextPage < 1 || nextPage > state.totalPages || nextPage === state.page) return;
+      state.page = nextPage;
+      loadData();
+    });
+    document.getElementById('list').addEventListener('click', event => {
+      const collapseButton = event.target.closest('[data-collapse]');
+      const actionButton = event.target.closest('[data-edit], [data-toggle], [data-delete], [data-duplicate]');
+      const collapseId = collapseButton ? collapseButton.getAttribute('data-collapse') : '';
+      const editId = actionButton ? actionButton.getAttribute('data-edit') : '';
+      const toggleId = actionButton ? actionButton.getAttribute('data-toggle') : '';
+      const deleteId = actionButton ? actionButton.getAttribute('data-delete') : '';
+      const duplicateId = actionButton ? actionButton.getAttribute('data-duplicate') : '';
+      if (collapseId) {
+        toggleItemExpanded(collapseId);
+        return;
+      }
+      if (editId) {
+        const item = state.items.find(entry => entry.id === editId);
+        if (item) openDialog({ ...item.record, id: item.id, name: item.name, level: item.level, deskription: item.deskription, status: item.status, atasanIds: item.atasanIds || [] });
+      }
+      if (toggleId) {
+        toggleItem(toggleId);
+      }
+      if (deleteId) {
+        deleteItem(deleteId);
+      }
+      if (duplicateId) {
+        const item = state.items.find(entry => entry.id === duplicateId);
+        if (item) {
+          openDialog({
+            id: '',
+            name: `${item.name} (Salinan)`,
+            level: item.level,
+            deskription: item.deskription,
+            status: item.status || 'Active',
+            atasanIds: (item.atasanIds || []).slice()
+          });
+        }
+      }
+    });
+    document.getElementById('list').addEventListener('keydown', event => {
+      const collapseTarget = event.target.closest('[data-collapse]');
+      if (!collapseTarget) return;
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      event.preventDefault();
+      toggleItemExpanded(collapseTarget.getAttribute('data-collapse'));
+    });
+    document.getElementById('list').addEventListener('change', event => {
+      const selectId = event.target.getAttribute('data-select');
+      if (!selectId) return;
+      toggleSelectedId(selectId, event.target.checked);
+    });
+    document.getElementById('bulkToolbar').addEventListener('click', event => {
+      const { id } = event.target;
+      if (id === 'selectVisibleButton') selectVisibleItems();
+      if (id === 'clearSelectedButton') clearSelectedIds();
+      if (id === 'bulkActivateButton') handleBulkToggle(true);
+      if (id === 'bulkDeactivateButton') handleBulkToggle(false);
+      if (id === 'bulkDeleteButton') handleBulkDelete();
+    });
+    window.addEventListener('load', async () => {
+      if (window.PSAccess && window.PSAccess.redirectIfForbidden(getStoredSession(), currentPage)) {
+        return;
+      }
+      document.getElementById('pageSizeSelect').value = String(state.pageSize);
+      document.getElementById('sortSelect').value = 'updated_desc';
+      syncFiltersVisibility();
+      syncActionToolbar();
+      syncExpandToggleButton();
+      await loadData();
+      await issuePanelController.load();
+    });
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
+    }
+  </script>
+</body>
+</html>

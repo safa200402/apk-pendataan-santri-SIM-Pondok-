@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#9e2f22">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="../../shared-ui.css">
+  <link rel="stylesheet" href="../../shared-shell.css">
+  <link rel="stylesheet" href="../../vendor/fontawesome/css/all.min.css">
+  <script src="../../shared-ui.js"></script>
+  <title>Struktur Organisasi</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700&display=swap');
+
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; }
+    .panel { padding: 22px; }
+
+    :root {
+      --ink: #4d4034;
+      --muted: #7b6a58;
+      --accent: #b97650;
+      --tree-line: rgba(91, 73, 57, 0.28);
+      --node-bg: #faf7f4;
+      --node-border: rgba(91, 73, 57, 0.15);
+      --node-head-bg: #f0ece8;
+      --drop: 44px;
+    }
+
+    /* ── State wrappers ── */
+    .org-loading, .org-error, .org-empty {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .org-error { color: #a55a52; }
+
+    /* ── Org chart wrap ── */
+    .org-outer {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: 8px 0 20px;
+    }
+
+    .org-tree {
+      display: inline-flex;
+      flex-direction: row;
+      align-items: flex-start;
+      justify-content: center;
+      gap: 40px;
+      min-width: 100%;
+      flex-wrap: wrap;
+    }
+
+    /* ── Node box ── */
+    .tree-node {
+      background: var(--node-bg);
+      border: 1.5px solid var(--node-border);
+      border-radius: 12px;
+      min-width: 160px;
+      max-width: 240px;
+      width: max-content;
+      text-align: center;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .tree-node-head {
+      background: var(--node-head-bg);
+      padding: 10px 14px 8px;
+      border-bottom: 1px solid var(--node-border);
+    }
+
+    .tree-node-name {
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--ink);
+      line-height: 1.3;
+    }
+
+    .tree-node-level {
+      display: inline-block;
+      margin-top: 4px;
+      font-size: 10.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--accent);
+    }
+
+    .tree-node-multi-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      margin-top: 4px;
+      margin-left: 6px;
+      font-size: 9.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #8a5a2a;
+      background: rgba(218, 150, 60, 0.18);
+      padding: 2px 7px;
+      border-radius: 10px;
+    }
+
+    .tree-node-ref {
+      opacity: 0.82;
+      border-style: dashed;
+      cursor: pointer;
+      transition: opacity 120ms ease, border-color 120ms ease;
+    }
+
+    .tree-node-ref:hover,
+    .tree-node-ref:focus-visible {
+      opacity: 1;
+      border-color: var(--accent);
+      outline: none;
+    }
+
+    .tree-node-ref .tree-node-name {
+      font-weight: 700;
+    }
+
+    .tree-node-body {
+      padding: 8px 10px 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      justify-content: center;
+    }
+
+    .member-chip {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 9px;
+      border-radius: 20px;
+      background: rgba(185, 118, 80, 0.12);
+      color: var(--ink);
+      white-space: normal;
+      display: inline-flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 4px;
+      max-width: 100%;
+      word-break: break-word;
+    }
+
+    .member-peran {
+      font-size: 9.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--accent);
+      background: rgba(185, 118, 80, 0.15);
+      padding: 1px 5px;
+      border-radius: 10px;
+    }
+
+    .member-empty {
+      font-size: 11px;
+      color: var(--muted);
+      font-style: italic;
+      padding: 2px 0;
+    }
+
+    .member-pengabdian {
+      font-size: 9.5px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #1565c0;
+      background: rgba(21, 101, 192, 0.14);
+      padding: 1px 5px;
+      border-radius: 10px;
+    }
+
+    /* ── Tree layout ── */
+    .tree-node-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+    }
+
+
+    /* Children container */
+    .tree-children {
+      display: flex;
+      flex-direction: row;
+      justify-content: center;
+      position: relative;
+      padding-top: var(--drop);
+    }
+
+    /* Vertical connector: parent node → horizontal bar */
+    .tree-children::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 2px;
+      height: var(--drop);
+      background: var(--tree-line);
+    }
+
+    /* Each child slot */
+    .tree-children > .tree-node-wrap {
+      padding: var(--drop) 20px 0;
+    }
+
+    /* Horizontal bar segment per sibling */
+    .tree-children > .tree-node-wrap::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--tree-line);
+    }
+    .tree-children > .tree-node-wrap:first-child::before  { left: 50%; }
+    .tree-children > .tree-node-wrap:last-child::before   { right: 50%; }
+    .tree-children > .tree-node-wrap:only-child::before   { display: none; }
+
+    /* Vertical drop: horizontal bar → child node */
+    .tree-children > .tree-node-wrap::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 2px;
+      height: var(--drop);
+      background: var(--tree-line);
+    }
+
+    /* Orphan row (jabatan tanpa relasi ke pohon utama) */
+    .orphan-section {
+      margin-top: 28px;
+      padding-top: 20px;
+      border-top: 1px solid var(--node-border);
+      width: 100%;
+    }
+    .orphan-label {
+      text-align: center;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      margin-bottom: 14px;
+    }
+    .orphan-grid {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    /* ── Print header (visible only when printing) ── */
+    .print-header {
+      display: none;
+      margin-bottom: 20px;
+    }
+    .print-header h2 {
+      margin: 0 0 4px;
+      font-size: 18px;
+      font-family: 'Playfair Display', serif;
+      color: #111;
+    }
+    .print-header p { margin: 0; font-size: 12px; color: #555; }
+
+    /* ── Pengurus Finder ── */
+    .pengurus-finder { position: fixed; top: calc(var(--shell-header-height, 84px) + 21px); right: 14px; z-index: 9000; width: 240px; }
+    .pengurus-finder-wrap { position: relative; }
+    .pengurus-finder-input {
+      width: 100%; padding: 9px 12px 9px 34px; border-radius: 12px;
+      border: 1.5px solid rgba(91,73,57,0.2);
+      background: rgba(255,251,243,0.94);
+      backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+      box-shadow: 0 4px 16px rgba(87,67,51,0.13);
+      font-size: 13px; color: var(--ink); outline: none; box-sizing: border-box;
+    }
+    .pengurus-finder-input:focus { border-color: var(--accent); }
+    .pengurus-finder-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 12px; pointer-events: none; }
+    .pengurus-finder-list {
+      display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+      max-height: 260px; overflow-y: auto;
+      background: rgba(255,251,243,0.97); border-radius: 12px;
+      border: 1px solid rgba(91,73,57,0.12);
+      box-shadow: 0 8px 28px rgba(87,67,51,0.16); padding: 4px;
+    }
+    .pengurus-finder-list.open { display: block; }
+    .pengurus-item { padding: 8px 10px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--ink); }
+    .pengurus-item:hover { background: rgba(91,73,57,0.07); }
+    .pengurus-item-sub { font-size: 11px; font-weight: 500; color: var(--muted); margin-top: 1px; }
+    .pengurus-finder-empty { padding: 10px 12px; font-size: 13px; color: var(--muted); text-align: center; }
+    @keyframes nodeFlash {
+      0%, 100% { box-shadow: 0 2px 8px rgba(87,67,51,0.1); }
+      40% { box-shadow: 0 0 0 7px rgba(185,118,80,0.38); }
+    }
+    .tree-node.node-highlight { animation: nodeFlash 0.7s ease 3; }
+
+    /* ── Print styles ── */
+    @media print {
+      @page { size: A4 landscape; margin: 12mm 14mm; }
+
+      /* Hide UI chrome */
+      .nav,
+      .notice-stack { display: none !important; }
+
+      /* Flatten layout */
+      body, main, .app-layout, .content-stack, section.panel { display: block !important; }
+      .panel { padding: 0 !important; }
+
+      /* Show print title */
+      .print-header { display: block !important; }
+
+      /* Org chart: allow full width render */
+      .org-outer {
+        overflow: visible !important;
+        padding: 0 !important;
+      }
+      .org-tree { min-width: auto !important; }
+
+      /* Ensure nodes don't break across pages */
+      .tree-node { break-inside: avoid; page-break-inside: avoid; }
+      .tree-node-wrap { break-inside: avoid; page-break-inside: avoid; }
+
+      /* Use darker lines for print */
+      :root { --tree-line: rgba(0,0,0,.35); --node-border: rgba(0,0,0,.2); }
+    }
+
+    /* ── Mobile: vertical indent layout (hanya untuk layar sangat sempit) ── */
+    @media (max-width: 180px) {
+      .org-outer { overflow-x: visible; }
+
+      .org-tree {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 20px;
+        min-width: auto;
+        width: 100%;
+      }
+
+      .tree-node {
+        text-align: left;
+        min-width: unset;
+        max-width: 100%;
+        width: 100%;
+      }
+      .tree-node-body { justify-content: flex-start; }
+
+      .tree-children {
+        flex-direction: column;
+        padding-top: 0;
+        padding-left: 18px;
+        margin-top: 10px;
+        border-left: 2px solid var(--tree-line);
+        margin-left: 16px;
+        gap: 10px;
+      }
+      .tree-children::before { display: none; }
+      .tree-children > .tree-node-wrap { padding: 0; }
+      .tree-children > .tree-node-wrap::before { display: none; }
+      .tree-children > .tree-node-wrap::after  { display: none; }
+
+      .orphan-grid { flex-direction: column; }
+    }
+
+  </style>
+</head>
+<body>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+  <main>
+    <div class="app-layout">
+      <section class="panel nav" id="nav"></section>
+      <div class="content-stack">
+        <section style="overflow: auto; width: 100%; height: max-content;">
+          <div class="pengurus-finder" id="pengurusFinder">
+            <div class="pengurus-finder-wrap">
+              <i class="fa-solid fa-magnifying-glass pengurus-finder-icon"></i>
+              <input class="pengurus-finder-input" id="pengurusSearch" type="search" placeholder="Cari pengurus..." autocomplete="off" spellcheck="false">
+              <div class="pengurus-finder-list" id="pengurusList"></div>
+            </div>
+          </div>
+          <div id="orgRoot" class="org-loading">
+            <i class="fa-solid fa-spinner fa-spin"></i>&ensp;Memuat data...
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <script src="../../shared-access.js"></script>
+  <script src="../../shared-nav.js"></script>
+  <script src="../../shared-shell.js"></script>
+  <script>
+    const API_BASE = window.location.origin + '/api';
+    const STORAGE = { token: 'ps_token', session: 'ps_session', apiBase: 'ps_api_base' };
+    localStorage.setItem(STORAGE.apiBase, API_BASE);
+
+    function getToken() { return localStorage.getItem(STORAGE.token) || ''; }
+    function clearSession() { localStorage.removeItem(STORAGE.token); localStorage.removeItem(STORAGE.session); }
+    function getStoredSession() { try { return JSON.parse(localStorage.getItem(STORAGE.session) || 'null'); } catch (_) { return null; } }
+
+    function toParams(data) {
+      const p = new URLSearchParams();
+      Object.entries(data).forEach(([k, v]) => { if (v !== undefined && v !== null) p.set(k, String(v)); });
+      return p;
+    }
+
+    async function api(action, payload = {}) {
+      const token = getToken();
+      if (!token) { clearSession(); window.location.replace('/pages/login/'); throw new Error('Sesi tidak ditemukan.'); }
+      const r = await fetch(`${API_BASE}?${toParams({ action, token, ...payload })}`);
+      const json = await r.json();
+      if (!json.ok) {
+        const e = new Error(json.error?.message || 'Permintaan gagal.');
+        e.code = json.error?.code || r.status || 500;
+        if (e.code === 401) { clearSession(); window.location.replace('/pages/login/'); }
+        throw e;
+      }
+      return json.data;
+    }
+
+    /* Build HTML-entity tokens via char code so auto-formatters cannot
+       decode the literal entities (which would break escaping). */
+    const ENTITY_AMP = String.fromCharCode(38) + 'amp;';
+    const ENTITY_LT  = String.fromCharCode(38) + 'lt;';
+    const ENTITY_GT  = String.fromCharCode(38) + 'gt;';
+    const ENTITY_QUOT = String.fromCharCode(38) + 'quot;';
+
+    function esc(s) {
+      return String(s == null ? '' : s)
+        .replace(/&/g, ENTITY_AMP)
+        .replace(/</g, ENTITY_LT)
+        .replace(/>/g, ENTITY_GT)
+        .replace(/"/g, ENTITY_QUOT);
+    }
+
+    function renderNodeBox(j) {
+      const members = j.assignedPengurusLabels || [];
+      const peranArr = j.assignedPengurusPeran || [];
+      const jenisArr = j.assignedPengurusJenis || [];
+      const membersHtml = members.length
+        ? members.map((m, i) => {
+            const peran = peranArr[i];
+            const isPengabdian = jenisArr[i] === 'pengabdian';
+            return `<span class="member-chip"><i class="fa-solid fa-user" style="font-size:9px;opacity:.6;"></i>${esc(m)}${peran ? `<span class="member-peran">${esc(peran)}</span>` : ''}${isPengabdian ? `<span class="member-pengabdian">Pengabdian</span>` : ''}</span>`;
+          }).join('')
+        : '<span class="member-empty">Belum ada pengurus</span>';
+      const atasanCount = (j.atasanIds || []).length;
+      const multiBadge = atasanCount >= 2
+        ? `<div class="tree-node-multi-badge" title="Jabatan ini memiliki ${atasanCount} atasan"><i class="fa-solid fa-code-branch" style="font-size:8px;"></i>${atasanCount} atasan</div>`
+        : '';
+      return `
+        <div class="tree-node" id="jnode-${esc(String(j.id))}">
+          <div class="tree-node-head">
+            <div class="tree-node-name">${esc(j.name)}</div>
+            ${j.level ? `<div class="tree-node-level">Level ${esc(j.level)}</div>` : ''}
+            ${multiBadge}
+          </div>
+          <div class="tree-node-body">${membersHtml}</div>
+        </div>`;
+    }
+
+    // Stub ringkas untuk jabatan ber-2+-atasan di cabang atasan sekunder (bukan atasan utama).
+    // Tidak menggambar ulang sub-jabatannya — cukup penanda yang lompat ke kotak aslinya di cabang atasan utama.
+    function renderNodeRefBox(j) {
+      return `
+        <div class="tree-node tree-node-ref" data-ref-jump="${esc(String(j.id))}" role="button" tabindex="0" title="${esc(j.name)} — klik untuk lompat ke kotak aslinya">
+          <div class="tree-node-head">
+            <div class="tree-node-name">${esc(j.name)}</div>
+          </div>
+          <div class="tree-node-body"><span class="member-empty"><i class="fa-solid fa-arrow-up-right-from-square" style="font-size:9px;opacity:.6;"></i>&ensp;Lihat di atas</span></div>
+        </div>`;
+    }
+
+    function isPrimaryAtasan_(child, parentId) {
+      if (!child.atasanIds || child.atasanIds.length <= 1) return true;
+      return child.atasanIds[0] === parentId;
+    }
+
+    function buildNodeHtml(j, byId, visited) {
+      if (visited.has(j.id)) return '';
+      visited.add(j.id);
+      const children = (j.bawahanIds || []).map(id => byId[id]).filter(Boolean);
+      const childrenHtml = children.length
+        ? `<div class="tree-children">${children.map(c =>
+            isPrimaryAtasan_(c, j.id)
+              ? buildNodeHtml(c, byId, visited)
+              : `<div class="tree-node-wrap">${renderNodeRefBox(c)}</div>`
+          ).join('')}</div>`
+        : '';
+      return `<div class="tree-node-wrap">${renderNodeBox(j)}${childrenHtml}</div>`;
+    }
+
+    function goToPengurus(jabatanId) {
+      const node = document.getElementById('jnode-' + jabatanId);
+      if (!node) return;
+      node.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+      node.classList.remove('node-highlight');
+      void node.offsetWidth;
+      node.classList.add('node-highlight');
+      setTimeout(() => node.classList.remove('node-highlight'), 2200);
+    }
+
+    function setupRefJumpHandlers() {
+      const root = document.getElementById('orgRoot');
+      if (!root || root.dataset.refJumpBound) return;
+      root.dataset.refJumpBound = '1';
+      root.addEventListener('click', e => {
+        const ref = e.target.closest('[data-ref-jump]');
+        if (ref) goToPengurus(ref.getAttribute('data-ref-jump'));
+      });
+      root.addEventListener('keydown', e => {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        const ref = e.target.closest('[data-ref-jump]');
+        if (ref) { e.preventDefault(); goToPengurus(ref.getAttribute('data-ref-jump')); }
+      });
+    }
+
+    function setupPengurusFinder(list) {
+      const input = document.getElementById('pengurusSearch');
+      const dropdown = document.getElementById('pengurusList');
+      if (!input || !dropdown) return;
+      function renderList(q) {
+        const filtered = q
+          ? list.filter(p => p.label.toLowerCase().includes(q.toLowerCase()) || p.sub.toLowerCase().includes(q.toLowerCase()))
+          : list;
+        dropdown.innerHTML = filtered.length
+          ? filtered.map(p => {
+              const icon = p.type === 'jabatan'
+                ? '<i class="fa-solid fa-sitemap" style="font-size:10px;opacity:0.5;margin-right:5px;"></i>'
+                : '<i class="fa-solid fa-user" style="font-size:10px;opacity:0.5;margin-right:5px;"></i>';
+              return `<div class="pengurus-item" data-id="${esc(String(p.jabatanId))}">${icon}${esc(p.label)}<div class="pengurus-item-sub">${esc(p.sub)}</div></div>`;
+            }).join('')
+          : '<div class="pengurus-finder-empty">Tidak ditemukan</div>';
+        dropdown.querySelectorAll('.pengurus-item').forEach(el => {
+          el.addEventListener('click', () => { goToPengurus(el.dataset.id); dropdown.classList.remove('open'); input.value = ''; });
+        });
+        dropdown.classList.add('open');
+      }
+      input.addEventListener('input', () => renderList(input.value.trim()));
+      input.addEventListener('focus', () => renderList(input.value.trim()));
+      document.addEventListener('click', e => { if (!document.getElementById('pengurusFinder').contains(e.target)) dropdown.classList.remove('open'); });
+    }
+
+    async function loadChart() {
+      const root = document.getElementById('orgRoot');
+      try {
+        const data = await api('jabatan.struktur');
+        const items = data.items || [];
+
+        if (!items.length) {
+          root.innerHTML = '<div class="org-empty"><i class="fa-solid fa-sitemap" style="font-size:2rem;margin-bottom:12px;display:block;"></i>Belum ada data jabatan.</div>';
+          return;
+        }
+
+        const byId = {};
+        items.forEach(j => { byId[j.id] = j; });
+
+        // Jabatan tanpa atasan valid jadi akar pohon, KECUALI kalau juga tidak punya bawahan sama sekali
+        // (jabatan yang benar-benar terisolasi) — biar jatuh ke section "Jabatan lainnya" di bawah, bukan nangkring sebagai akar kosong di atas.
+        const roots = items.filter(j => {
+          const noValidAtasan = !j.atasanIds || j.atasanIds.length === 0 || j.atasanIds.every(aid => !byId[aid]);
+          const hasBawahan = !!(j.bawahanIds && j.bawahanIds.length);
+          return noValidAtasan && hasBawahan;
+        });
+
+        const visited = new Set();
+        const treeHtml = roots.map(r => buildNodeHtml(r, byId, visited)).join('');
+
+        const orphans = items.filter(j => !visited.has(j.id));
+        const orphanHtml = orphans.length
+          ? `<div class="orphan-section">
+              <div class="orphan-label"><i class="fa-solid fa-ellipsis"></i>&ensp;Jabatan lainnya</div>
+              <div class="orphan-grid">${orphans.map(j => renderNodeBox(j)).join('')}</div>
+             </div>`
+          : '';
+
+        root.innerHTML = `<div class="org-outer"><div class="org-tree">${treeHtml}</div>${orphanHtml}</div>`;
+        const outer = root.querySelector('.org-outer'); outer.scrollLeft = (outer.scrollWidth - outer.clientWidth) / 2;
+        setupRefJumpHandlers();
+
+        const finderItems = [];
+        items.forEach(j => {
+          finderItems.push({ label: j.name, sub: 'Jabatan', jabatanId: j.id, type: 'jabatan' });
+          (j.assignedPengurusLabels || []).forEach(name => {
+            finderItems.push({ label: name, sub: j.name, jabatanId: j.id, type: 'pengurus' });
+          });
+        });
+        setupPengurusFinder(finderItems);
+      } catch (e) {
+        root.innerHTML = `<div class="org-error"><i class="fa-solid fa-triangle-exclamation" style="font-size:1.5rem;margin-bottom:8px;display:block;"></i>${esc(e.message || 'Gagal memuat data.')}</div>`;
+      }
+    }
+
+    /* ── Auth ── */
+    const currentPage = window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : '/pages/strukturOrganisasi/';
+    const initialSession = getStoredSession();
+    if (!initialSession) { clearSession(); window.location.replace('/pages/login/'); }
+
+    if (!(window.PSAccess && window.PSAccess.redirectIfForbidden(initialSession, currentPage))) {
+      if (window.PSShell) {
+        window.PSShell.mount({ currentPage, session: getStoredSession(), storageKey: STORAGE.session, getStoredSession });
+      }
+      loadChart();
+    }
+
+    if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {}); }
+  </script>
+</body>
+</html>

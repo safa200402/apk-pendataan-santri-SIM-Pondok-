@@ -1,0 +1,226 @@
+===================================================================
+PANDUAN DEPLOY KE HOSTINGER
+===================================================================
+
+-------------------------------------------------------------------
+PRASYARAT
+-------------------------------------------------------------------
+- Hostinger VPS (Ubuntu 20.04/22.04) ATAU paket hosting yang mendukung Node.js
+- Akses SSH ke server
+- Domain yang sudah diarahkan ke IP server
+
+===================================================================
+BAGIAN 1 - PERSIAPAN FILE UNTUK UPLOAD
+===================================================================
+
+File yang perlu diupload (di komputer lokal):
+
+Buat arsip ZIP dari seluruh proyek, KECUALI folder dan file berikut:
+
+  node_modules/        <- jangan diupload, akan di-install ulang di server
+  backend/data/         <- jangan diupload, database akan dibuat otomatis
+  *.bat                 <- tidak dibutuhkan di Linux
+
+File minimal yang harus ada di server:
+
+  backend/
+    server.js
+  frontend/
+    (semua file dan folder)
+  package.json
+  package-lock.json
+
+===================================================================
+BAGIAN 2 - SETUP VPS HOSTINGER
+===================================================================
+
+2.1 Login ke server via SSH
+-------------------------------------------------------------------
+ssh root@IP_SERVER_ANDA
+
+2.2 Install Node.js (versi 20 atau lebih baru)
+-------------------------------------------------------------------
+curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+apt-get install -y nodejs
+node -v   # cek versi
+
+2.3 Install PM2 (process manager agar app tetap berjalan)
+-------------------------------------------------------------------
+npm install -g pm2
+
+2.4 Upload file proyek
+-------------------------------------------------------------------
+Dari komputer lokal (PowerShell/Terminal), jalankan perintah ini:
+
+# Buat folder di server
+ssh root@IP_SERVER_ANDA "mkdir -p /var/www/pendataan-santri"
+
+# Upload file (ganti path sesuai lokasi proyek di komputer)
+scp -r ./backend ./frontend ./package.json ./package-lock.json \
+  root@IP_SERVER_ANDA:/var/www/pendataan-santri/
+
+Atau gunakan FileZilla (SFTP) untuk upload via GUI.
+
+2.5 Install dependencies di server
+-------------------------------------------------------------------
+cd /var/www/pendataan-santri
+npm install --omit=dev
+
+2.6 Buat folder data
+-------------------------------------------------------------------
+mkdir -p /var/www/pendataan-santri/backend/data
+
+===================================================================
+BAGIAN 3 - KONFIGURASI ENVIRONMENT
+===================================================================
+
+Buat file .env di folder proyek ATAU set langsung saat menjalankan PM2:
+
+# Environment variables penting:
+PORT=3000                          # port server (jangan diubah jika pakai reverse proxy)
+APP_TIMEZONE=Asia/Jakarta          # timezone
+SEED_ADMIN_NAME=admin              # username admin pertama (sebelum ada data)
+SEED_ADMIN_PASSWORD=gantiPasswordIni  # password admin pertama
+
+>> PENTING: Ganti SEED_ADMIN_NAME dan SEED_ADMIN_PASSWORD sebelum deploy.
+>> Password ini hanya berlaku saat database pertama kali dibuat (belum ada
+   data pengurus).
+
+===================================================================
+BAGIAN 4 - JALANKAN APLIKASI DENGAN PM2
+===================================================================
+
+cd /var/www/pendataan-santri
+
+# Jalankan dengan environment variables
+PORT=3000 \
+APP_TIMEZONE=Asia/Jakarta \
+SEED_ADMIN_NAME=admin \
+SEED_ADMIN_PASSWORD=gantiPasswordIni \
+pm2 start backend/server.js --name "pendataan-santri"
+
+# Simpan konfigurasi PM2 agar otomatis jalan setelah server restart
+pm2 save
+pm2 startup
+# (jalankan perintah yang muncul dari output pm2 startup)
+
+Cek status:
+  pm2 status
+  pm2 logs pendataan-santri
+
+===================================================================
+BAGIAN 5 - SETUP REVERSE PROXY (NGINX)
+===================================================================
+
+Hostinger VPS biasanya menggunakan Nginx. Konfigurasi ini menghubungkan
+domain ke port 3000.
+
+5.1 Install Nginx (jika belum ada)
+-------------------------------------------------------------------
+apt-get install -y nginx
+
+5.2 Buat konfigurasi virtual host
+-------------------------------------------------------------------
+nano /etc/nginx/sites-available/pendataan-santri
+
+Isi dengan:
+
+server {
+    listen 80;
+    server_name DOMAIN_ANDA.COM www.DOMAIN_ANDA.COM;
+
+    # Ukuran upload maksimal (untuk foto profil dan logo)
+    client_max_body_size 10M;
+
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+    }
+}
+
+Ganti DOMAIN_ANDA.COM dengan domain yang sudah diarahkan ke server.
+
+5.3 Aktifkan konfigurasi
+-------------------------------------------------------------------
+ln -s /etc/nginx/sites-available/pendataan-santri /etc/nginx/sites-enabled/
+nginx -t          # test konfigurasi
+systemctl reload nginx
+
+===================================================================
+BAGIAN 6 - SSL (HTTPS) DENGAN LET'S ENCRYPT
+===================================================================
+
+apt-get install -y certbot python3-certbot-nginx
+certbot --nginx -d DOMAIN_ANDA.COM -d www.DOMAIN_ANDA.COM
+
+Certbot akan otomatis memperbarui konfigurasi Nginx untuk HTTPS.
+
+Uji pembaruan otomatis:
+  certbot renew --dry-run
+
+===================================================================
+BAGIAN 7 - UPDATE APLIKASI (DEPLOY ULANG)
+===================================================================
+
+Saat ada perubahan kode, upload ulang file yang berubah lalu restart:
+
+# Upload file baru (dari lokal)
+scp -r ./backend ./frontend root@IP_SERVER_ANDA:/var/www/pendataan-santri/
+
+# Di server: restart app
+pm2 restart pendataan-santri
+
+>> CATATAN: Folder backend/data/ berisi database SQLite -- JANGAN PERNAH
+   DIHAPUS saat update. Data pengurus, santri, dan semua input tersimpan
+   di sana.
+
+===================================================================
+BAGIAN 8 - BACKUP DATABASE
+===================================================================
+
+Database tersimpan di:
+  /var/www/pendataan-santri/backend/data/pendataan-santri.sqlite
+
+Cara backup manual:
+  cp /var/www/pendataan-santri/backend/data/pendataan-santri.sqlite \
+     /root/backup-santri-$(date +%Y%m%d).sqlite
+
+Backup otomatis (tambahkan ke crontab):
+  crontab -e
+  # Tambahkan baris ini untuk backup setiap hari jam 02:00:
+  0 2 * * * cp /var/www/pendataan-santri/backend/data/pendataan-santri.sqlite /root/backup/db-$(date +\%Y\%m\%d).sqlite
+
+===================================================================
+RINGKASAN PORT & AKSES
+===================================================================
+
+  Node.js app  : localhost:3000 (internal saja)
+  Nginx proxy  : http://DOMAIN_ANDA.COM (port 80)
+  HTTPS        : https://DOMAIN_ANDA.COM (port 443)
+  PWA install  : Muncul otomatis di browser Chrome/Edge setelah HTTPS aktif
+
+===================================================================
+TROUBLESHOOTING
+===================================================================
+
+  Masalah: App tidak jalan
+    Solusi: pm2 logs pendataan-santri untuk lihat error
+
+  Masalah: Port 3000 tidak bisa diakses dari luar
+    Solusi: Normal -- akses via Nginx (domain), bukan langsung port 3000
+
+  Masalah: Upload foto gagal
+    Solusi: Cek client_max_body_size di Nginx
+
+  Masalah: PWA tidak muncul tombol install
+    Solusi: Pastikan HTTPS sudah aktif dan buka dari Chrome/Edge
+
+  Masalah: Database hilang setelah update
+    Solusi: Pastikan folder backend/data/ tidak ikut dihapus

@@ -1,0 +1,2906 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#8e4b2d">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="../../shared-ui.css">
+  <script src="../../shared-ui.js"></script>
+  <title>Absensi Kelas</title>
+  <link rel="stylesheet" href="../../shared-shell.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700;800&display=swap');
+
+    :root {
+      --bg: #f6efe5;
+      --bg-soft: #fff8ef;
+      --paper: rgba(255, 251, 244, 0.92);
+      --line: rgba(97, 66, 46, 0.14);
+      --ink: #3f2b1f;
+      --muted: #7d6858;
+      --accent: #a85b32;
+      --accent-soft: rgba(168, 91, 50, 0.12);
+      --success: #4e7a55;
+      --success-soft: #68ff80;
+      --warning: #9f7600;
+      --warning-soft: rgb(255, 210, 76);
+      --danger: #b25b4d;
+      --danger-soft: rgb(255, 167, 153);
+      --sick: #c4661f;
+      --sick-soft: rgb(255, 132, 37);
+      --alpha: #b23d3d;
+      --alpha-soft: rgb(255, 67, 67);
+      --info: #4b6f9f;
+      --info-soft: rgb(70, 150, 255);
+      --inactive-day: #596779;
+      --inactive-day-soft: rgb(172, 185, 204);
+      --shadow: 0 22px 48px rgba(87, 60, 40, 0.14);
+      --radius-xl: 30px;
+      --radius-lg: 22px;
+      --radius-md: 16px;
+      --status-empty: #a39a8f;
+      --status-empty-soft: rgba(163, 154, 143, 0.16);
+    }
+
+    * { box-sizing: border-box; }
+    button { font-weight: 800 !important; text-transform: uppercase; }
+    table button { font-weight: revert; text-transform: none; }
+
+    html, body { margin: 0; min-height: 100%; }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.25;
+    }
+
+    .panel {
+      position: relative;
+      padding: 22px;
+      overflow: hidden;
+    }
+
+    .panel::after {
+      content: '';
+      position: absolute;
+      inset: auto -10% -60% auto;
+      width: 240px;
+      height: 240px;
+      pointer-events: none;
+    }
+
+    h1, h2, h3 {
+      margin: 0;
+      line-height: 1;
+      letter-spacing: -0.03em;
+    }
+
+    p { margin: 0; line-height: 1.6; }
+
+    button, input, textarea {
+      font: inherit;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 34px;
+      padding: 0 14px;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    .summary-pill, .status-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 34px;
+      padding: 0 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.01em;
+    }
+
+    .toolbar {
+      gap: 12px;
+      width: 100%;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      /* padding: 8px; */
+      overflow-x: auto;
+      overflow-y: hidden;
+      white-space: nowrap;
+    }
+
+    .toolbar button {
+      flex: 1 0 160px;
+      height: 44px;
+      border: none;
+      border-radius: 8px;
+      background-color: #ffffff;
+      color: #222;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-right: 5px;
+    }
+
+    .toolbar + .section-head {
+      margin-top: 18px;
+    }
+
+    .btn, .search-field {
+      min-height: 48px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 0 18px;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 10px 22px rgba(84, 58, 40, 0.08);
+    }
+
+    .btn:disabled {
+      cursor: not-allowed;
+      opacity: 0.55;
+      /* box-shadow: none; */
+    }
+
+    #refreshButton {
+      max-width: 21vh;
+      margin: 5px;
+    }
+
+    .search-field {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 16px;
+      flex: 1 !important;
+      border: 1px solid rgba(94, 68, 49, 0.13);
+      border-radius: 999px;
+      background:
+        linear-gradient(135deg, rgba(255, 253, 248, 0.95), rgba(247, 229, 176, 0.62)),
+        rgba(255, 250, 238, 0.92);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.62), 0 12px 24px rgba(84, 58, 40, 0.08);
+      transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+    }
+
+    .search-field:focus-within {
+      border-color: rgba(51, 51, 51, 0.42);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72), 0 0 0 4px rgba(51, 51, 51, 0.08), 0 16px 28px rgba(84, 58, 40, 0.12);
+      transform: translateY(-1px);
+    }
+
+    .search-field span {
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      white-space: nowrap;
+      color: rgba(41, 23, 15, 0.72);
+    }
+
+    .search-field input {
+      width: 100%;
+      min-width: 0;
+      border: 0;
+      background: transparent;
+      outline: none;
+      font: inherit;
+      color: #29170f;
+    }
+
+    .search-field input::placeholder {
+      color: rgba(41, 23, 15, 0.42);
+      font-weight: 700;
+    }
+
+    .santri-search-field {
+      flex: 1 1 260px;
+      max-width: 420px;
+      min-width: min(100%, 240px);
+      background:
+        linear-gradient(135deg, rgba(255, 254, 250, 0.98), rgba(255, 232, 158, 0.54)),
+        #fffaf0;
+    }
+
+    .santri-search-field::before {
+      content: '';
+      width: 12px;
+      height: 12px;
+      border: 2px solid rgba(51, 51, 51, 0.62);
+      border-radius: 999px;
+      box-shadow: 6px 6px 0 -4px rgba(51, 51, 51, 0.62);
+      flex: 0 0 auto;
+    }
+
+    .unsaved-confirm {
+      position: fixed;
+      inset: 0;
+      z-index: 30;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(35, 24, 15, 0.46);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 160ms ease;
+    }
+
+    .unsaved-confirm.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .unsaved-confirm[hidden] {
+      display: none;
+    }
+
+    .unsaved-card {
+      width: min(420px, 100%);
+      padding: 22px;
+      border: 1px solid rgba(94, 68, 49, 0.14);
+      border-radius: 24px;
+      background:
+        linear-gradient(135deg, rgba(255, 253, 247, 0.98), rgba(247, 226, 156, 0.9)),
+        #fff8e6;
+      box-shadow: 0 24px 70px rgba(33, 23, 14, 0.28);
+    }
+
+    .unsaved-card h3 {
+      margin: 0 0 8px;
+      font-size: 1.35rem;
+      color: #29170f;
+    }
+
+    .unsaved-card p {
+      margin: 0;
+      color: rgba(41, 23, 15, 0.72);
+      font-weight: 700;
+    }
+
+    .unsaved-actions {
+      display: flex;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: end;
+      margin-bottom: 16px;
+    }
+
+    .section-head h2 {
+      font-size: clamp(1.8rem, 4vw, 2.4rem);
+    }
+
+    .kelas-grid {
+      display: grid;
+      /* grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); */
+      gap: 14px;
+    }
+
+    .attendance-alert {
+      padding: 10px 16px;
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1.45;
+      border-top: 1px dashed rgba(75, 44, 32, 0.18);
+      color: #4a4a4a;
+    }
+
+    .attendance-alert.pending {
+      color: var(--warning);
+    }
+
+    .attendance-alert.partial {
+      color: #ff2200;
+    }
+
+    .attendance-audit {
+      padding: 0 16px 10px;
+      margin-top: -6px;
+      font-size: 11.5px;
+      color: var(--warning, #9f7600);
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+      line-height: 1.5;
+    }
+    .attendance-audit i { margin-top: 2px; flex-shrink: 0; }
+
+    .status-pill.hadir, .summary-pill.hadir {
+      background: var(--success-soft);
+      color: var(--success);
+    }
+
+    .status-pill.izin, .summary-pill.izin {
+      background: var(--warning-soft);
+      color: var(--warning);
+    }
+
+    .status-pill.sakit, .summary-pill.sakit {
+      background: var(--sick-soft);
+      color: var(--sick);
+    }
+
+    .status-pill.alfa, .summary-pill.alfa {
+      background: var(--alpha-soft);
+      color: var(--alpha);
+    }
+
+    .status-pill.tugas, .summary-pill.tugas {
+      background: var(--info-soft);
+      color: var(--info);
+    }
+
+    .status-pill.hari_tidak_aktif, .summary-pill.hari_tidak_aktif {
+      background: var(--inactive-day-soft);
+      color: var(--inactive-day);
+    }
+
+    .status-pill.empty, .summary-pill.empty {
+      background: var(--status-empty-soft);
+      color: var(--status-empty);
+    }
+
+    .empty-state {
+      padding: 28px;
+      text-align: center;
+    }
+
+    .notice {
+      padding: 14px 16px;
+      line-height: 1.55;
+    }
+
+    .notice.show { display: block; }
+
+    #attendanceDialog {
+      width: 100% !important;
+      min-width: 100% !important;
+      max-width: 100% !important;
+      height: 100% !important;
+      min-height: 100% !important;
+      max-height: 100% !important;
+      overflow: hidden !important;
+      box-sizing: border-box !important;
+      margin: 0;
+      border: 0;
+      padding: 0;
+      border-radius: 0;
+      background:
+        linear-gradient(180deg, rgba(126, 91, 22, 0.18), rgba(79, 55, 16, 0.12)),
+        rgba(255, 240, 191, 0.08);
+      box-shadow: 0 34px 90px rgba(42, 28, 16, 0.34);
+      backdrop-filter: blur(12px);
+    }
+
+    #attendanceDialog::backdrop {
+      background: rgba(37, 23, 15, 0.48);
+      backdrop-filter: blur(6px);
+    }
+
+    .attendance-shell {
+        height: 100%;
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr) auto;
+        /* gap: 14px; */
+        padding: 18px;
+        background: #f3e7c0;
+        backdrop-filter: blur(18px);
+    }
+
+    .attendance-main {
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto auto minmax(0, 1fr);
+      gap: 14px;
+    }
+
+    .attendance-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: start;
+      background:
+        linear-gradient(135deg, rgba(255, 251, 238, 0.84), rgba(235, 210, 134, 0.56)),
+        rgba(255, 250, 235, 0.7);
+    }
+
+    .attendance-head h2 {
+      font-size: clamp(1.8rem, 4vw, 2.5rem);
+      color: #29170f;
+    }
+
+    .attendance-toolbar {
+      display: grid;
+      gap: 14px;
+      margin-top: 10px;
+    }
+
+    .attendance-content {
+      flex: 1 1 0;
+      min-height: 0;
+      min-width: 0;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      overflow: hidden;
+      border-radius: 25px;
+    }
+
+    .matrix-longpress-hint {
+      background: rgba(168,91,50,0.09);
+      border-bottom: 1px solid rgba(168,91,50,0.15);
+      padding: 9px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--accent);
+      text-align: center;
+      animation: fade-in-hint 0.3s ease;
+    }
+    @keyframes fade-in-hint { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+
+    .date-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .date-control {
+      display: inline-flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding: 12px 14px;
+      min-height: 52px;
+    }
+
+    .date-control strong {
+      font-size: 12px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .date-control .btn {
+      min-height: 42px;
+      padding: 0 14px;
+    }
+
+    .date-control input,
+    .date-control select {
+      min-height: 42px;
+      padding: 0 10px;
+    }
+
+    .date-control input,
+    .date-control select {
+      outline: none;
+    }
+
+    .date-control select {
+      min-width: 82px;
+      cursor: pointer;
+      font-weight: 800;
+    }
+
+    .attendance-body {
+      min-height: 0;
+      overflow: auto;
+      /* padding: 16px; */
+      border: 1px solid rgba(94, 68, 49, 0.12);
+      border-radius: 24px;
+      background:
+        linear-gradient(180deg, rgba(255, 253, 247, 0.72), rgba(250, 240, 207, 0.42)),
+        rgba(255, 251, 244, 0.76);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.42);
+    }
+
+    .attendance-matrix-wrap {
+      min-width: max-content;
+    }
+
+    .attendance-matrix {
+      width: max-content;
+      min-width: 100%;
+      border-collapse: separate;
+      /* border-spacing: 10px; */
+      border-spacing: 0;
+    }
+
+    .attendance-matrix th,
+    .attendance-matrix td {
+      padding: 0;
+      vertical-align: top;
+      border: 1px solid rgb(0, 0, 0);
+    }
+
+    .attendance-matrix thead th {
+      position: sticky;
+      top: 0;
+      z-index: 6;
+      background: rgba(255, 245, 213, 0.96);
+      backdrop-filter: blur(8px);
+    }
+
+    .attendance-matrix .sticky-col {
+      position: sticky;
+      left: 0;
+      z-index: 3;
+      background: rgba(255, 250, 238, 0.96);
+      box-shadow: 14px 0 26px rgba(84, 58, 40, 0.06);
+      border: 1px solid black;
+      background-color: #c99a28;
+    }
+
+    .attendance-matrix thead .sticky-col {
+      z-index: 8;
+      min-height: 84px;
+      background-color: #333;
+    }
+
+    .matrix-name-head,
+    .matrix-name-cell {
+      /* min-width: 280px; */
+      /* max-width: 320px; */
+      /* border-radius: 20px; */
+      border: 0px solid rgba(94, 68, 49, -0.88);
+      padding: 16px 18px;
+      /* width: 100%; */
+      border-style: solid !important;
+      border-color: #4b2c20 !important;
+      border-radius: 0px !important;
+      /* box-shadow: 0px 0px 0 #4b2c20 !important;    
+      border-width: 0px !important;     */
+      height: 105px;
+      box-shadow: 0px 0px 0 #4b2c20 !important;
+      border-width: 0px !important;
+    }
+
+    .matrix-name-head {
+      display: grid;
+      gap: 6px;
+      text-align: left;
+      min-height: 84px;
+      align-items: center;
+    }
+
+    .matrix-name-head strong {
+      font-size: 0.95rem;
+    }
+
+    .matrix-name-head small {
+      font-size: 0.78rem;
+    }
+
+    .santri-identity {
+      display: grid;
+      gap: 4px;
+    }
+
+    .santri-name {
+      font-size: 1.02rem;
+      white-space: pre;
+      overflow: auto;
+      width: 165px;
+    }
+
+    .santri-meta {
+      color: var(--muted);
+      font-size: 0.92rem;
+      white-space: pre;
+      overflow: auto;
+      width: 165px;
+    }
+
+    .santri-removed-tag {
+      display: inline-block;
+      margin-top: 2px;
+      padding: 1px 7px;
+      border-radius: 99px;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      background: rgba(165, 90, 82, 0.16);
+      color: #a55a52;
+      width: fit-content;
+    }
+
+    .attendance-body.hide-name-col .sticky-col {
+      display: none;
+    }
+
+    .matrix-day-btn,
+    .matrix-cell {
+      width: 100%;
+      height: 105px;
+      /* min-height: 72px; */
+      /* border-radius: 18px; */
+      border: 0px solid rgba(94, 68, 49, 0.12);
+      background: rgba(255, 252, 246, 0.95);
+      color: var(--ink);
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      gap: 4px;
+      padding: 0px;
+      font-weight: 800;
+      touch-action: manipulation;
+      user-select: none;
+      border-radius: 0px !important;
+      border-width: 0px !important;
+      box-shadow: 0px 0px 0 #4b2c20 !important;
+      position: relative;
+      text-wrap: wrap;
+    }
+
+    .matrix-cell-condition-wrap {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 2px;
+      pointer-events: none;
+    }
+    .matrix-cell-condition {
+      font-size: 8px;
+      line-height: 1.2;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      padding: 1px 5px;
+      border-radius: 5px;
+      max-width: 70px;
+      text-align: right;
+      text-wrap: wrap;
+    }
+    .matrix-cell-condition-sakit { background: rgba(165, 90, 82, 0.18); color: #a55a52; }
+    .matrix-cell-condition-izin { background: rgba(84, 113, 167, 0.2); color: #4a6da3; }
+    .matrix-cell-condition-sembuh { background: rgba(116, 132, 108, 0.42); color: #4a6040; }
+    .matrix-cell-condition-kembali { background: rgba(116, 132, 108, 0.42); color: #4a6040; }
+
+    .matrix-day-btn {
+      min-height: 84px;
+      background: rgba(255, 249, 236, 0.96);
+      padding: 16px 18px;
+      /* width: 100%; */
+      border-style: solid !important;
+      border-color: #4b2c20 !important;
+      border-radius: 0px !important;
+      box-shadow: 0px 0px 0 #4b2c20 !important;    
+      border-width: 0px !important;    
+    }
+
+    /* .matrix-cell:hover {
+      background: none !important;
+    
+    } */
+
+    .matrix-day-btn span,
+    .matrix-cell span {
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .matrix-day-btn strong {
+      font-size: 0.95rem;
+    }
+
+    .matrix-day-btn small {
+      font-size: 11px;
+    }
+
+    .matrix-day-btn.selected {
+      /* border-style: dotted; */
+      background: linear-gradient(180deg, rgba(255, 239, 184, 0.98), rgba(255, 212, 107, 0.72));
+    }
+
+    .matrix-cell:focus-visible,
+    .matrix-day-btn:focus-visible,
+    .matrix-name-cell:focus-visible {
+      outline: 2px solid rgba(168, 91, 50, 0.38);
+      outline-offset: 3px;
+    }
+
+    .matrix-name-head { cursor: pointer; }
+    .attendance-matrix.name-col-narrow .sticky-col {
+      width: 15vh;
+      max-width: 15vh;
+      overflow: hidden;
+    }
+    .attendance-matrix.name-col-narrow .matrix-name-head,
+    .attendance-matrix.name-col-narrow .matrix-name-cell {
+      width: 15vh;
+      max-width: 15vh;
+      overflow: hidden;
+      white-space: nowrap;
+    }
+
+    /* .matrix-cell.is-selected-date {
+      border-style: dotted;
+    } */
+
+    .matrix-cell[data-status-value="hadir"] {
+      background: var(--success-soft);
+      color: var(--success);
+      /* border-color: rgba(78, 122, 85, 0.26); */
+    }
+
+    .matrix-cell[data-status-value="izin"] {
+      background: var(--warning-soft);
+      color: var(--warning);
+      /* border-color: rgba(177, 118, 43, 0.26); */
+    }
+
+    .matrix-cell[data-status-value="sakit"] {
+      background: var(--sick-soft);
+      color: var(--sick);
+      /* border-color: rgba(128, 109, 53, 0.28); */
+    }
+
+    .matrix-cell[data-status-value="alfa"] {
+      background: var(--alpha-soft);
+      color: var(--alpha);
+      /* border-color: rgba(178, 61, 61, 0.28); */
+    }
+
+    .matrix-cell[data-status-value="tugas"] {
+      background: var(--info-soft);
+      color: var(--info);
+      /* border-color: rgba(75, 111, 159, 0.26); */
+    }
+
+    .matrix-cell[data-status-value="hari_tidak_aktif"] {
+      background: var(--inactive-day-soft);
+      color: var(--inactive-day);
+    }
+
+    .matrix-cell.is-long-pressing,
+    .matrix-day-btn.is-long-pressing {
+      box-shadow: inset 0 0 0 2px rgba(78, 122, 85, 0.3), 0 10px 22px rgba(78, 122, 85, 0.12);
+      /* border-color: rgba(78, 122, 85, 0.34); */
+    }
+
+    .matrix-cell[data-status-value=""] {
+      color: var(--status-empty);
+      background: rgba(255, 252, 246, 0.95);
+    }
+
+    .matrix-cell.is-locked-cell {
+      cursor: not-allowed;
+      opacity: 0.5;
+      background: repeating-linear-gradient(
+        45deg,
+        rgba(94, 68, 49, 0.05),
+        rgba(94, 68, 49, 0.05) 6px,
+        rgba(94, 68, 49, 0.1) 6px,
+        rgba(94, 68, 49, 0.1) 12px
+      ) !important;
+    }
+
+    .attendance-foot {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: end;
+      background:
+        linear-gradient(135deg, rgba(255, 251, 239, 0.84), rgba(232, 205, 122, 0.56)),
+        rgba(255, 249, 240, 0.85);
+    }
+
+    .attendance-foot .attendance-toolbar {
+      padding: 0;
+      border: 0;
+      box-shadow: none;
+      background: transparent;
+    }
+
+    .loading-state, .modal-empty {
+      min-height: 260px;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      padding: 24px;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    @media (max-width: 960px) {
+    .attendance-head,
+      .attendance-foot {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 720px) {
+/* .matrix-name-head, .matrix-name-cell {
+    width: 15vh;
+    overflow: auto;
+
+} */
+
+
+    .panel {
+        padding: 18px;
+      }
+
+    .toolbar {
+        display: flex;
+      }
+
+    .toolbar button{
+        flex: 1 0 160px !important;
+
+    }
+
+    .date-control input {
+      flex: 1;
+      border: 0px solid black;
+      background: transparent;
+    }
+
+    #attendanceDialog {
+        width: 100% !important;
+        min-width: 100% !important;
+        max-width: 100% !important;
+        height: 100% !important;
+        min-height: 100% !important;
+        max-height: 100% !important;
+        overflow: hidden !important;
+        box-sizing: border-box !important;
+        border-radius: 0;
+      }
+
+    .attendance-shell {
+        padding: 14px;
+        gap: 12px;
+      }
+
+    .attendance-content {
+        gap: 0;
+      }
+
+    .attendance-main {
+        gap: 12px;
+      }
+
+    /* .attendance-head,
+      .attendance-toolbar,
+      .attendance-foot,
+      .attendance-body {
+        padding-left: 14px;
+        padding-right: 14px;
+      } */
+      .date-control {
+        width: 100%;
+        justify-content: space-between;
+      }
+
+    /* .matrix-name-head,
+      .matrix-name-cell {
+        min-width: 220px;
+      } */
+
+    .attendance-foot {
+        flex-direction: column;
+        align-items: stretch;
+        grid-template-columns: 1fr;
+      }
+
+    .attendance-foot .toolbar {
+        width: 100%;
+      }
+
+    .attendance-foot .toolbar .btn {
+        flex: 1 1 auto;
+      }
+    }
+    .paging-host {
+      display: grid;
+      gap: 8px;
+      margin: 16px 0;
+    }
+
+    .paging {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .page-center {
+      display: grid;
+      gap: 8px;
+      justify-items: center;
+    }
+
+    .page-numbers {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .page-summary {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    @media (max-width: 960px) {
+      .paging { grid-template-columns: 1fr; }
+    }
+
+    .tahun-select { padding: 10px 12px; font: inherit; font-weight: 600; cursor: pointer; }
+
+    #absensiRekapOverlay {
+      position: absolute;
+      inset: 0;
+      z-index: 50;
+      background: rgba(35, 24, 15, 0.52);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(4px);
+    }
+    #absensiRekapOverlay[hidden] { display: none; }
+    #absensiRekapPanel {
+      position: relative;
+      width: 80%;
+      height: 80%;
+      background:
+        linear-gradient(135deg, rgba(255, 253, 247, 0.98), rgba(247, 226, 156, 0.9)),
+        #fff8e6;
+      border: 1px solid rgba(94, 68, 49, 0.16);
+      border-radius: 24px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 24px 70px rgba(33, 23, 14, 0.28);
+    }
+    .rekap-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 16px 22px;
+      border-bottom: 1px solid rgba(94, 68, 49, 0.14);
+      background: rgba(255, 251, 238, 0.9);
+      flex-shrink: 0;
+    }
+    .rekap-head h3 { margin: 0; font-size: 1.1rem; color: #29170f; line-height: 1.3; }
+    #closeAbsensiRekapButton {
+      width: 38px;
+      height: 38px;
+      border: none;
+      border-radius: 50%;
+      background: rgba(94, 68, 49, 0.1);
+      color: #29170f;
+      font-size: 18px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800 !important;
+      text-transform: none !important;
+      flex-shrink: 0;
+    }
+    #closeAbsensiRekapButton:hover { background: rgba(94, 68, 49, 0.2); }
+    #absensiRekapBody { overflow: auto; flex: 1; padding: 18px 22px; }
+    .rekap-cat { margin-bottom: 22px; }
+    .rekap-cat-title {
+      font-size: 0.82rem;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin: 0 0 10px;
+      padding: 4px 12px;
+      border-radius: 999px;
+      display: inline-block;
+    }
+    .rekap-cat-title.sakit  { background: var(--sick-soft); color: var(--sick); }
+    .rekap-cat-title.izin   { background: var(--warning-soft); color: var(--warning); }
+    .rekap-cat-title.pulang { background: var(--info-soft); color: var(--info); }
+    .rekap-date-row {
+      display: flex;
+      gap: 10px;
+      align-items: baseline;
+      margin-bottom: 6px;
+      font-size: 0.92rem;
+    }
+    .rekap-date-label {
+      font-weight: 700;
+      white-space: nowrap;
+      min-width: 104px;
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+    .rekap-names { color: var(--ink); line-height: 1.55; }
+    .rekap-empty { color: var(--muted); font-size: 0.92rem; font-style: italic; margin: 0; }
+
+    #silabusOverlay {
+      position: absolute; inset: 0; z-index: 50;
+      background: rgba(35, 24, 15, 0.52);
+      display: flex; align-items: center; justify-content: center;
+      backdrop-filter: blur(4px);
+    }
+    #silabusOverlay[hidden] { display: none; }
+    #silabusPanel {
+      position: relative; width: 80%; height: 80%;
+      background: linear-gradient(135deg, rgba(255, 253, 247, 0.98), rgba(247, 226, 156, 0.9)), #fff8e6;
+      border: 1px solid rgba(94, 68, 49, 0.16);
+      border-radius: 24px; overflow: hidden;
+      display: flex; flex-direction: column;
+      box-shadow: 0 24px 70px rgba(33, 23, 14, 0.28);
+    }
+    #closeSilabusButton {
+      width: 38px; height: 38px; border: none; border-radius: 50%;
+      background: rgba(94, 68, 49, 0.1); color: #29170f; font-size: 18px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800 !important; text-transform: none !important; flex-shrink: 0;
+    }
+    #closeSilabusButton:hover { background: rgba(94, 68, 49, 0.2); }
+    #silabusBody { overflow: auto; flex: 1; padding: 18px 22px; }
+    .silabus-progress { font-size: 0.82rem; color: var(--muted); margin: 0 0 14px; }
+    .silabus-item-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 0; border-bottom: 1px solid rgba(94, 68, 49, 0.12);
+      font-size: 0.92rem;
+    }
+    .silabus-item-row:last-child { border-bottom: none; }
+    .silabus-item-name { flex: 1; }
+    .silabus-item-row.is-done .silabus-item-name { text-decoration: line-through; opacity: 0.6; }
+    .silabus-item-date { font-size: 0.76rem; color: var(--muted); flex-shrink: 0; white-space: nowrap; }
+  </style>
+</head>
+<body>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+
+  <main>
+    <section class="shell-sidebar" id="nav" aria-label="Sidebar navigasi"></section>
+    <section class="panel">
+      <div class="section-head">
+        <div>
+          <h2>Daftar Kelas</h2>
+        </div>
+      </div>
+      <div class="filters" id="filtersPanel">
+        <label>
+            Cari Kelas
+            <input id="searchInput" type="search" placeholder="Nama kelas, pengajar, tahun ajaran, atau nama santri">
+        </label>
+        <label>
+            Tahun Ajaran
+            <select id="tahunSelect" class="tahun-select"></select>
+        </label>
+        <label>
+            Gender
+            <select id="filterGender">
+              <option value="">Semua</option>
+              <option value="ikhwan">Ikhwan</option>
+              <option value="akhowat">Akhowat</option>
+              <option value="campur">Campur</option>
+            </select>
+        </label>
+      </div>
+      <div class="toolbar" id="actionToolbar">
+        <button class="btn" id="refreshButton" type="button">Muat ulang</button>
+      </div>
+      <div class="paging-host" id="paginationTop"></div>
+      <div class="kelas-grid" id="kelasList"></div>
+      <div class="paging-host" id="paginationBottom"></div>
+    </section>
+  </main>
+
+  <div id="dialogRoot">
+  <dialog class="ps-floating-dialog" id="attendanceDialog">
+    <form class="dialog-body duplicate-dialog-body ps-dialog-shell attendance-shell" id="attendanceForm" method="dialog">
+      <div class="duplicate-dialog-head ps-dialog-header attendance-head">
+        <div>
+          <div>
+            <h2 id="dialogTitle">Memuat Kelas...</h2>
+          </div>
+          <div>
+            <span class="summary-pill dirty-pill" id="dirtyPill" hidden>Belum disimpan</span>
+          </div>
+        </div>
+      </div>
+      <div style="height: 100%;display: flex;overflow: hidden;flex-direction: column;justify-content: space-between;">
+      <div class="date-bar">
+          <div class="date-control">
+            <label class="search-field santri-search-field">
+              <span>Cari santri</span>
+              <input id="santriSearchInput" type="search" placeholder="Filter nama atau no induk">
+            </label>
+            <!-- <strong>Hari</strong> -->
+            <select id="attendanceWindowSize" aria-label="Jumlah hari yang ditampilkan">
+              <option value="7">7</option>
+              <option value="10" selected="">10</option>
+              <option value="15">15</option>
+              <option value="30">30</option>
+              <option value="60">60</option>
+              <option value="90">90</option>
+            </select>
+          </div>
+          <div class="date-control">
+            <!-- <strong>Akhir rentang</strong> -->
+            <button class="btn" id="prevDateButton" type="button">-1 hari</button>
+            <input id="attendanceDate" type="date" required="">
+            <button class="btn" id="nextDateButton" type="button">+1 hari</button>
+          </div>
+        </div>
+        <div class="attendance-content">
+          <div class="matrix-longpress-hint" id="matrixLongPressHint" hidden>
+            Klik lama pada tabel untuk mengisi banyak sekaligus
+          </div>
+          <div class="attendance-body" id="attendanceBody">
+            <div class="loading-state">Memuat editor absensi Kelas...</div>
+          </div>
+        </div>
+        <div class="attendance-toolbar">
+          <div class="toolbar" style=" padding: 11px; ">
+            <div>
+              <button class="btn" id="toggleNamaButton" type="button">Sembunyikan Nama</button>
+              <button class="btn secondary" id="setAllHadirButton" type="button">Set semua hadir</button>
+              <button class="btn warning" id="copyLatestButton" type="button" title="Salin status terakhir">Salin terakhir</button>
+              <button class="btn" id="clearAllButton" type="button">Kosongkan status</button>
+              <button class="btn" id="undoButton" type="button">Undo</button>
+              <button class="btn" id="redoButton" type="button">Redo</button>
+              <button class="btn secondary" id="rekapAbsensiButton" type="button">Rekap Sakit &amp; Izin</button>
+              <button class="btn secondary" id="silabusButton" type="button">Silabus</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="unsaved-confirm" id="unsavedConfirm" role="dialog" aria-modal="true" aria-labelledby="unsavedConfirmTitle" hidden>
+        <div class="unsaved-card">
+          <h3 id="unsavedConfirmTitle">Kamu belum menyimpan</h3>
+          <p>Apakah kamu mau menyimpan?</p>
+          <div class="unsaved-actions">
+            <button class="btn secondary" id="unsavedStayButton" type="button">Tetap edit</button>
+            <button class="btn" id="unsavedCancelButton" type="button">Batal</button>
+            <button class="btn primary" id="unsavedSaveButton" type="button">Simpan</button>
+          </div>
+        </div>
+      </div>
+      <div class="ps-dialog-footer">
+        <div class="toolbar" style="justify-content: flex-end;">
+          <button class="btn" id="cancelDialogButton" type="button">Batal</button>
+          <button class="btn primary" id="saveDialogButton" type="submit">Simpan absensi</button>
+        </div>
+      </div>
+    </form>
+  <div id="absensiRekapOverlay" hidden>
+    <div id="absensiRekapPanel">
+      <div class="rekap-head">
+        <h3 id="absensiRekapTitle">Rekap Sakit &amp; Izin</h3>
+        <button id="closeAbsensiRekapButton" type="button" title="Tutup">&#x2715;</button>
+      </div>
+      <div id="absensiRekapBody"></div>
+    </div>
+  </div>
+  <div id="silabusOverlay" hidden>
+    <div id="silabusPanel">
+      <div class="rekap-head">
+        <h3 id="silabusTitle">Silabus</h3>
+        <button id="closeSilabusButton" type="button" title="Tutup">&#x2715;</button>
+      </div>
+      <div id="silabusBody"></div>
+    </div>
+  </div>
+  </dialog>
+
+  </div>
+
+  <script src="../../shared-access.js"></script>
+  <script src="../../shared-nav.js"></script>
+  <script src="../../shared-shell.js"></script>
+  <script>
+    const API_BASE = window.location.origin + '/api';
+    const STORAGE = { apiBase: 'ps_api_base', token: 'ps_token', session: 'ps_session', hideSantriName: 'ps_kelas_absensi_hide_nama' };
+    const DATE_FORMATTER = new Intl.DateTimeFormat('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Jakarta' });
+    const SHORT_DATE_FORMATTER = new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Jakarta' });
+    const WEEKDAY_FORMATTER = new Intl.DateTimeFormat('id-ID', { weekday: 'short', timeZone: 'Asia/Jakarta' });
+    const STATUS_OPTIONS = [
+      { value: 'hari_tidak_aktif', short: 'NA', label: 'Hari tidak aktif' },
+      { value: 'hadir', short: 'H', label: 'Hadir' },
+      { value: 'izin', short: 'I', label: 'Izin' },
+      { value: 'sakit', short: 'S', label: 'Sakit' },
+      { value: 'alfa', short: 'A', label: 'Alfa' },
+      { value: 'tugas', short: 'T', label: 'Tugas' }
+    ];
+    const STATUS_SEQUENCE = STATUS_OPTIONS.map(item => item.value);
+    const WINDOW_SIZE_OPTIONS = [7, 10, 15, 30, 60, 90];
+    const MODAL_HISTORY_LIMIT = 100;
+    const state = {
+      session: null,
+      today: '',
+      searchQuery: '',
+      filterGender: '',
+      page: 1,
+      pageSize: 10,
+      items: [],
+      tahunList: [],
+      selectedTahun: '',
+      modal: {
+        open: false,
+        loading: false,
+        dirty: false,
+        requestToken: 0,
+        filter: '',
+        kelas: null,
+        record: null,
+        selectedDate: '',
+        windowEndDate: '',
+        windowSize: 10,
+        windowDates: [],
+        recordsByDate: {},
+        originalRecordsByDate: {},
+        dirtyDates: [],
+        bulkSetIndex: 0,
+        undoStack: [],
+        redoStack: [],
+        clickTimers: {},
+        longPressTimer: null,
+        longPressHandled: false
+      }
+    };
+    let noticeId = '';
+    let noticeCounter = 0;
+    let pendingUnsavedPrompt = null;
+
+    localStorage.setItem(STORAGE.apiBase, API_BASE);
+
+    function escapeHtml(text) {
+      return String(text == null ? '' : text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function getToken() {
+      return localStorage.getItem(STORAGE.token) || '';
+    }
+
+    function clearSession() {
+      localStorage.removeItem(STORAGE.token);
+      localStorage.removeItem(STORAGE.session);
+    }
+
+    function getStoredSession() {
+      try {
+        return JSON.parse(localStorage.getItem(STORAGE.session) || 'null');
+      } catch (error) {
+        return null;
+      }
+    }
+
+    function canManageAbsensiScoped() {
+      const session = window.PSAccess && typeof window.PSAccess.getScopedSession === 'function'
+        ? window.PSAccess.getScopedSession(getStoredSession())
+        : getStoredSession();
+      const p = session && session.permissions;
+      return !!(p && (p.canManageKelasSiang || p.canManageNilaiUp));
+    }
+
+    function todayDate() {
+      return new Intl.DateTimeFormat('sv-SE', {
+        timeZone: 'Asia/Jakarta',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      }).format(new Date());
+    }
+
+    function formatLongDate(value) {
+      if (!value) return '-';
+      return DATE_FORMATTER.format(new Date(`${value}T12:00:00`));
+    }
+
+    function formatShortDate(value) {
+      if (!value) return '-';
+      return SHORT_DATE_FORMATTER.format(new Date(`${value}T12:00:00`));
+    }
+
+    function formatWeekday(value) {
+      if (!value) return '-';
+      return WEEKDAY_FORMATTER.format(new Date(`${value}T12:00:00`));
+    }
+
+    function shiftDateValue(value, days) {
+      if (!value) return '';
+      const base = new Date(`${value}T12:00:00`);
+      base.setDate(base.getDate() + days);
+      return new Intl.DateTimeFormat('sv-SE', {
+        timeZone: 'Asia/Jakarta',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      }).format(base);
+    }
+
+    function clonePlain(value) {
+      return value == null ? value : JSON.parse(JSON.stringify(value));
+    }
+
+    function getStatusMeta(status) {
+      return STATUS_OPTIONS.find(item => item.value === status) || null;
+    }
+
+    function getStatusShort(status) {
+      const item = getStatusMeta(status);
+      return item ? item.short : '-';
+    }
+
+    function getStatusLabel(status) {
+      const item = getStatusMeta(status);
+      return item ? item.label : 'Belum diisi';
+    }
+
+    function getNextCycleStatus(status) {
+      if (!status) return STATUS_SEQUENCE[0];
+      const index = STATUS_SEQUENCE.indexOf(status);
+      if (index === -1) return STATUS_SEQUENCE[0];
+      return index >= STATUS_SEQUENCE.length - 1 ? '' : STATUS_SEQUENCE[index + 1];
+    }
+
+    function normalizeBulkSetIndex(value) {
+      if (!STATUS_SEQUENCE.length) return 0;
+      const parsed = Number(value);
+      if (!Number.isFinite(parsed)) return 0;
+      return ((Math.trunc(parsed) % STATUS_SEQUENCE.length) + STATUS_SEQUENCE.length) % STATUS_SEQUENCE.length;
+    }
+
+    function getBulkCycleStatus(index = state.modal.bulkSetIndex) {
+      return STATUS_SEQUENCE[normalizeBulkSetIndex(index)] || STATUS_SEQUENCE[0] || '';
+    }
+
+    function getBulkCycleButtonLabel() {
+      const meta = getStatusMeta(getBulkCycleStatus());
+      return meta ? `Set semua ${meta.label.toLowerCase()}` : 'Set semua status';
+    }
+
+    function normalizeWindowSize(value) {
+      const parsed = Number(value);
+      return WINDOW_SIZE_OPTIONS.includes(parsed) ? parsed : 10;
+    }
+
+    function toParams(data) {
+      const params = new URLSearchParams();
+      Object.entries(data || {}).forEach(([key, value]) => {
+        if (value === undefined || value === null) return;
+        params.append(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
+      });
+      return params;
+    }
+
+    async function api(action, payload = {}, method = 'GET') {
+      const token = getToken();
+      if (!token) {
+        clearSession();
+        window.location.replace('/pages/login/');
+        throw new Error('Sesi tidak ditemukan.');
+      }
+
+      const scopeLabel = window.PSAccess ? (window.PSAccess.getActiveRoleScopeLabel(getStoredSession()) || '') : '';
+      const response = method === 'GET'
+        ? await fetch(`${API_BASE}?${toParams({ action, token, scopeLabel, ...payload }).toString()}`, { cache: 'no-store' })
+        : await fetch(API_BASE, { method, body: toParams({ action, token, scopeLabel, ...payload }) });
+      const json = await response.json();
+
+      if (!json.ok) {
+        const error = new Error(json.error && json.error.message ? `Server mengatakan: ${json.error.message}` : 'Permintaan gagal.');
+        error.code = json.error && json.error.code ? json.error.code : response.status;
+        if (error.code === 401) {
+          clearSession();
+          window.location.replace('/pages/login/');
+        }
+        throw error;
+      }
+      return json.data;
+    }
+
+    function createNotice(text, type = 'info') {
+      const element = document.createElement('div');
+      element.className = `notice show ${type || 'info'}`;
+      element.dataset.noticeId = `notice-${Date.now()}-${noticeCounter += 1}`;
+      element.textContent = text;
+      return element;
+    }
+
+    function relocateNoticeStack() {
+      const stack = document.getElementById('noticeStack');
+      const dialog = document.getElementById('attendanceDialog');
+      if (dialog && dialog.open) {
+        if (stack.parentNode !== dialog) dialog.appendChild(stack);
+      } else if (stack.parentNode !== document.body) {
+        document.body.prepend(stack);
+      }
+    }
+
+    function showNotice(text, type) {
+      if (noticeId) {
+        const existing = document.querySelector(`[data-notice-id="${noticeId}"]`);
+        if (existing) existing.remove();
+      }
+      const element = createNotice(text, type);
+      const stack = document.getElementById('noticeStack');
+      if (!stack) return;
+
+      // Dialog absensi dibuka lewat showModal(), yang membuat semua elemen di luar dialog
+      // jadi inert (tidak menerima klik) -- termasuk #noticeStack yang normalnya anak <body>.
+      // Pindahkan sementara jadi anak dialog supaya notice tetap bisa di-dismiss selagi
+      // dialog terbuka; dipindah balik ke <body> saat dialog ditutup (lihat listener 'close').
+      relocateNoticeStack();
+
+      function dismiss() {
+        if (!element.parentNode) return;
+        element.remove();
+        if (!stack.hasChildNodes() && stack.matches(':popover-open')) {
+          stack.hidePopover();
+        }
+      }
+
+      element.addEventListener('click', dismiss);
+      window.setTimeout(dismiss, type === 'error' ? 10000 : 6000);
+      stack.prepend(element);
+      noticeId = element.dataset.noticeId;
+      if (stack.matches(':popover-open')) stack.hidePopover();
+      stack.showPopover();
+    }
+
+    function mountShell(session) {
+      return window.PSShell.mount({
+        currentPage: window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : '/pages/kelasAbsensi/',
+        session,
+        getStoredSession,
+        storageKey: STORAGE.session
+      });
+    }
+
+    function getTodayAttendanceNotice(item) {
+      const todayLabel = formatLongDate(state.today);
+      const summary = item.todayRecord && item.todayRecord.summary ? item.todayRecord.summary : null;
+      if (!summary || !summary.filled) {
+        return {
+          type: 'pending',
+          text: `Kamu belum absensi hari ${todayLabel}.`
+        };
+      }
+      if ((summary.filled || 0) >= (summary.total || 0)) {
+        return {
+          type: '',
+          text: `Absensi hari ${todayLabel} sudah lengkap.`
+        };
+      }
+      return {
+        type: 'partial',
+        text: `Absensi hari ${todayLabel} belum lengkap.`
+      };
+    }
+
+    function getGuruText(item) {
+      const guruNames = [...(item.pengajarLabels || []), ...(item.badalLabels || []).map(n => `${n} (badal)`)];
+      return guruNames.length ? guruNames.join(', ') : 'Belum ada guru terpasang';
+    }
+
+    function getAuditSummaryHtml(item) {
+      const audit = item.audit;
+      if (!audit || !audit.active || !audit.missingCount) return '';
+      const guruText = getGuruText(item);
+      const hariText = audit.missingWeekdays && audit.missingWeekdays.length ? ` (${audit.missingWeekdays.join(', ')})` : '';
+      return `<div class="attendance-audit">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        ${audit.missingCount}x belum diabsen sejak ${formatShortDate(audit.since)}${hariText} &middot; PJ: ${escapeHtml(guruText)}
+      </div>`;
+    }
+
+    function getGenderCardClass(value) {
+      const text = String(value || '').toLowerCase().replace(/[_-]+/g, ' ').trim();
+      if (['ikhwan', 'putra', 'l', 'lk', 'laki laki', 'laki', 'male'].includes(text)) return 'entity-gender-ikhwan';
+      if (['akhowat', 'akhawat', 'akhwat', 'putri', 'p', 'pr', 'perempuan', 'female'].includes(text)) return 'entity-gender-akhowat';
+      if (['campur', 'mixed', 'mix', 'gabungan'].includes(text)) return 'entity-gender-campur';
+      return '';
+    }
+
+    function normalizeGenderKey(value) {
+      const t = String(value || '').toLowerCase();
+      if (['ikhwan', 'putra', 'laki-laki', 'laki', 'male', 'l'].some(k => t.includes(k))) return 'ikhwan';
+      if (['akhowat', 'akhwat', 'putri', 'perempuan', 'female', 'p', 'wanita'].some(k => t.includes(k))) return 'akhowat';
+      if (['campur', 'mixed', 'mix', 'gabungan'].some(k => t.includes(k))) return 'campur';
+      return '';
+    }
+
+    function getFilteredItems() {
+      const query = state.searchQuery.trim().toLowerCase();
+      return state.items.filter(item => {
+        if (state.filterGender && normalizeGenderKey(item.genderGroup) !== state.filterGender) return false;
+        if (query) {
+          const hay = [item.name, item.description, item.tahunAjaranNama, (item.pengajarLabels || []).join(' '), (item.badalLabels || []).join(' '), (item.santriLabels || []).join(' ')].join(' ').toLowerCase();
+          if (!hay.includes(query)) return false;
+        }
+        return true;
+      });
+    }
+
+    function buildPaginationList(page, totalPages) {
+      const max = 10;
+      if (totalPages <= max) return Array.from({ length: totalPages }, (_, i) => i + 1);
+      const mid = max - 2;
+      const pages = [1];
+      let start = Math.max(2, page - Math.floor(mid / 2));
+      let end = start + mid - 1;
+      if (end > totalPages - 1) { end = totalPages - 1; start = end - mid + 1; }
+      if (start > 2) pages.push('...');
+      for (let i = start; i <= end; i++) pages.push(i);
+      if (end < totalPages - 1) pages.push('...');
+      pages.push(totalPages);
+      return pages;
+    }
+
+    function renderPagination(total) {
+      const totalPages = Math.max(1, Math.ceil(total / state.pageSize));
+      const markup = total > 0 ? `
+        <div class="paging">
+          <button class="secondary" type="button" data-page="${state.page - 1}" ${state.page <= 1 ? 'disabled' : ''}>Sebelumnya</button>
+          <div class="page-center">
+            <div class="page-numbers">
+              ${buildPaginationList(state.page, totalPages).map(item =>
+                item === '...'
+                  ? '<span class="page-summary">...</span>'
+                  : `<button class="secondary page-btn ${item === state.page ? 'active' : ''}" type="button" data-page="${item}">${item}</button>`
+              ).join('')}
+            </div>
+            <div class="page-summary">Halaman ${state.page} dari ${totalPages} | total ${total} kelas</div>
+          </div>
+          <button class="secondary" type="button" data-page="${state.page + 1}" ${state.page >= totalPages ? 'disabled' : ''}>Berikutnya</button>
+        </div>` : '';
+      window.PSUI.syncPaginationHosts({ markup, visibleCount: Math.min(state.pageSize, total), totalCount: total, minimumCount: 0, topId: 'paginationTop', bottomId: 'paginationBottom' });
+    }
+
+    function renderCards() {
+      const target = document.getElementById('kelasList');
+      const items = getFilteredItems();
+      if (!items.length) {
+        target.innerHTML = `
+          <div class="empty-state" style="grid-column:1/-1;">
+            <h3 style="margin-bottom:10px;">Belum ada Kelas yang bisa diabsen</h3>
+            <p>Jika akun ini belum tercatat sebagai pengajar atau badal pada kelas aktif, kartu tidak akan muncul di halaman ini.</p>
+          </div>
+        `;
+        renderPagination(0);
+        return;
+      }
+      const totalPages = Math.ceil(items.length / state.pageSize);
+      if (state.page > totalPages) state.page = totalPages;
+      const paged = items.slice((state.page - 1) * state.pageSize, state.page * state.pageSize);
+
+      target.innerHTML = paged.map(item => {
+        const notice = getTodayAttendanceNotice(item);
+        const genderClass = getGenderCardClass(item.genderGroup);
+
+        return `
+          <article class="card minimal-list-card${genderClass ? ` ${genderClass}` : ''}">
+            <div class="minimal-list-card-head">
+              <div class="minimal-list-card-main">
+                <strong class="minimal-list-card-name">${escapeHtml(item.name || '-')}</strong>
+                <span class="minimal-list-card-hint"><i class="fa-solid fa-chalkboard-user"></i> ${escapeHtml(getGuruText(item))} &nbsp;&middot;&nbsp; <i class="fa-solid fa-users"></i> ${item.santriCount || 0} santri</span>
+                ${item.description ? `<span class="minimal-list-card-hint">${escapeHtml(item.description)}</span>` : ''}
+              </div>
+              <button class="secondary minimal-list-card-toggle" type="button" data-open-kelas="${escapeHtml(item.id)}" data-date="${escapeHtml(state.today)}">Buka absensi</button>
+            </div>
+            ${notice.text ? `<div class="attendance-alert${notice.type ? ` ${escapeHtml(notice.type)}` : ''}">${escapeHtml(notice.text)}</div>` : ''}
+            ${getAuditSummaryHtml(item)}
+          </article>
+        `;
+      }).join('');
+      renderPagination(items.length);
+    }
+
+    function renderPage() {
+      renderCards();
+    }
+
+    async function loadTahunSelect() {
+      try {
+        const data = await api('tahunAjaran.list');
+        state.tahunList = data.items || [];
+        const activeTa = state.tahunList.find(t => t.isAktif) || state.tahunList[0];
+        state.selectedTahun = activeTa?.id || '';
+        const sel = document.getElementById('tahunSelect');
+        sel.innerHTML = `<option value="">— Semua tahun —</option>` + state.tahunList.map(t =>
+          `<option value="${t.id}" ${t.id === state.selectedTahun ? 'selected' : ''}>${t.namaDisplay || t.nama || t.id}</option>`
+        ).join('');
+        sel.value = state.selectedTahun;
+        sel.addEventListener('change', () => { state.selectedTahun = sel.value; loadDashboardData(false); });
+      } catch { /* silent */ }
+    }
+
+    async function loadDashboardData(showMessage) {
+      const tahunAjaranId = state.selectedTahun;
+      const data = await api('kelas.absensi.dashboard', tahunAjaranId ? { tahunAjaranId } : {});
+      state.today = data.today || todayDate();
+      state.items = Array.isArray(data.items) ? data.items : [];
+      renderPage();
+      if (showMessage) {
+        showNotice('Daftar absensi Kelas berhasil dimuat ulang.');
+      }
+    }
+
+
+    function getCardById(kelasId) {
+      return state.items.find(item => item.id === kelasId) || null;
+    }
+
+    function clearModalClickTimers() {
+      Object.keys(state.modal.clickTimers).forEach(key => {
+        window.clearTimeout(state.modal.clickTimers[key]);
+      });
+      state.modal.clickTimers = {};
+      if (state.modal.longPressTimer) {
+        window.clearTimeout(state.modal.longPressTimer);
+      }
+      state.modal.longPressTimer = null;
+    }
+
+    function resetModalState() {
+      clearModalClickTimers();
+      state.modal.open = false;
+      state.modal.loading = false;
+      state.modal.dirty = false;
+      state.modal.filter = '';
+      state.modal.kelas = null;
+      state.modal.record = null;
+      state.modal.selectedDate = '';
+      state.modal.windowEndDate = '';
+      state.modal.windowSize = 10;
+      state.modal.windowDates = [];
+      state.modal.recordsByDate = {};
+      state.modal.originalRecordsByDate = {};
+      state.modal.dirtyDates = [];
+      state.modal.bulkSetIndex = 0;
+      state.modal.undoStack = [];
+      state.modal.redoStack = [];
+      state.modal.longPressHandled = false;
+    }
+
+    function promptSavePendingChanges() {
+      if (pendingUnsavedPrompt) return pendingUnsavedPrompt;
+
+      const overlay = document.getElementById('unsavedConfirm');
+      const saveButton = document.getElementById('unsavedSaveButton');
+      const stayButton = document.getElementById('unsavedStayButton');
+      const cancelButton = document.getElementById('unsavedCancelButton');
+      overlay.hidden = false;
+      requestAnimationFrame(() => overlay.classList.add('show'));
+
+      pendingUnsavedPrompt = new Promise(resolve => {
+        const finish = value => {
+          overlay.classList.remove('show');
+          overlay.hidden = true;
+          saveButton.removeEventListener('click', saveHandler);
+          stayButton.removeEventListener('click', stayHandler);
+          cancelButton.removeEventListener('click', cancelHandler);
+          overlay.removeEventListener('click', backdropHandler);
+          document.removeEventListener('keydown', keyHandler);
+          pendingUnsavedPrompt = null;
+          resolve(value);
+        };
+        const saveHandler = () => finish('save');
+        const stayHandler = () => finish('stay');
+        const cancelHandler = () => finish('discard');
+        const backdropHandler = event => {
+          if (event.target === overlay) finish('stay');
+        };
+        const keyHandler = event => {
+          if (event.key === 'Escape') finish('stay');
+        };
+
+        saveButton.addEventListener('click', saveHandler);
+        stayButton.addEventListener('click', stayHandler);
+        cancelButton.addEventListener('click', cancelHandler);
+        overlay.addEventListener('click', backdropHandler);
+        document.addEventListener('keydown', keyHandler);
+        setTimeout(() => saveButton.focus(), 0);
+      });
+
+      return pendingUnsavedPrompt;
+    }
+
+    async function confirmSavePendingChanges() {
+      if (!state.modal.dirty) return true;
+      const decision = await promptSavePendingChanges();
+      if (decision === 'save') {
+        return saveModalChanges({ reload: false });
+      }
+      if (decision === 'discard') {
+        return true;
+      }
+      return false;
+    }
+
+    function syncDirtyPill() {
+      const pill = document.getElementById('dirtyPill');
+      const dirtyCount = state.modal.dirtyDates.length;
+      pill.hidden = !state.modal.dirty;
+      pill.textContent = dirtyCount > 1 ? `${dirtyCount} hari berubah` : dirtyCount === 1 ? '1 hari berubah' : '';
+    }
+
+    function getModalRecordByDate(dateValue) {
+      return dateValue ? (state.modal.recordsByDate[dateValue] || null) : null;
+    }
+
+    function syncSelectedModalRecord() {
+      if (!state.modal.selectedDate || !getModalRecordByDate(state.modal.selectedDate)) {
+        state.modal.selectedDate = state.modal.windowDates[state.modal.windowDates.length - 1] || '';
+      }
+      state.modal.record = getModalRecordByDate(state.modal.selectedDate);
+    }
+
+    function buildComparableModalRecord(record) {
+      return JSON.stringify({
+        tanggal: record && record.tanggal ? record.tanggal : '',
+        catatan: record && record.catatan ? record.catatan : '',
+        entries: Array.isArray(record && record.entries) ? record.entries.map(entry => ({
+          santriId: entry.santriId || '',
+          status: entry.status || '',
+          keterangan: entry.keterangan || ''
+        })) : []
+      });
+    }
+
+    function createModalSnapshot() {
+      return {
+        selectedDate: state.modal.selectedDate || '',
+        bulkSetIndex: normalizeBulkSetIndex(state.modal.bulkSetIndex),
+        windowDates: state.modal.windowDates.slice(),
+        recordsByDate: clonePlain(state.modal.recordsByDate || {})
+      };
+    }
+
+    function pushModalHistoryEntry(stack, snapshot) {
+      stack.push(snapshot);
+      if (stack.length > MODAL_HISTORY_LIMIT) {
+        stack.shift();
+      }
+    }
+
+    function restoreModalSnapshot(snapshot) {
+      if (!snapshot) return;
+      state.modal.selectedDate = snapshot.selectedDate || '';
+      state.modal.bulkSetIndex = normalizeBulkSetIndex(snapshot.bulkSetIndex);
+      state.modal.windowDates = Array.isArray(snapshot.windowDates) ? snapshot.windowDates.slice() : [];
+      state.modal.recordsByDate = clonePlain(snapshot.recordsByDate || {});
+      state.modal.windowDates.forEach(dateValue => {
+        recalculateRecordSummary(state.modal.recordsByDate[dateValue]);
+      });
+      syncSelectedModalRecord();
+      refreshModalDirtyState();
+      renderDialog();
+    }
+
+    function commitModalMutation(mutator) {
+      const previousSnapshot = createModalSnapshot();
+      const mutation = mutator();
+      const changed = typeof mutation === 'object' && mutation !== null ? !!mutation.changed : !!mutation;
+      if (!changed) return false;
+      pushModalHistoryEntry(state.modal.undoStack, previousSnapshot);
+      state.modal.redoStack = [];
+      refreshModalDirtyState();
+      renderDialog();
+      if (mutation && typeof mutation === 'object' && mutation.noticeText) {
+        showNotice(mutation.noticeText, mutation.noticeType);
+      }
+      return true;
+    }
+
+    function undoModalChange() {
+      if (!state.modal.undoStack.length) return;
+      const snapshot = state.modal.undoStack.pop();
+      pushModalHistoryEntry(state.modal.redoStack, createModalSnapshot());
+      restoreModalSnapshot(snapshot);
+    }
+
+    function redoModalChange() {
+      if (!state.modal.redoStack.length) return;
+      const snapshot = state.modal.redoStack.pop();
+      pushModalHistoryEntry(state.modal.undoStack, createModalSnapshot());
+      restoreModalSnapshot(snapshot);
+    }
+
+    function refreshModalDirtyState() {
+      state.modal.dirtyDates = state.modal.windowDates.filter(dateValue => {
+        return buildComparableModalRecord(getModalRecordByDate(dateValue)) !== buildComparableModalRecord(state.modal.originalRecordsByDate[dateValue] || null);
+      });
+      markModalDirty(state.modal.dirtyDates.length > 0);
+    }
+
+    function recalculateRecordSummary(record) {
+      if (!record || !Array.isArray(record.entries)) return;
+      const summary = {
+        total: record.entries.length,
+        hadir: 0,
+        izin: 0,
+        sakit: 0,
+        alfa: 0,
+        tugas: 0,
+        hari_tidak_aktif: 0,
+        belum: 0,
+        filled: 0,
+        progressPercent: 0
+      };
+
+      record.entries.forEach(entry => {
+        if (getStatusMeta(entry.status)) {
+          summary[entry.status] += 1;
+          summary.filled += 1;
+        } else {
+          summary.belum += 1;
+        }
+      });
+      summary.progressPercent = summary.total ? Math.round((summary.filled / summary.total) * 100) : 0;
+      record.summary = summary;
+    }
+
+    function applyModalWindow(data, options = {}) {
+      const records = Array.isArray(data.window && data.window.dates) && data.window.dates.length
+        ? data.window.dates
+        : (data.record ? [data.record] : []);
+
+      state.modal.recordsByDate = {};
+      state.modal.originalRecordsByDate = {};
+      state.modal.windowDates = [];
+
+      records.forEach(sourceRecord => {
+        if (!sourceRecord || !sourceRecord.tanggal) return;
+        const record = clonePlain(sourceRecord);
+        recalculateRecordSummary(record);
+        state.modal.recordsByDate[record.tanggal] = record;
+        state.modal.originalRecordsByDate[record.tanggal] = clonePlain(record);
+        state.modal.windowDates.push(record.tanggal);
+      });
+
+      state.modal.windowEndDate = (data.window && data.window.endDate) || state.modal.windowDates[state.modal.windowDates.length - 1] || options.date || state.today;
+      state.modal.windowSize = normalizeWindowSize((data.window && data.window.size) || options.windowSize || state.modal.windowSize);
+      state.modal.selectedDate = options.selectedDate || (data.window && data.window.selectedDate) || (data.record && data.record.tanggal) || state.modal.windowEndDate;
+      state.modal.bulkSetIndex = 0;
+      state.modal.undoStack = [];
+      state.modal.redoStack = [];
+      syncSelectedModalRecord();
+      state.modal.dirtyDates = [];
+      markModalDirty(false);
+    }
+
+    // Urutan baris tabel HARUS stabil, tidak ikut tanggal yang sedang dipilih --
+    // tiap tanggal punya array entries dengan urutan sendiri (backend nempel santri
+    // "belum jadi anggota pada tanggal itu" di ujung array, beda-beda per tanggal), jadi
+    // kalau row order ikut `state.modal.record` (tanggal terpilih), baris santri yang baru
+    // pindah/gabung bisa lompat ke bawah saat kolom tanggal lamanya diklik. Dipakai tanggal
+    // TERAKHIR di window (paling representatif utk keanggotaan saat ini) sebagai acuan urutan.
+    function getReferenceModalRecord() {
+      const dates = state.modal.windowDates;
+      return getModalRecordByDate(dates[dates.length - 1]) || getModalRecordByDate(dates[0]) || null;
+    }
+
+    function getFilteredModalEntries() {
+      const record = getReferenceModalRecord();
+      if (!record || !Array.isArray(record.entries)) return [];
+      const query = state.modal.filter.trim().toLowerCase();
+      if (!query) return record.entries.slice();
+      return record.entries.filter(entry => [entry.santriName, entry.noInduk].join(' ').toLowerCase().includes(query));
+    }
+
+    function matrixConditionInfos(entry, date) {
+      if (!entry) return [];
+      const infos = [];
+      if (entry.sakit) {
+        const isMulaiDay = entry.sakit.tanggalMulai && entry.sakit.tanggalMulai === date;
+        const isSembuhDay = !entry.sakit.ongoing && entry.sakit.tanggalSembuh && entry.sakit.tanggalSembuh === date;
+        if (isMulaiDay) {
+          const label = 'Mulai Sakit' + (entry.sakit.jamMulai ? ' ' + entry.sakit.jamMulai : '');
+          const text = ['Mulai sakit' + (entry.sakit.jamMulai ? ' ' + entry.sakit.jamMulai : ''), entry.sakit.keterangan, entry.sakit.tempat ? 'di ' + entry.sakit.tempat : ''].filter(Boolean).join(' · ');
+          infos.push({ label, type: 'sakit', text });
+        }
+        if (isSembuhDay) {
+          const label = 'Sembuh' + (entry.sakit.jamSembuh ? ' ' + entry.sakit.jamSembuh : '');
+          const text = ['Sembuh' + (entry.sakit.jamSembuh ? ' ' + entry.sakit.jamSembuh : ''), entry.sakit.keterangan].filter(Boolean).join(' · ');
+          infos.push({ label, type: 'sembuh', text });
+        }
+        if (!isMulaiDay && !isSembuhDay) {
+          const text = ['Sakit', entry.sakit.keterangan, entry.sakit.tempat ? 'di ' + entry.sakit.tempat : ''].filter(Boolean).join(' · ');
+          infos.push({ label: 'Sakit', type: 'sakit', text });
+        }
+      }
+      if (entry.izin) {
+        const isBerangkatDay = entry.izin.tanggalIzin && entry.izin.tanggalIzin === date;
+        const isKembaliDay = !entry.izin.ongoing && entry.izin.tanggalKembaliAktual && entry.izin.tanggalKembaliAktual === date;
+        if (isBerangkatDay) {
+          const label = 'Izin' + (entry.izin.jamIzin ? ' ' + entry.izin.jamIzin : '');
+          const text = ['Berangkat izin' + (entry.izin.jamIzin ? ' ' + entry.izin.jamIzin : ''), entry.izin.keperluan].filter(Boolean).join(' · ');
+          infos.push({ label, type: 'izin', text });
+        }
+        if (isKembaliDay) {
+          const label = 'Kembali' + (entry.izin.jamKembaliAktual ? ' ' + entry.izin.jamKembaliAktual : '');
+          const text = ['Sudah Kembali' + (entry.izin.jamKembaliAktual ? ' ' + entry.izin.jamKembaliAktual : ''), entry.izin.keperluan].filter(Boolean).join(' · ');
+          infos.push({ label, type: 'kembali', text });
+        }
+        if (!isBerangkatDay && !isKembaliDay) {
+          const text = ['Izin Pulang', entry.izin.keperluan].filter(Boolean).join(' · ');
+          infos.push({ label: 'Izin', type: 'izin', text });
+        }
+      }
+      return infos;
+    }
+
+    function sakitBolehLabel(entry) {
+      if (!entry || !entry.sakit) return '';
+      const map = { semua: 'Tetap wajib masuk kelas dan halaqoh', halaqoh: 'Boleh masuk halaqoh saja', kelas: 'Boleh masuk kelas saja', wajib_halaqoh: 'Wajib masuk halaqoh saja', wajib_kelas: 'Wajib masuk kelas saja', tidak: 'Tidak boleh masuk keduanya' };
+      return map[entry.sakit.bolehMasuk || 'semua'] || map.semua;
+    }
+
+    function renderAttendanceBody() {
+      const target = document.getElementById('attendanceBody');
+      if (state.modal.loading) {
+        target.innerHTML = '<div class="loading-state">Memuat data absensi Kelas...</div>';
+        return;
+      }
+
+      const referenceRecord = getReferenceModalRecord();
+      if (!referenceRecord || !Array.isArray(referenceRecord.entries) || !referenceRecord.entries.length) {
+        target.innerHTML = `
+          <div class="modal-empty">
+            <div>
+              <h3 style="margin-bottom:10px;">Belum ada santri aktif</h3>
+              <p>Kelas ini belum memiliki santri aktif yang bisa diabsen pada halaman ini.</p>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      const entries = getFilteredModalEntries();
+      if (!entries.length) {
+        target.innerHTML = `
+          <div class="modal-empty">
+            <div>
+              <h3 style="margin-bottom:10px;">Tidak ada hasil yang cocok</h3>
+              <p>Ubah kata kunci pencarian santri untuk menampilkan kembali daftar absensi.</p>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      const entryMapsByDate = {};
+      state.modal.windowDates.forEach(dateValue => {
+        entryMapsByDate[dateValue] = {};
+        const dateRecord = getModalRecordByDate(dateValue);
+        (dateRecord && Array.isArray(dateRecord.entries) ? dateRecord.entries : []).forEach(entry => {
+          entryMapsByDate[dateValue][entry.santriId] = entry;
+        });
+      });
+
+      target.innerHTML = `
+        <div class="attendance-matrix-wrap">
+          <table class="attendance-matrix">
+            <thead>
+              <tr>
+                <th class="sticky-col">
+                  <div class="matrix-name-head">
+                    <strong style="color: white;text-align: center;">Nama Santri</strong>
+                  </div>
+                </th>
+                ${state.modal.windowDates.map(dateValue => {
+                  const dateRecord = getModalRecordByDate(dateValue);
+                  const summary = dateRecord && dateRecord.summary ? `${dateRecord.summary.filled}/${dateRecord.summary.total}` : '0/0';
+                  return `
+                    <th>
+                      <div class="matrix-day-btn ${dateValue === state.modal.selectedDate ? 'selected' : ''}" data-select-date="${escapeHtml(dateValue)}" data-day-cell="true" role="button" tabindex="0">
+                        <span>${escapeHtml(formatWeekday(dateValue))}</span>
+                        <strong>${escapeHtml(formatShortDate(dateValue))}</strong>
+                        <small>${escapeHtml(summary)} isi</small>
+                      </div>
+                    </th>
+                  `;
+                }).join('')}
+              </tr>
+            </thead>
+            <tbody>
+              ${entries.map(entry => `
+                <tr>
+                  <th class="sticky-col">
+                    <div class="matrix-name-cell" data-select-date="${escapeHtml(state.modal.selectedDate)}" role="button" tabindex="0">
+                      <div class="santri-identity">
+                        <strong class="santri-name">${escapeHtml(entry.santriName || '-')}</strong>
+                        <span class="santri-meta">${entry.noInduk ? `No. Induk ${escapeHtml(entry.noInduk)}` : 'No. Induk belum diisi'}</span>
+                        ${entry.removedFromKelas ? `<span class="santri-removed-tag" title="Santri ini sudah dikeluarkan dari kelas, riwayat absensinya tetap ditampilkan dan bisa diedit.">Dikeluarkan dari kelas</span>` : ''}
+                      </div>
+                    </div>
+                  </th>
+                  ${state.modal.windowDates.map(dateValue => {
+                    const dateEntry = entryMapsByDate[dateValue][entry.santriId] || {};
+                    const status = dateEntry.status || '';
+                    const locked = dateEntry.editable === false;
+                    const conditions = matrixConditionInfos(dateEntry, dateValue);
+                    const label = locked
+                      ? `${entry.santriName || 'Santri'} sudah dikeluarkan dari kelas ini dan tidak punya riwayat absensi pada ${formatLongDate(dateValue)}.`
+                      : conditions.length
+                      ? `${entry.santriName || 'Santri'} ${getStatusLabel(status)} pada ${formatLongDate(dateValue)} — ${conditions.map(c => c.text).join(' · ')}`
+                      : `${entry.santriName || 'Santri'} ${getStatusLabel(status)} pada ${formatLongDate(dateValue)}`;
+                    return `
+                      <td>
+                        <div
+                          class="matrix-cell ${dateValue === state.modal.selectedDate ? 'is-selected-date' : ''} ${locked ? 'is-locked-cell' : ''}"
+                          data-matrix-cell="true"
+                          data-date="${escapeHtml(dateValue)}"
+                          data-santri-id="${escapeHtml(entry.santriId)}"
+                          data-status-value="${escapeHtml(status)}"
+                          title="${escapeHtml(label)}"
+                          aria-label="${escapeHtml(label)}"
+                          role="button"
+                          tabindex="0"
+                        >
+                          <strong>${escapeHtml(locked ? '—' : getStatusShort(status))}</strong>
+                          <span>${escapeHtml(locked ? 'Tidak diabsen' : getStatusLabel(status))}</span>
+                          ${conditions.length ? `<span class="matrix-cell-condition-wrap" aria-hidden="true">${conditions.map(c => `<span class="matrix-cell-condition matrix-cell-condition-${c.type}">${escapeHtml(c.label)}</span>`).join('')}</span>` : ''}
+                        </div>
+                      </td>
+                    `;
+                  }).join('')}
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+
+      const hint = document.getElementById('matrixLongPressHint');
+      if (hint) {
+        hint.hidden = false;
+        clearTimeout(window._matrixHintTimer);
+        window._matrixHintTimer = window.setTimeout(function() { hint.hidden = true; }, 5000);
+      }
+    }
+
+    function renderEditorMeta() {
+      const kelas = state.modal.kelas;
+      const record = state.modal.record;
+      const hasEntries = !!(record && Array.isArray(record.entries) && record.entries.length);
+      document.getElementById('dialogTitle').textContent = kelas ? kelas.name : 'Memuat Kelas...';
+      document.getElementById('attendanceDate').value = state.modal.windowEndDate || state.today;
+      document.getElementById('attendanceWindowSize').value = String(state.modal.windowSize || 10);
+      document.getElementById('setAllHadirButton').textContent = getBulkCycleButtonLabel();
+      document.getElementById('setAllHadirButton').disabled = !hasEntries;
+      document.getElementById('clearAllButton').disabled = !hasEntries;
+      document.getElementById('copyLatestButton').disabled = !kelas || !(kelas.recentRecords || []).length;
+      document.getElementById('undoButton').disabled = !state.modal.undoStack.length;
+      document.getElementById('redoButton').disabled = !state.modal.redoStack.length;
+      syncDirtyPill();
+    }
+
+    function renderDialog() {
+      renderEditorMeta();
+      renderAttendanceBody();
+    }
+
+    function markModalDirty(nextDirty) {
+      state.modal.dirty = !!nextDirty;
+      syncDirtyPill();
+    }
+
+    async function openAttendanceModal(kelasId, options = {}) {
+      if (state.modal.open && !options.skipConfirm && !(await confirmSavePendingChanges())) {
+        return;
+      }
+
+      const dialog = document.getElementById('attendanceDialog');
+      if (!dialog.open) {
+        dialog.showModal();
+      }
+
+      state.modal.open = true;
+      state.modal.loading = true;
+      state.modal.filter = '';
+      markModalDirty(false);
+      state.modal.kelas = getCardById(kelasId);
+      state.modal.record = null;
+      state.modal.selectedDate = options.selectedDate || options.date || '';
+      state.modal.windowEndDate = options.date || '';
+      state.modal.windowSize = normalizeWindowSize(options.windowSize || state.modal.windowSize);
+      state.modal.windowDates = [];
+      state.modal.recordsByDate = {};
+      state.modal.originalRecordsByDate = {};
+      state.modal.dirtyDates = [];
+      state.modal.bulkSetIndex = 0;
+      state.modal.undoStack = [];
+      state.modal.redoStack = [];
+      document.getElementById('santriSearchInput').value = '';
+      renderDialog();
+
+      const requestToken = state.modal.requestToken + 1;
+      state.modal.requestToken = requestToken;
+
+      try {
+        const data = await api('kelas.absensi.get', {
+          kelasId,
+          tanggal: options.date || '',
+          recordId: options.recordId || '',
+          windowSize: state.modal.windowSize
+        });
+        if (state.modal.requestToken !== requestToken) return;
+
+        state.modal.kelas = data.kelas || getCardById(kelasId);
+        applyModalWindow(data, options);
+        state.modal.loading = false;
+        renderDialog();
+        requestAnimationFrame(() => {
+          const body = document.getElementById('attendanceBody');
+          if (body) body.scrollLeft = options.scrollTo === 'start' ? 0 : body.scrollWidth;
+        });
+      } catch (error) {
+        if (state.modal.requestToken !== requestToken) return;
+        state.modal.loading = false;
+        renderDialog();
+        showNotice(error.message || 'Gagal membuka editor absensi Kelas.', 'error');
+      }
+    }
+
+    async function closeAttendanceDialog(force) {
+      const dialog = document.getElementById('attendanceDialog');
+      if (!dialog.open) return;
+      if (!force && !(await confirmSavePendingChanges())) return;
+      dialog.close();
+      resetModalState();
+    }
+
+    function getModalEntry(dateValue, santriId) {
+      const record = getModalRecordByDate(dateValue);
+      if (!record || !Array.isArray(record.entries)) return null;
+      return record.entries.find(entry => entry.santriId === santriId) || null;
+    }
+
+    function selectModalDate(dateValue) {
+      if (!dateValue || !getModalRecordByDate(dateValue)) return;
+      state.modal.selectedDate = dateValue;
+      syncSelectedModalRecord();
+      renderDialog();
+    }
+
+    function setCellStatus(dateValue, santriId, status, options = {}) {
+      const lockedEntry = getModalEntry(dateValue, santriId);
+      if (lockedEntry && lockedEntry.editable === false) {
+        if (state.modal.selectedDate !== dateValue) {
+          state.modal.selectedDate = dateValue;
+          syncSelectedModalRecord();
+          renderDialog();
+        }
+        showNotice(`${lockedEntry.santriName || 'Santri'} sudah dikeluarkan dari kelas ini dan belum punya riwayat absensi pada tanggal ini.`, 'info');
+        return;
+      }
+      commitModalMutation(() => {
+        const entry = getModalEntry(dateValue, santriId);
+        if (!entry) return false;
+        const nextStatus = options.toggle && status && entry.status === status ? '' : (status || '');
+        const selectedChanged = state.modal.selectedDate !== dateValue;
+        state.modal.selectedDate = dateValue;
+        syncSelectedModalRecord();
+        if ((entry.status || '') === nextStatus) {
+          return { changed: selectedChanged };
+        }
+        entry.status = nextStatus;
+        recalculateRecordSummary(getModalRecordByDate(dateValue));
+        return { changed: true };
+      });
+    }
+
+    function applyCellStatus(dateValue, santriId, status) {
+      setCellStatus(dateValue, santriId, status, { toggle: true });
+    }
+
+    function cycleCellStatus(dateValue, santriId) {
+      const entry = getModalEntry(dateValue, santriId);
+      if (!entry) return;
+      setCellStatus(dateValue, santriId, getNextCycleStatus(entry.status || ''), { toggle: false });
+    }
+
+    function setColumnStatus(dateValue, status) {
+      commitModalMutation(() => {
+        const record = getModalRecordByDate(dateValue);
+        if (!record || !Array.isArray(record.entries)) return false;
+        const nextStatus = status || '';
+        const selectedChanged = state.modal.selectedDate !== dateValue;
+        let changed = false;
+        state.modal.selectedDate = dateValue;
+        syncSelectedModalRecord();
+        record.entries.forEach(entry => {
+          if (entry.editable === false) {
+            return;
+          }
+          if ((entry.status || '') === nextStatus) {
+            return;
+          }
+          entry.status = nextStatus;
+          changed = true;
+        });
+        if (changed) {
+          recalculateRecordSummary(record);
+        }
+        return {
+          changed: changed || selectedChanged,
+          noticeText: changed ? `Kolom ${formatShortDate(dateValue)} diset ${getStatusLabel(nextStatus).toLowerCase()}.` : ''
+        };
+      });
+    }
+
+    function clearLongPressTimer() {
+      if (state.modal.longPressTimer) {
+        window.clearTimeout(state.modal.longPressTimer);
+      }
+      state.modal.longPressTimer = null;
+    }
+
+    function getLongPressDateFromEvent(event) {
+      const cell = event.target.closest('[data-matrix-cell]');
+      if (cell) return cell.getAttribute('data-date') || '';
+      const dayButton = event.target.closest('[data-day-cell]');
+      return dayButton ? (dayButton.getAttribute('data-select-date') || '') : '';
+    }
+
+    function startColumnLongPress(event) {
+      const dateValue = getLongPressDateFromEvent(event);
+      if (!dateValue) return;
+      clearLongPressTimer();
+      state.modal.longPressHandled = false;
+      const targetButton = event.target.closest('button');
+      if (targetButton) targetButton.classList.add('is-long-pressing');
+      state.modal.longPressTimer = window.setTimeout(() => {
+        state.modal.longPressTimer = null;
+        state.modal.longPressHandled = true;
+        if (targetButton) targetButton.classList.remove('is-long-pressing');
+        setColumnStatus(dateValue, 'hadir');
+      }, 650);
+    }
+
+    function stopColumnLongPress(event) {
+      const targetButton = event && event.target ? event.target.closest('button') : null;
+      if (targetButton) targetButton.classList.remove('is-long-pressing');
+      clearLongPressTimer();
+    }
+
+    function setAllStatuses(status) {
+      commitModalMutation(() => {
+        if (!state.modal.record || !Array.isArray(state.modal.record.entries)) return false;
+        const nextStatus = status || '';
+        let changed = false;
+        state.modal.record.entries.forEach(entry => {
+          if (entry.editable === false) {
+            return;
+          }
+          if ((entry.status || '') === nextStatus) {
+            return;
+          }
+          entry.status = nextStatus;
+          changed = true;
+        });
+        if (changed) {
+          recalculateRecordSummary(state.modal.record);
+        }
+        return { changed };
+      });
+    }
+
+    function clearAllStatuses() {
+      setAllStatuses('');
+    }
+
+    function cycleSetAllStatuses() {
+      const previousIndex = normalizeBulkSetIndex(state.modal.bulkSetIndex);
+      const targetStatus = getBulkCycleStatus(previousIndex);
+      const nextIndex = normalizeBulkSetIndex(previousIndex + 1);
+      commitModalMutation(() => {
+        if (!state.modal.record || !Array.isArray(state.modal.record.entries)) return false;
+        let changed = false;
+        state.modal.record.entries.forEach(entry => {
+          if (entry.editable === false) {
+            return;
+          }
+          if ((entry.status || '') === targetStatus) {
+            return;
+          }
+          entry.status = targetStatus;
+          changed = true;
+        });
+        state.modal.bulkSetIndex = nextIndex;
+        recalculateRecordSummary(state.modal.record);
+        return { changed: changed || nextIndex !== previousIndex };
+      });
+    }
+
+    function copyStatusesIntoSelectedRecord(sourceRecord, sourceDate) {
+      if (!state.modal.record || !sourceRecord || !Array.isArray(sourceRecord.entries)) return;
+      const copied = commitModalMutation(() => {
+        const sourceMap = {};
+        sourceRecord.entries.forEach(entry => {
+          sourceMap[entry.santriId] = entry.status || '';
+        });
+
+        let changed = false;
+        state.modal.record.entries.forEach(entry => {
+          if (entry.editable === false) {
+            return;
+          }
+          const nextStatus = sourceMap[entry.santriId] || '';
+          if ((entry.status || '') === nextStatus) {
+            return;
+          }
+          entry.status = nextStatus;
+          changed = true;
+        });
+        if (changed) {
+          recalculateRecordSummary(state.modal.record);
+        }
+        return {
+          changed,
+          noticeText: changed ? `Status dari ${formatShortDate(sourceDate)} berhasil disalin.` : ''
+        };
+      });
+
+      if (copied) return;
+      const sourceMap = {};
+      sourceRecord.entries.forEach(entry => {
+        sourceMap[entry.santriId] = entry.status || '';
+      });
+      const alreadySame = state.modal.record && Array.isArray(state.modal.record.entries) && state.modal.record.entries.every(entry => {
+        return (entry.status || '') === (sourceMap[entry.santriId] || '');
+      });
+      if (alreadySame) {
+        showNotice(`Status dari ${formatShortDate(sourceDate)} sudah sama.`);
+      }
+    }
+
+    async function copyLatestStatuses() {
+      const kelas = state.modal.kelas;
+      const record = state.modal.record;
+      if (!kelas || !record) return;
+
+      const localSourceDate = state.modal.windowDates.slice().reverse().find(dateValue => {
+        if (dateValue === record.tanggal) return false;
+        const dateRecord = getModalRecordByDate(dateValue);
+        return !!(dateRecord && dateRecord.exists);
+      });
+      if (localSourceDate) {
+        copyStatusesIntoSelectedRecord(getModalRecordByDate(localSourceDate), localSourceDate);
+        return;
+      }
+
+      const source = (kelas.recentRecords || []).find(item => item.tanggal !== record.tanggal) || kelas.recentRecords[0];
+      if (!source) {
+        showNotice('Belum ada riwayat yang bisa disalin untuk Kelas ini.', 'error');
+        return;
+      }
+
+      try {
+        const data = await api('kelas.absensi.get', { kelasId: kelas.id, recordId: source.id });
+        copyStatusesIntoSelectedRecord(data.record, source.tanggal);
+      } catch (error) {
+        showNotice(error.message || 'Gagal menyalin status terakhir.', 'error');
+      }
+    }
+
+    async function changeModalDate(nextDate, options = {}) {
+      if (!state.modal.kelas) return;
+      if (!nextDate) return;
+      await openAttendanceModal(state.modal.kelas.id, {
+        date: nextDate,
+        windowSize: state.modal.windowSize,
+        scrollTo: options.scrollTo
+      });
+    }
+
+    async function changeModalWindowSize(nextSize) {
+      if (!state.modal.kelas) return;
+      const normalizedSize = normalizeWindowSize(nextSize);
+      if (state.modal.dirty && !(await confirmSavePendingChanges())) {
+        document.getElementById('attendanceWindowSize').value = String(state.modal.windowSize || 10);
+        return;
+      }
+      await openAttendanceModal(state.modal.kelas.id, {
+        date: state.modal.windowEndDate || state.today,
+        selectedDate: state.modal.selectedDate,
+        windowSize: normalizedSize,
+        skipConfirm: true
+      });
+    }
+
+    function shiftDate(days) {
+      const input = document.getElementById('attendanceDate');
+      const current = input.value || state.modal.windowEndDate || state.today;
+      if (!current) return;
+      changeModalDate(shiftDateValue(current, days), { scrollTo: days < 0 ? 'start' : 'end' });
+    }
+
+    async function saveModalChanges(options = {}) {
+      if (!state.modal.kelas || !state.modal.windowDates.length) return false;
+      if (!canManageAbsensiScoped()) { showNotice('Mudir hanya bisa melihat absensi kelas, tidak bisa menyimpan perubahan.', 'error'); return false; }
+      if (!state.modal.dirtyDates.length) {
+        if (!options.silentNoChanges) showNotice('Belum ada perubahan yang perlu disimpan.');
+        return true;
+      }
+
+      const dirtyDates = state.modal.dirtyDates.slice();
+
+      try {
+        for (const dateValue of dirtyDates) {
+          const record = getModalRecordByDate(dateValue);
+          if (!record) continue;
+          await api('kelas.absensi.save', {
+            record: {
+              id: record.id || '',
+              tanggal: dateValue,
+              kelasId: state.modal.kelas.id,
+              catatan: record.catatan || '',
+              entries: record.entries.map(entry => ({
+                id_santri: entry.santriId,
+                status: entry.status || '',
+                keterangan: entry.keterangan || ''
+              }))
+            }
+          }, 'POST');
+        }
+        await loadDashboardData(false);
+        if (options.reload !== false) {
+          await openAttendanceModal(state.modal.kelas.id, {
+            date: state.modal.windowEndDate || state.today,
+            selectedDate: state.modal.selectedDate,
+            windowSize: state.modal.windowSize,
+            skipConfirm: true
+          });
+        } else {
+          dirtyDates.forEach(dateValue => {
+            const record = getModalRecordByDate(dateValue);
+            if (record) state.modal.originalRecordsByDate[dateValue] = clonePlain(record);
+          });
+          state.modal.dirtyDates = [];
+          markModalDirty(false);
+        }
+        showNotice(dirtyDates.length === 1
+          ? `Absensi Kelas berhasil disimpan untuk ${formatShortDate(dirtyDates[0])}.`
+          : `Absensi Kelas berhasil disimpan untuk ${dirtyDates.length} hari.`);
+        return true;
+      } catch (error) {
+        const message = `${error.message || 'Gagal menyimpan absensi Kelas.'}${dirtyDates.length > 1 ? ' Sebagian hari mungkin sudah tersimpan.' : ''}`;
+        showNotice(message, 'error');
+        return false;
+      }
+    }
+
+    async function saveModal(event) {
+      event.preventDefault();
+      await saveModalChanges({ reload: true });
+    }
+
+    function openAbsensiRekapPanel() {
+      const overlay = document.getElementById('absensiRekapOverlay');
+      const body = document.getElementById('absensiRekapBody');
+      const title = document.getElementById('absensiRekapTitle');
+
+      const kelas = state.modal.kelas;
+      const dates = state.modal.windowDates;
+
+      let titleText = 'Rekap Sakit & Izin';
+      if (kelas) titleText += ' — ' + kelas.name;
+      if (dates.length >= 2) {
+        titleText += ' (' + formatShortDate(dates[0]) + ' – ' + formatShortDate(dates[dates.length - 1]) + ')';
+      } else if (dates.length === 1) {
+        titleText += ' (' + formatShortDate(dates[0]) + ')';
+      }
+      title.textContent = titleText;
+
+      const sakitByDate = {};
+      const pulangByDate = {};
+
+      dates.forEach(function(dateValue) {
+        const record = getModalRecordByDate(dateValue);
+        if (!record || !Array.isArray(record.entries)) return;
+        record.entries.forEach(function(entry) {
+          if (entry.sakit) {
+            if (!sakitByDate[dateValue]) sakitByDate[dateValue] = [];
+            const ket = entry.sakit.keterangan ? ' — ' + entry.sakit.keterangan : '';
+            if (!entry.sakit.ongoing && entry.sakit.tanggalSembuh === dateValue) {
+              const jam = entry.sakit.jamSembuh ? ' ' + entry.sakit.jamSembuh : '';
+              sakitByDate[dateValue].push((entry.santriName || '-') + ' — Sembuh' + jam + ket);
+            } else {
+              const sampai = entry.sakit.tanggalSembuh ? ' s.d. ' + formatShortDate(entry.sakit.tanggalSembuh) + (entry.sakit.jamSembuh ? ' ' + entry.sakit.jamSembuh : '') : ' (belum sembuh)';
+              const boleh = ' — ' + sakitBolehLabel(entry);
+              sakitByDate[dateValue].push((entry.santriName || '-') + sampai + ket + boleh);
+            }
+          }
+          if (entry.izin) {
+            if (!pulangByDate[dateValue]) pulangByDate[dateValue] = [];
+            const ket = entry.izin.keperluan ? ' — ' + entry.izin.keperluan : '';
+            if (!entry.izin.ongoing && entry.izin.tanggalKembaliAktual === dateValue) {
+              const jam = entry.izin.jamKembaliAktual ? ' ' + entry.izin.jamKembaliAktual : '';
+              pulangByDate[dateValue].push((entry.santriName || '-') + ' — Sudah Kembali' + jam + ket);
+            } else {
+              const sampai = entry.izin.tanggalKembali ? ' s.d. ' + formatShortDate(entry.izin.tanggalKembali) + (entry.izin.jamKembali ? ' ' + entry.izin.jamKembali : '') : ' (belum kembali)';
+              pulangByDate[dateValue].push((entry.santriName || '-') + sampai + ket);
+            }
+          }
+        });
+      });
+
+      function buildCatHtml(catLabel, catClass, byDate) {
+        const dateKeys = dates.filter(function(d) { return byDate[d] && byDate[d].length; });
+        let html = '<div class="rekap-cat">';
+        html += '<p class="rekap-cat-title ' + catClass + '">' + escapeHtml(catLabel) + '</p>';
+        if (!dateKeys.length) {
+          html += '<p class="rekap-empty">Tidak ada</p>';
+        } else {
+          dateKeys.forEach(function(dateValue) {
+            html += '<div class="rekap-date-row">';
+            html += '<span class="rekap-date-label">' + escapeHtml(formatShortDate(dateValue)) + '</span>';
+            html += '<span class="rekap-names">' + byDate[dateValue].map(escapeHtml).join(' &middot; ') + '</span>';
+            html += '</div>';
+          });
+        }
+        html += '</div>';
+        return html;
+      }
+
+      body.innerHTML =
+        buildCatHtml('Sakit', 'sakit', sakitByDate) +
+        buildCatHtml('Izin Pulang', 'pulang', pulangByDate);
+
+      overlay.hidden = false;
+    }
+
+    function closeAbsensiRekapPanel() {
+      document.getElementById('absensiRekapOverlay').hidden = true;
+    }
+
+    let _silabusItems = [];
+
+    async function openSilabusPanel() {
+      const kelas = state.modal.kelas;
+      if (!kelas) return;
+      document.getElementById('silabusTitle').textContent = 'Silabus' + (kelas.name ? ' — ' + kelas.name : '');
+      const body = document.getElementById('silabusBody');
+      body.innerHTML = '<p class="rekap-empty">Memuat...</p>';
+      document.getElementById('silabusOverlay').hidden = false;
+      try {
+        const data = await api('kelas.silabus.list', { kelas_id: kelas.id });
+        _silabusItems = data.items || [];
+        renderSilabusPanelBody();
+      } catch (e) {
+        body.innerHTML = '<p class="rekap-empty">Gagal memuat silabus: ' + escapeHtml(e.message) + '</p>';
+      }
+    }
+
+    function renderSilabusPanelBody() {
+      const body = document.getElementById('silabusBody');
+      if (!_silabusItems.length) {
+        body.innerHTML = '<p class="rekap-empty">Belum ada materi silabus untuk kelas ini. Tambahkan lewat halaman Edit Kelas.</p>';
+        return;
+      }
+      const done = _silabusItems.filter(it => it.selesai).length;
+      const progress = `<p class="silabus-progress">${done}/${_silabusItems.length} materi selesai</p>`;
+      const today = new Date().toISOString().slice(0, 10);
+      const rows = _silabusItems.map(it => {
+        const overdue = it.deadline && !it.selesai && it.deadline < today;
+        return `
+        <div class="silabus-item-row${it.selesai ? ' is-done' : ''}">
+          <input type="checkbox" data-silabus-check="${it.id}" ${it.selesai ? 'checked' : ''}>
+          <span class="silabus-item-name">${escapeHtml(it.nama_materi)}</span>
+          ${it.tanggal_selesai ? `<span class="silabus-item-date">${escapeHtml(it.tanggal_selesai)}</span>` : ''}
+          ${it.deadline ? `<span class="silabus-item-date" style="${overdue ? 'color:var(--danger,#a55);font-weight:600;' : ''}">${overdue ? '⚠ ' : ''}Batas: ${escapeHtml(it.deadline)}</span>` : ''}
+        </div>
+      `;
+      }).join('');
+      body.innerHTML = progress + rows;
+    }
+
+    async function toggleSilabusItem(id) {
+      try {
+        await api('kelas.silabus.toggle', { id }, 'POST');
+        const kelas = state.modal.kelas;
+        const data = await api('kelas.silabus.list', { kelas_id: kelas.id });
+        _silabusItems = data.items || [];
+        renderSilabusPanelBody();
+      } catch (e) {
+        showNotice(e.message || 'Gagal mengubah status materi.', 'error');
+      }
+    }
+
+    function closeSilabusPanel() {
+      document.getElementById('silabusOverlay').hidden = true;
+    }
+
+    function applyHideSantriNamePref(hide) {
+      document.getElementById('attendanceBody').classList.toggle('hide-name-col', hide);
+      document.getElementById('toggleNamaButton').textContent = hide ? 'Tampilkan Nama' : 'Sembunyikan Nama';
+      localStorage.setItem(STORAGE.hideSantriName, hide ? '1' : '0');
+    }
+
+    function bindEvents() {
+      document.getElementById('searchInput').addEventListener('input', event => {
+        state.searchQuery = event.target.value || '';
+        state.page = 1;
+        renderCards();
+      });
+      document.getElementById('filterGender').addEventListener('change', event => {
+        state.filterGender = event.target.value || '';
+        state.page = 1;
+        renderCards();
+      });
+      document.addEventListener('click', e => {
+        const btn = e.target.closest('[data-page]');
+        if (!btn) return;
+        const top = document.getElementById('paginationTop');
+        const bot = document.getElementById('paginationBottom');
+        if (!top?.contains(btn) && !bot?.contains(btn)) return;
+        const total = getFilteredItems().length;
+        const totalPages = Math.ceil(total / state.pageSize);
+        const p = parseInt(btn.dataset.page, 10);
+        if (p >= 1 && p <= totalPages) { state.page = p; renderCards(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+      });
+
+      document.getElementById('refreshButton').addEventListener('click', async () => {
+        try {
+          await loadDashboardData(true);
+        } catch (error) {
+          showNotice(error.message || 'Gagal memuat ulang data.', 'error');
+        }
+      });
+
+      document.getElementById('kelasList').addEventListener('click', event => {
+        const trigger = event.target.closest('[data-open-kelas]');
+        if (!trigger) return;
+        openAttendanceModal(trigger.getAttribute('data-open-kelas'), {
+          recordId: trigger.getAttribute('data-record-id') || '',
+          date: trigger.getAttribute('data-date') || state.today
+        });
+      });
+
+      document.getElementById('attendanceDialog').addEventListener('cancel', async event => {
+        if (state.modal.dirty) {
+          event.preventDefault();
+          if (await confirmSavePendingChanges()) {
+            document.getElementById('attendanceDialog').close();
+            resetModalState();
+          }
+        } else {
+          resetModalState();
+        }
+      });
+
+      // Safety net: 'close' native event selalu fires apa pun cara dialog ditutup
+      // (dialog.close(), Esc, form method="dialog") -- pastikan notice balik ke <body>.
+      document.getElementById('attendanceDialog').addEventListener('close', () => {
+        relocateNoticeStack();
+      });
+
+      document.getElementById('attendanceDialog').addEventListener('click', async event => {
+        if (!event.target.closest || !event.target.closest('.ps-dialog-close-floating')) return;
+        event.preventDefault();
+        event.stopPropagation();
+        await closeAttendanceDialog(false);
+      }, true);
+      document.getElementById('cancelDialogButton').addEventListener('click', () => {
+        closeAttendanceDialog(false);
+      });
+      document.getElementById('attendanceForm').addEventListener('submit', saveModal);
+
+      document.getElementById('attendanceDate').addEventListener('change', event => {
+        changeModalDate(event.target.value);
+      });
+      document.getElementById('attendanceWindowSize').addEventListener('change', event => {
+        changeModalWindowSize(event.target.value);
+      });
+      document.getElementById('prevDateButton').addEventListener('click', () => shiftDate(-1));
+      document.getElementById('nextDateButton').addEventListener('click', () => shiftDate(1));
+      document.getElementById('santriSearchInput').addEventListener('input', event => {
+        state.modal.filter = event.target.value || '';
+        renderAttendanceBody();
+      });
+      applyHideSantriNamePref(localStorage.getItem(STORAGE.hideSantriName) === '1');
+      document.getElementById('toggleNamaButton').addEventListener('click', () => {
+        applyHideSantriNamePref(!document.getElementById('attendanceBody').classList.contains('hide-name-col'));
+      });
+      document.getElementById('setAllHadirButton').addEventListener('click', cycleSetAllStatuses);
+      document.getElementById('clearAllButton').addEventListener('click', clearAllStatuses);
+      document.getElementById('copyLatestButton').addEventListener('click', copyLatestStatuses);
+      document.getElementById('undoButton').addEventListener('click', undoModalChange);
+      document.getElementById('redoButton').addEventListener('click', redoModalChange);
+      document.getElementById('rekapAbsensiButton').addEventListener('click', openAbsensiRekapPanel);
+      document.getElementById('closeAbsensiRekapButton').addEventListener('click', closeAbsensiRekapPanel);
+      document.getElementById('absensiRekapOverlay').addEventListener('click', function(event) {
+        if (event.target === document.getElementById('absensiRekapOverlay')) closeAbsensiRekapPanel();
+      });
+      document.getElementById('silabusButton').addEventListener('click', openSilabusPanel);
+      document.getElementById('closeSilabusButton').addEventListener('click', closeSilabusPanel);
+      document.getElementById('silabusOverlay').addEventListener('click', function(event) {
+        if (event.target === document.getElementById('silabusOverlay')) closeSilabusPanel();
+      });
+      document.getElementById('silabusBody').addEventListener('change', function(event) {
+        const cb = event.target.closest('[data-silabus-check]');
+        if (cb) toggleSilabusItem(cb.getAttribute('data-silabus-check'));
+      });
+
+      document.getElementById('attendanceBody').addEventListener('click', event => {
+        if (state.modal.longPressHandled) {
+          state.modal.longPressHandled = false;
+          event.preventDefault();
+          return;
+        }
+        const nameToggle = event.target.closest('.matrix-name-cell, .matrix-name-head');
+        if (nameToggle) {
+          const table = nameToggle.closest('.attendance-matrix');
+          if (table) table.classList.toggle('name-col-narrow');
+          return;
+        }
+        const dateButton = event.target.closest('[data-select-date]');
+        if (dateButton) {
+          selectModalDate(dateButton.getAttribute('data-select-date'));
+          return;
+        }
+        const matrixCell = event.target.closest('[data-matrix-cell]');
+        if (matrixCell) {
+          const dateValue = matrixCell.getAttribute('data-date');
+          const santriId = matrixCell.getAttribute('data-santri-id');
+          cycleCellStatus(dateValue, santriId);
+        }
+      });
+
+      document.getElementById('attendanceBody').addEventListener('pointerdown', startColumnLongPress);
+      document.getElementById('attendanceBody').addEventListener('pointerup', stopColumnLongPress);
+      document.getElementById('attendanceBody').addEventListener('pointerleave', stopColumnLongPress);
+      document.getElementById('attendanceBody').addEventListener('pointercancel', stopColumnLongPress);
+      document.getElementById('attendanceBody').addEventListener('contextmenu', event => {
+        if (event.target.closest('[data-matrix-cell], [data-day-cell]')) {
+          event.preventDefault();
+        }
+      });
+
+      document.getElementById('attendanceBody').addEventListener('keydown', event => {
+        const key = String(event.key || '').toLowerCase();
+        const isActivateKey = key === 'enter' || key === ' ';
+
+        const matrixCell = event.target.closest('[data-matrix-cell]');
+        if (matrixCell) {
+          const santriId = matrixCell.getAttribute('data-santri-id');
+          const dateValue = matrixCell.getAttribute('data-date');
+          if (isActivateKey) {
+            event.preventDefault();
+            cycleCellStatus(dateValue, santriId);
+            return;
+          }
+          if (key === 'h') {
+            event.preventDefault();
+            applyCellStatus(dateValue, santriId, 'hadir');
+            return;
+          }
+          if (key === 'i') {
+            event.preventDefault();
+            applyCellStatus(dateValue, santriId, 'izin');
+            return;
+          }
+          if (key === 's') {
+            event.preventDefault();
+            applyCellStatus(dateValue, santriId, 'sakit');
+            return;
+          }
+          if (key === 'a') {
+            event.preventDefault();
+            applyCellStatus(dateValue, santriId, 'alfa');
+            return;
+          }
+          if (key === 't') {
+            event.preventDefault();
+            applyCellStatus(dateValue, santriId, 'tugas');
+            return;
+          }
+          if (key === 'n') {
+            event.preventDefault();
+            applyCellStatus(dateValue, santriId, 'hari_tidak_aktif');
+            return;
+          }
+          if (key === 'delete' || key === 'backspace' || key === 'x') {
+            event.preventDefault();
+            applyCellStatus(dateValue, santriId, '');
+          }
+          return;
+        }
+
+        // matrix-day-btn & matrix-name-cell dulu <button> asli (Enter/Space aktivasi otomatis
+        // dari browser) -- sekarang div biasa demi performa render, jadi aktivasi keyboard-nya
+        // perlu ditangani manual di sini supaya tetap bisa dipakai tanpa mouse.
+        if (!isActivateKey) return;
+        const nameToggle = event.target.closest('.matrix-name-cell, .matrix-name-head');
+        if (nameToggle) {
+          event.preventDefault();
+          const table = nameToggle.closest('.attendance-matrix');
+          if (table) table.classList.toggle('name-col-narrow');
+          return;
+        }
+        const dateButton = event.target.closest('[data-select-date]');
+        if (dateButton) {
+          event.preventDefault();
+          selectModalDate(dateButton.getAttribute('data-select-date'));
+        }
+      });
+    }
+
+    const session = getStoredSession();
+    if (!session) {
+      clearSession();
+      window.location.replace('/pages/login/');
+    } else if (window.PSAccess && !window.PSAccess.canAccessPage(session, '/pages/kelasAbsensi/')) {
+      window.location.replace('/pages/accountProfile/');
+    } else {
+      state.session = session;
+      state.today = todayDate();
+      mountShell(session);
+      bindEvents();
+      window.addEventListener('load', async () => {
+        try {
+          await loadTahunSelect();
+          await loadDashboardData(false);
+          const openKelasId = new URLSearchParams(location.search).get('openKelas');
+          if (openKelasId) {
+            history.replaceState(null, '', location.pathname);
+            await openAttendanceModal(openKelasId);
+          }
+        } catch (error) {
+          showNotice(error.message || 'Gagal memuat halaman absensi Kelas.', 'error');
+        }
+      });
+    }
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
+    }
+  </script>
+</body>
+</html>

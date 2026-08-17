@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#9e2f22">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="../../shared-ui.css">
+  <script src="../../shared-ui.js"></script>
+  <title>Data Kelompok</title>
+  <link rel="stylesheet" href="../../shared-shell.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700&display=swap');
+    :root {
+      --paper: #f6efe0;
+      --ink: #4d4034;
+      --muted: #7b6a58;
+      --line: rgba(91, 73, 57, 0.15);
+      --accent: #b97650;
+      --success: #74846c;
+      --danger: #a55a52;
+      --shadow: 0 18px 45px rgba(87, 67, 51, 0.18);
+      --radius: 24px;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; }
+    body::before { content: ''; position: fixed; inset: 0; pointer-events: none; opacity: 0.15 !important; mix-blend-mode: multiply; }
+    body::after { content: ''; position: fixed; inset: 0; pointer-events: none; opacity: 0.23; }
+    .panel { padding: 22px; }
+    h1, h2, h3 { margin: 0 0 10px; text-transform: uppercase; }
+    p { margin: 0; line-height: 1.65; }
+    .nav a, button { font-weight: 800 !important; text-transform: uppercase; }
+    .toolbar, .meta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; align-items: center; }
+    button, input, select, textarea { font: inherit; }
+    button { padding: 12px 18px; font-weight: 700; cursor: pointer; }
+    .primary { box-shadow: 0 14px 28px rgba(185, 118, 80, 0.22); }
+    input, select, textarea { width: 100%; padding: 13px 14px; outline: none; }
+    label { display: grid; gap: 7px; font-size: 14px; font-weight: 600; }
+
+    .tabs { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 4px; }
+    .tab-btn {
+      padding: 11px 20px; border: none; background: none; cursor: pointer; font: inherit;
+      font-size: 14px; font-weight: 800 !important; text-transform: uppercase; color: var(--muted);
+      border-bottom: 3px solid transparent; margin-bottom: -2px; transition: color .15s, border-color .15s;
+      box-shadow: none !important; border-radius: 0 !important;
+    }
+    .tab-btn:hover { color: var(--ink); }
+    .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    .filters { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 16px; }
+    .filters label { min-width: 170px; flex: 1 1 170px; }
+    .filters label.filter-search { flex: 1 1 240px; }
+    .section-hint { color: var(--muted); font-size: 13px; margin-top: 6px; }
+    .roster-wrap { max-height: 68vh; height: auto; margin-top: 14px; }
+    .roster-preview-table th, .roster-preview-table td { white-space: nowrap; }
+    .roster-preview-table tr.roster-pengampu-row td { background: rgba(238, 223, 201, 0.55); font-weight: 700; }
+    .roster-preview-table tr.roster-pengampu-row td:first-child { font-weight: 800; }
+    .roster-empty-row td { color: var(--muted); font-style: italic; padding: 16px !important; text-align: center; white-space: normal !important; }
+
+    /* Warna kolom per kelompok berdasarkan gender — sama seperti warna kartu di
+       editHalaqoh/editRegu/editKelas: Ikhwan biru muda, Akhowat pink, Campur gradasi,
+       Tidak ada polos tanpa warna. Diterapkan ke SELURUH sel kolom (header, baris
+       pengampu, baris santri), bukan cuma header. */
+    .roster-preview-table .col-gender-ikhwan {
+      background: linear-gradient(180deg, rgba(210, 233, 255, 0.98) 0%, rgba(235, 245, 255, 0.98) 100%) !important;
+      color: #2c5c85 !important;
+    }
+    .roster-preview-table .col-gender-akhowat {
+      background: linear-gradient(180deg, rgba(255, 222, 232, 0.98) 0%, rgba(255, 239, 244, 0.98) 100%) !important;
+      color: #8a3b57 !important;
+    }
+    .roster-preview-table .col-gender-campur {
+      background: linear-gradient(135deg, rgba(212, 232, 255, 0.98) 0%, rgba(239, 244, 255, 0.98) 46%, rgba(255, 235, 241, 0.98) 54%, rgba(255, 222, 232, 0.98) 100%) !important;
+      color: var(--ink) !important;
+    }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-left">
+      <button class="drawer-toggle" id="navToggle" type="button" aria-label="Toggle sidebar">Menu</button>
+      <div class="header-brand">Pendataan Santri</div>
+      <div class="header-page">Data Kelompok</div>
+    </div>
+    <div class="header-right">
+      <span class="header-chip" id="headerRole">Admin</span>
+    </div>
+  </header>
+  <div class="drawer-backdrop" id="navBackdrop"></div>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+  <main>
+    <div class="app-layout">
+      <section class="panel nav" id="nav"></section>
+      <div class="content-stack">
+        <section class="panel">
+          <h1 style="font-family:'Playfair Display',serif;font-size:1.9rem;">Data Kelompok</h1>
+          <p style="color:var(--muted);font-size:14px;">Tabel kelompok Halaqoh, Regu, dan Kelas — satu kolom per kelompok, berisi pengampu (P1, P2, dst — jumlah baris menyesuaikan yang terbanyak) dan daftar santri anggotanya. Sama seperti "Lihat Data" di Edit Halaqoh, cuma digabung jadi tab supaya lebih ringkas.</p>
+        </section>
+
+        <section class="panel">
+          <div class="tabs" id="sectionTabs">
+            <button class="tab-btn active" type="button" data-section="halaqoh">Kelompok Halaqoh</button>
+            <button class="tab-btn" type="button" data-section="regu">Kelompok Regu</button>
+            <button class="tab-btn" type="button" data-section="kelas">Kelompok Kelas</button>
+          </div>
+
+          <div class="filters">
+            <label>
+              Tahun ajaran
+              <select id="filterTahunAjaran"><option value="">Semua tahun ajaran</option></select>
+            </label>
+            <label class="filter-search">
+              Cari
+              <input type="search" id="filterSearch" placeholder="Cari nama atau pengampu">
+            </label>
+            <label>
+              Status
+              <select id="filterStatus">
+                <option value="">Semua</option>
+                <option value="active">Aktif</option>
+                <option value="inactive">Nonaktif</option>
+              </select>
+            </label>
+            <label>
+              Gender
+              <select id="filterGender">
+                <option value="">Semua</option>
+                <option value="Ikhwan">Ikhwan</option>
+                <option value="Akhowat">Akhowat</option>
+                <option value="Campur">Campur</option>
+                <option value="Tidak ada">Tidak ada</option>
+              </select>
+            </label>
+            <label>
+              Urutkan
+              <select id="filterSort">
+                <option value="name_asc" selected>Nama A-Z</option>
+                <option value="name_desc">Nama Z-A</option>
+                <option value="gender_asc">Gender Ikhwan-Akhowat</option>
+                <option value="gender_desc">Gender Akhowat-Ikhwan</option>
+                <option value="santri_desc">Santri terbanyak</option>
+                <option value="santri_asc">Santri tersedikit</option>
+              </select>
+            </label>
+          </div>
+          <div class="toolbar">
+            <button class="secondary" id="refreshButton" type="button">Muat Ulang</button>
+          </div>
+
+          <p class="section-hint" id="subtitle">Memuat...</p>
+          <div class="quick-import-table-wrap roster-wrap">
+            <table class="quick-import-table roster-preview-table" id="rosterTable">
+              <thead><tr id="rosterHeadRow"></tr></thead>
+              <tbody id="rosterBody"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <script src="../../shared-access.js"></script>
+  <script src="../../shared-nav.js"></script>
+  <script src="../../shared-shell.js"></script>
+  <script>
+    const API_BASE = window.location.origin + '/api';
+    const STORAGE = { apiBase: 'ps_api_base', token: 'ps_token', session: 'ps_session' };
+    localStorage.setItem(STORAGE.apiBase, API_BASE);
+
+    function getApiBase() { return localStorage.getItem(STORAGE.apiBase) || ''; }
+    function getToken() { return localStorage.getItem(STORAGE.token) || ''; }
+    function clearSession() { localStorage.removeItem(STORAGE.token); localStorage.removeItem(STORAGE.session); }
+    function getStoredSession() { try { return JSON.parse(localStorage.getItem(STORAGE.session) || 'null'); } catch (error) { return null; } }
+
+    function escapeHtml(value) {
+      return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function toParams(data) {
+      const params = new URLSearchParams();
+      Object.entries(data).forEach(([key, value]) => {
+        if (value === undefined || value === null) return;
+        params.append(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
+      });
+      return params;
+    }
+
+    const uiState = { currentNoticeId: '', noticeCounter: 0 };
+    function showNotice(text, type = 'info') {
+      const stack = document.getElementById('noticeStack');
+      if (!stack) return;
+      if (uiState.currentNoticeId) {
+        const old = document.querySelector(`[data-notice-id="${uiState.currentNoticeId}"]`);
+        if (old) old.remove();
+      }
+      const el = document.createElement('section');
+      el.className = `notice show ${type}`;
+      el.dataset.noticeId = `n-${Date.now()}-${uiState.noticeCounter += 1}`;
+      el.textContent = text;
+      el.addEventListener('click', () => el.remove());
+      window.setTimeout(() => el.remove(), type === 'error' ? 9000 : 5000);
+      stack.prepend(el);
+      uiState.currentNoticeId = el.dataset.noticeId;
+      if (stack.matches(':popover-open')) stack.hidePopover();
+      stack.showPopover();
+    }
+
+    function mountShell(session) {
+      return window.PSShell.mount({
+        currentPage: window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : '/pages/dataKelompok/',
+        session,
+        getStoredSession,
+        storageKey: STORAGE.session
+      });
+    }
+
+    async function api(action, payload = {}) {
+      const apiBase = getApiBase();
+      const token = getToken();
+      if (!apiBase || !token) {
+        clearSession();
+        window.location.replace('/pages/login/');
+        throw new Error('Sesi tidak ditemukan.');
+      }
+      const params = toParams({ action, token, ...payload });
+      const response = await fetch(`${apiBase}?${params.toString()}`);
+      const json = await response.json();
+      if (!json.ok) {
+        const error = new Error(json.error?.message ? `Server mengatakan: ${json.error.message}` : 'Permintaan gagal.');
+        error.code = json.error?.code || response.status || 500;
+        if (error.code === 401) { clearSession(); window.location.replace('/pages/login/'); }
+        throw error;
+      }
+      return json.data;
+    }
+
+    function debounce(fn, wait) {
+      let timer = null;
+      return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), wait); };
+    }
+
+    // Ketiga kelompok pakai satu filter & satu tabel yang sama, cuma beda sumber datanya:
+    // nama field pengampu/badal, action API, dan sheetKey referensi.
+    const SECTIONS = [
+      {
+        key: 'halaqoh', label: 'halaqoh', searchHint: 'Cari nama halaqoh atau pengampu',
+        action: 'halaqoh.summaryPdfData', pengampuKey: 'pengampuLabels', badalKey: 'badalLabels'
+      },
+      {
+        key: 'regu', label: 'regu', searchHint: 'Cari nama regu atau pembina',
+        action: 'regu.summaryPdfData', pengampuKey: 'pembinaLabels', badalKey: 'badalLabels'
+      },
+      {
+        key: 'kelas', label: 'kelas', searchHint: 'Cari nama kelas atau pengajar',
+        action: 'kelas.schedulePdfData', pengampuKey: 'pengajarLabels', badalKey: 'badalLabels'
+      }
+    ];
+    const SECTION_BY_KEY = {};
+    SECTIONS.forEach(s => { SECTION_BY_KEY[s.key] = s; });
+    let activeSectionKey = 'halaqoh';
+
+    async function loadSharedTahunAjaran() {
+      try {
+        const refs = await api('references', { sheetKey: 'halaqoh' });
+        const items = refs.tahunAjaran || [];
+        const sel = document.getElementById('filterTahunAjaran');
+        sel.innerHTML = '<option value="">Semua tahun ajaran</option>' +
+          items.map(ta => `<option value="${escapeHtml(ta.id)}">${escapeHtml(ta.namaDisplay || ta.nama)}${ta.isAktif ? ' (Aktif)' : ''}</option>`).join('');
+        const aktif = items.find(ta => ta.isAktif);
+        if (aktif) sel.value = aktif.id;
+      } catch (error) {
+        // biarkan filter "Semua tahun ajaran" kalau referensi gagal dimuat
+      }
+    }
+
+    // Pengampu + badal digabung apa adanya (tanpa dipotong ke 3) — jumlah baris P1..Pn
+    // di tabel menyesuaikan kelompok dengan pengampu+badal terbanyak.
+    function buildPengampuSlots(item, section) {
+      const utama = Array.isArray(item[section.pengampuKey]) ? item[section.pengampuKey].filter(Boolean) : [];
+      const badal = section.badalKey && Array.isArray(item[section.badalKey]) ? item[section.badalKey].filter(Boolean) : [];
+      return utama.concat(badal.map(name => `(B) ${name}`));
+    }
+
+    function buildRosterGroup(item, section) {
+      return {
+        name: item.name || 'Tanpa nama',
+        genderGroup: item.genderGroup || '',
+        pengampuSlots: buildPengampuSlots(item, section),
+        santriLabels: Array.isArray(item.santriLabels) ? item.santriLabels.filter(Boolean) : []
+      };
+    }
+
+    // Warna kolom per kelompok berdasarkan gender: Ikhwan biru muda, Akhowat pink,
+    // Campur gradasi, "Tidak ada" polos tanpa kelas warna.
+    function genderColumnClass(genderGroup) {
+      const normalized = String(genderGroup || '').trim().toLowerCase();
+      if (normalized === 'ikhwan') return 'col-gender-ikhwan';
+      if (normalized === 'akhowat') return 'col-gender-akhowat';
+      if (normalized === 'campur') return 'col-gender-campur';
+      return '';
+    }
+
+    function renderRosterTable(groups) {
+      const section = SECTION_BY_KEY[activeSectionKey];
+      const headRow = document.getElementById('rosterHeadRow');
+      const body = document.getElementById('rosterBody');
+      if (!groups.length) {
+        headRow.innerHTML = '<th>No</th>';
+        body.innerHTML = `<tr class="roster-empty-row"><td>Belum ada data ${escapeHtml(section.label)} yang cocok dengan filter.</td></tr>`;
+        return;
+      }
+      headRow.innerHTML = `<th>No</th>${groups.map(g => `<th class="${genderColumnClass(g.genderGroup)}">${escapeHtml(g.name)}</th>`).join('')}`;
+      const maxPengampu = groups.reduce((max, g) => Math.max(max, g.pengampuSlots.length), 0);
+      const maxSantri = groups.reduce((max, g) => Math.max(max, g.santriLabels.length), 0);
+      const rows = [];
+      for (let r = 0; r < maxPengampu; r += 1) {
+        rows.push(`<tr class="roster-pengampu-row"><td>P${r + 1}</td>${groups.map(g => `<td class="${genderColumnClass(g.genderGroup)}">${escapeHtml(g.pengampuSlots[r] || '-')}</td>`).join('')}</tr>`);
+      }
+      for (let s = 0; s < maxSantri; s += 1) {
+        rows.push(`<tr><td>${s + 1}</td>${groups.map(g => `<td class="${genderColumnClass(g.genderGroup)}">${escapeHtml(g.santriLabels[s] || '')}</td>`).join('')}</tr>`);
+      }
+      body.innerHTML = rows.join('');
+    }
+
+    async function loadActiveSection() {
+      const section = SECTION_BY_KEY[activeSectionKey];
+      const subtitleEl = document.getElementById('subtitle');
+      subtitleEl.textContent = 'Memuat...';
+      try {
+        const data = await api(section.action, {
+          q: document.getElementById('filterSearch').value.trim(),
+          status: document.getElementById('filterStatus').value,
+          genderGroup: document.getElementById('filterGender').value,
+          sort: document.getElementById('filterSort').value,
+          tahunAjaranId: document.getElementById('filterTahunAjaran').value
+        });
+        const items = Array.isArray(data?.items) ? data.items : [];
+        subtitleEl.textContent = `Total ${items.length} ${section.label}`;
+        renderRosterTable(items.map(item => buildRosterGroup(item, section)));
+      } catch (error) {
+        subtitleEl.textContent = error.message || `Gagal memuat data ${section.label}.`;
+        renderRosterTable([]);
+      }
+    }
+
+    function switchSection(key) {
+      if (!SECTION_BY_KEY[key] || key === activeSectionKey) return;
+      activeSectionKey = key;
+      document.querySelectorAll('#sectionTabs .tab-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.section === key));
+      document.getElementById('filterSearch').placeholder = SECTION_BY_KEY[key].searchHint;
+      loadActiveSection();
+    }
+
+    const currentPage = window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : '/pages/dataKelompok/';
+    const initialSession = getStoredSession();
+    if (!initialSession) {
+      clearSession();
+      window.location.replace('/pages/login/');
+    } else if (!(window.PSAccess && window.PSAccess.redirectIfForbidden(initialSession, currentPage))) {
+      mountShell(initialSession);
+      document.querySelectorAll('#sectionTabs .tab-btn').forEach(btn => btn.addEventListener('click', () => switchSection(btn.dataset.section)));
+      document.getElementById('refreshButton').addEventListener('click', loadActiveSection);
+      document.getElementById('filterSearch').addEventListener('input', debounce(loadActiveSection, 350));
+      document.getElementById('filterStatus').addEventListener('change', loadActiveSection);
+      document.getElementById('filterGender').addEventListener('change', loadActiveSection);
+      document.getElementById('filterSort').addEventListener('change', loadActiveSection);
+      document.getElementById('filterTahunAjaran').addEventListener('change', loadActiveSection);
+      loadSharedTahunAjaran().then(loadActiveSection);
+    }
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
+    }
+  </script>
+</body>
+</html>

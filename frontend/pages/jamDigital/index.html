@@ -1,0 +1,1871 @@
+﻿<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <base href="/jam-digital/" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="screen-orientation" content="landscape" />
+  <title>Jam Digital Masjid</title>
+  <style>
+    :root{
+      --bg:#08111f;
+      --fg:#f8fafc;
+      --muted:#b6c2d9;
+      --accent:#22d3ee;
+      --accent2:#a3e635;
+      --card:rgba(7,18,34,.58);
+      --glass:rgba(255,255,255,.08);
+      --danger:#f59e0b;
+      --shadow:0 24px 80px rgba(0,0,0,.45);
+      --radius:34px;
+    }
+    *{box-sizing:border-box;user-select:none}
+    html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#000;color:var(--fg);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}
+    body{position:fixed;inset:0}
+    #app{position:relative;width:100vw;height:100vh;overflow:hidden;background:var(--bg);isolation:isolate}
+    #bgImage{position:absolute;inset:0;background-position:center;background-size:cover;background-repeat:no-repeat;z-index:-3;transform:scale(1.02)}
+    #bgOverlay{position:absolute;inset:0;z-index:-2;background:radial-gradient(circle at 20% 15%,rgba(34,211,238,.32),transparent 30%),radial-gradient(circle at 80% 85%,rgba(163,230,53,.22),transparent 34%),linear-gradient(120deg,rgba(0,0,0,.54),rgba(3,7,18,.72));}
+    .stars{position:absolute;inset:0;z-index:-1;opacity:.26;background-image:radial-gradient(circle,rgba(255,255,255,.8) 1px,transparent 1px);background-size:52px 52px;animation:drift 36s linear infinite}
+    @keyframes drift{to{transform:translate3d(-52px,52px,0)}}
+    .wrap{height:100%;display:grid;grid-template-columns:23vw 1fr;gap:2.2vw;padding:3.2vh 3vw;align-items:stretch}
+    .panel{background:var(--card);border:1px solid rgba(255,255,255,.14);box-shadow:var(--shadow);backdrop-filter:blur(18px);border-radius:var(--radius);overflow:hidden}
+    .left{display:grid;grid-template-rows:minmax(0,1fr) auto auto;gap:2vh;padding:2.2vh 1.6vw;animation:floatIn .9s ease both}
+    .logoBox{display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;border-radius:28px;background:rgba(255,255,255,.07);min-height:0;padding:1.2vw;overflow:hidden;gap:1.2vh}
+    .hadithHeader{display:flex;align-items:baseline;justify-content:space-between;gap:1vw}
+    .hadithLabel{color:var(--muted);font-size:clamp(12px,1.05vw,18px);font-weight:900;text-transform:uppercase;letter-spacing:.18em}
+    .hadithMeta{color:var(--muted);font-size:clamp(11px,.9vw,16px);font-weight:700;opacity:.9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .hadithBody{flex:1;min-height:0;overflow:auto;padding-right:.4vw;color:#e2e8f0;font-size:clamp(12px,1.05vw,19px);line-height:1.45;scrollbar-width:thin;scrollbar-color:rgba(226,232,240,.55) rgba(255,255,255,.06);-webkit-overflow-scrolling:touch;user-select:text}
+    .hadithBody::-webkit-scrollbar{width:10px}
+    .hadithBody::-webkit-scrollbar-track{background:rgba(255,255,255,.06);border-radius:10px}
+    .hadithBody::-webkit-scrollbar-thumb{background:rgba(226,232,240,.45);border-radius:10px}
+    .hadithBody::-webkit-scrollbar-thumb:hover{background:rgba(226,232,240,.62)}
+    .identity{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1vh}
+    #logo{max-width:100%;max-height:14vh;object-fit:contain;display:block;filter:drop-shadow(0 10px 24px rgba(0,0,0,.35))}
+    .masjidName{text-align:center;line-height:1.08;font-weight:900;letter-spacing:.02em;font-size:clamp(18px,2.05vw,42px);text-wrap:balance;text-shadow:0 8px 24px rgba(0,0,0,.35)}
+.place{text-align:center;color:var(--muted);font-size:clamp(12px,1.05vw,22px);line-height:1.3}
+    .main{display:grid;grid-template-rows:auto minmax(0,1fr) auto;gap:2vh;padding:2.8vh 2.2vw;animation:floatIn .9s .08s ease both}
+    @keyframes floatIn{from{opacity:0;transform:translateY(18px) scale(.985)}to{opacity:1;transform:none}}
+    .topbar{display:flex;justify-content:space-between;align-items:flex-start;gap:2vw}
+    .dateBlock{font-weight:800;letter-spacing:.02em}.dateBlock .hijri{color:var(--muted);font-weight:600;margin-top:.5vh;font-size:clamp(14px,1.1vw,22px)}
+    .nextBox{text-align:right}.nextLabel{color:var(--muted);font-size:clamp(12px,1vw,20px);font-weight:700;text-transform:uppercase;letter-spacing:.18em}.nextPrayer{font-size:clamp(22px,2.6vw,56px);font-weight:1000;line-height:1;color:var(--accent2);text-shadow:0 0 28px rgba(163,230,53,.35)}.nextCountdown{font-size:clamp(18px,1.65vw,36px);font-weight:800;margin-top:.8vh;color:#fff}
+    .clockArea{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;min-height:0}.clock{font-variant-numeric:tabular-nums;font-size:clamp(88px,15.6vw,285px);font-weight:1000;letter-spacing:0em;line-height:.85;text-shadow:0 16px 58px rgba(0,0,0,.42),0 0 50px rgba(34,211,238,.22);
+      /*background:linear-gradient(110deg,#fff,#cffafe 45%,#a7f3d0);*/
+      background: #a3e635;
+      display:text;background-clip:text;color:transparent;animation:pulseGlow 5.4s ease-in-out infinite}.seconds{font-variant-numeric:tabular-nums;font-size:clamp(24px,3vw,70px);font-weight:900;letter-spacing:.05em;color:var(--accent);margin-top:1vh}.status{margin-top:2vh;font-size:clamp(18px,1.6vw,34px);font-weight:800;color:#e0f2fe}.marquee{width:100%;white-space:nowrap;overflow:hidden;color:var(--muted);font-size:clamp(14px,1.15vw,25px);margin-top:1vh}.marquee span{display:inline-block;padding-left:100%;animation:marquee 26s linear infinite}@keyframes marquee{to{transform:translateX(-100%)}}@keyframes pulseGlow{0%,100%{filter:drop-shadow(0 0 0 rgba(34,211,238,0))}50%{filter:drop-shadow(0 0 26px rgba(34,211,238,.34))}}
+    .schedule{display:grid;grid-template-columns:repeat(6,1fr);gap:1vw}.pray{padding:1.4vh .7vw;border-radius:24px;background:var(--glass);border:1px solid rgba(255,255,255,.12);text-align:center;transition:.35s transform,.35s background}.pray.active{background:linear-gradient(160deg,rgba(34,211,238,.24),rgba(163,230,53,.18));transform:translateY(-.5vh);box-shadow:0 12px 35px rgba(34,211,238,.18)}.pray .name{font-size:clamp(12px,1vw,20px);font-weight:900;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}.pray .time{font-size:clamp(22px,2.15vw,48px);font-weight:1000;font-variant-numeric:tabular-nums;margin-top:.5vh}
+    .overlay{position:absolute;inset:0;display:none;align-items:center;justify-content:center;z-index:65;background:#000000d1;color:#fff;text-align:center}.overlay.show{display:flex}.overlayText{font-size:clamp(46px,8.6vw,170px);font-weight:1000;letter-spacing:-.04em;text-transform:uppercase;animation:breathe 2.2s ease-in-out infinite}.iqomahBox{position:absolute;bottom:7vh;left:50%;transform:translateX(-50%);font-size:clamp(28px,4vw,82px);font-weight:1000;color:var(--accent2);font-variant-numeric:tabular-nums}.adzanBanner{position:absolute;inset:auto 4vw 5vh 4vw;z-index:65;padding:2vh 3vw;border-radius:30px;background:rgba(0,0,0,.62);border:1px solid rgba(255,255,255,.16);box-shadow:var(--shadow);display:none;text-align:center}.adzanBanner.show{display:block;animation:slideUp .45s ease both}.adzanTitle{font-size:clamp(26px,3.5vw,76px);font-weight:1000;color:var(--accent2)}.adzanSub{font-size:clamp(16px,1.4vw,30px);color:var(--muted);font-weight:700;margin-top:.8vh}
+    .sleepOverlay{position:absolute;inset:0;display:none;align-items:center;justify-content:center;z-index:60;background:#000}
+    .sleepOverlay.show{display:flex}
+    .sleepClockWrap{text-align:center;display:flex;flex-direction:column;align-items:center;gap:.8vh}
+    .sleepClock{font-variant-numeric:tabular-nums;font-size:clamp(32px,5vw,86px);font-weight:900;color:#fff;letter-spacing:.02em;opacity:.94}
+    .sleepSeconds{font-variant-numeric:tabular-nums;font-size:clamp(18px,2vw,46px);font-weight:800;color:rgba(255,255,255,.72);letter-spacing:.18em}
+    .sleepPrayer{margin-top:1.2vh;display:flex;align-items:baseline;gap:1.2vw;font-variant-numeric:tabular-nums}
+    .sleepPrayerLabel{font-size:clamp(12px,1.4vw,26px);font-weight:1000;letter-spacing:.02em;color:rgba(255,255,255,.72);text-transform:uppercase}
+    .sleepPrayerTime{font-size:clamp(18px,2.4vw,44px);font-weight:1000;color:var(--accent2);letter-spacing:.02em}
+    .night #bgOverlay{background:linear-gradient(120deg,rgba(0,0,0,.86),rgba(0,0,0,.92))}.night .panel,.night .pray{background:rgba(0,0,0,.72);border-color:rgba(255,255,255,.09)}.night .clock{background:linear-gradient(110deg,#fde68a,#22d3ee,#bef264);-webkit-background-clip:text;background-clip:text;color:transparent}.night .left,.night .schedule,.night .topbar,.night .seconds,.night .status,.night .marquee{opacity:.34}.rotateWarning{display:none;position:absolute;inset:0;z-index:99;background:#020617;color:#fff;align-items:center;justify-content:center;text-align:center;padding:8vw;font-size:6vw;font-weight:900}
+    .remoteAnnouncement{position:absolute;inset:0;display:none;align-items:center;justify-content:center;z-index:70;text-align:center;padding:4vw}
+    .remoteAnnouncement.show{display:flex}
+    .remoteAnnouncement .raText{font-size:clamp(32px,5.5vw,110px);font-weight:1000;line-height:1.1;color:#fff;text-shadow:0 8px 32px rgba(0,0,0,.6);text-wrap:balance;animation:breathe 2.5s ease-in-out infinite}
+    .videoOverlay{position:absolute;inset:0;display:none;align-items:center;justify-content:center;z-index:75;background:#000}
+    .videoOverlay.show{display:flex}
+    .audioOverlay{display:none;position:fixed;bottom:2.5vh;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.72);backdrop-filter:blur(10px);border-radius:50px;padding:10px 20px 10px 16px;align-items:center;gap:14px;z-index:80;border:1px solid rgba(255,255,255,.13);max-width:80vw}
+    .audioOverlay.show{display:flex}
+    .audioOverlayName{color:#fff;font-size:clamp(11px,1vw,15px);font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:50vw}
+    .audioOverlayStop{background:rgba(255,255,255,.14);border:none;color:#fff;font-size:12px;font-weight:800;padding:6px 14px;border-radius:30px;cursor:pointer;white-space:nowrap;flex-shrink:0}
+    .audioOverlayStop:hover{background:rgba(255,255,255,.25)}
+    #videoPlayer{width:100%;height:100%;object-fit:contain;display:block}
+    @keyframes breathe{50%{transform:scale(1.035);opacity:.82}}@keyframes slideUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}@keyframes pop{from{opacity:0;transform:translateY(-16px) scale(.96)}to{opacity:1;transform:none}}
+    .dndInfoOverlay{position:absolute;inset:0;display:none;align-items:center;justify-content:center;z-index:64;pointer-events:none;padding:2.2vh 2vw}
+    .dndInfoOverlay.show{display:flex}
+    .dndInfoCard{background:rgba(5,14,28,.93);border:1px solid rgba(255,255,255,.17);border-radius:28px;padding:2.4vh 2.2vw;width:96vw;text-align:center;box-shadow:0 24px 80px rgba(0,0,0,.55);animation:floatIn .5s ease both}
+    .dndSlide{animation:floatIn .4s ease both}
+    .dndSlideTitle{font-size:clamp(13px,1.35vw,24px);font-weight:900;color:var(--accent);text-transform:uppercase;letter-spacing:.14em;margin-bottom:1.4vh}
+    .dndWeekTable{width:100%;border-collapse:collapse}
+    .dndWeekTable th{padding:.45vh .7vw;font-size:clamp(10px,.88vw,15px);font-weight:900;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;border-bottom:1px solid rgba(255,255,255,.13);text-align:center}
+    .dndWeekTable th:first-child{text-align:left;padding-left:.9vw;width:7vw}
+    .dndWeekTable td{padding:.5vh .7vw;font-size:clamp(11px,.98vw,17px);font-weight:600;color:#dde4f0;text-align:center;border-bottom:1px solid rgba(255,255,255,.06)}
+    .dndWeekTable td:first-child{font-weight:900;color:var(--muted);text-align:left;padding-left:.9vw;font-size:clamp(10px,.85vw,14px);text-transform:uppercase;letter-spacing:.06em}
+    .dndWeekTable tr:last-child td{border-bottom:none}
+    .dndWeekTable tr.dnd-today td{color:var(--accent2)!important;background:rgba(163,230,53,.07)}
+    .dnd-badal{display:block;font-size:.7em;font-weight:700;font-style:italic;color:var(--accent2);opacity:.85;margin-top:.3vh}
+    .dndDots{margin-top:1.4vh;display:flex;justify-content:center;gap:.7vw}
+    .dndDot{width:9px;height:9px;border-radius:50%;background:rgba(255,255,255,.22);transition:.3s background;display:inline-block}
+    .dndDot.act{background:var(--accent)}
+    @media (orientation:portrait){.rotateWarning{display:flex}.wrap,.overlay,.adzanBanner,.sleepOverlay{display:none!important}}
+    @media (max-aspect-ratio: 16/10){.wrap{grid-template-columns:20vw 1fr;padding:2.4vh 2vw}.schedule{gap:.65vw}.pray{border-radius:18px}.clock{font-size:13.8vw}}
+  </style>
+</head>
+<body>
+  <!-- KONFIGURASI UTAMA ada di ./data.csv (lebih mudah diedit). Jadwal YT, playlist, status, dan alarm sebaiknya diatur dari CSV. -->
+  <script id="masjid-config" type="application/json">
+  {
+    "masjidName": "",
+    "runningText": "Ketika sholat berjama‘ah, luruskan shaf, rapatkan barisan, matikan nada dering ponsel, dan sempurnakan wudhu.",
+    "locationText": "Jakarta Selatan, Kota Jakarta Selatan, Jakarta, Indonesia",
+    "latitude": 0,
+    "longitude": 0,
+    "timezone": "Asia/Jakarta",
+    "calculationMethod": "KEMENAG",
+    "adjustMinutes": { "subuh": 0, "dzuhur": 0, "ashar": 0, "maghrib": 0, "isya": 0, "syuruq": 0 },
+    "iqomahMinutes": { "subuh": 20, "dzuhur": 10, "ashar": 10, "maghrib": 10, "isya": 10 },
+    "blackScreenAfterIqomahMinutes": 15,
+    "nightModeHour": 21,
+    "audioEnabled": true,
+    "audioVolume": 1,
+    "audioRepeat": 1,
+    "autoFullscreen": true,
+    "forceLandscapeHint": true,
+    "assets": { "logo": "logo/logo_deffault.png", "background": "", "color": "" }
+  }
+  </script>
+
+  <div id="app">
+    <div id="bgImage"></div><div id="bgOverlay"></div><div class="stars"></div>
+    <div class="rotateWarning">Putar layar ke mode horizontal / landscape</div>
+    <div class="wrap">
+      <aside class="panel left">
+        <div class="logoBox" id="contentBox" style="position:relative">
+          <!-- Mode hadits (default saat textSlides kosong) -->
+          <div id="hadithContainer" style="display:flex;flex-direction:column;flex:1;min-height:0;gap:1vh">
+            <div class="hadithHeader">
+              <div class="hadithLabel">Konten</div>
+              <div class="hadithMeta" id="hadithMeta">Memuat...</div>
+            </div>
+            <div class="hadithBody" id="hadithBody">Memuat Konten...</div>
+          </div>
+          <!-- Mode teks slide kustom -->
+          <div id="textSlideContainer" style="display:none;flex-direction:column;flex:1;min-height:0;overflow:hidden">
+            <div style="display:flex;align-items:baseline;justify-content:space-between;gap:4px;flex-shrink:0">
+              <div id="textSlideLabel" style="font-size:clamp(11px,.9vw,15px);font-weight:900;color:var(--muted);text-transform:uppercase;letter-spacing:.15em"></div>
+              <div id="slideCountdown" style="font-size:clamp(9px,.75vw,12px);color:rgba(255,255,255,.32);font-weight:700;white-space:nowrap;flex-shrink:0"></div>
+            </div>
+            <div id="textSlideContent" class="hadithBody" style="flex:1;min-height:0"></div>
+          </div>
+          <!-- Hint suara (tampil saat audio belum unlocked) -->
+          <div id="soundHint" style="position:absolute;bottom:0;left:0;right:0;text-align:center;font-size:clamp(10px,.85vw,13px);color:rgba(255,255,255,.35);font-weight:700;padding:.5vh 0;display:none">
+            🔇 Ketuk layar untuk aktifkan suara
+          </div>
+        </div>
+        <div class="identity">
+          <img id="logo" src="logo/logo_deffault.png" alt="Logo Masjid">
+          <div class="masjidName" id="masjidName">MASJID</div>
+        </div>
+        <div class="place" id="place">-</div>
+      </aside>
+      <main class="panel main">
+        <section class="topbar">
+          <div class="dateBlock"><div id="gregDate">-</div><div class="hijri" id="hijriDate">-</div></div>
+          <div class="nextBox"><div class="nextLabel">Menuju</div><div class="nextPrayer" id="nextPrayer">-</div><div class="nextCountdown" id="nextCountdown">--:--:--</div></div>
+        </section>
+        <section class="clockArea">
+          <div class="clock" id="clock">00:00</div>
+          <div class="seconds" id="seconds">00</div>
+          <div class="status" id="status">Memuat jadwal sholat...</div>
+          <div class="marquee"><span id="runningText"></span></div>
+        </section>
+        <section class="schedule" id="schedule"></section>
+      </main>
+    </div>
+    <div class="adzanBanner" id="adzanBanner"><div class="adzanTitle" id="adzanTitle">Saatnya Adzan</div><div class="adzanSub" id="adzanSub">Iqomah dalam <b id="iqomahCountdown">--:--</b></div></div>
+    <div class="overlay" id="prayerOverlay"><div><div class="overlayText">Sekarang Waktu Sholat</div><div class="iqomahBox" id="overlayCountdown"></div></div></div>
+    <div class="sleepOverlay" id="sleepOverlay"><div class="sleepClockWrap"><div class="sleepClock" id="sleepClock">00:00</div><div class="sleepSeconds" id="sleepSeconds">00</div><div class="sleepPrayer"><div class="sleepPrayerLabel">Subuh:</div><div class="sleepPrayerTime" id="sleepSubuhTime">--:--</div></div></div></div>
+    <div class="remoteAnnouncement" id="remoteAnnouncement">
+      <div class="raText" id="remoteAnnouncementText"></div>
+    </div>
+    <div class="videoOverlay" id="videoOverlay">
+      <video id="videoPlayer" playsinline preload="auto"></video>
+    </div>
+    <div class="videoOverlay" id="ytOverlay" style="z-index:76">
+      <iframe id="ytFrame" style="width:100%;height:100%;border:none" allow="autoplay; fullscreen" allowfullscreen></iframe>
+    </div>
+    <div class="audioOverlay" id="audioOverlay">
+      <span class="audioOverlayName" id="audioOverlayName"></span>
+      <button class="audioOverlayStop" onclick="stopMedia()">&#9646; Stop</button>
+    </div>
+    <audio id="mediaAudioPlayer" preload="auto" style="display:none"></audio>
+    <audio id="annAudioPlayer" preload="auto" style="display:none"></audio>
+    <div class="dndInfoOverlay" id="dndInfoOverlay">
+      <div class="dndInfoCard">
+        <div class="dndSlide" id="dndSlideJadwal">
+          <div class="dndSlideTitle">Jadwal Imam — Satu Pekan</div>
+          <table class="dndWeekTable" id="dndImamTable"></table>
+        </div>
+        <div class="dndSlide" id="dndSlideKultum" style="display:none">
+          <div class="dndSlideTitle">Jadwal Kultum — Satu Pekan</div>
+          <table class="dndWeekTable" id="dndKultumTable"></table>
+        </div>
+        <div class="dndSlide" id="dndSlideKhutbah" style="display:none">
+          <div class="dndSlideTitle">Khutbah Jum'at — 7 Pekan ke Depan</div>
+          <table class="dndWeekTable" id="dndKhutbahTable"></table>
+        </div>
+        <div class="dndDots"><span class="dndDot act" id="dndDot0"></span><span class="dndDot" id="dndDot1"></span><span class="dndDot" id="dndDot2"></span></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  const $ = id => document.getElementById(id);
+  const baseCfg = JSON.parse($('masjid-config').textContent);
+  let cfg = JSON.parse(JSON.stringify(baseCfg));
+  const prayerNames = {subuh:'Subuh',syuruq:'Syuruq',dzuhur:'Dzuhur',ashar:'Ashar',maghrib:'Maghrib',isya:'Isya'};
+  const prayerOrder = ['subuh','syuruq','dzuhur','ashar','maghrib','isya'];
+  const obligatory = ['subuh','dzuhur','ashar','maghrib','isya'];
+  const state = {
+    testTime:null, testOffsetMs:0, testEpoch:0, lastMinuteKey:'', spoken:{},
+    schedule:{}, scheduleDateKey:'',
+    audio:{}, audioUnlocked:false, audioSeq:0,
+    hadith:{items:[], idx:0, rotateTimer:null, lastFetchedAt:0, scrollRaf:0, scrollLastTs:0, scrollDir:1, userHoldUntil:0, scrollPauseUntil:0},
+    data:{ loaded:false, fixedAlarms:[], statusWindows:[], lastAlarmNote:'', lastAlarmAt:0 }
+  };
+
+  function applyCfgToUi(){
+    $('masjidName').innerHTML = cfg.masjidName;
+    $('place').textContent = cfg.locationText;
+    $('runningText').textContent = cfg.runningText;
+    $('logo').src = cfg.assets.logo;
+  }
+  applyCfgToUi();
+
+
+  function parseCsv(text){
+    const lines = String(text||'').replace(/\r/g,'').split('\n');
+    const rows = [];
+    for(const rawLine of lines){
+      const line = rawLine.trim();
+      if(!line || line.startsWith('#')) continue;
+      const out = [];
+      let cur = '', inQ = false;
+      for(let i=0;i<rawLine.length;i++){
+        const ch = rawLine[i];
+        if(ch === '\"'){
+          if(inQ && rawLine[i+1] === '\"'){ cur += '\"'; i++; continue; }
+          inQ = !inQ; continue;
+        }
+        if(ch === ',' && !inQ){ out.push(cur.trim()); cur=''; continue; }
+        cur += ch;
+      }
+      out.push(cur.trim());
+      if(out.length) rows.push(out);
+    }
+    return rows;
+  }
+
+  function coerceValue(v){
+    const s = String(v ?? '').trim();
+    if(s === '') return '';
+    if((s.startsWith('{') && s.endsWith('}')) || (s.startsWith('[') && s.endsWith(']'))){
+      try{ return JSON.parse(s); }catch(_){}
+    }
+    if(/^true$/i.test(s)) return true;
+    if(/^false$/i.test(s)) return false;
+    if(/^-?\d+(\.\d+)?$/.test(s)) return Number(s);
+    return s;
+  }
+
+
+  function normalizeHMS(str){
+    const t = parseHHMM(str);
+    if(!t) return null;
+    return pad(t.hh)+':'+pad(t.mm)+':'+pad(t.ss||0);
+  }
+  function parseTimeRangeSpec(spec){
+    const s = String(spec||'').trim();
+    const m = s.match(/^(\d{1,2}(?::\d{1,2})?(?::\d{1,2})?)\s*-\s*(\d{1,2}(?::\d{1,2})?(?::\d{1,2})?)$/);
+    if(!m) return null;
+    const start = normalizeHMS(m[1]);
+    const end = normalizeHMS(m[2]);
+    if(!start || !end) return null;
+    return {start, end};
+  }
+  function parseWindowSpec(spec){
+    const s = String(spec||'').trim();
+    if(!s) return null;
+    const fixed = parseTimeRangeSpec(s);
+    if(fixed) return {startSpec: fixed.start, endSpec: fixed.end, label: s};
+    const parts = s.split(/\s*(?:->|=>)\s*/).map(x => String(x||'').trim()).filter(Boolean);
+    if(parts.length !== 2) return null;
+    return {startSpec: parts[0], endSpec: parts[1], label: s};
+  }
+
+  function setCfgPath(root, path, value){
+    const p = String(path||'').trim();
+    if(!p) return;
+    const parts = p.split('.').map(s => s.trim()).filter(Boolean);
+    if(!parts.length) return;
+    let obj = root;
+    for(let i=0;i<parts.length;i++){
+      const k = parts[i];
+      const last = i === parts.length - 1;
+      if(last){
+        obj[k] = value;
+      } else {
+        const cur = obj[k];
+        if(cur && typeof cur === 'object'){
+          obj = cur;
+        } else {
+          obj[k] = {};
+          obj = obj[k];
+        }
+      }
+    }
+  }
+
+  function applyCsvRows(rows){
+    const fixedAlarms = [];
+    const statusWindows = [];
+    for(const r of rows){
+      const [type, key, value, extra1, extra2, extra3, note] = r;
+      const rawType = String(type||'').trim().toLowerCase();
+      const t = rawType.replace(/[\s-]+/g,'_');
+      if(t === 'cfg'){
+        const k = String(key||'').trim();
+        if(!k) continue;
+        setCfgPath(cfg, k, coerceValue(value));
+      } else if(t === 'alarm'){
+        const time = String(key||'').trim();
+        const id = String(value||time).trim() || time;
+        const when = String(extra1||'all').trim().toLowerCase();
+        const repeat = Number.isFinite(Number(extra2)) ? Math.max(1, Math.floor(Number(extra2))) : null;
+        const audioKind = String(extra3||'alarm').trim().toLowerCase() || 'alarm';
+        fixedAlarms.push({time, id, when, repeat, audioKind, note:String(note||'').trim()});
+      } else if(t === 'status'){
+        const range = parseWindowSpec(String(key||'').trim());
+        const label = String(note || value || key || '').trim();
+        if(range && label){
+          statusWindows.push({...range, windowKey:`${range.startSpec}|${range.endSpec}`, id:String(value||'').trim(), note:label});
+        }
+      }
+    }
+    state.data.fixedAlarms = fixedAlarms;
+    state.data.statusWindows = statusWindows;
+    state.data.loaded = true;
+    applyCfgToUi();
+    try{ loadBackground(); }catch(_){}
+    try{ setupAudio(); }catch(_){}
+    try{ setupHadith(); }catch(_){}
+    try{ update(true); }catch(_){}
+  }
+
+  async function loadDataCsv(){
+    try{
+      const r = await fetch('./data.csv', {cache:'no-store'});
+      if(!r.ok) return;
+      const text = await r.text();
+      const rows = parseCsv(text);
+      applyCsvRows(rows);
+    }catch(e){
+      console.log('Gagal memuat data.csv:', e);
+      try{
+        const st = $('status');
+        if(st) st.textContent = 'Gagal memuat data.csv (buka via server lokal / http, bukan file://).';
+      }catch(_){}
+    }
+  }
+  loadDataCsv();
+
+  function clamp01(n){ return Math.max(0, Math.min(1, n)); }
+  function isAudioEnabled(){
+    if(typeof cfg.audioEnabled === 'boolean') return cfg.audioEnabled;
+    if(typeof cfg.speechEnabled === 'boolean') return cfg.speechEnabled; // kompatibilitas config lama
+    return true;
+  }
+  function getAudioRepeat(){
+    const r = cfg.audioRepeat;
+    if(!Number.isFinite(r)) return 1;
+    return Math.max(1, Math.floor(r));
+  }
+  function getAudioFile(kind){
+    const files = cfg.audioFiles || {};
+    const alarm = files.alarm || files.adzan || files.iqomah || '';
+    if(kind === 'alarm') return alarm;
+    if(kind === 'adzan') return files.adzan || alarm;
+    if(kind === 'iqomah') return files.iqomah || alarm;
+    return alarm;
+  }
+  function makeAudioEl(src, vol){
+    if(!src) return null;
+    const a = new Audio(src);
+    a.preload = 'auto';
+    try{ a.volume = vol; }catch(_){}
+    // Bila file 404 / gagal load, null-kan agar beep fallback dipakai
+    a.addEventListener('error', function(){ state.audio.alarm = state.audio.alarm === a ? null : state.audio.alarm; state.audio.adzan = state.audio.adzan === a ? null : state.audio.adzan; state.audio.iqomah = state.audio.iqomah === a ? null : state.audio.iqomah; }, {once:true});
+    return a;
+  }
+  function setupAudio(){
+    const vol = (typeof cfg.audioVolume === 'number') ? clamp01(cfg.audioVolume) : 1;
+    const alarm = getAudioFile('alarm');
+    const adzan = getAudioFile('adzan');
+    const iqomah = getAudioFile('iqomah');
+    state.audio.alarm  = makeAudioEl(alarm, vol);
+    state.audio.adzan  = (adzan && adzan !== alarm)  ? makeAudioEl(adzan, vol)  : null;
+    state.audio.iqomah = (iqomah && iqomah !== alarm) ? makeAudioEl(iqomah, vol) : null;
+  }
+  // ── Beep fallback (Web Audio API) ───────────────────────────────────────────
+  var _beepCtx = null;
+  function getBeepCtx_() {
+    if (!_beepCtx) {
+      try { _beepCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (_) {}
+    }
+    return _beepCtx;
+  }
+  function playBeepOnce_(token) {
+    return new Promise(function (resolve) {
+      if (token !== state.audioSeq) return resolve();
+      var ctx = getBeepCtx_();
+      if (!ctx) return resolve();
+      try {
+        var osc = ctx.createOscillator();
+        var gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.type = 'sine';
+        osc.frequency.value = 880;
+        var t = ctx.currentTime;
+        gain.gain.setValueAtTime(0.6, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.7);
+        osc.start(t); osc.stop(t + 0.75);
+        osc.onended = resolve;
+      } catch (_) { resolve(); }
+    });
+  }
+  async function playBeepTimes_(n, token) {
+    const count = Math.max(1, Math.floor(n || 1));
+    for (let i = 0; i < count; i++) {
+      if (token !== state.audioSeq) return;
+      await playBeepOnce_(token);
+      if (i < count - 1) await new Promise(r => setTimeout(r, 400));
+    }
+  }
+
+  function unlockAudio(){
+    if(state.audioUnlocked) return;
+    state.audioUnlocked = true;
+    for(const a of Object.values(state.audio)){
+      if(!a) continue;
+      try{ a.load(); }catch(_){}
+    }
+    if(_beepCtx && _beepCtx.state === 'suspended'){ try{ _beepCtx.resume(); }catch(_){} }
+    const h=$('soundHint'); if(h) h.style.display='none';
+  }
+  function setupAudioUnlockHandlers(){
+    const handler = () => unlockAudio();
+    document.addEventListener('pointerdown', handler, {once:true});
+    document.addEventListener('click', handler, {once:true});
+    document.addEventListener('touchstart', handler, {once:true});
+    document.addEventListener('keydown', handler, {once:true});
+  }
+
+  // 5 klik dalam 2 detik → reload halaman
+  (function(){
+    var _clicks = [];
+    document.addEventListener('pointerdown', function(){
+      var now = Date.now();
+      _clicks.push(now);
+      _clicks = _clicks.filter(function(t){ return now - t < 2000; });
+      if(_clicks.length >= 5){ location.reload(); }
+    });
+  })();
+  function stopAllAudio(){
+    for(const a of Object.values(state.audio)){
+      if(!a) continue;
+      try{ a.pause(); }catch(_){}
+      try{ a.currentTime = 0; }catch(_){}
+    }
+  }
+  function playAudioOnce(a, token){
+    return new Promise(resolve => {
+      if(token !== state.audioSeq) return resolve();
+      let done = false;
+      const cleanup = () => {
+        if(done) return;
+        done = true;
+        try{ a.removeEventListener('ended', onEnded); }catch(_){}
+        resolve();
+      };
+      const onEnded = () => cleanup();
+      try{ a.pause(); }catch(_){}
+      try{ a.currentTime = 0; }catch(_){}
+      try{ a.addEventListener('ended', onEnded, {once:true}); }catch(_){}
+      const p = a.play?.();
+      if(p && typeof p.catch === 'function'){
+        p.catch(err => {
+          console.log('Audio diblokir / gagal diputar:', err);
+          cleanup();
+        });
+      }
+      setTimeout(cleanup, 120000);
+    });
+  }
+  async function playAudioTimes(a, times, token){
+    const n = Math.max(1, Math.floor(times || 1));
+    for(let i=0;i<n;i++){
+      if(token !== state.audioSeq) return;
+      await playAudioOnce(a, token);
+    }
+  }
+  function playNotice(kind, key, times){
+    if(!isAudioEnabled() || state.spoken[key]) return;
+    const a = state.audio[kind] || state.audio.alarm;
+    const n = times === undefined ? getAudioRepeat() : times;
+    if(!state.audioUnlocked){
+      // Coba unlock via audio element (jika ada), atau via AudioContext
+      if(a){
+        const p = a.play?.();
+        if(p && typeof p.then === 'function'){
+          p.then(()=>{ try{a.pause();a.currentTime=0;}catch(_){} unlockAudio(); }).catch(()=>{});
+        }
+      } else {
+        // Coba unlock AudioContext (beep) — biasanya butuh gesture
+        var ctx = getBeepCtx_();
+        if(ctx && ctx.state === 'suspended') ctx.resume().then(()=>{ state.audioUnlocked=true; });
+      }
+      return;
+    }
+    state.spoken[key] = true;
+    stopAllAudio();
+    const token = ++state.audioSeq;
+    if(a) playAudioTimes(a, n, token);
+    else playBeepTimes_(n, token);
+  }
+
+  function isHadithEnabled(){
+    if(typeof cfg.hadithEnabled === 'boolean') return cfg.hadithEnabled;
+    return true;
+  }
+  function hadithRotateMs(){
+    const m = cfg.hadithRotateMinutes;
+    if(Number.isFinite(m) && m > 0) return m * 60000;
+    return 5 * 60000;
+  }
+  function hadithPaginate(){
+    const p = cfg.hadithPaginate;
+    if(Number.isFinite(p) && p > 0) return Math.floor(p);
+    return 25;
+  }
+  function hadithBookSlug(){
+    return String(cfg.hadithBookSlug || 'sahih-bukhari').trim();
+  }
+  function hadithApiKey(){
+    return String(cfg.hadithApiKey || '').trim();
+  }
+  function escapeHtml(s){
+    return String(s||'')
+      .replace(/&/g,'&amp;')
+      .replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;')
+      .replace(/\"/g,'&quot;')
+      .replace(/'/g,'&#39;');
+  }
+  function normalizeHadithText(s){
+    return String(s||'')
+      .replace(/\r\n/g, '\n')
+      .replace(/\r/g, '\n')
+      .replace(/[ \t]+\n/g, '\n')
+      .trim();
+  }
+  function buildHadithUrls(){
+    const apiKey = hadithApiKey();
+    const params = new URLSearchParams();
+    params.set('apiKey', apiKey);
+    const book = hadithBookSlug();
+    if(book) params.set('book', book);
+    params.set('paginate', String(hadithPaginate()));
+    const q = params.toString();
+    return [
+      'https://www.hadithapi.com/public/api/hadiths?' + q,
+      'https://hadithapi.com/public/api/hadiths?' + q,
+      'https://www.hadithapi.com/api/hadiths?' + q,
+      'https://hadithapi.com/api/hadiths?' + q,
+    ];
+  }
+  function extractHadithArray(json){
+    const candidates = [
+      json?.hadiths?.data,
+      json?.hadiths,
+      json?.data,
+      json?.payload,
+      json?.result,
+    ];
+    for(const c of candidates){
+      if(Array.isArray(c) && c.length) return c;
+    }
+    for(const c of candidates){
+      if(c && Array.isArray(c?.data) && c.data.length) return c.data;
+    }
+    return [];
+  }
+  function extractHadithItem(raw){
+    const hadithIndo =
+      raw?.hadithIndonesia ?? raw?.hadith_indonesia ?? raw?.indonesia ?? raw?.indo ?? raw?.idn ??
+      raw?.hadith?.id ?? raw?.hadith?.indonesia ?? raw?.terjemah ?? raw?.translation_id ?? raw?.text_id;
+    const hadithEnglish =
+      hadithIndo ??
+      raw?.hadithEnglish ?? raw?.hadith_english ?? raw?.english ?? raw?.hadith?.english ?? raw?.hadith?.en ?? raw?.translation ?? raw?.text;
+    const hadithNumber = raw?.hadithNumber ?? raw?.hadith_number ?? raw?.number ?? raw?.hadithNo ?? raw?.id;
+    const status = raw?.status ?? raw?.grade ?? raw?.authenticity ?? raw?.classification;
+    const book = raw?.book?.bookName ?? raw?.book?.name ?? raw?.bookName ?? raw?.book_name ?? raw?.book?.bookSlug ?? raw?.book ?? raw?.collection;
+    const bookSlug = raw?.book?.bookSlug ?? raw?.bookSlug ?? raw?.book_slug ?? raw?.collectionSlug ?? raw?.collection_slug;
+    const chapter = raw?.chapter?.chapterNumber ?? raw?.chapterNumber ?? raw?.chapter_number ?? raw?.chapter ?? raw?.chapterId ?? raw?.chapter_id;
+    const id = raw?.id ?? raw?.hadithId ?? raw?.hadith_id;
+    return {
+      id,
+      hadithEnglish: normalizeHadithText(hadithEnglish),
+      hadithNumber: hadithNumber,
+      status: status,
+      book: book,
+      bookSlug: bookSlug,
+      chapter: chapter
+    };
+  }
+  function formatHadithMeta(item){
+    const parts = [];
+    const book = item.book || item.bookSlug || hadithBookSlug();
+    if(book) parts.push(book);
+    if(item.chapter !== undefined && item.chapter !== null && String(item.chapter).trim() !== '') parts.push('Ch ' + item.chapter);
+    if(item.hadithNumber !== undefined && item.hadithNumber !== null && String(item.hadithNumber).trim() !== '') parts.push('#' + item.hadithNumber);
+    if(item.status) parts.push(String(item.status));
+    return parts.join(' | ');
+  }
+  function renderHadith(item){
+    const metaEl = $('hadithMeta');
+    const bodyEl = $('hadithBody');
+    if(!metaEl || !bodyEl) return;
+    metaEl.textContent = formatHadithMeta(item) || 'Konten';
+    const text = item.hadithEnglish;
+    if(!text){
+      bodyEl.innerHTML = '<div style="opacity:.85">Hadits tidak tersedia (field English tidak ditemukan).</div>';
+    } else {
+      bodyEl.innerHTML = escapeHtml(text).replace(/\n{2,}/g,'\n\n').split('\n\n').map(p=>`<p style="margin:.1em 0 1em 0">${p.replace(/\n/g,'<br>')}</p>`).join('');
+    }
+    try{ bodyEl.scrollTop = 0; }catch(_){}
+    startHadithAutoScroll();
+  }
+  function stopHadithAutoScroll(){
+    if(state.hadith.scrollRaf) cancelAnimationFrame(state.hadith.scrollRaf);
+    state.hadith.scrollRaf = 0;
+    state.hadith.scrollLastTs = 0;
+    state.hadith.scrollDir = 1;
+    state.hadith.scrollPauseUntil = 0;
+  }
+  function startHadithAutoScroll(){
+    stopHadithAutoScroll();
+    const bodyEl = $('hadithBody');
+    if(!bodyEl) return;
+    // Jalankan setelah layout stabil
+    setTimeout(() => {
+      const max = Math.max(0, bodyEl.scrollHeight - bodyEl.clientHeight);
+      if(max <= 2) return;
+      const cycleMs = Math.max(60000, Math.min(hadithRotateMs(), 10*60*1000)); // min 1 menit, max 10 menit
+      const pauseTopMs = 1400;
+      const pauseBottomMs = 1800;
+      const available = Math.max(30000, cycleMs - pauseTopMs - pauseBottomMs);
+      const eachDirMs = Math.max(15000, Math.floor(available / 2));
+      let speed = max / eachDirMs; // px per ms
+      speed = Math.min(speed, 0.06); // ~60px/s max biar nyaman dibaca
+      state.hadith.scrollDir = 1;
+      state.hadith.scrollPauseUntil = Date.now() + pauseTopMs;
+      const tick = (ts) => {
+        const now = Date.now();
+        const maxNow = Math.max(0, bodyEl.scrollHeight - bodyEl.clientHeight);
+        if(maxNow <= 2){ stopHadithAutoScroll(); return; }
+        if(now < state.hadith.userHoldUntil || now < state.hadith.scrollPauseUntil){
+          state.hadith.scrollLastTs = ts;
+          state.hadith.scrollRaf = requestAnimationFrame(tick);
+          return;
+        }
+        const last = state.hadith.scrollLastTs || ts;
+        const dt = Math.min(80, Math.max(0, ts - last));
+        state.hadith.scrollLastTs = ts;
+        const delta = speed * dt * state.hadith.scrollDir;
+        let next = bodyEl.scrollTop + delta;
+        if(next >= maxNow - 1){
+          next = maxNow;
+          state.hadith.scrollDir = -1;
+          state.hadith.scrollPauseUntil = now + pauseBottomMs;
+        } else if(next <= 0){
+          next = 0;
+          state.hadith.scrollDir = 1;
+          state.hadith.scrollPauseUntil = now + pauseTopMs;
+        }
+        bodyEl.scrollTop = next;
+        state.hadith.scrollRaf = requestAnimationFrame(tick);
+      };
+      state.hadith.scrollRaf = requestAnimationFrame(tick);
+    }, 250);
+  }
+  function setHadithMessage(meta, body){
+    const metaEl = $('hadithMeta');
+    const bodyEl = $('hadithBody');
+    if(metaEl) metaEl.textContent = meta || '';
+    if(bodyEl) bodyEl.textContent = body || '';
+  }
+  async function fetchHadithItems(){
+    const urls = buildHadithUrls();
+    let lastErr = null;
+    for(const url of urls){
+      try{
+        const res = await fetch(url, {cache:'no-store'});
+        if(!res.ok){
+          lastErr = new Error('HTTP ' + res.status);
+          continue;
+        }
+        const json = await res.json();
+        const arr = extractHadithArray(json);
+        const items = arr.map(extractHadithItem).filter(x=>x && x.hadithEnglish);
+        if(items.length) return items;
+        lastErr = new Error('Format respons tidak dikenali / kosong');
+      }catch(e){
+        lastErr = e;
+      }
+    }
+    throw lastErr || new Error('Gagal mengambil data');
+  }
+  function myQuranBookKey(bookSlug){
+    const s = String(bookSlug||'').trim().toLowerCase();
+    if(!s) return 'bukhari';
+    if(s.includes('bukhari')) return 'bukhari';
+    if(s.includes('muslim')) return 'muslim';
+    if(s.includes('tirmidzi') || s.includes('tirmidzi')) return 'tirmidzi';
+    if(s.includes('nasai') || s.includes("nasa'i") || s.includes('nasa')) return 'nasai';
+    if(s.includes('abu') && s.includes('daud')) return 'abu-daud';
+    if(s.includes('ibnu') && s.includes('majah')) return 'ibnu-majah';
+    return s.replace(/^sahih-/, '').replace(/\s+/g,'-');
+  }
+  function buildMyQuranHadithUrls(){
+    const book = myQuranBookKey(hadithBookSlug());
+    const n = hadithPaginate();
+    // Catatan: format endpoint bisa beda-beda; kita coba beberapa pola yang umum.
+    return [
+      `https://api.myquran.com/v2/hadits/${book}`,
+      `https://api.myquran.com/v2/hadits/${book}/1-${n}`,
+      `https://api.myquran.com/v2/hadits/${book}/1/${n}`,
+      `https://api.myquran.com/v2/hadits/${book}/${n}`,
+    ];
+  }
+  async function fetchHadithItemsMyQuran(){
+    const urls = buildMyQuranHadithUrls();
+    let lastErr = null;
+    for(const url of urls){
+      try{
+        const res = await fetch(url, {cache:'no-store'});
+        if(!res.ok){
+          lastErr = new Error('HTTP ' + res.status);
+          continue;
+        }
+        const json = await res.json();
+        const arr = extractHadithArray(json);
+        const items = arr.map(extractHadithItem).filter(x=>x && x.hadithEnglish);
+        if(items.length) return items;
+        lastErr = new Error('Format respons tidak dikenali / kosong');
+      }catch(e){
+        lastErr = e;
+      }
+    }
+    throw lastErr || new Error('Gagal mengambil data');
+  }
+  async function refreshHadith(){
+    if(!isHadithEnabled()) return;
+    try{
+      setHadithMessage('Hadits', 'Memuat hadits...');
+      let items = [];
+      if(cfg.hadithUseMyQuran !== false){
+        try{ items = await fetchHadithItemsMyQuran(); }catch(e){ console.log('MyQuran hadith fetch gagal, fallback:', e); }
+      }
+      if(!items.length){
+        const apiKey = hadithApiKey();
+        if(!apiKey){
+          setHadithMessage('Hadits', 'Hadits nonaktif (tidak ada hadithApiKey dan MyQuran tidak tersedia).');
+          return;
+        }
+        items = await fetchHadithItems();
+      }
+      state.hadith.items = items;
+      state.hadith.idx = Math.floor(Math.random() * items.length);
+      state.hadith.lastFetchedAt = Date.now();
+      renderHadith(items[state.hadith.idx]);
+    }catch(e){
+      console.log('Hadith fetch error:', e);
+      setHadithMessage('Hadits', 'Gagal memuat hadits. Cek koneksi / CORS / API key.');
+    }
+  }
+  function rotateHadith(){
+    if(!state.hadith.items || !state.hadith.items.length) return;
+    state.hadith.idx = (state.hadith.idx + 1) % state.hadith.items.length;
+    renderHadith(state.hadith.items[state.hadith.idx]);
+  }
+  function setupHadith(){
+    if(!isHadithEnabled()) return;
+    if(!($('hadithBox') && $('hadithBody') && $('hadithMeta'))) return;
+    const bodyEl = $('hadithBody');
+    if(bodyEl && !bodyEl.dataset.autoscrollBound){
+      bodyEl.dataset.autoscrollBound = '1';
+      const hold = () => { state.hadith.userHoldUntil = Date.now() + 8000; };
+      bodyEl.addEventListener('wheel', hold, {passive:true});
+      bodyEl.addEventListener('touchstart', hold, {passive:true});
+      bodyEl.addEventListener('pointerdown', hold, {passive:true});
+      bodyEl.addEventListener('scroll', hold, {passive:true});
+    }
+    refreshHadith();
+    if(state.hadith.rotateTimer) clearInterval(state.hadith.rotateTimer);
+    state.hadith.rotateTimer = setInterval(() => {
+      const tooOld = !state.hadith.lastFetchedAt || (Date.now() - state.hadith.lastFetchedAt) > 6*60*60*1000;
+      if(tooOld) refreshHadith();
+      rotateHadith();
+    }, hadithRotateMs());
+  }
+
+  async function loadBackground(){
+    const bg = cfg.assets.background || 'bg.jpg';
+    const color = cfg.assets.color || 'color.txt';
+    const img = new Image();
+    img.onload = () => { $('bgImage').style.backgroundImage = `url('${bg}')`; };
+    img.onerror = async () => {
+      try{ const r = await fetch(color, {cache:'no-store'}); if(r.ok){ document.documentElement.style.setProperty('--bg', (await r.text()).trim()); } }
+      catch(e){}
+    };
+    img.src = bg + '?v=' + Date.now();
+  }
+  loadBackground();
+  setupAudio();
+  setupAudioUnlockHandlers();
+  setupHadith();
+
+  function pad(n){return String(Math.floor(n)).padStart(2,'0')}
+  function fmtTime(d){return pad(d.getHours())+':'+pad(d.getMinutes())}
+  function fmtHMS(ms){ms=Math.max(0,Math.floor(ms/1000)); const h=Math.floor(ms/3600),m=Math.floor(ms%3600/60),s=ms%60; return pad(h)+':'+pad(m)+':'+pad(s)}
+  function fmtMS(ms){ms=Math.max(0,Math.floor(ms/1000)); const m=Math.floor(ms/60),s=ms%60; return pad(m)+':'+pad(s)}
+  function dateKey(d){return d.toLocaleDateString('en-CA',{timeZone:cfg.timezone})}
+  function localNow(){
+    const real = new Date();
+    if(!state.testTime) return real;
+    return new Date(real.getTime() + (state.testOffsetMs||0));
+  }
+  window.setTestTime = function(hhmmss){
+    const real = new Date();
+    const [h,m=0,s=0] = String(hhmmss).split(':').map(Number);
+    const desired = new Date(real); desired.setHours(h,m,s,0);
+    state.testTime = hhmmss;
+    state.testOffsetMs = desired.getTime() - real.getTime();
+    state.testEpoch = (state.testEpoch || 0) + 1;
+    state.spoken = {};
+    update(true);
+    console.log('Mode cek waktu aktif:', hhmmss);
+  };
+  window.clearTestTime = function(){
+    state.testTime = null;
+    state.testOffsetMs = 0;
+    state.spoken = {};
+    update(true);
+    console.log('Mode waktu normal aktif');
+  };
+
+  function isWeekend(now){ const d=now.getDay(); return d===0 || d===6; } // Ahad/Minggu atau Sabtu
+  function timeAt(base, h, m, s=0){ const d=new Date(base); d.setHours(h,m,s,0); return d; }
+  function parseHHMM(str){
+    const m = String(str||'').trim().match(/^(\d{1,2})(?::(\d{1,2}))?(?::(\d{1,2}))?$/);
+    if(!m) return null;
+    const hh = Math.max(0, Math.min(23, Number(m[1]) || 0));
+    const mm = Math.max(0, Math.min(59, Number(m[2]) || 0));
+    const ss = Math.max(0, Math.min(59, Number(m[3]) || 0));
+    return {hh, mm, ss};
+  }
+  function timeAtStr(base, str){
+    const t = parseHHMM(str);
+    if(!t) return null;
+    return timeAt(base, t.hh, t.mm, t.ss);
+  }
+  function getRangeBounds(now, startStr, endStr){
+    const start = timeAtStr(now, startStr);
+    const end = timeAtStr(now, endStr);
+    if(!start || !end) return null;
+    if(start <= end) return {start, end};
+    const startAdj = new Date(start);
+    const endAdj = new Date(end);
+    if(now < endAdj) startAdj.setDate(startAdj.getDate() - 1);
+    else endAdj.setDate(endAdj.getDate() + 1);
+    return {start:startAdj, end:endAdj};
+  }
+  function inTimeRange(now, startStr, endStr){
+    const start = timeAtStr(now, startStr);
+    const end = timeAtStr(now, endStr);
+    if(!start || !end) return false;
+    if(start <= end) return now >= start && now < end;
+    return (now >= start) || (now < end); // lintas tengah malam
+  }
+  function sleepModeStart(){ return String(cfg.sleepModeStart || '21:00'); }
+  function sleepModeEnd(){ return String(cfg.sleepModeEnd || '02:45'); }
+  function isSleepMode(now){
+    // Gunakan sleepSchedule dari remote jika ada, fallback ke config HTML
+    var schedule = remoteState && Array.isArray(remoteState.sleepSchedule) ? remoteState.sleepSchedule : null;
+    if(schedule && schedule.length > 0){
+      return schedule.some(function(item){ return inTimeRange(now, item.start, item.end); });
+    }
+    return inTimeRange(now, sleepModeStart(), sleepModeEnd());
+  }
+  function getScheduleFor(base){
+    const key = dateKey(base);
+    if(state.scheduleDateKey === key && state.schedule) return state.schedule;
+    return calcSchedule(base);
+  }
+  function parseOffsetMs(off){
+    const o = String(off||'').trim();
+    if(!o) return 0;
+    const m = o.match(/^([+-])\s*(\d+(?:\.\d+)?)\s*([smh])$/i);
+    if(!m) return 0;
+    const sign = m[1] === '-' ? -1 : 1;
+    const n = Number(m[2]);
+    if(!Number.isFinite(n)) return 0;
+    const unit = String(m[3]||'').toLowerCase();
+    const mult = (unit === 'h') ? 3600000 : (unit === 'm') ? 60000 : 1000;
+    return sign * n * mult;
+  }
+  function prayerEndTime(prayerKey, base=localNow(), scheduleOverride=null){
+    const schedule = scheduleOverride || getScheduleFor(base);
+    const start = schedule && schedule[prayerKey];
+    if(!start) return null;
+    const iqMap = cfg.iqomahMinutes || {};
+    const iqMins = (typeof iqMap[prayerKey] === 'number') ? iqMap[prayerKey] : 10;
+    const blackMins = (typeof cfg.blackScreenAfterIqomahMinutes === 'number') ? cfg.blackScreenAfterIqomahMinutes : 15;
+    const iq = new Date(start.getTime() + iqMins*60000);
+    return new Date(iq.getTime() + blackMins*60000);
+  }
+  function prayerIqomahTime(prayerKey, base=localNow(), scheduleOverride=null){
+    const schedule = scheduleOverride || getScheduleFor(base);
+    const start = schedule && schedule[prayerKey];
+    if(!start) return null;
+    const iqMap = cfg.iqomahMinutes || {};
+    const iqMins = (typeof iqMap[prayerKey] === 'number') ? iqMap[prayerKey] : 10;
+    return new Date(start.getTime() + iqMins*60000);
+  }
+  function withinFirstMinute(now, target){ return now>=target && (now-target)<60000; }
+  function shouldRunAlarmByWhen(now, when){
+    if(when === 'weekday') return !isWeekend(now);
+    if(when === 'weekend') return isWeekend(now);
+    return true;
+  }
+  function resolveTimeSpec(base, spec){
+    const s = String(spec||'').trim().toLowerCase();
+    if(!s) return null;
+    const fixed = timeAtStr(base, s);
+    if(fixed) return fixed;
+
+    const patterns = [
+      /^prayer_(start|iqomah|end)\s*:\s*([a-z]+)\s*([+-]\s*\d+(?:\.\d+)?\s*[smh])?$/i,
+      /^(start|iqomah|end)\s*:\s*([a-z]+)\s*([+-]\s*\d+(?:\.\d+)?\s*[smh])?$/i,
+      /^([a-z]+)\s*_(start|iqomah|end)\s*([+-]\s*\d+(?:\.\d+)?\s*[smh])?$/i,
+    ];
+    for(const re of patterns){
+      const m = s.match(re);
+      if(!m) continue;
+      const kind = (m[1] === 'start' || m[1] === 'iqomah' || m[1] === 'end') ? m[1] : m[2];
+      const key = (m[1] === 'start' || m[1] === 'iqomah' || m[1] === 'end') ? m[2] : m[1];
+      const offsetMs = parseOffsetMs(m[3]);
+      const prayerKey = String(key||'').trim().toLowerCase();
+      const schedule = getScheduleFor(base);
+      let point = null;
+      if(kind === 'start') point = schedule?.[prayerKey] || null;
+      else if(kind === 'iqomah') point = prayerIqomahTime(prayerKey, base, schedule) || null;
+      else if(kind === 'end') point = prayerEndTime(prayerKey, base, schedule) || null;
+      if(!point) return null;
+      return new Date(point.getTime() + offsetMs);
+    }
+    return null;
+  }
+  function resolveAlarmTime(now, spec){
+    return resolveTimeSpec(now, spec);
+  }
+  function resolveWindowBounds(now, item){
+    if(!item?.startSpec || !item?.endSpec) return null;
+    const start = resolveTimeSpec(now, item.startSpec);
+    const end = resolveTimeSpec(now, item.endSpec);
+    if(!start || !end) return null;
+    if(start <= end) return {start, end};
+    const startAdj = new Date(start);
+    const endAdj = new Date(end);
+    if(now < endAdj) startAdj.setDate(startAdj.getDate() - 1);
+    else endAdj.setDate(endAdj.getDate() + 1);
+    return {start:startAdj, end:endAdj};
+  }
+  function isWindowActive(now, item){
+    const bounds = resolveWindowBounds(now, item);
+    return !!(bounds && now >= bounds.start && now < bounds.end);
+  }
+  function findActiveWindowEntry(now, list){
+    if(!Array.isArray(list) || !list.length) return null;
+    for(const item of list){
+      if(isWindowActive(now, item)) return item;
+    }
+    return null;
+  }
+  function checkFixedAlarms(now){
+    const list = state.data.fixedAlarms;
+    if(!list || !list.length) return;
+    const keyDate = state.scheduleDateKey || dateKey(now);
+    for(const a of list){
+      if(!a?.time) continue;
+      if(!shouldRunAlarmByWhen(now, a.when||'all')) continue;
+      const t = resolveAlarmTime(now, a.time);
+      if(!t) continue;
+      if(Math.abs(now - t) < 1100 || withinFirstMinute(now, t)){
+        const repeat = Number.isFinite(a.repeat) ? a.repeat : getAudioRepeat();
+        const kind = (a.audioKind === 'adzan' || a.audioKind === 'iqomah') ? a.audioKind : 'alarm';
+        state.data.lastAlarmNote = String(a.note || a.id || a.time).trim();
+        state.data.lastAlarmAt = now.getTime();
+        playNotice(kind, 'fixed-'+keyDate+'-'+String(a.id||a.time).replace(/[^a-z0-9_-]+/gi,'').toLowerCase(), repeat);
+      }
+    }
+  }
+  function checkRoutineAlarms(now){
+    checkFixedAlarms(now);
+  }
+  function recentAlarmNote(now){
+    if(!state.data.lastAlarmNote || !state.data.lastAlarmAt) return '';
+    if((now.getTime() - state.data.lastAlarmAt) > 5*60000) return '';
+    return state.data.lastAlarmNote;
+  }
+  function nextFixedAlarmInfo(now){
+    const list = state.data.fixedAlarms;
+    if(!list || !list.length) return null;
+    let best = null;
+    for(const item of list){
+      if(!item?.time) continue;
+      for(let dayOffset = 0; dayOffset <= 7; dayOffset++){
+        const base = new Date(now);
+        base.setDate(base.getDate() + dayOffset);
+        const t = resolveTimeSpec(base, item.time);
+        if(!t || t <= now) continue;
+        if(!shouldRunAlarmByWhen(t, item.when||'all')) continue;
+        if(!best || t < best.time){
+          best = {
+            time: t,
+            label: String(item.note || item.id || item.time).trim()
+          };
+        }
+        break;
+      }
+    }
+    return best;
+  }
+  function activeStatusNote(now){
+    const item = findActiveWindowEntry(now, state.data.statusWindows);
+    return item ? String(item.note || item.id || '').trim() : '';
+  }
+  function dailyRoutineText(now){
+    if(remoteState && remoteState.customStatus) return remoteState.customStatus;
+    const recent = recentAlarmNote(now);
+    if(recent) return recent;
+    const activeStatus = activeStatusNote(now);
+    if(activeStatus) return activeStatus;
+    const next = nextFixedAlarmInfo(now);
+    if(next && next.label) return `Berikutnya: ${next.label} (${fmtTime(next.time)})`;
+    return null;
+  }
+
+  function julian(y,m,d){ if(m<=2){y--;m+=12} const A=Math.floor(y/100),B=2-A+Math.floor(A/4); return Math.floor(365.25*(y+4716))+Math.floor(30.6001*(m+1))+d+B-1524.5; }
+  function sunPosition(jd){
+    const D=jd-2451545.0, g=(357.529+0.98560028*D)*Math.PI/180, q=(280.459+0.98564736*D)%360, L=(q+1.915*Math.sin(g)+0.020*Math.sin(2*g))*Math.PI/180, e=(23.439-0.00000036*D)*Math.PI/180;
+    const RA=Math.atan2(Math.cos(e)*Math.sin(L),Math.cos(L))*180/Math.PI/15; const eqt=q/15-((RA+24)%24); const decl=Math.asin(Math.sin(e)*Math.sin(L))*180/Math.PI; return {decl,eqt};
+  }
+  function hourAngle(angle, decl, lat){
+    const a=Math.PI/180, term=(-Math.sin(angle*a)-Math.sin(lat*a)*Math.sin(decl*a))/(Math.cos(lat*a)*Math.cos(decl*a));
+    return Math.acos(Math.min(1,Math.max(-1,term)))/a/15;
+  }
+  function asharAngle(factor, decl, lat){ const a=Math.PI/180; return -Math.atan(1/(factor+Math.tan(Math.abs(lat-decl)*a)))/a; }
+  function minutesToDate(base, minutes){ const d=new Date(base); d.setHours(0,0,0,0); d.setMinutes(Math.round(minutes)); return d; }
+  function calcSchedule(now){
+    const y=now.getFullYear(), m=now.getMonth()+1, d=now.getDate(), jd=julian(y,m,d), pos=sunPosition(jd), tz=-now.getTimezoneOffset()/60, noon=12+tz-cfg.longitude/15-pos.eqt, lat=cfg.latitude;
+    const fajrAngle = 20, ishaAngle = 18, sunriseAngle = 0.833;
+    const times = {
+      subuh: noon - hourAngle(fajrAngle,pos.decl,lat),
+      syuruq: noon - hourAngle(sunriseAngle,pos.decl,lat),
+      dzuhur: noon + 2/60,
+      ashar: noon + hourAngle(-asharAngle(1,pos.decl,lat),pos.decl,lat),
+      maghrib: noon + hourAngle(sunriseAngle,pos.decl,lat),
+      isya: noon + hourAngle(ishaAngle,pos.decl,lat)
+    };
+    const out={}; prayerOrder.forEach(k=>{ out[k]=minutesToDate(now, times[k]*60 + (cfg.adjustMinutes[k]||0)); }); return out;
+  }
+  // ── Jadwal via API (Aladhan / myQur'an) ────────────────────────────────────
+  var _aladhanCache = {};
+  var _myquranCache = {};
+
+  function _cfgTzOffsetHours(date) {
+    try {
+      var d = date || new Date();
+      var u = new Date(d.toLocaleString('en-US', { timeZone: 'UTC' }));
+      var t = new Date(d.toLocaleString('en-US', { timeZone: cfg.timezone }));
+      return (t - u) / 3600000;
+    } catch(_) { return -(date || new Date()).getTimezoneOffset() / 60; }
+  }
+
+  function _aladhanTimeToDate(hhmm, baseDate) {
+    var parts = String(hhmm || '00:00').split(':');
+    var h = parseInt(parts[0], 10) || 0;
+    var m = parseInt(parts[1] || 0, 10) || 0;
+    var dateStr = baseDate.toLocaleDateString('en-CA', { timeZone: cfg.timezone });
+    var ymd = dateStr.split('-').map(Number);
+    var utcMs = Date.UTC(ymd[0], ymd[1]-1, ymd[2], h, m, 0, 0);
+    return new Date(utcMs - _cfgTzOffsetHours(baseDate) * 3600000);
+  }
+
+  async function _fetchAladhanSchedule(now) {
+    var ts = Math.floor(now.getTime() / 1000);
+    var url = 'https://api.aladhan.com/v1/timings/' + ts
+      + '?latitude=' + cfg.latitude
+      + '&longitude=' + cfg.longitude
+      + '&method=20'
+      + '&timezonestring=' + encodeURIComponent(cfg.timezone || 'Asia/Jakarta');
+    var res = await fetch(url, { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    var json = await res.json();
+    if (!json.data || !json.data.timings) throw new Error('Format respons tidak dikenali');
+    var t = json.data.timings;
+    return {
+      subuh:   _aladhanTimeToDate(t.Fajr,    now),
+      syuruq:  _aladhanTimeToDate(t.Sunrise, now),
+      dzuhur:  _aladhanTimeToDate(t.Dhuhr,   now),
+      ashar:   _aladhanTimeToDate(t.Asr,     now),
+      maghrib: _aladhanTimeToDate(t.Maghrib, now),
+      isya:    _aladhanTimeToDate(t.Isha,    now)
+    };
+  }
+
+  function loadAladhanForDate(now) {
+    if (location.protocol === 'file:') return;
+    var key = dateKey(now);
+    if (_aladhanCache[key]) return;
+    _aladhanCache[key] = 'pending';
+    _fetchAladhanSchedule(now).then(function(schedule) {
+      _aladhanCache[key] = schedule;
+      if (state.scheduleDateKey === key) {
+        state.schedule = schedule;
+        state.spoken = {};
+        renderSchedule();
+        console.log('[Aladhan KEMENAG] Jadwal berhasil dimuat untuk ' + key);
+      }
+    }).catch(function(e) {
+      console.log('[Aladhan KEMENAG] Gagal, pakai kalkulasi lokal. Error:', e && e.message || e);
+      _aladhanCache[key] = 'failed';
+    });
+  }
+
+  async function _fetchMyQuranSchedule(now, cityId) {
+    var y = now.getFullYear(), m = now.getMonth() + 1, d = now.getDate();
+    var url = 'https://api.myquran.com/v2/sholat/jadwal/' + encodeURIComponent(cityId)
+      + '/' + y + '/' + pad(m) + '/' + pad(d);
+    var res = await fetch(url, { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    var json = await res.json();
+    if (!json.status || !json.data || !json.data.jadwal) throw new Error('Format respons tidak dikenali');
+    var t = json.data.jadwal;
+    return {
+      subuh:   _aladhanTimeToDate(t.subuh,   now),
+      syuruq:  _aladhanTimeToDate(t.terbit,  now),
+      dzuhur:  _aladhanTimeToDate(t.dzuhur,  now),
+      ashar:   _aladhanTimeToDate(t.ashar,   now),
+      maghrib: _aladhanTimeToDate(t.maghrib, now),
+      isya:    _aladhanTimeToDate(t.isya,    now)
+    };
+  }
+
+  function loadMyQuranForDate(now, cityId) {
+    if (location.protocol === 'file:') return;
+    if (!cityId) return;
+    var key = dateKey(now);
+    var cacheKey = cityId + '|' + key;
+    if (_myquranCache[cacheKey]) return;
+    _myquranCache[cacheKey] = 'pending';
+    _fetchMyQuranSchedule(now, cityId).then(function(schedule) {
+      _myquranCache[cacheKey] = schedule;
+      if (state.scheduleDateKey === key) {
+        state.schedule = schedule;
+        state.spoken = {};
+        renderSchedule();
+        console.log('[myQur\'an API] Jadwal berhasil dimuat untuk ' + key + ' (kota ' + cityId + ')');
+      }
+    }).catch(function(e) {
+      console.log('[myQur\'an API] Gagal, pakai kalkulasi lokal. Error:', e && e.message || e);
+      _myquranCache[cacheKey] = 'failed';
+    });
+  }
+
+  var _eveningRefreshKey = '';
+
+  function ensureSchedule(now){
+    const key=dateKey(now);
+    // Refresh jam 18:00: hanya terpicu saat halaman sudah running hari ini (scheduleDateKey===key),
+    // bukan saat pertama load (scheduleDateKey==='') agar tidak double-fetch
+    if(now.getHours() >= 18 && _eveningRefreshKey !== key && state.scheduleDateKey === key){
+      _eveningRefreshKey = key;
+      delete _aladhanCache[key];
+      Object.keys(_myquranCache).forEach(function(k){ if(k.includes('|'+key)) delete _myquranCache[k]; });
+      state.scheduleDateKey = '';
+    }
+    if(state.scheduleDateKey !== key){
+      state.schedule=calcSchedule(now); state.scheduleDateKey=key; renderSchedule(); state.spoken={};
+      if(now.getHours() >= 18) _eveningRefreshKey = key; // cegah double-trigger saat load setelah jam 18
+      var api=(remoteState.prayerApi||'aladhan');
+      if(api==='myquran' && remoteState.myquranCityId) loadMyQuranForDate(now, remoteState.myquranCityId);
+      else loadAladhanForDate(now);
+    }
+  }
+  function renderSchedule(active){
+    $('schedule').innerHTML = prayerOrder.map(k=>`<div class="pray ${k===active?'active':''}" id="pray-${k}"><div class="name">${prayerNames[k]}</div><div class="time">${state.schedule[k]?fmtTime(state.schedule[k]):'--:--'}</div></div>`).join('');
+  }
+  function nextPrayerInfo(now){
+    let list=[]; prayerOrder.forEach(k=>list.push({key:k,time:state.schedule[k]}));
+    const tomorrow = new Date(now); tomorrow.setDate(tomorrow.getDate()+1); const tomorrowSchedule=calcSchedule(tomorrow); list.push({key:'subuh',time:tomorrowSchedule.subuh});
+    return list.find(x=>x.time>now) || list[0];
+  }
+  function nextSubuhTime(now){
+    const today = state.schedule?.subuh;
+    if(today && today > now) return today;
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate()+1);
+    return calcSchedule(tomorrow).subuh;
+  }
+  function activeIqomah(now){
+    for(const k of obligatory){ const start=state.schedule[k], mins=cfg.iqomahMinutes[k]||10, iq=new Date(start.getTime()+mins*60000), end=new Date(iq.getTime()+cfg.blackScreenAfterIqomahMinutes*60000); if(now>=start && now<end) return {key:k,start,iq,end,mins}; }
+    return null;
+  }
+  function isDoNotDisturb(now){
+    if(!remoteState.doNotDisturbEnabled) return false;
+    const preLock=typeof remoteState.preAdzanLockMinutes==='number'?remoteState.preAdzanLockMinutes:5;
+    for(const k of obligatory){
+      const start=state.schedule[k]; if(!start) continue;
+      const iqM=(cfg.iqomahMinutes||{})[k]; const iqMins=typeof iqM==='number'?iqM:10;
+      const blkMins=typeof cfg.blackScreenAfterIqomahMinutes==='number'?cfg.blackScreenAfterIqomahMinutes:15;
+      const lockStart=new Date(start.getTime()-preLock*60000);
+      const lockEnd=new Date(start.getTime()+(iqMins+blkMins)*60000);
+      if(now>=lockStart && now<lockEnd) return true;
+    }
+    return false;
+  }
+  function getActiveTextSlide(slides, now){
+    if(!slides || !slides.length) return null;
+    const totalMins = slides.reduce((s,sl)=>s+(sl.durationHours||1)*60, 0);
+    if(totalMins<=0) return slides[0];
+    const dayMins = now.getHours()*60+now.getMinutes();
+    let pos = dayMins % totalMins, acc = 0;
+    for(const sl of slides){ acc+=(sl.durationHours||1)*60; if(pos<acc) return sl; }
+    return slides[0];
+  }
+  function getSlideRemainingMs(slides, now){
+    if(!slides || !slides.length) return 0;
+    var totalSecs = slides.reduce(function(s,sl){ return s+(sl.durationHours||1)*3600; }, 0);
+    if(totalSecs<=0) return 0;
+    var daySecs = now.getHours()*3600+now.getMinutes()*60+now.getSeconds();
+    var posInCycle = daySecs % totalSecs;
+    var acc = 0;
+    for(var i=0; i<slides.length; i++){ acc+=(slides[i].durationHours||1)*3600; if(posInCycle<acc) return (acc-posInCycle)*1000; }
+    return 0;
+  }
+  function updateTextSlideDisplay(now, force){
+    const slides = (remoteState.textSlides||[]).filter(function(sl){ return sl.active !== false; });
+    const hadithCont = $('hadithContainer');
+    const slideCont = $('textSlideContainer');
+    if(!slides.length){
+      if(hadithCont) hadithCont.style.display='flex';
+      if(slideCont) slideCont.style.display='none';
+      return;
+    }
+    if(hadithCont) hadithCont.style.display='none';
+    if(slideCont) slideCont.style.display='flex';
+    // Update countdown setiap detik
+    var cdEl = $('slideCountdown');
+    if(cdEl && slides.length > 1){
+      var ms = getSlideRemainingMs(slides, now);
+      var totalSec = Math.ceil(ms/1000);
+      var h = Math.floor(totalSec/3600), m = Math.floor((totalSec%3600)/60), s = totalSec%60;
+      cdEl.textContent = h>0 ? ('Ganti '+h+'j '+pad(m)+'m') : m>0 ? ('Ganti '+m+'m '+pad(s)+'d') : ('Ganti '+s+'d');
+    } else if(cdEl) { cdEl.textContent = ''; }
+    const curMin = now.getHours()*60+now.getMinutes();
+    if(!force && curMin===_textSlideState.lastUpdateMin) return;
+    _textSlideState.lastUpdateMin=curMin;
+    const slide = getActiveTextSlide(slides, now);
+    if(slide && (force || slide.id !== _textSlideState.currentId)){
+      _textSlideState.currentId = slide.id;
+      const lbl = $('textSlideLabel'); if(lbl) lbl.textContent = slide.title||'';
+      const cnt = $('textSlideContent'); if(cnt) cnt.innerHTML = slide.html||'';
+    }
+  }
+  function update(force=false){
+    const now=localNow(); ensureSchedule(now);
+    $('clock').textContent=pad(now.getHours())+':'+pad(now.getMinutes()); $('seconds').textContent=pad(now.getSeconds());
+    const sc = $('sleepClock'); if(sc) sc.textContent = pad(now.getHours())+':'+pad(now.getMinutes());
+    const ss = $('sleepSeconds'); if(ss) ss.textContent = pad(now.getSeconds());
+    const st = $('sleepSubuhTime'); if(st){ const subuh = nextSubuhTime(now); st.textContent = subuh ? fmtTime(subuh) : '--:--'; }
+
+    const sleep = isSleepMode(now);
+    showSleepOverlay(sleep);
+    $('gregDate').textContent=now.toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+    try{$('hijriDate').textContent=new Intl.DateTimeFormat('id-ID-u-ca-islamic',{day:'numeric',month:'long',year:'numeric'}).format(now)}catch(e){$('hijriDate').textContent=''}
+    document.body.classList.toggle('night', now.getHours()>=cfg.nightModeHour || now.getHours()<4);
+    const next=nextPrayerInfo(now); $('nextPrayer').textContent=prayerNames[next.key]; $('nextCountdown').textContent=fmtHMS(next.time-now);
+    renderSchedule(next.key);
+    const iq=activeIqomah(now);
+    $('adzanBanner').classList.remove('show'); $('prayerOverlay').classList.remove('show'); $('overlayCountdown').textContent='';
+    checkRoutineAlarms(now);
+    if(iq){
+      playNotice('adzan','adzan-'+iq.key+'-'+state.scheduleDateKey, remoteState.adzanSoundRepeat||1);
+      const afterIqomah = now >= iq.iq;
+      if(!afterIqomah){
+        $('adzanBanner').classList.add('show'); $('adzanTitle').textContent='Saatnya Adzan '+prayerNames[iq.key]; $('adzanSub').innerHTML='Iqomah dalam <b id="iqomahCountdown">'+fmtMS(iq.iq-now)+'</b>';
+        $('status').textContent='Menunggu iqomah '+prayerNames[iq.key]; $('overlayCountdown').textContent=fmtMS(iq.iq-now);
+      } else {
+        playNotice('iqomah','iqomah-'+iq.key+'-'+state.scheduleDateKey, remoteState.iqomahSoundRepeat||1);
+        $('prayerOverlay').classList.add('show'); $('status').textContent='Sekarang waktu sholat '+prayerNames[iq.key];
+      }
+    } else {
+      const routine = dailyRoutineText(now);
+      $('status').textContent = routine || '';
+    }
+    // Rotasi text slide
+    updateTextSlideDisplay(now, false);
+    // Hint suara
+    const hintEl=$('soundHint'); if(hintEl) hintEl.style.display=(!state.audioUnlocked&&isAudioEnabled())?'':'none';
+    // Do-Not-Disturb: sembunyikan overlay remote selama periode adzan/iqomah/sholat
+    const inDND=isDoNotDisturb(now);
+    if(inDND){ const annEl=$('remoteAnnouncement'); if(annEl) annEl.classList.remove('show'); }
+    if(_wasInDoNotDisturb && !inDND && _lastRemoteServerState) applyRemoteState(_lastRemoteServerState);
+    _wasInDoNotDisturb=inDND;
+    updateDndInfoOverlay_(now);
+    if(cfg.autoFullscreen) tryFullscreen();
+    // Cek jadwal video otomatis
+    checkVideoSchedules(now);
+  }
+  function tryFullscreen(){
+    if(document.fullscreenElement) return;
+    const go=()=>document.documentElement.requestFullscreen?.().catch(()=>{});
+    document.addEventListener('click',go,{once:true}); document.addEventListener('touchstart',go,{once:true});
+  }
+  function showSleepOverlay(show){
+    const el = $('sleepOverlay');
+    if(el) el.classList.toggle('show', !!show);
+  }
+
+  // ── Video Player ────────────────────────────────────────────────────────────
+  var mediaState = {
+    active: false,
+    mediaId: null,
+    mediaType: null,
+    durationTimer: null,
+    lastCommandId: null,
+    playedToday: {}
+  };
+
+  function playMedia(v) {
+    if(!v) return;
+    // YouTube
+    if(v.type === 'youtube') {
+      if(!v.youtubeId) return;
+      stopMedia();
+      var todayKey = v.id + '|' + dateKey(localNow());
+      mediaState.active = true;
+      mediaState.mediaId = v.id;
+      mediaState.mediaType = 'youtube';
+      mediaState.playedToday[todayKey] = true;
+      var ytFrame = $('ytFrame'), ytOverlay = $('ytOverlay');
+      if(ytFrame) {
+        var ytStart = (v.startSeconds > 0) ? ('&start=' + Math.floor(v.startSeconds)) : '';
+        ytFrame.src = 'https://www.youtube.com/embed/' + v.youtubeId + '?autoplay=1&rel=0&modestbranding=1&enablejsapi=1' + ytStart;
+        ytFrame.onload = function(){ setTimeout(applyYoutubeVolume, 600); };
+      }
+      if(ytOverlay) ytOverlay.classList.add('show');
+      if(v.durationMode === 'minutes' && v.durationMinutes > 0) {
+        mediaState.durationTimer = setTimeout(function() { if(mediaState.mediaId === v.id) stopMedia(); }, v.durationMinutes * 60000);
+      }
+      return;
+    }
+    if(!v.filename) return;
+    stopMedia();
+    var url = '/jam-digital/videos/' + encodeURIComponent(v.filename);
+    var isAudio = (v.mediaType === 'audio');
+    var todayKey = v.id + '|' + dateKey(localNow());
+    mediaState.active = true;
+    mediaState.mediaId = v.id;
+    mediaState.mediaType = v.mediaType || 'video';
+    // Mark played so the schedule doesn't fire again this minute
+    mediaState.playedToday[todayKey] = true;
+    function _onPlayFail(err) {
+      console.warn('[jam-digital] playMedia blocked:', err && err.message || err);
+      // Browser blocked autoplay — undo state so the schedule can retry next second
+      if(mediaState.mediaId === v.id) {
+        mediaState.active = false;
+        mediaState.mediaId = null;
+        delete mediaState.playedToday[todayKey];
+      }
+      stopMedia();
+    }
+    var _mvVol = _masterMuted ? 0 : _masterVolume;
+    var _startSec = Math.max(0, parseInt(v.startSeconds) || 0);
+    if(isAudio) {
+      var player = $('mediaAudioPlayer');
+      var overlay = $('audioOverlay');
+      var nameEl = $('audioOverlayName');
+      if(!player) return;
+      // #t=N fragment memberi tahu browser untuk mulai dari detik ke-N (lebih reliable dari currentTime)
+      player.src = _startSec > 0 ? (url + '#t=' + _startSec) : url;
+      player.volume = _mvVol;
+      player.loop = (v.durationMode === 'loop');
+      if(nameEl) nameEl.textContent = v.displayName || v.filename;
+      if(overlay) overlay.classList.add('show');
+      player.onended = function() { if(v.durationMode === 'full' && mediaState.mediaId === v.id) stopMedia(); };
+      if(v.durationMode === 'minutes' && v.durationMinutes > 0) {
+        mediaState.durationTimer = setTimeout(function() { if(mediaState.mediaId === v.id) stopMedia(); }, v.durationMinutes * 60000);
+      }
+      var p = player.play();
+      if(p && p.catch) p.catch(_onPlayFail);
+    } else {
+      var player = $('videoPlayer');
+      var overlay = $('videoOverlay');
+      if(!player || !overlay) return;
+      player.src = _startSec > 0 ? (url + '#t=' + _startSec) : url;
+      player.volume = _mvVol;
+      player.loop = (v.durationMode === 'loop');
+      overlay.classList.add('show');
+      player.onended = function() { if(v.durationMode === 'full' && mediaState.mediaId === v.id) stopMedia(); };
+      if(v.durationMode === 'minutes' && v.durationMinutes > 0) {
+        mediaState.durationTimer = setTimeout(function() { if(mediaState.mediaId === v.id) stopMedia(); }, v.durationMinutes * 60000);
+      }
+      var p = player.play();
+      if(p && p.catch) p.catch(_onPlayFail);
+    }
+  }
+
+  function stopMedia() {
+    if(mediaState.durationTimer) { clearTimeout(mediaState.durationTimer); mediaState.durationTimer = null; }
+    var vp = $('videoPlayer'), vo = $('videoOverlay');
+    if(vp) { try { vp.pause(); } catch(_) {} vp.src = ''; vp.onended = null; }
+    if(vo) vo.classList.remove('show');
+    var ytf = $('ytFrame'), yto = $('ytOverlay');
+    if(ytf) { ytf.onload = null; ytf.src = ''; }
+    if(yto) yto.classList.remove('show');
+    var ap = $('mediaAudioPlayer'), ao = $('audioOverlay');
+    if(ap) { try { ap.pause(); } catch(_) {} ap.src = ''; ap.onended = null; }
+    if(ao) ao.classList.remove('show');
+    mediaState.active = false;
+    mediaState.mediaId = null;
+    mediaState.mediaType = null;
+  }
+
+  function checkVideoSchedules(now) {
+    var lib = remoteState.videoLibrary;
+    if(!lib || !lib.length) return;
+    var timeStr = pad(now.getHours()) + ':' + pad(now.getMinutes());
+    // Log once per minute when a scheduled item exists (for debugging)
+    if(now.getSeconds() === 0) {
+      var hasScheduled = lib.some(function(v){ return v.schedule === timeStr; });
+      if(hasScheduled) console.log('[jam-digital] checkVideoSchedules', timeStr, 'active='+mediaState.active, 'lib='+lib.length);
+    }
+    if(mediaState.active) return;
+    for(var i=0; i<lib.length; i++) {
+      var v = lib[i];
+      if(!v.schedule || v.schedule !== timeStr) continue;
+      var todayKey = v.id + '|' + dateKey(now);
+      if(v.repeat === 'once' && mediaState.playedToday[todayKey]) {
+        console.log('[jam-digital] skip', v.displayName, '- already played today');
+        continue;
+      }
+      console.log('[jam-digital] auto-play', v.displayName, v.mediaType, 'at', timeStr);
+      playMedia(v);
+      break;
+    }
+  }
+
+  var _annAudioToken = '';
+  var _annAudioCount = 0;
+
+  function playAnnouncementAudio(audioInfo) {
+    if(!audioInfo || !audioInfo.url) return;
+    stopAnnouncementAudio();
+    var player = $('annAudioPlayer');
+    if(!player) return;
+    var token = Date.now().toString(36);
+    _annAudioToken = token;
+    _annAudioCount = 0;
+    var repeat = (typeof audioInfo.repeat === 'number') ? audioInfo.repeat : 1;
+    player.src = audioInfo.url;
+    player.loop = (repeat === 0);
+    player.onended = function() {
+      if(_annAudioToken !== token) return;
+      if(repeat === 0) return;
+      _annAudioCount++;
+      if(_annAudioCount < repeat) { player.currentTime = 0; try { player.play(); } catch(_) {} }
+    };
+    try { player.play(); } catch(_) {}
+  }
+
+  function stopAnnouncementAudio() {
+    _annAudioToken = '';
+    var player = $('annAudioPlayer');
+    if(!player) return;
+    try { player.pause(); } catch(_) {}
+    player.onended = null;
+    player.src = '';
+  }
+
+  // ── Master volume/mute (dikontrol dari remote) ───────────────────────────────
+  var _masterVolume = 1;
+  var _masterMuted  = false;
+
+  function applyMasterVolume() {
+    var vol = _masterMuted ? 0 : _masterVolume;
+    // Audio biasa + video HTML5 (kontrol via .volume)
+    var players = [
+      $('mediaAudioPlayer'),
+      $('annAudioPlayer'),
+      $('videoPlayer')
+    ];
+    players.forEach(function(p){ if(p) try{ p.volume = vol; }catch(_){} });
+    // Suara alarm/adzan/iqomah
+    ['alarm','adzan','iqomah'].forEach(function(k){
+      var a = state.audio[k];
+      if(a) try{ a.volume = vol; }catch(_){}
+    });
+    // Video YouTube (iframe) — kontrol via postMessage IFrame API
+    applyYoutubeVolume();
+  }
+
+  // Kontrol volume/mute YouTube iframe via postMessage (skala 0–100)
+  function applyYoutubeVolume() {
+    var ytFrame = $('ytFrame');
+    if(!ytFrame || !ytFrame.contentWindow || !ytFrame.src) return;
+    function post(func, args){
+      try{
+        ytFrame.contentWindow.postMessage(JSON.stringify({ event:'command', func:func, args:args||[] }), '*');
+      }catch(_){}
+    }
+    if(_masterMuted){
+      post('mute');
+    } else {
+      post('unMute');
+      post('setVolume', [Math.round(_masterVolume * 100)]);
+    }
+  }
+
+  // ── Remote state (dikendalikan dari halaman remote admin) ───────────────────
+  var remoteState = { runningText:'', announcement:'', announcementColor:'rgba(0,0,0,0.88)', announcementAudio:null, testTime:null, customStatus:'', videoLibrary:[], prayerApi:'aladhan', myquranCityId:'', doNotDisturbEnabled:true, preAdzanLockMinutes:5, adzanSoundRepeat:1, iqomahSoundRepeat:1, textSlides:[], logoVersion:0, audioVersion:0, testSoundToken:null, sleepSchedule:[], masterVolume:1, masterMuted:false };
+  var _lastRemoteServerState = null;
+  var _wasInDoNotDisturb = false;
+  var _textSlideState = { currentId: null, lastUpdateMin: -1 };
+  var _appliedLogoVersion = -1;
+  var _appliedAudioVersion = 0;
+  var _appliedTestSoundToken = null;
+
+  function applyRemoteState(s){
+    if(!s) return;
+    _lastRemoteServerState = s;
+    var _inDND = isDoNotDisturb(localNow());
+    // Running text override
+    var newRT = String(s.runningText||'').trim();
+    if(newRT !== remoteState.runningText){
+      remoteState.runningText = newRT;
+      var rtEl = $('runningText');
+      if(rtEl) rtEl.textContent = newRT || cfg.runningText || '';
+    }
+    // Announcement overlay (ditunda saat mode tidak diganggu aktif)
+    var newAnn = String(s.announcement||'').trim();
+    var newColor = String(s.announcementColor||'rgba(0,0,0,0.88)').trim();
+    remoteState.announcement = newAnn;
+    remoteState.announcementColor = newColor;
+    if(!_inDND){
+      var annEl = $('remoteAnnouncement');
+      var annText = $('remoteAnnouncementText');
+      if(annEl && annText){
+        if(newAnn){
+          annEl.style.background = newColor;
+          annText.textContent = newAnn;
+          annEl.classList.add('show');
+        } else {
+          annEl.classList.remove('show');
+        }
+      }
+    }
+    // Test time override
+    var newTestTime = s.testTime || null;
+    if(newTestTime !== remoteState.testTime){
+      remoteState.testTime = newTestTime;
+      if(newTestTime) window.setTestTime(newTestTime);
+      else window.clearTestTime();
+    }
+    // Custom status override
+    remoteState.customStatus = String(s.customStatus||'').trim();
+    // Geolocation override: lat/lng dari remote → hitung ulang jadwal sholat (hanya jika berubah)
+    if(s.geoLocation && typeof s.geoLocation.lat === 'number' && typeof s.geoLocation.lng === 'number'){
+      var geoChanged = s.geoLocation.lat !== cfg.latitude
+        || s.geoLocation.lng !== cfg.longitude
+        || (s.geoLocation.timezone && s.geoLocation.timezone !== cfg.timezone);
+      cfg.latitude  = s.geoLocation.lat;
+      cfg.longitude = s.geoLocation.lng;
+      if(s.geoLocation.timezone) cfg.timezone = s.geoLocation.timezone;
+      if(typeof s.geoLocation.locationText === 'string' && s.geoLocation.locationText){
+        cfg.locationText = s.geoLocation.locationText;
+        var placeEl = $('place');
+        if(placeEl) placeEl.textContent = cfg.locationText;
+      }
+      if(geoChanged){
+        state.scheduleDateKey = '';
+        state.spoken = {};
+        _aladhanCache = {};
+        _myquranCache = {};
+      }
+    }
+    // Prayer API selection override
+    var newApi = String(s.prayerApi || 'aladhan').trim();
+    var newCityId = String(s.myquranCityId || '').trim();
+    if(newApi !== (remoteState.prayerApi||'aladhan') || newCityId !== (remoteState.myquranCityId||'')){
+      remoteState.prayerApi = newApi;
+      remoteState.myquranCityId = newCityId;
+      _aladhanCache = {};
+      _myquranCache = {};
+      state.scheduleDateKey = '';
+      state.spoken = {};
+    }
+    // Iqomah minutes override: update masing-masing waktu sholat (hanya reset spoken jika berubah)
+    if(s.iqomahMinutes && typeof s.iqomahMinutes === 'object'){
+      if(!cfg.iqomahMinutes) cfg.iqomahMinutes = {};
+      var iqChanged = false;
+      ['subuh','dzuhur','ashar','maghrib','isya'].forEach(function(k){
+        if(typeof s.iqomahMinutes[k] === 'number' && s.iqomahMinutes[k] !== cfg.iqomahMinutes[k]){
+          cfg.iqomahMinutes[k] = s.iqomahMinutes[k];
+          iqChanged = true;
+        }
+      });
+      if(iqChanged) state.spoken = {};
+    }
+    // Text slides (ganti konten)
+    if(Array.isArray(s.textSlides)){
+      remoteState.textSlides = s.textSlides;
+      _textSlideState.lastUpdateMin = -1; // force refresh
+      updateTextSlideDisplay(localNow(), true);
+    }
+    // Nama masjid dari remote
+    if(typeof s.namaMasjid === 'string' && s.namaMasjid !== (cfg.namaMasjid || '')){
+      cfg.namaMasjid = s.namaMasjid;
+      const nmEl = $('masjidName');
+      if(nmEl) nmEl.innerHTML = s.namaMasjid || cfg.masjidName || 'MASJID';
+    }
+    // Logo version (force reload logo)
+    if(typeof s.logoVersion==='number' && s.logoVersion !== _appliedLogoVersion){
+      _appliedLogoVersion = s.logoVersion;
+      const logoFile = (s.logoFile && s.logoFile.trim()) ? s.logoFile : 'logo/logo_deffault.png';
+      const logoEl=$('logo'); if(logoEl) logoEl.src=logoFile+'?v='+s.logoVersion;
+    }
+    // Audio version (force reload audio files)
+    if(typeof s.audioVersion==='number' && s.audioVersion !== _appliedAudioVersion){
+      _appliedAudioVersion = s.audioVersion;
+      if(s.audioFiles && typeof s.audioFiles === 'object'){
+        if(!cfg.audioFiles) cfg.audioFiles = {};
+        Object.keys(s.audioFiles).forEach(function(k){ cfg.audioFiles[k] = s.audioFiles[k] + '?v=' + s.audioVersion; });
+      }
+      setupAudio();
+    }
+    // Sleep schedule (waktu senyap)
+    if(Array.isArray(s.sleepSchedule)) remoteState.sleepSchedule = s.sleepSchedule;
+    // Do Not Disturb settings
+    if(s.doNotDisturbEnabled !== undefined) remoteState.doNotDisturbEnabled = !!s.doNotDisturbEnabled;
+    if(typeof s.preAdzanLockMinutes === 'number') remoteState.preAdzanLockMinutes = Math.max(0, Math.floor(s.preAdzanLockMinutes));
+    if(typeof s.adzanSoundRepeat === 'number') remoteState.adzanSoundRepeat = Math.max(1, Math.min(5, Math.floor(s.adzanSoundRepeat)));
+    if(typeof s.iqomahSoundRepeat === 'number') remoteState.iqomahSoundRepeat = Math.max(1, Math.min(5, Math.floor(s.iqomahSoundRepeat)));
+    if(typeof s.blackScreenAfterIqomahMinutes === 'number') cfg.blackScreenAfterIqomahMinutes = Math.max(0, Math.floor(s.blackScreenAfterIqomahMinutes));
+    // Test sound (satu kali dari remote)
+    if(s.testSoundToken && s.testSoundToken !== _appliedTestSoundToken){
+      _appliedTestSoundToken = s.testSoundToken;
+      if(isAudioEnabled() && state.audioUnlocked){
+        stopAllAudio();
+        const token = ++state.audioSeq;
+        const kind = s.testSoundKind || 'alarm';
+        const a = state.audio[kind] || state.audio.alarm;
+        if(a) playAudioTimes(a, 1, token);
+        else playBeepTimes_(1, token);
+      }
+    }
+    // Video library (jadwal otomatis)
+    if(Array.isArray(s.videoLibrary)) {
+      remoteState.videoLibrary = s.videoLibrary;
+    }
+    // Video/audio command (play/stop manual) — ditunda saat mode tidak diganggu aktif
+    if(s.videoCommand && s.videoCommand.id && s.videoCommand.id !== mediaState.lastCommandId) {
+      // Abaikan command lama saat reload — hanya eksekusi play jika dikirim dalam 15 detik terakhir
+      var cmdAge = s.videoCommand.issuedAt ? (Date.now() - s.videoCommand.issuedAt) : 0;
+      var cmdFresh = (s.videoCommand.action !== 'play') || (cmdAge < 15000);
+      mediaState.lastCommandId = s.videoCommand.id; // tandai sudah diproses agar tidak diulang
+      if(cmdFresh && (!_inDND || s.videoCommand.action === 'stop')){
+        if(s.videoCommand.action === 'play' && s.videoCommand.video) {
+          playMedia(s.videoCommand.video);
+        } else if(s.videoCommand.action === 'stop') {
+          stopMedia();
+        }
+      }
+    }
+    // Announcement audio
+    if(s.announcementAudio !== undefined) {
+      var newAudioUrl = s.announcementAudio ? s.announcementAudio.url : null;
+      var oldAudioUrl = remoteState.announcementAudio ? remoteState.announcementAudio.url : null;
+      remoteState.announcementAudio = s.announcementAudio || null;
+      var annText = String(s.announcement !== undefined ? s.announcement : remoteState.announcement || '').trim();
+      if(newAudioUrl !== oldAudioUrl) {
+        if(newAudioUrl && annText && !_inDND) playAnnouncementAudio(remoteState.announcementAudio);
+        else stopAnnouncementAudio();
+      }
+    }
+    // Stop announcement audio saat pengumuman dikosongkan
+    if(s.announcement !== undefined && !String(s.announcement||'').trim()) {
+      stopAnnouncementAudio();
+    }
+    // Master volume & mute
+    var mvChanged = false;
+    if(typeof s.masterVolume === 'number' && s.masterVolume !== _masterVolume){ _masterVolume = Math.max(0, Math.min(1, s.masterVolume)); mvChanged = true; }
+    if(s.masterMuted !== undefined && !!s.masterMuted !== _masterMuted){ _masterMuted = !!s.masterMuted; mvChanged = true; }
+    if(mvChanged) applyMasterVolume();
+  }
+
+  // ── Viewer heartbeat (kirim tiap 30 detik agar remote bisa deteksi layar aktif) ──
+  (function(){
+    var _vid = sessionStorage.getItem('jd_viewer_id');
+    if(!_vid){ _vid = Date.now().toString(36) + Math.random().toString(36).slice(2,7); sessionStorage.setItem('jd_viewer_id', _vid); }
+    function beat(){ fetch('/api/jam-digital/heartbeat', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ viewerId: _vid }) }).catch(function(){}); }
+    beat();
+    setInterval(beat, 30000);
+  })();
+
+  function connectRemoteSse(){
+    if(typeof EventSource === 'undefined') return;
+    var src = new EventSource('/api/jam-digital/events');
+    src.onmessage = function(e){
+      try{ applyRemoteState(JSON.parse(e.data)); }catch(_){}
+    };
+    src.onerror = function(){
+      src.close();
+      setTimeout(connectRemoteSse, 8000);
+    };
+  }
+  function startViewer(){
+    setInterval(update,1000); update(true);
+    document.addEventListener('visibilitychange',()=>{ if(!document.hidden) update(true); });
+  }
+
+  // ── DND Info Overlay (imam + kultum satu pekan, muncul saat Do-Not-Disturb) ──
+  var _dndInfo = { slide: 0, timer: null, jadwal: null };
+  var _dndDayMap = ['ahad','senin','selasa','rabu','kamis','jumat','sabtu'];
+  var _dndHariOrder = ['senin','selasa','rabu','kamis','jumat','sabtu','ahad'];
+  var _dndHariLabel = {senin:'Senin',selasa:'Selasa',rabu:'Rabu',kamis:'Kamis',jumat:"Jum'at",sabtu:'Sabtu',ahad:'Ahad'};
+  var _dndWaktuOrder = ['subuh','dzuhur','ashar','maghrib','isya'];
+
+  function fetchDndJadwal_() {
+    if(location.protocol === 'file:') return;
+    fetch('/api/jam-digital/jadwal-ibadah', {cache:'no-store'})
+      .then(function(r){ return r.json(); })
+      .then(function(res){ if(res.ok && res.data) _dndInfo.jadwal = res.data; })
+      .catch(function(){});
+  }
+
+  function renderDndWeekTable_(tableId, field, now) {
+    var el = $(tableId); if(!el) return;
+    var todayKey = _dndDayMap[now.getDay()];
+    var d = _dndInfo.jadwal;
+    var html = '<thead><tr><th>Hari</th>';
+    _dndWaktuOrder.forEach(function(w){ html += '<th>'+prayerNames[w]+'</th>'; });
+    html += '</tr></thead><tbody>';
+    _dndHariOrder.forEach(function(h){
+      html += '<tr'+(h===todayKey?' class="dnd-today"':'')+'>';
+      html += '<td>'+(_dndHariLabel[h]||h)+'</td>';
+      _dndWaktuOrder.forEach(function(w){
+        var val = '', badal1 = '', badal2 = '';
+        if(d && d.jadwal && d.jadwal[h] && d.jadwal[h][w]){
+          var slot = d.jadwal[h][w];
+          val = (slot[field]||'').trim();
+          badal1 = (slot[field+'Badal1']||'').trim();
+          badal2 = (slot[field+'Badal2']||'').trim();
+          if(field==='kultum' && h==='jumat' && w==='dzuhur' && !val && d.khutbahJumat)
+            val = d.khutbahJumat.trim();
+        }
+        var cellHtml = val ? escapeHtml(val) : '<span style="opacity:.25">—</span>';
+        [badal1, badal2].filter(Boolean).forEach(function(b){
+          cellHtml += '<span class="dnd-badal">Badal: '+escapeHtml(b)+'</span>';
+        });
+        html += '<td>'+cellHtml+'</td>';
+      });
+      html += '</tr>';
+    });
+    html += '</tbody>';
+    el.innerHTML = html;
+  }
+
+  function renderDndImam_(now)   { renderDndWeekTable_('dndImamTable',   'imam',   now); }
+  function renderDndKultum_(now) { renderDndWeekTable_('dndKultumTable', 'kultum', now); }
+
+  var BULAN_ID_ = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+  function renderDndKhutbah_() {
+    var el = $('dndKhutbahTable'); if(!el) return;
+    var rows = (_dndInfo.jadwal && _dndInfo.jadwal.khutbahJadwal) ? _dndInfo.jadwal.khutbahJadwal : [];
+    var html = '<thead><tr><th style="text-align:left;width:9vw">Tanggal</th><th style="text-align:left">Khotib</th></tr></thead><tbody>';
+    if(!rows.length){
+      html += '<tr><td colspan="2" style="text-align:center;opacity:.4;font-style:italic">Belum ada jadwal</td></tr>';
+    } else {
+      rows.forEach(function(r) {
+        var d = r.tanggal ? new Date(r.tanggal + 'T00:00:00') : null;
+        var label = d && !isNaN(d) ? (d.getDate() + ' ' + BULAN_ID_[d.getMonth()] + ' ' + d.getFullYear()) : (r.tanggal || '—');
+        var khotibHtml = r.khotib ? escapeHtml(r.khotib) : '<span style="opacity:.3">—</span>';
+        if (r.khotibBadal) khotibHtml += '<span class="dnd-badal">Badal: '+escapeHtml(r.khotibBadal)+'</span>';
+        html += '<tr><td style="white-space:nowrap;font-weight:900;color:var(--accent2)">' + escapeHtml(label) + '</td><td>' + khotibHtml + '</td></tr>';
+      });
+    }
+    html += '</tbody>';
+    el.innerHTML = html;
+  }
+
+  function switchDndSlide_(idx) {
+    var s0=$('dndSlideJadwal'),s1=$('dndSlideKultum'),s2=$('dndSlideKhutbah');
+    var d0=$('dndDot0'),d1=$('dndDot1'),d2=$('dndDot2');
+    if(s0) s0.style.display = (idx===0)?'':'none';
+    if(s1) s1.style.display = (idx===1)?'':'none';
+    if(s2) s2.style.display = (idx===2)?'':'none';
+    if(d0) d0.classList.toggle('act', idx===0);
+    if(d1) d1.classList.toggle('act', idx===1);
+    if(d2) d2.classList.toggle('act', idx===2);
+  }
+
+  function renderDndSlide_(idx, now) {
+    if(idx===0) renderDndImam_(now);
+    else if(idx===1) renderDndKultum_(now);
+    else renderDndKhutbah_();
+  }
+
+  function updateDndInfoOverlay_(now) {
+    var show = isDoNotDisturb(now);
+    var el = $('dndInfoOverlay'); if(!el) return;
+    if(!show){
+      el.classList.remove('show');
+      if(_dndInfo.timer){ clearInterval(_dndInfo.timer); _dndInfo.timer=null; }
+      _dndInfo.slide = 0;
+      return;
+    }
+    el.classList.add('show');
+    renderDndSlide_(_dndInfo.slide, now);
+    if(!_dndInfo.timer){
+      _dndInfo.slide=0; switchDndSlide_(0); renderDndImam_(now);
+      _dndInfo.timer = setInterval(function(){
+        _dndInfo.slide = (_dndInfo.slide + 1) % 3;
+        switchDndSlide_(_dndInfo.slide);
+        renderDndSlide_(_dndInfo.slide, localNow());
+      }, 10000);
+    }
+  }
+
+  // Fetch state awal via HTTP dulu agar API & pengaturan langsung dipakai sebelum update pertama,
+  // lalu sambungkan SSE untuk update real-time
+  if(location.protocol !== 'file:'){
+    fetch('/api/jam-digital/state', { cache: 'no-store' })
+      .then(function(r){ return r.json(); })
+      .then(function(res){ if(res.ok && res.data) applyRemoteState(res.data); })
+      .catch(function(){})
+      .finally(function(){ startViewer(); connectRemoteSse(); });
+    fetchDndJadwal_();
+    setInterval(fetchDndJadwal_, 5*60*1000);
+  } else {
+    startViewer();
+  }
+  </script>
+</body>
+</html>

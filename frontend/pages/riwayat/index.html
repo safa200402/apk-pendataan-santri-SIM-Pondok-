@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#4a2f22">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="../../shared-ui.css">
+  <link rel="stylesheet" href="../../shared-shell.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+  <script src="../../shared-ui.js"></script>
+  <title>Riwayat</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700&display=swap');
+    :root { --paper:#f6efe0; --ink:#4d4034; --muted:#7b6a58; --line:rgba(91,73,57,0.15); --accent:#b97650; --success:#74846c; --danger:#a55a52; --warning:#b58439; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; }
+    .panel { padding: 22px; }
+    h1,h2,h3 { margin: 0 0 10px; }
+    p { margin: 0; line-height: 1.6; }
+    button, input, select { font: inherit; }
+    button {
+      padding: 12px 18px;
+      font-weight: 800;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      cursor: pointer;
+    }
+
+    .scope-note { font-size: 13px; color: var(--muted); background: rgba(185,118,80,0.1); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; margin-top: 8px; }
+
+    .riw-toolbar { display: flex; gap: 7px; flex-wrap: wrap; align-items: center; margin: 14px 0; }
+
+    .riw-list { display: grid; gap: 10px; margin-top: 10px; }
+    .riw-card { border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; background: rgba(242, 222, 154, 0.5); display: flex; gap: 12px; align-items: flex-start; justify-content: space-between; }
+    .riw-card-main { display: grid; gap: 4px; min-width: 0; }
+    .riw-card-top { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .riw-badge { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; padding: 3px 10px; border-radius: 999px; }
+    .riw-badge.tambah { background: rgba(116,132,108,0.18); color: #3a6040; }
+    .riw-badge.edit   { background: rgba(181,132,57,0.18); color: #8a5a2a; }
+    .riw-badge.hapus  { background: rgba(165,90,82,0.18); color: #a55a52; }
+    .riw-badge.mutasi { background: rgba(74,110,158,0.18); color: #33587f; }
+    .riw-entitas { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+    .riw-label { font-size: 15px; font-weight: 700; color: var(--ink); }
+    .riw-meta { font-size: 12.5px; color: var(--muted); }
+    .riw-card-actions { flex-shrink: 0; }
+
+    .riw-detail { margin-top: 6px; }
+    .riw-detail summary { cursor: pointer; font-size: 12.5px; font-weight: 700; color: var(--accent); }
+    .riw-diff { display: grid; gap: 4px; margin-top: 8px; padding: 10px 12px; border-radius: 10px; background: rgba(255,255,255,0.55); border: 1px solid var(--line); }
+    .riw-diff-row { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; font-size: 12.5px; }
+    .riw-diff-field { font-weight: 700; color: var(--ink); min-width: 130px; }
+    .riw-diff-old { color: var(--danger); text-decoration: line-through; opacity: 0.75; }
+    .riw-diff-new { color: #3a6040; font-weight: 600; }
+    .riw-diff-row i { font-size: 10px; color: var(--muted); }
+
+    .empty-state { text-align: center; padding: 40px 16px; color: var(--muted); }
+    .empty-state i { font-size: 32px; opacity: 0.4; }
+
+    .paging-host { display: grid; gap: 8px; margin: 16px 0; }
+    .paging { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; }
+    .page-center { display: grid; gap: 8px; justify-items: center; }
+    .page-numbers { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+    .page-summary { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+    @media (max-width: 960px) { .paging { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+  <main>
+    <div class="app-layout">
+      <section class="panel nav" id="nav"></section>
+      <div class="content-stack">
+        <section class="panel">
+          <h1 style="font-family:'Playfair Display',serif;font-size:1.9rem;">Riwayat</h1>
+          <p style="color:var(--muted);font-size:14px;">Catatan setiap data yang ditambah, diedit, atau dihapus.</p>
+          <div class="scope-note" id="scopeNote"></div>
+        </section>
+
+        <section class="panel">
+          <div class="filters" id="filtersPanel">
+            <label>
+              Cari
+              <input id="searchInput" type="search" placeholder="Cari nama data atau nama pengguna...">
+            </label>
+            <label>
+              Jenis data
+              <select id="entitasFilter"><option value="">Semua</option></select>
+            </label>
+            <label>
+              Aksi
+              <select id="aksiFilter">
+                <option value="">Semua</option>
+                <option value="tambah">Ditambahkan</option>
+                <option value="edit">Diedit</option>
+                <option value="hapus">Dihapus</option>
+                <option value="mutasi">Mutasi</option>
+              </select>
+            </label>
+          </div>
+          <div class="toolbar" id="actionToolbar">
+            <button class="secondary" id="refreshButton" type="button">Muat ulang</button>
+            <button class="danger" id="deleteAllButton" type="button">Hapus Semua Riwayat</button>
+          </div>
+          <div class="paging-host" id="paginationTop"></div>
+          <div class="riw-list" id="riwList"></div>
+          <div class="paging-host" id="paginationBottom"></div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <dialog class="ps-floating-dialog danger-dialog" id="deleteAllDialog">
+    <form class="dialog-body ps-dialog-shell" id="deleteAllForm" method="dialog">
+      <div class="ps-dialog-header">
+        <h3 style="margin:0;color:var(--danger);">Hapus Semua Riwayat</h3>
+        <p style="margin-top:8px;font-size:13px;">Semua catatan riwayat (bukan cuma yang tampil di filter saat ini) akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.</p>
+      </div>
+      <div class="toolbar ps-dialog-footer">
+        <button class="danger" type="submit">Hapus Semua</button>
+        <button class="secondary" id="closeDeleteAllDialog" type="button">Batal</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="../../shared-access.js"></script>
+  <script src="../../shared-nav.js"></script>
+  <script src="../../shared-shell.js"></script>
+  <script>
+    const API_BASE = window.location.origin + '/api';
+    const STORAGE = { apiBase: 'ps_api_base', token: 'ps_token', session: 'ps_session' };
+    localStorage.setItem(STORAGE.apiBase, API_BASE);
+
+    const state = {
+      items: [], page: 1, pageSize: 20, total: 0, totalPages: 1,
+      q: '', entitas: '', aksi: '',
+      canViewAll: false, canManage: false
+    };
+
+    const ENTITAS_LABELS = {
+      santri: 'Santri', pengurus: 'Pengurus', jabatan: 'Jabatan', pengurus_jabatan: 'Jabatan Pengurus',
+      jabatan_relasi: 'Relasi Jabatan', halaqoh: 'Halaqoh', kelasSiang: 'Kelas', regu: 'Regu',
+      nilaiUp: 'Nilai Ujian Kelas', soal: 'Soal', absensiGuru: 'Absensi Pengurus',
+      absensiHalaqoh: 'Absensi Halaqoh', absensiKelas: 'Absensi Kelas', absensiRegu: 'Absensi Regu',
+      hafalanHarian: 'Hafalan Harian', ujianHafalan: 'Ujian Hafalan', nilaiUas: 'Nilai UAS',
+      content: 'Konten', portalBrand: 'Identitas Portal', kegiatanSop: 'Kegiatan/SOP',
+      kegiatanSopItem: 'Item Kegiatan/SOP', kegiatanSopLampiran: 'Lampiran Kegiatan/SOP',
+      tahunAjaran: 'Tahun Ajaran', kaldik: 'Kalender Akademik', santriKelasLevel: 'Tingkat Kelas Santri',
+      perkembanganBulanan: 'Perkembangan Santri', akhlakNilai: 'Nilai Akhlak', deskripsiRaport: 'Deskripsi Raport',
+      deskripsiTemplate: 'Template Deskripsi', perkembanganTemplate: 'Template Perkembangan',
+      santriSakit: 'Data Sakit Santri', izinPulang: 'Izin Pulang', pelanggaranJenis: 'Jenis Pelanggaran',
+      pelanggaran: 'Pelanggaran', zoom_kehadiran: 'Kehadiran Zoom', zoom_kunjungan: 'Kunjungan Zoom',
+      lokasiAbsensi: 'Lokasi Absensi', koordinatAbsensi: 'Koordinat Absensi', absensiPengurus: 'Absensi Pengurus',
+      jadwalIbadah: 'Jadwal Ibadah', jadwalIbadahMeta: 'Jadwal Ibadah', jadwalKhutbahJumat: 'Jadwal Khutbah Jumat',
+      bukuDigital: 'Buku Digital', bankSoal: 'Bank Soal', pelajaran: 'Pelajaran', pelajaranLevel: 'Level Pelajaran',
+      kelasSilabus: 'Silabus Kelas', santriPelajaran: 'Pelajaran Santri'
+    };
+    const AKSI_LABELS = { tambah: 'Ditambahkan', edit: 'Diedit', hapus: 'Dihapus', mutasi: 'Mutasi' };
+
+    function entitasLabel(key) { return ENTITAS_LABELS[key] || (key ? key.charAt(0).toUpperCase() + key.slice(1) : '-'); }
+
+    let noticeId = '', noticeCounter = 0;
+    function getToken() { return localStorage.getItem(STORAGE.token) || ''; }
+    function clearSession() { localStorage.removeItem(STORAGE.token); localStorage.removeItem(STORAGE.session); }
+    function getStoredSession() { try { return JSON.parse(localStorage.getItem(STORAGE.session) || 'null'); } catch (e) { return null; } }
+    function escapeHtml(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
+    function showNotice(text, type) {
+      const stack = document.getElementById('noticeStack');
+      const el = document.createElement('div'); el.className = `notice show ${type || ''}`.trim();
+      el.dataset.noticeId = `n-${Date.now()}-${noticeCounter += 1}`; el.textContent = text;
+      el.addEventListener('click', () => el.remove()); setTimeout(() => el.remove(), type === 'error' ? 9000 : 5000);
+      if (noticeId) { const o = document.querySelector(`[data-notice-id="${noticeId}"]`); if (o) o.remove(); }
+      stack.prepend(el); noticeId = el.dataset.noticeId; if (stack.matches(':popover-open')) stack.hidePopover(); stack.showPopover();
+    }
+
+    async function api(action, payload = {}, method = 'GET') {
+      const token = getToken();
+      if (!token) { clearSession(); window.location.replace('/pages/login/'); throw new Error('Sesi tidak ditemukan.'); }
+      const scopeLabel = window.PSAccess && typeof window.PSAccess.getActiveRoleScopeLabel === 'function'
+        ? (window.PSAccess.getActiveRoleScopeLabel(getStoredSession()) || '')
+        : '';
+      const params = new URLSearchParams({ action, token, scopeLabel, ...payload });
+      const response = method === 'GET'
+        ? await fetch(`${API_BASE}?${params.toString()}`)
+        : await fetch(API_BASE, { method, body: params });
+      const json = await response.json();
+      if (!json.ok) {
+        const e = new Error(json.error?.message ? `Server: ${json.error.message}` : 'Gagal.');
+        e.code = json.error?.code || 500;
+        if (e.code === 401) { clearSession(); window.location.replace('/pages/login/'); }
+        throw e;
+      }
+      return json.data;
+    }
+
+    function mountShell(session) {
+      return window.PSShell.mount({ currentPage: window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : '/pages/riwayat/', session, getStoredSession, storageKey: STORAGE.session });
+    }
+
+    function buildPaginationList(page, totalPages) {
+      const maxNumbers = 10;
+      if (totalPages <= maxNumbers) return Array.from({ length: totalPages }, (_, index) => index + 1);
+      const middleSlots = maxNumbers - 2;
+      const pages = [1];
+      let start = Math.max(2, page - Math.floor(middleSlots / 2));
+      let end = start + middleSlots - 1;
+      if (end > totalPages - 1) { end = totalPages - 1; start = end - middleSlots + 1; }
+      if (start > 2) pages.push('...');
+      for (let value = start; value <= end; value += 1) pages.push(value);
+      if (end < totalPages - 1) pages.push('...');
+      pages.push(totalPages);
+      return pages;
+    }
+
+    function renderPagination() {
+      const markup = state.total ? `
+        <div class="paging">
+          <button class="secondary" type="button" data-page="${state.page - 1}" ${state.page <= 1 ? 'disabled' : ''}>Sebelumnya</button>
+          <div class="page-center">
+            <div class="page-numbers">
+              ${buildPaginationList(state.page, state.totalPages).map(item =>
+                item === '...'
+                  ? '<span class="page-summary">...</span>'
+                  : `<button class="secondary page-btn ${item === state.page ? 'active' : ''}" type="button" data-page="${item}">${item}</button>`
+              ).join('')}
+            </div>
+            <div class="page-summary">Halaman ${state.page} dari ${state.totalPages} | total ${state.total} riwayat</div>
+          </div>
+          <button class="secondary" type="button" data-page="${state.page + 1}" ${state.page >= state.totalPages ? 'disabled' : ''}>Berikutnya</button>
+        </div>` : '';
+      window.PSUI.syncPaginationHosts({ markup, visibleCount: state.items.length, totalCount: state.total, minimumCount: 0, topId: 'paginationTop', bottomId: 'paginationBottom' });
+    }
+
+    function renderScopeNote() {
+      const el = document.getElementById('scopeNote');
+      el.textContent = state.canViewAll
+        ? 'Kamu bisa melihat riwayat perubahan/hapus dari SEMUA pengguna.'
+        : 'Kamu cuma bisa melihat riwayat data yang KAMU tambah/edit/hapus sendiri.';
+    }
+
+    function prettifyFieldKey(key) {
+      return String(key).replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    }
+
+    function formatDiffValue(v) {
+      return (v === '' || v === null || v === undefined) ? '(kosong)' : String(v);
+    }
+
+    function renderDiffHtml(item) {
+      let rows = '';
+      if (item.aksi === 'edit' && item.sesudah) {
+        const before = item.sebelum || {};
+        const after = item.sesudah || {};
+        rows = Object.keys(after).map(k => `
+          <div class="riw-diff-row">
+            <span class="riw-diff-field">${escapeHtml(prettifyFieldKey(k))}</span>
+            <span class="riw-diff-old">${escapeHtml(formatDiffValue(before[k]))}</span>
+            <i class="fa-solid fa-arrow-right-long"></i>
+            <span class="riw-diff-new">${escapeHtml(formatDiffValue(after[k]))}</span>
+          </div>`).join('');
+      } else if (item.aksi === 'tambah' && item.sesudah) {
+        rows = Object.keys(item.sesudah).map(k => `
+          <div class="riw-diff-row">
+            <span class="riw-diff-field">${escapeHtml(prettifyFieldKey(k))}</span>
+            <span class="riw-diff-new">${escapeHtml(formatDiffValue(item.sesudah[k]))}</span>
+          </div>`).join('');
+      } else if (item.aksi === 'hapus' && item.sebelum) {
+        rows = Object.keys(item.sebelum).map(k => `
+          <div class="riw-diff-row">
+            <span class="riw-diff-field">${escapeHtml(prettifyFieldKey(k))}</span>
+            <span class="riw-diff-old">${escapeHtml(formatDiffValue(item.sebelum[k]))}</span>
+          </div>`).join('');
+      } else if (item.aksi === 'mutasi') {
+        const before = item.sebelum || {};
+        const after = item.sesudah || {};
+        const keys = Array.from(new Set(Object.keys(before).concat(Object.keys(after))));
+        rows = keys.map(k => `
+          <div class="riw-diff-row">
+            <span class="riw-diff-field">${escapeHtml(prettifyFieldKey(k))}</span>
+            <span class="riw-diff-old">${escapeHtml(formatDiffValue(before[k]))}</span>
+            <i class="fa-solid fa-arrow-right-long"></i>
+            <span class="riw-diff-new">${escapeHtml(formatDiffValue(after[k]))}</span>
+          </div>`).join('');
+      }
+      if (!rows) return '';
+      return `<details class="riw-detail"><summary>Lihat detail data (sebelum/sesudah)</summary><div class="riw-diff">${rows}</div></details>`;
+    }
+
+    function renderList() {
+      const list = document.getElementById('riwList');
+      if (!state.items.length) {
+        list.innerHTML = '<div class="empty-state"><i class="fa-solid fa-clock-rotate-left"></i><p style="margin-top:8px;">Belum ada riwayat.</p></div>';
+        renderPagination();
+        return;
+      }
+      list.innerHTML = state.items.map(item => {
+        const when = item.createdAt ? new Date(item.createdAt).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : '-';
+        return `
+        <div class="riw-card">
+          <div class="riw-card-main">
+            <div class="riw-card-top">
+              <span class="riw-badge ${escapeHtml(item.aksi)}">${escapeHtml(AKSI_LABELS[item.aksi] || item.aksi)}</span>
+              <span class="riw-entitas">${escapeHtml(entitasLabel(item.entitas))}</span>
+            </div>
+            <div class="riw-label">${escapeHtml(item.label || '(tanpa nama)')}</div>
+            <div class="riw-meta">${escapeHtml(item.userName || '-')}${item.userJabatan ? ' · ' + escapeHtml(item.userJabatan) : ''} &nbsp;·&nbsp; ${escapeHtml(when)}</div>
+            ${renderDiffHtml(item)}
+          </div>
+          <div class="riw-card-actions"><button class="secondary${state.canManage ? '' : ' ps-locked'}" type="button" data-delete="${escapeHtml(item.id)}" ${state.canManage ? 'title="Hapus riwayat ini"' : 'disabled aria-disabled="true" title="Hanya Super Admin dengan scope aktif Super Admin yang bisa menghapus riwayat."'}>Hapus</button></div>
+        </div>`;
+      }).join('');
+      renderPagination();
+    }
+
+    function populateEntitasFilter(options) {
+      const sel = document.getElementById('entitasFilter');
+      const current = sel.value;
+      sel.innerHTML = '<option value="">Semua</option>' + (options || []).map(key => `<option value="${escapeHtml(key)}">${escapeHtml(entitasLabel(key))}</option>`).join('');
+      sel.value = current;
+    }
+
+    async function loadData() {
+      try {
+        const data = await api('riwayat.list', {
+          page: state.page, pageSize: state.pageSize,
+          q: state.q, entitas: state.entitas, aksi: state.aksi
+        });
+        state.items = data.items || [];
+        state.total = data.total || 0;
+        state.page = data.page || 1;
+        state.totalPages = data.totalPages || 1;
+        state.canViewAll = !!data.canViewAll;
+        state.canManage = !!data.canManage;
+        populateEntitasFilter(data.entitasOptions);
+        window.PSUI.applyPermissionLock(document.getElementById('deleteAllButton'), state.canManage, 'Hanya Super Admin dengan scope aktif Super Admin yang bisa menghapus semua riwayat.');
+        renderScopeNote();
+        renderList();
+      } catch (error) {
+        showNotice(error.message || 'Gagal memuat riwayat.', 'error');
+      }
+    }
+
+    async function deleteOne(id) {
+      if (!state.canManage) { showNotice('Hanya Super Admin dengan scope aktif Super Admin yang bisa menghapus riwayat.', 'error'); return; }
+      if (!confirm('Hapus catatan riwayat ini?')) return;
+      try {
+        await api('riwayat.delete', { id }, 'POST');
+        showNotice('Riwayat dihapus.', 'success');
+        await loadData();
+      } catch (error) {
+        showNotice(error.message || 'Gagal menghapus riwayat.', 'error');
+      }
+    }
+
+    async function deleteAll() {
+      if (!state.canManage) { showNotice('Hanya Super Admin dengan scope aktif Super Admin yang bisa menghapus semua riwayat.', 'error'); return; }
+      try {
+        await api('riwayat.deleteAll', {}, 'POST');
+        document.getElementById('deleteAllDialog').close();
+        showNotice('Semua riwayat dihapus.', 'success');
+        state.page = 1;
+        await loadData();
+      } catch (error) {
+        showNotice(error.message || 'Gagal menghapus semua riwayat.', 'error');
+      }
+    }
+
+    let searchTimer = null;
+    document.getElementById('searchInput').addEventListener('input', event => {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => { state.q = event.target.value.trim(); state.page = 1; loadData(); }, 350);
+    });
+    document.getElementById('entitasFilter').addEventListener('change', event => { state.entitas = event.target.value; state.page = 1; loadData(); });
+    document.getElementById('aksiFilter').addEventListener('change', event => { state.aksi = event.target.value; state.page = 1; loadData(); });
+    document.getElementById('refreshButton').addEventListener('click', loadData);
+    document.getElementById('deleteAllButton').addEventListener('click', () => {
+      if (!state.canManage) { showNotice('Hanya Super Admin dengan scope aktif Super Admin yang bisa menghapus semua riwayat.', 'error'); return; }
+      document.getElementById('deleteAllDialog').showModal();
+    });
+    document.getElementById('closeDeleteAllDialog').addEventListener('click', () => document.getElementById('deleteAllDialog').close());
+    document.getElementById('deleteAllForm').addEventListener('submit', event => { event.preventDefault(); deleteAll(); });
+
+    document.getElementById('riwList').addEventListener('click', event => {
+      const btn = event.target.closest('[data-delete]');
+      if (btn) deleteOne(btn.getAttribute('data-delete'));
+    });
+
+    function handlePaginationClick(event) {
+      const btn = event.target.closest('[data-page]');
+      if (!btn) return;
+      const pg = parseInt(btn.dataset.page, 10);
+      if (!isNaN(pg) && pg >= 1 && pg <= state.totalPages) { state.page = pg; loadData(); }
+    }
+    document.getElementById('paginationTop').addEventListener('click', handlePaginationClick);
+    document.getElementById('paginationBottom').addEventListener('click', handlePaginationClick);
+
+    const initialSession = getStoredSession();
+    if (!initialSession) {
+      clearSession();
+      window.location.replace('/pages/login/');
+    } else if (!(window.PSAccess && window.PSAccess.redirectIfForbidden(initialSession, '/pages/riwayat/'))) {
+      mountShell(initialSession);
+      loadData();
+    }
+
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
+  </script>
+</body>
+</html>

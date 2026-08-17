@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#c99a28">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="../../shared-ui.css">
+  <script src="../../shared-ui.js"></script>
+  <title>Mading Publik</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap');
+    * { box-sizing: border-box; }
+
+    :root {
+      --retro-header-height: 72px;
+      --retro-cream: #f3e7cf;
+      --retro-paper: #fff6df;
+      --retro-brown: #4a2f22;
+      --retro-brown-soft: #6f4b35;
+      --retro-shadow: rgba(52, 32, 19, 0.22);
+    }
+
+    html, body { margin: 0; min-height: 100%; }
+
+    body {
+      padding: calc(var(--retro-header-height) + 24px) 16px 40px;
+    }
+
+    .retro-header {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 45;
+      height: var(--retro-header-height);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 0 28px;
+      border-bottom: 2px solid rgba(74, 47, 34, 0.12);
+      backdrop-filter: blur(14px);
+    }
+
+    .retro-header-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      min-width: 0;
+    }
+
+    .portal-brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      min-width: 0;
+    }
+
+    .portal-brand-logo {
+      width: 48px;
+      height: 48px;
+      border-radius: 16px;
+      object-fit: contain;
+    }
+
+    .retro-header-title {
+      min-width: 0;
+    }
+
+    .retro-header-title strong {
+      display: block;
+      font-size: 20px;
+      line-height: 1;
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      position: relative;
+      margin-left: auto;
+    }
+
+    .header-dropdown { position: relative; }
+
+    .header-menu-toggle {
+      min-height: 44px;
+      padding: 0 18px;
+      border: none;
+      border-radius: 999px;
+      color: var(--retro-brown);
+      font: inherit;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      cursor: pointer;
+      background: none;
+      transition: transform 0.18s ease, background-color 0.18s ease;
+    }
+
+    .header-menu-toggle:hover {
+      transform: translateY(-1px);
+      background: rgba(224, 187, 103, 0.82);
+    }
+
+    .header-menu {
+      position: absolute;
+      top: calc(100% + 10px);
+      right: 0;
+      min-width: 200px;
+      padding: 10px;
+      border: 1px solid rgba(74, 47, 34, 0.14);
+      border-radius: 20px;
+      background: rgba(205, 169, 91, 0.92);
+      box-shadow: 0 20px 36px rgba(52, 32, 19, 0.16);
+      display: grid;
+      gap: 8px;
+    }
+
+    .header-menu[hidden] { display: none !important; }
+
+    .header-menu a {
+      display: flex;
+      align-items: center;
+      min-height: 42px;
+      padding: 0 14px;
+      border-radius: 14px;
+      color: var(--retro-brown);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 700;
+      transition: background-color 0.18s ease, transform 0.18s ease;
+    }
+
+    .header-menu a:hover {
+      background: rgba(201, 111, 53, 0.12);
+      transform: translateX(2px);
+    }
+
+    .viewer {
+      /* max-width: 800px;
+      margin: 0 auto; */
+      display: grid;
+      gap: 16px;
+    }
+
+    .page-title { margin: 0 0 4px; font-size: 1.5rem; font-weight: 800; }
+    .page-desc { margin: 0; font-size: 14px; opacity: 0.65; }
+
+    .search-row label {
+        font-weight: 700;
+        font-size: 14px;
+        display: grid;
+        gap: 6px;
+        padding: 15px;
+    }
+    .search-row input[type="search"] {
+      width: 100%; min-height: 46px; padding: 10px 16px;
+      font: inherit; font-size: 15px;
+      border-radius: 12px; border: 2px solid rgba(0,0,0,0.12);
+      outline: none; background: rgba(255,255,255,0.8);
+    }
+    .search-row input[type="search"]:focus { border-color: rgba(196,154,44,0.6); }
+
+    .content-flex { display: flex; flex-wrap: wrap; gap: 14px; }
+
+    .content-card {
+      padding: 20px; border-radius: 16px;
+      background: rgba(255, 248, 230, 0.96) !important;
+      border: 1px solid rgba(0,0,0,0.08);
+      display: grid; gap: 8px; align-content: start; width: 100%;
+    }
+    .content-card h3 { margin: 0; font-size: 1rem; font-weight: 700; line-height: 1.35; }
+    .content-card p { margin: 0; font-size: 14px; line-height: 1.7; opacity: 0.8; }
+
+    .card-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+    .chip {
+      display: inline-flex; align-items: center;
+      min-height: 28px; padding: 0 10px; border-radius: 999px;
+      font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+      background: rgba(0,0,0,0.07);
+    }
+
+    .card-foot { display: flex; align-items: center; justify-content: flex-end; margin-top: 4px; }
+    .btn-view {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-height: 34px; padding: 0 14px; border-radius: 8px;
+      font-size: 13px; font-weight: 700;
+      border: 2px solid rgba(0,0,0,0.15); background: transparent; cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .btn-view:hover { background: rgba(0,0,0,0.05); border-color: rgba(0,0,0,0.25); }
+
+    .empty-state { padding: 20px; text-align: center; opacity: 0.6; font-size: 14px; }
+
+    .pagination {
+      display: flex; align-items: center; gap: 8px;
+      flex-wrap: wrap; justify-content: center; margin-top: 8px;
+    }
+    .pagination button {
+      min-height: 36px; min-width: 36px; padding: 0 12px;
+      border-radius: 8px; font-size: 13px; font-weight: 700;
+      border: 2px solid rgba(0,0,0,0.12); background: transparent; cursor: pointer;
+      transition: background 0.15s;
+    }
+    .pagination button:hover:not(:disabled) { background: rgba(0,0,0,0.06); }
+    .pagination button.active { background: rgba(196,154,44,0.2); border-color: rgba(196,154,44,0.5); }
+    .pagination button:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    .view-head {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 12px; padding: 20px 24px 16px;
+      border-bottom: 1px solid rgba(0,0,0,0.08); flex-shrink: 0;
+    }
+    .view-head h2 { margin: 0 0 8px; font-size: 1.2rem; line-height: 1.3; }
+    .view-head-meta { display: flex; gap: 6px; flex-wrap: wrap; }
+    .view-body { flex: 1; overflow-y: auto; padding: 24px; line-height: 1.8; font-size: 15px; }
+    .view-body img { max-width: 100%; height: auto; }
+
+    @media (max-width: 560px) {
+      body { padding-left: 10px; padding-right: 10px; }
+      .retro-header { padding: 0 16px; }
+    }
+
+    html body:not(.page-shell) main, html body[data-shell="off"] .page, html body[data-shell="off"] .viewer {
+      width: 100%;
+
+    }
+  </style>
+</head>
+<body>
+
+  <header class="retro-header">
+    <div class="retro-header-left">
+      <div class="portal-brand">
+        <img class="portal-brand-logo" id="portalBrandLogo" src="/icons/icon-192.svg" alt="Logo">
+        <div class="retro-header-title">
+          <strong id="portalBrandName">Mading Publik</strong>
+        </div>
+      </div>
+    </div>
+    <div class="header-actions">
+      <div class="header-dropdown">
+        <button class="header-menu-toggle" id="headerMenuToggle" type="button" aria-expanded="false" aria-controls="headerMenu">☰</button>
+        <div class="header-menu" id="headerMenu" hidden>
+          <a href="/">Beranda</a>
+          <a href="/pages/login/">Login Pengurus</a>
+          <a href="/pages/loginSantri/">Login Santri</a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+
+  <dialog class="ps-floating-dialog" id="viewDialog" aria-modal="true">
+    <div class="dialog-body ps-dialog-shell">
+      <div class="ps-dialog-header view-head">
+        <div>
+          <h2 id="viewTitle"></h2>
+          <div class="view-head-meta" id="viewMeta"></div>
+        </div>
+        <button class="ps-dialog-close" id="closeView" type="button" aria-label="Tutup">&times;</button>
+      </div>
+      <div class="view-body" id="viewBody"></div>
+    </div>
+  </dialog>
+
+  <main>
+    <div class="viewer">
+      <section class="panel">
+        <div class="search-row">
+          <label>
+            <div>
+              <h1 class="page-title">Mading Publik</h1>
+              <p class="page-desc">Pengumuman dan informasi untuk umum</p>
+            </div>
+            Cari judul atau isi
+            <input type="search" id="searchInput" placeholder="Ketik kata kunci...">
+          </label>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div id="contentArea"><p class="empty-state">Memuat...</p></div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    const API_BASE = window.location.origin + '/api';
+    const PAGE_SIZE = 10;
+    let allItems = [];
+    let currentPage = 1;
+
+    function toPlainText(html) {
+      const el = document.createElement('div');
+      el.innerHTML = html || '';
+      return (el.textContent || el.innerText || '').trim();
+    }
+
+    function matchesQuery(item, q) {
+      if (!q) return true;
+      return [item.title, item.summary, toPlainText(item.body)].join(' ').toLowerCase().includes(q.toLowerCase());
+    }
+
+    function buildCard(item) {
+      return `
+        <article class="content-card">
+          <h3>${item.title || '-'}</h3>
+          ${item.summary ? `<p>${item.summary}</p>` : (item.body ? `<p>${toPlainText(item.body).slice(0, 200)}</p>` : '')}
+          <div class="card-meta">
+            <span class="chip">${item.publishedAt || '-'}</span>
+          </div>
+          <div class="card-foot">
+            <button class="btn-view" type="button" data-view="${item.id || ''}">Lihat selengkapnya</button>
+          </div>
+        </article>`;
+    }
+
+    function buildPagination(total, page) {
+      if (total <= PAGE_SIZE) return '';
+      const totalPages = Math.ceil(total / PAGE_SIZE);
+      const pages = [];
+      for (let i = 1; i <= totalPages; i++)
+        pages.push(`<button type="button" data-page="${i}" class="${i === page ? 'active' : ''}">${i}</button>`);
+      return `<div class="pagination">
+        <button type="button" data-page="${page - 1}" ${page <= 1 ? 'disabled' : ''}>&lsaquo; Prev</button>
+        ${pages.join('')}
+        <button type="button" data-page="${page + 1}" ${page >= totalPages ? 'disabled' : ''}>Next &rsaquo;</button>
+      </div>`;
+    }
+
+    function renderContent() {
+      const q = document.getElementById('searchInput').value.trim();
+      const filtered = allItems.filter(item => matchesQuery(item, q));
+      const area = document.getElementById('contentArea');
+
+      if (!filtered.length) {
+        area.innerHTML = `<p class="empty-state">${q ? 'Tidak ada konten yang cocok.' : 'Belum ada konten publik.'}</p>`;
+        return;
+      }
+
+      const paged = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+      area.innerHTML = `<div class="content-flex">${paged.map(buildCard).join('')}</div>${buildPagination(filtered.length, currentPage)}`;
+
+      area.querySelectorAll('[data-view]').forEach(btn =>
+        btn.addEventListener('click', () => openView(btn.getAttribute('data-view'))));
+      area.querySelectorAll('.pagination button[data-page]').forEach(btn =>
+        btn.addEventListener('click', () => {
+          const p = parseInt(btn.getAttribute('data-page'), 10);
+          if (!p || p === currentPage) return;
+          currentPage = p;
+          renderContent();
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }));
+    }
+
+    function openView(id) {
+      const item = allItems.find(i => String(i.id) === String(id));
+      if (!item) return;
+      document.getElementById('viewTitle').textContent = item.title || '-';
+      document.getElementById('viewMeta').innerHTML = `<span class="chip">${item.publishedAt || '-'}</span>`;
+      document.getElementById('viewBody').innerHTML = item.body || (item.summary ? `<p>${item.summary}</p>` : '<p>Tidak ada isi konten.</p>');
+      document.getElementById('viewDialog').showModal();
+    }
+
+    document.getElementById('searchInput').addEventListener('input', () => { currentPage = 1; renderContent(); });
+    document.getElementById('closeView').addEventListener('click', () => document.getElementById('viewDialog').close());
+    document.getElementById('viewDialog').addEventListener('click', e => { if (e.target === e.currentTarget) e.currentTarget.close(); });
+
+    const menuToggle = document.getElementById('headerMenuToggle');
+    const headerMenu = document.getElementById('headerMenu');
+    menuToggle.addEventListener('click', () => {
+      const isOpen = !headerMenu.hidden;
+      headerMenu.hidden = isOpen;
+      menuToggle.setAttribute('aria-expanded', String(!isOpen));
+    });
+    document.addEventListener('click', e => {
+      if (!headerMenu.hidden && !headerMenu.contains(e.target) && e.target !== menuToggle) {
+        headerMenu.hidden = true;
+        menuToggle.setAttribute('aria-expanded', 'false');
+      }
+    });
+
+    window.addEventListener('DOMContentLoaded', async () => {
+      try {
+        const res = await fetch(`${API_BASE}?action=content.public.list`);
+        const json = await res.json();
+        allItems = (json.ok && json.data && json.data.items) ? json.data.items : [];
+        renderContent();
+      } catch (e) {
+        document.getElementById('contentArea').innerHTML =
+          `<p class="empty-state">Gagal memuat konten: ${e.message || 'Terjadi kesalahan.'}</p>`;
+      }
+    });
+
+    fetch('/api?action=portal.brand.public.get', { cache: 'no-store' })
+      .then(function (r) { return r.json(); })
+      .then(function (json) {
+        var brand = json && json.ok && json.data && json.data.brand;
+        if (!brand) return;
+        var logoUrl = brand.logoUrl;
+        if (logoUrl && !logoUrl.startsWith('http') && !logoUrl.startsWith('/') && !logoUrl.startsWith('data:')) {
+          logoUrl = '/' + logoUrl;
+        }
+        var orgName = brand.organizationName;
+        if (logoUrl) {
+          var favicon = document.querySelector('link[rel="icon"]');
+          if (favicon) { favicon.href = logoUrl; favicon.type = logoUrl.endsWith('.svg') ? 'image/svg+xml' : 'image/png'; }
+          var logo = document.getElementById('portalBrandLogo');
+          if (logo) { logo.src = logoUrl; }
+        }
+        if (orgName) {
+          var brandName = document.getElementById('portalBrandName');
+          if (brandName) { brandName.textContent = orgName; }
+          document.title = 'Mading Publik — ' + orgName;
+        }
+      })
+      .catch(function () {});
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
+    }
+  </script>
+</body>
+</html>

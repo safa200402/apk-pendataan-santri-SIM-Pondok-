@@ -1,0 +1,726 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#c99a28">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="../../shared-ui.css">
+  <script src="../../shared-ui.js"></script>
+  <link rel="stylesheet" href="../../shared-shell.css">
+  <title>Profil Akun</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700&display=swap');
+
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: 'Poppins', sans-serif; }
+
+    /* ── Layout ── */
+    .panel { padding: 24px; }
+    .layout { display: flex; flex-direction: column; gap: 16px; }
+    .edit-panel { flex: 1; min-width: 0; }
+
+    /* ── Profile Card ── */
+    .panel.edit-panel.expanded { flex: 0 0 280px; display: flex; flex-direction: column; gap: 20px; }
+
+    .profile-preview { display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center; }
+
+    .avatar {
+      width: 110px; height: 110px; border-radius: 50%;
+      background: linear-gradient(135deg, #f4d978, #c99a28);
+      color: #4a2f22;
+      display: grid; place-items: center;
+      font-family: 'Poppins', sans-serif; font-size: 34px; font-weight: 900;
+      overflow: hidden;
+      box-shadow: 0 6px 20px rgba(74,47,34,0.2);
+      border: 3px solid rgba(74,47,34,0.15);
+    }
+    .avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+    #accountName { margin: 0; font-size: 1rem; font-weight: 800; text-transform: none; letter-spacing: 0; line-height: 1.3; }
+
+    .button-row { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 2px; }
+    .pill {
+      display: inline-flex; align-items: center; min-height: 26px; padding: 0 10px;
+      font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em;
+      border-radius: 999px; background: rgba(74,47,34,0.08); color: #4a2f22; margin: 11px;
+    }
+
+    .meta-list { display: flex; flex-direction: column; gap: 4px; }
+    .meta-item {
+      padding: 10px 12px; border-radius: 12px;
+      background: rgba(0,0,0,0.03); border: 1px solid rgba(0,0,0,0.05);
+    }
+    .meta-item strong {
+      display: block; margin-bottom: 2px;
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.1em; opacity: 0.5;
+    }
+    .meta-item span { font-size: 13px; font-weight: 600; }
+
+    /* ── Collapsible section header ── */
+    .section-toggle {
+      display: flex; align-items: center; justify-content: space-between;
+      width: 100%; background: none; border: none;
+      font: inherit; cursor: pointer; text-align: left; gap: 10px; color: inherit;
+    }
+    .section-toggle:hover { border-bottom-color: rgba(0,0,0,0.22); }
+    .section-toggle h2 {
+      margin: 0; flex: 1;
+      font-size: 0.95rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em;
+    }
+    .section-toggle-icon {
+      width: 26px; height: 26px; border-radius: 8px; flex-shrink: 0;
+      background: rgba(0,0,0,0.06);
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 11px; transition: transform 0.22s ease, background 0.16s;
+    }
+    .panel.expanded > .section-toggle { border-bottom-color: rgba(0,0,0,0.14); }
+    .panel.expanded > .section-toggle .section-toggle-icon { transform: rotate(90deg); background: rgba(0,0,0,0.1); }
+    .section-body { display: none; padding-top: 20px; }
+    .panel.expanded > .section-body { display: block; }
+
+    /* ── Form ── */
+    form { display: grid; gap: 16px; }
+    .field-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    label { display: grid; gap: 5px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
+
+    input, select {
+      width: 100%; min-height: 46px; padding: 10px 14px;
+      font: inherit; font-size: 14px; font-weight: 500;
+      text-transform: none; letter-spacing: 0;
+      border: 1.5px solid rgba(74,47,34,0.2); border-radius: 12px;
+      background: rgba(255,255,255,0.75); outline: none;
+      transition: border-color 0.18s, background 0.18s;
+    }
+    input:focus, select:focus {
+      border-color: rgba(201,154,40,0.7);
+      background: rgba(255,255,255,0.96);
+    }
+    input[readonly] { opacity: 0.6; cursor: default; background: rgba(0,0,0,0.04); }
+
+    .profile-form-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; padding-top: 4px; }
+    .hidden-input { display: none; }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-height: 42px; padding: 0 16px;
+      border: 1.5px solid rgba(74,47,34,0.25); border-radius: 12px;
+      font: inherit; font-size: 12px; font-weight: 700;
+      text-decoration: none; text-transform: uppercase; letter-spacing: 0.05em;
+      background: transparent; color: inherit; cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, transform 0.15s;
+    }
+    .btn:hover:not(:disabled) { background: rgba(0,0,0,0.06); border-color: rgba(74,47,34,0.4); transform: translateY(-1px); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn.primary {
+      background: #4a2f22; color: #f4d978; border-color: #4a2f22;
+    }
+    .btn.primary:hover:not(:disabled) { background: #6f4913; border-color: #6f4913; }
+
+    /* ── Notice ── */
+    .notice { padding: 12px 16px; line-height: 1.55; border-radius: 12px; }
+    .notice.show { display: block; }
+
+    /* ── TTD ── */
+    /* .ttd-section { flex: 0 0 100%; } */
+    .ttd-intro { margin: 0 0 16px; font-size: 13px; color: #7b6a58; line-height: 1.65; }
+    .ttd-grid { display: flex; flex-direction: column; gap: 14px; }
+    .ttd-card {
+      display: grid; gap: 12px; padding: 18px;
+      border: 1px solid rgba(91,73,57,0.12); border-radius: 14px;
+      background: rgba(255,251,243,0.6);
+    }
+    .ttd-canvas-wrap {
+      border: 2px dashed rgba(197,185,154,0.8); border-radius: 12px;
+      overflow: hidden; cursor: crosshair; touch-action: none; width: 100%;
+      background: repeating-conic-gradient(#e8e0d4 0% 25%, #f5f0e8 0% 50%) 0 0 / 14px 14px;
+    }
+    #ttdCanvas { display: block; width: 100%; height: auto; }
+    .ttd-existing-bg {
+      display: block; text-align: center; border-radius: 12px; padding: 10px;
+      background: repeating-conic-gradient(#e8e0d4 0% 25%, #f5f0e8 0% 50%) 0 0 / 12px 12px;
+      border: 1px solid rgba(197,185,154,0.7);
+    }
+    .ttd-existing-bg img { display: inline-block; max-width: 100%; height: auto; max-height: 200px; }
+    .ttd-label { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; color: #8c7a67; }
+    .ttd-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .ttd-actions .btn { min-height: 38px; font-size: 12px; padding: 0 14px; }
+    .ttd-notice { padding: 10px 14px; border-radius: 10px; font-size: 13px; display: none; }
+
+    /* ── Responsive ── */
+    @media (max-width: 900px) {
+      .panel.edit-panel.expanded { flex: none; width: 100%; max-width: 100%; }
+      .field-grid { grid-template-columns: 1fr; }
+      .profile-form-actions { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+  <main>
+    <div class="app-layout">
+      <section class="panel nav" id="nav"></section>
+      <div class="content-stack">
+        <section class="layout">
+          <section class="panel edit-panel">
+            <div class="profile-preview">
+              <div class="avatar" id="avatarPreview">PG</div>
+              <div>
+                <h2 id="accountName">Memuat akun...</h2>
+                <div class="button-row">
+                  <span class="pill" id="accountRole">Akun</span>
+                </div>
+              </div>
+            </div>
+            <input class="hidden-input" id="photoFileInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif">
+            <div class="meta-list" id="accountMeta"></div>
+          </section>
+
+          <section class="panel edit-panel">
+            <div class="section-toggle" aria-expanded="false">
+              <h2>Edit Data</h2>
+              <span class="section-toggle-icon">&#9658;</span>
+            </div>
+            <div class="section-body">
+              <form id="profileForm">
+                <div class="field-grid" id="fieldGrid"></div>
+                <div class="profile-form-actions">
+                  <label class="btn" for="photoFileInput">Upload Foto</label>
+                  <div class="btn" id="resetPhotoButton">Foto Default</div>
+                  <a class="btn" href="/pages/changePassword/">Ganti Password</a>
+                  <div class="btn" id="logoutAllButton">Keluar dari Semua Perangkat</div>
+                  <div class="btn primary" id="saveButton">Simpan Profil</div>
+                </div>
+              </form>
+            </div>
+          </section>
+
+          <!-- Tanda Tangan Digital — hanya untuk pengurus -->
+          <section class="panel ttd-section" id="ttdSection" style="display:none;">
+            <div class="section-toggle" aria-expanded="false">
+              <h2>Tanda Tangan Digital</h2>
+              <span class="section-toggle-icon">&#9658;</span>
+            </div>
+            <div class="section-body">
+              <p class="ttd-intro">Gambar atau upload tanda tangan transparan PNG (600&times;200px). Digunakan untuk dokumen resmi.</p>
+              <div class="ttd-grid">
+                <!-- Canvas drawing -->
+                <div class="ttd-card">
+                  <span class="ttd-label">Buat / Perbarui Tanda Tangan</span>
+                  <div class="ttd-canvas-wrap"><canvas id="ttdCanvas" width="600" height="200"></canvas></div>
+                  <div class="ttd-actions">
+                    <div class="btn" id="ttdClearCanvasBtn">&#8635; Bersihkan</div>
+                    <label class="btn" for="ttdFileInput">&#8679; Upload PNG</label>
+                    <input id="ttdFileInput" type="file" accept="image/png" style="display:none;">
+                    <div class="btn primary" id="ttdSaveBtn">Simpan TTD</div>
+                  </div>
+                  <div id="ttdNotice" class="ttd-notice"></div>
+                </div>
+                <!-- Preview tersimpan -->
+                <div class="ttd-card" id="ttdExistingWrap" style="display:none;">
+                  <span class="ttd-label">Tanda Tangan Tersimpan</span>
+                  <div class="ttd-existing-bg"><img id="ttdExistingImg" src="" alt="Tanda Tangan"></div>
+                  <div class="ttd-actions">
+                    <div class="btn" id="ttdDownloadBtn">&#11015; Download PNG</div>
+                    <div class="btn" id="ttdClearSavedBtn" style="color:#a55a52;border-color:#a55a52;">&#215; Hapus TTD</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <script src="../../shared-access.js"></script>
+  <script src="../../shared-nav.js"></script>
+  <script src="../../shared-shell.js"></script>
+  <script>
+    const API_BASE = window.location.origin + '/api';
+    const STORAGE = { apiBase: 'ps_api_base', token: 'ps_token', session: 'ps_session' };
+    localStorage.setItem(STORAGE.apiBase, API_BASE);
+
+    const state = {
+      session: null,
+      account: null,
+      role: '',
+      photoFileDataUrl: '',
+      photoFileName: '',
+      photoFileType: '',
+      useDefaultPhoto: false
+    };
+
+    let noticeId = '';
+    let noticeCounter = 0;
+
+    function getToken() { return localStorage.getItem(STORAGE.token) || ''; }
+    function clearSession() { localStorage.removeItem(STORAGE.token); localStorage.removeItem(STORAGE.session); }
+    function getStoredSession() {
+      try { return JSON.parse(localStorage.getItem(STORAGE.session) || 'null'); }
+      catch (error) { return null; }
+    }
+    function toParams(data) {
+      const params = new URLSearchParams();
+      Object.entries(data).forEach(([key, value]) => {
+        if (value === undefined || value === null) return;
+        params.append(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
+      });
+      return params;
+    }
+    function createNotice(text, type) {
+      const element = document.createElement('div');
+      element.className = `notice show ${type || ''}`.trim();
+      element.dataset.noticeId = `notice-${Date.now()}-${noticeCounter += 1}`;
+      element.textContent = text;
+      function dismiss() {
+        if (!element.parentNode) return;
+        element.classList.add('notice-dismissing');
+        window.setTimeout(() => {
+          element.remove();
+          const stack = document.getElementById('noticeStack');
+          if (stack && !stack.hasChildNodes() && stack.matches(':popover-open')) stack.hidePopover();
+        }, 220);
+      }
+      element.addEventListener('click', dismiss);
+      window.setTimeout(dismiss, type === 'error' ? 10000 : 6000);
+      return element;
+    }
+    function showNotice(text, type) {
+      if (noticeId) {
+        const existing = document.querySelector(`[data-notice-id="${noticeId}"]`);
+        if (existing) existing.remove();
+      }
+      const element = createNotice(text, type);
+      const stack = document.getElementById('noticeStack');
+      stack.prepend(element);
+      noticeId = element.dataset.noticeId;
+      if (stack.matches(':popover-open')) stack.hidePopover();
+      stack.showPopover();
+    }
+    function clearNotice() {
+      if (!noticeId) return;
+      const existing = document.querySelector(`[data-notice-id="${noticeId}"]`);
+      if (existing) existing.remove();
+      noticeId = '';
+    }
+    async function api(action, payload = {}, method = 'GET') {
+      const token = getToken();
+      if (!token) {
+        clearSession();
+        window.location.replace('/pages/login/');
+        throw new Error('Sesi tidak ditemukan.');
+      }
+      const response = method === 'GET'
+        ? await fetch(`${API_BASE}?${toParams({ action, token, ...payload }).toString()}`)
+        : await fetch(API_BASE, { method, body: toParams({ action, token, ...payload }) });
+      const json = await response.json();
+      if (!json.ok) {
+        const error = new Error(json.error?.message ? `Server mengatakan: ${json.error.message}` : 'Permintaan gagal.');
+        error.code = json.error?.code || response.status || 500;
+        if (error.code === 401) {
+          clearSession();
+          window.location.replace(window.PSAccess ? window.PSAccess.resolveLoginPage(getStoredSession()) : '/pages/login/');
+        }
+        throw error;
+      }
+      return json.data;
+    }
+    function mountShell(session) {
+      return window.PSShell.mount({
+        currentPage: window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : '/pages/accountProfile/',
+        session,
+        getStoredSession,
+        storageKey: STORAGE.session
+      });
+    }
+    function getInitials(name) {
+      return String(name || 'PG').split(/\s+/).filter(Boolean).slice(0, 2).map(part => part.charAt(0).toUpperCase()).join('') || 'PG';
+    }
+    function escapeHtml(value) {
+      return String(value === undefined || value === null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+    function fileToDataUrl(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onerror = () => reject(new Error('Gagal membaca file foto.'));
+        reader.readAsDataURL(file);
+      });
+    }
+    function syncSession(session) {
+      state.session = session;
+      localStorage.setItem(STORAGE.session, JSON.stringify(session));
+      window.PSShell.syncIdentity({
+        currentPage: '/pages/accountProfile/',
+        session,
+        getStoredSession,
+        storageKey: STORAGE.session
+      });
+    }
+    function renderMeta(item) {
+      const meta = [];
+      if (state.role === 'pengurus') {
+        meta.push(['Jabatan', (item.jabatanLabels || []).join(', ') || '-']);
+        meta.push(['Email', item.email || '-']);
+      } else {
+        meta.push(['No Induk', item.noInduk || '-']);
+        meta.push(['Nama Sesuai Akte', item.namaLengkap || '-']);
+        meta.push(['Nama Sesuai KK', item.namaLengkapKk || '-']);
+      }
+      meta.push(['Status', item.status || '-']);
+      document.getElementById('accountMeta').innerHTML = meta.map(([label, value]) => `
+        <article class="meta-item">
+          <strong>${escapeHtml(label)}</strong>
+          <span>${escapeHtml(value)}</span>
+        </article>
+      `).join('');
+    }
+    function resolveAssetUrl(url) {
+      if (!url) return '';
+      const s = String(url);
+      if (s.startsWith('data:') || s.startsWith('http://') || s.startsWith('https://') || s.startsWith('/')) return s;
+      return '../../' + s;
+    }
+    function renderAvatar() {
+      const avatar = document.getElementById('avatarPreview');
+      const source = state.photoFileDataUrl || resolveAssetUrl(state.account && state.account.photoUrl) || '';
+      if (source) {
+        avatar.innerHTML = `<img src="${escapeHtml(source)}" alt="${escapeHtml(state.account?.name || 'Foto profil')}">`;
+        return;
+      }
+      avatar.textContent = getInitials(state.account && state.account.name);
+    }
+    function renderFields(item) {
+      const target = document.getElementById('fieldGrid');
+      if (state.role === 'pengurus') {
+        target.innerHTML = `
+          <label>Nama Pengurus <input type="text" name="name" value="${escapeHtml(item.name || '')}" required></label>
+          <label>Username <input type="text" name="username" value="${escapeHtml(item.username || '')}" autocomplete="off" placeholder="Kosongkan jika tidak diubah"></label>
+          <label>Email <input type="email" name="email" value="${escapeHtml(item.email || '')}"></label>
+          <label>Gender <select name="gender"><option value="">-</option><option value="male" ${item.gender === 'male' ? 'selected' : ''}>male</option><option value="female" ${item.gender === 'female' ? 'selected' : ''}>female</option></select></label>
+          <label>No HP <input type="text" name="no_hp" value="${escapeHtml(item.noHp || '')}"></label>
+          <label>Tanggal Lahir <input type="date" name="tanggal_lahir" value="${escapeHtml(item.tanggalLahir || '')}"></label>
+        `;
+        return;
+      }
+
+      target.innerHTML = `
+        <label>Nama Setelah Diubah <input type="text" name="nama_setelah_diubah" value="${escapeHtml(item.record?.nama_setelah_diubah || '')}"></label>
+        <label>Nama Panggilan <input type="text" name="nama_panggilan" value="${escapeHtml(item.namaPanggilan || '')}"></label>
+        <label>Username <input type="text" name="username" value="${escapeHtml(item.username || '')}" autocomplete="off" placeholder="Kosongkan jika tidak diubah"></label>
+        <label>No Induk <input type="text" value="${escapeHtml(item.noInduk || '')}" readonly></label>
+        <label>Nama Sesuai Akte <input type="text" value="${escapeHtml(item.namaLengkap || '')}" readonly></label>
+        <label>Nama Sesuai KK <input type="text" value="${escapeHtml(item.namaLengkapKk || '')}" readonly></label>
+        <label>Tempat Lahir <input type="text" name="tempat_lahir" value="${escapeHtml(item.tempatLahir || '')}"></label>
+        <label>Tanggal Lahir <input type="date" name="tanggal_lahir" value="${escapeHtml(item.tanggalLahir || '')}"></label>
+        <label>No HP <input type="text" name="no_hp" value="${escapeHtml(item.noHp || '')}"></label>
+      `;
+    }
+    function renderAccount() {
+      const item = state.account || {};
+      document.getElementById('accountName').textContent = item.name || 'Akun';
+      document.getElementById('accountRole').textContent = state.role === 'santri' ? 'Santri' : (state.session?.permissions?.label || 'Pengurus');
+      renderMeta(item);
+      renderFields(item);
+      renderAvatar();
+      // Show TTD section for pengurus only
+      const ttdSec = document.getElementById('ttdSection');
+      if (ttdSec) ttdSec.style.display = state.role === 'pengurus' ? '' : 'none';
+      renderTtdExisting();
+    }
+
+    /* ── Tanda Tangan Digital ── */
+    const ttdState = { drawing: false, lastX: 0, lastY: 0, initialized: false };
+
+    function initTtdCanvas() {
+      if (ttdState.initialized) return;
+      ttdState.initialized = true;
+      const canvas = document.getElementById('ttdCanvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+
+      function getPos(e) {
+        const rect = canvas.getBoundingClientRect();
+        const sx = 600 / rect.width, sy = 200 / rect.height;
+        if (e.touches) {
+          const t = e.touches[0];
+          return { x: (t.clientX - rect.left) * sx, y: (t.clientY - rect.top) * sy };
+        }
+        return { x: (e.clientX - rect.left) * sx, y: (e.clientY - rect.top) * sy };
+      }
+      function startDraw(e) {
+        e.preventDefault();
+        ttdState.drawing = true;
+        const p = getPos(e);
+        ttdState.lastX = p.x; ttdState.lastY = p.y;
+        // Draw a dot at the start
+        ctx.beginPath();
+        ctx.fillStyle = '#1a1a1a';
+        ctx.arc(p.x, p.y, 1.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      function draw(e) {
+        if (!ttdState.drawing) return;
+        e.preventDefault();
+        const p = getPos(e);
+        ctx.beginPath();
+        ctx.strokeStyle = '#1a1a1a';
+        ctx.lineWidth = 2.5;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.moveTo(ttdState.lastX, ttdState.lastY);
+        ctx.lineTo(p.x, p.y);
+        ctx.stroke();
+        ttdState.lastX = p.x; ttdState.lastY = p.y;
+      }
+      function endDraw() { ttdState.drawing = false; }
+
+      canvas.addEventListener('mousedown', startDraw);
+      canvas.addEventListener('mousemove', draw);
+      canvas.addEventListener('mouseup', endDraw);
+      canvas.addEventListener('mouseleave', endDraw);
+      canvas.addEventListener('touchstart', startDraw, { passive: false });
+      canvas.addEventListener('touchmove', draw, { passive: false });
+      canvas.addEventListener('touchend', endDraw);
+    }
+
+    function clearTtdCanvas() {
+      const canvas = document.getElementById('ttdCanvas');
+      if (canvas) canvas.getContext('2d').clearRect(0, 0, 600, 200);
+    }
+
+    function renderTtdExisting() {
+      const item = state.account;
+      const wrap = document.getElementById('ttdExistingWrap');
+      const img = document.getElementById('ttdExistingImg');
+      if (!wrap) return;
+      if (item && item.ttd) {
+        img.src = item.ttd;
+        wrap.style.display = '';
+      } else {
+        wrap.style.display = 'none';
+      }
+    }
+
+    function showTtdNotice(msg, type) {
+      const el = document.getElementById('ttdNotice');
+      if (!el) return;
+      el.style.display = msg ? '' : 'none';
+      el.style.background = type === 'error' ? 'rgba(165,90,82,0.12)' : type === 'success' ? 'rgba(116,132,108,0.15)' : 'rgba(0,0,0,0.06)';
+      el.style.color = type === 'error' ? '#a55a52' : type === 'success' ? '#74846c' : '';
+      el.textContent = msg || '';
+    }
+
+    function isTtdCanvasEmpty() {
+      const canvas = document.getElementById('ttdCanvas');
+      if (!canvas) return true;
+      const data = canvas.getContext('2d').getImageData(0, 0, 600, 200).data;
+      for (let i = 3; i < data.length; i += 4) { if (data[i] > 0) return false; }
+      return true;
+    }
+
+    async function saveTtd() {
+      if (isTtdCanvasEmpty()) {
+        showTtdNotice('Canvas kosong. Gambar tanda tangan atau upload PNG terlebih dahulu.', 'error');
+        return;
+      }
+      const canvas = document.getElementById('ttdCanvas');
+      const dataUrl = canvas.toDataURL('image/png');
+      const btn = document.getElementById('ttdSaveBtn');
+      if (btn) btn.disabled = true;
+      showTtdNotice('Menyimpan...', '');
+      try {
+        const data = await api('account.profile.save', { record: { name: state.account.name, ttd: dataUrl } }, 'POST');
+        state.account = data.account?.item || state.account;
+        syncSession(data.session || state.session);
+        renderTtdExisting();
+        clearTtdCanvas();
+        showTtdNotice('Tanda tangan berhasil disimpan!', 'success');
+      } catch (e) {
+        showTtdNotice(e.message || 'Gagal menyimpan tanda tangan.', 'error');
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
+
+    async function logoutAllSessions() {
+      if (!confirm('Keluar dari semua perangkat yang sedang login? Kamu (di perangkat ini juga) perlu login ulang setelah ini.')) return;
+      try {
+        await api('account.logoutAllSessions', {}, 'POST');
+      } catch (e) {
+        showNotice(e.message || 'Gagal keluar dari semua perangkat.', 'error');
+        return;
+      }
+      clearSession();
+      window.location.replace('/pages/login/');
+    }
+
+    async function clearTtdSaved() {
+      if (!confirm('Hapus tanda tangan yang tersimpan?')) return;
+      try {
+        const data = await api('account.profile.save', { record: { name: state.account.name, ttd: '' } }, 'POST');
+        state.account = data.account?.item || state.account;
+        syncSession(data.session || state.session);
+        renderTtdExisting();
+        showTtdNotice('Tanda tangan dihapus.', '');
+      } catch (e) {
+        showTtdNotice(e.message || 'Gagal menghapus tanda tangan.', 'error');
+      }
+    }
+
+    function downloadTtd() {
+      const item = state.account;
+      if (!item || !item.ttd) return;
+      const a = document.createElement('a');
+      a.href = item.ttd;
+      a.download = 'TTD_' + (item.name || 'pengurus').replace(/[^a-zA-Z0-9]/g, '_') + '.png';
+      a.click();
+    }
+
+    function handleTtdFileUpload(e) {
+      const file = e.target.files && e.target.files[0];
+      e.target.value = '';
+      if (!file) return;
+      if (file.type !== 'image/png') { showTtdNotice('Hanya file PNG yang diterima.', 'error'); return; }
+      if (file.size > 5 * 1024 * 1024) { showTtdNotice('Ukuran file maksimal 5 MB.', 'error'); return; }
+      const reader = new FileReader();
+      reader.onload = function(ev) {
+        const img = new Image();
+        img.onload = function() {
+          const canvas = document.getElementById('ttdCanvas');
+          const ctx = canvas.getContext('2d');
+          ctx.clearRect(0, 0, 600, 200);
+          const ratio = Math.min(600 / img.width, 200 / img.height);
+          const w = img.width * ratio, h = img.height * ratio;
+          ctx.drawImage(img, (600 - w) / 2, (200 - h) / 2, w, h);
+          showTtdNotice('Gambar dimuat. Klik Simpan TTD untuk menyimpan.', 'success');
+        };
+        img.src = ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+    async function loadAccount() {
+      clearNotice();
+      showNotice('Memuat profil akun...', '');
+      try {
+        const data = await api('account.self');
+        state.role = data.account?.role || '';
+        state.account = data.account?.item || null;
+        state.photoFileDataUrl = '';
+        state.photoFileName = '';
+        state.photoFileType = '';
+        state.useDefaultPhoto = false;
+        syncSession(data.session || getStoredSession());
+        renderAccount();
+        clearNotice();
+      } catch (error) {
+        showNotice(error.message || 'Gagal memuat profil akun.', 'error');
+      }
+    }
+    async function handlePhotoChange(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      if (file.size > 5 * 1024 * 1024) {
+        showNotice('Ukuran foto maksimal 5 MB.', 'error');
+        event.target.value = '';
+        return;
+      }
+      try {
+        state.photoFileDataUrl = await fileToDataUrl(file);
+        state.photoFileName = file.name;
+        state.photoFileType = file.type || '';
+        state.useDefaultPhoto = false;
+        renderAvatar();
+      } catch (error) {
+        showNotice(error.message || 'Gagal membaca file foto.', 'error');
+      }
+    }
+    function resetPhoto() {
+      state.photoFileDataUrl = '';
+      state.photoFileName = '';
+      state.photoFileType = '';
+      state.useDefaultPhoto = true;
+      document.getElementById('photoFileInput').value = '';
+      if (state.account) {
+        state.account.photoUrl = '';
+      }
+      renderAvatar();
+    }
+    async function saveProfile(event) {
+      event.preventDefault();
+      const formData = new FormData(document.getElementById('profileForm'));
+      const record = {};
+      formData.forEach((value, key) => { record[key] = String(value || ''); });
+      if (state.photoFileDataUrl) {
+        record.photo_file_data_url = state.photoFileDataUrl;
+        record.photo_file_name = state.photoFileName;
+        record.photo_file_type = state.photoFileType;
+      }
+      if (state.useDefaultPhoto) {
+        record.use_default_photo = true;
+      }
+      try {
+        showNotice('Menyimpan profil akun...', '');
+        const data = await api('account.profile.save', { record }, 'POST');
+        state.role = data.account?.role || state.role;
+        state.account = data.account?.item || state.account;
+        state.photoFileDataUrl = '';
+        state.photoFileName = '';
+        state.photoFileType = '';
+        state.useDefaultPhoto = false;
+        syncSession(data.session || state.session);
+        renderAccount();
+        showNotice(data.message || 'Profil akun berhasil diperbarui.', '');
+      } catch (error) {
+        showNotice(error.message || 'Gagal menyimpan profil akun.', 'error');
+      }
+    }
+
+    const session = getStoredSession();
+    if (!session) {
+      clearSession();
+      window.location.replace('/pages/login/');
+    } else if (window.PSAccess && window.PSAccess.redirectIfForbidden(session, '/pages/accountProfile/')) {
+      // redirected
+    } else {
+      mountShell(session);
+      document.getElementById('photoFileInput').addEventListener('change', handlePhotoChange);
+      document.getElementById('resetPhotoButton').addEventListener('click', resetPhoto);
+      document.getElementById('saveButton').addEventListener('click', saveProfile);
+      document.getElementById('logoutAllButton').addEventListener('click', logoutAllSessions);
+      // TTD events (wired after load since section may be hidden)
+      window.addEventListener('load', function() {
+        loadAccount();
+        initTtdCanvas();
+        const el = (id) => document.getElementById(id);
+        el('ttdClearCanvasBtn') && el('ttdClearCanvasBtn').addEventListener('click', clearTtdCanvas);
+        el('ttdSaveBtn') && el('ttdSaveBtn').addEventListener('click', saveTtd);
+        el('ttdClearSavedBtn') && el('ttdClearSavedBtn').addEventListener('click', clearTtdSaved);
+        el('ttdDownloadBtn') && el('ttdDownloadBtn').addEventListener('click', downloadTtd);
+        el('ttdFileInput') && el('ttdFileInput').addEventListener('change', handleTtdFileUpload);
+      });
+    }
+
+    document.querySelectorAll('.section-toggle').forEach(function(toggle) {
+      toggle.addEventListener('click', function() {
+        var panel = this.closest('.panel');
+        var expanded = panel.classList.toggle('expanded');
+        this.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+      });
+    });
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
+    }
+  </script>
+</body>
+</html>

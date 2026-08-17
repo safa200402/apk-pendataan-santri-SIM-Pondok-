@@ -1,0 +1,153 @@
+CATATAN DEPLOY - SHARED HOSTING CPANEL/HPANEL (Node.js Selector)
+===================================================================
+Contoh kasus: domain albashiroh-sistem-2026.darul-istifadah-wal-ifadah.site
+Application root di server: /home/darulist/sistem-2026
+
+
+SYARAT PENTING
+--------------
+Aplikasi ini pakai modul bawaan Node.js "node:sqlite" (bukan better-sqlite3),
+yang baru tersedia mulai Node.js v22.5 ke atas.
+=> Sebelum deploy, cek dulu di menu "Setup Node.js App" versi Node tertinggi
+   yang tersedia di hosting. Kalau di bawah 22.5, aplikasi TIDAK akan jalan.
+
+
+LANGKAH 1 - SIAPKAN FILE DI LOKAL (ZIP)
+----------------------------------------
+1. Matikan dulu server lokal (tutup jendela start-backend.bat / Ctrl+C).
+   PENTING: SQLite pakai mode WAL. Kalau server masih hidup saat di-zip,
+   sebagian data terbaru bisa masih ada di file "*.sqlite-wal" dan belum
+   ter-checkpoint ke file utama -> data yang terbawa ke server jadi tidak
+   lengkap. Matikan server dulu supaya WAL ter-checkpoint dengan benar.
+
+2. Jalankan "zip-for-deploy.bat" di folder project.
+   Ini membuat deploy.zip berisi semua file KECUALI node_modules dan file
+   .bat/.zip. Folder backend/data/ (database + file -wal, -shm) ikut
+   ter-zip -- jangan dipisah, ketiganya harus tetap satu paket kalau mau
+   membawa data yang sudah ada.
+
+
+LANGKAH 2 - SETUP NODE.JS APP DI CPANEL/HPANEL
+------------------------------------------------
+1. Masuk ke hPanel/cPanel -> Advanced -> Setup Node.js App
+2. Klik "Create Application":
+   - Node.js version : pilih tertinggi yang tersedia (minimal 22.5)
+   - Application mode : Production
+   - Application root : nama folder tujuan, mis. "sistem-2026"
+   - Application URL  : domain/subdomain yang dipakai
+   - Application startup file : app.js
+3. Klik Create
+
+
+LANGKAH 3 - UPLOAD & EXTRACT
+------------------------------
+1. Buka File Manager, masuk ke folder Application root tadi
+2. Upload deploy.zip
+3. Klik kanan file itu -> Extract
+4. Hapus deploy.zip setelah selesai extract
+
+
+LANGKAH 4 - INSTALL DEPENDENCIES
+-----------------------------------
+1. Kembali ke halaman Setup Node.js App, buka aplikasi yang dibuat
+2. Klik "Run NPM Install"
+   (dependency: adm-zip, bcryptjs, express, quill -- tidak ada native
+   module yang perlu di-compile, jadi proses ini biasanya lancar)
+
+
+LANGKAH 5 - ENVIRONMENT VARIABLES
+------------------------------------
+Tambahkan lewat UI "Environment Variables" di halaman edit aplikasi
+(JANGAN via .env manual, dan JANGAN set PORT manual -- Passenger/cPanel
+yang mengatur PORT sendiri):
+
+    APP_TIMEZONE=Asia/Jakarta
+
+SEED_ADMIN_NAME / SEED_ADMIN_PASSWORD tidak perlu diisi kalau database
+yang diupload sudah punya akun pengurus (bootstrap admin cuma jalan
+kalau tabel pengurus masih kosong).
+
+
+LANGKAH 6 - START
+--------------------
+Klik "Restart" di halaman Node.js App. Cek log lewat tombol log/monitor
+di panel kalau gagal jalan.
+
+
+LANGKAH 7 - AKTIFKAN SSL
+----------------------------
+Aktifkan AutoSSL / Let's Encrypt dari menu SSL di hPanel untuk domain
+tersebut (biasanya gratis & otomatis di shared hosting).
+
+
+===================================================================
+TROUBLESHOOTING YANG PERNAH DIALAMI
+===================================================================
+
+MASALAH:
+Akses https://.../pages/login/ muncul error:
+  Error: EACCES: permission denied, stat
+  '/home/darulist/sistem-2026/frontend/pages/login/index.html'
+
+PENYEBAB:
+Hasil extract zip di cPanel kadang menghasilkan permission folder yang
+tidak konsisten. Salah satu folder (waktu itu "frontend/pages") ter-set
+jadi "drw-r--r--" (664) -- TIDAK ada execute bit (x). Folder wajib
+punya bit x supaya bisa ditelusuri/masuk ke dalamnya; tanpa itu, semua
+isi di dalamnya (termasuk folder "login") jadi tidak bisa diakses sama
+sekali, bahkan oleh pemilik file itu sendiri.
+
+CARA MENDIAGNOSIS:
+Login ke Terminal server (hPanel -> Advanced -> Terminal, atau SSH),
+lalu cek permission tiap level folder dengan:
+
+    namei -l /home/darulist/sistem-2026/frontend/pages/login/index.html
+
+Ini menampilkan permission SEMUA folder induk sekaligus, sehingga
+langsung kelihatan folder mana yang bermasalah (dulu ketahuan folder
+"pages" yang rusak permission-nya).
+
+Kalau "namei" tidak tersedia, cek satu-satu dengan "ls -ld <path>"
+dari folder paling luar ke dalam.
+
+CARA MEMPERBAIKI:
+Jalankan di Terminal server (bukan di komputer lokal):
+
+    find /home/darulist/sistem-2026/frontend -type d -exec chmod 755 {} \;
+    find /home/darulist/sistem-2026/frontend -type f -exec chmod 644 {} \;
+
+- Semua FOLDER di dalam frontend/ jadi 755 (rwxr-xr-x)
+- Semua FILE di dalam frontend/ jadi 644 (rw-r--r--)
+
+Setelah itu, restart aplikasi dari hPanel -> Setup Node.js App -> Restart,
+lalu coba akses halaman login lagi.
+
+Ada satu masalah pada proses backup, yaitu aplikasi gagal membuat file backup karena direktori backend/data/backups memiliki permission yang tidak sesuai. Permission direktori saat itu adalah drw-r--r-- (mode 644), sehingga tidak memiliki hak execute (x) yang diperlukan untuk mengakses direktori dan membuat file baru. Akibatnya, ketika aplikasi mencoba membuat file backup ZIP, sistem operasi Linux menolak akses dan menampilkan error EACCES: permission denied.
+Jalan keluarnya adalah mengubah permission direktori menjadi 755 agar owner memiliki hak baca, tulis, dan eksekusi (rwx) dengan menjalankan perintah berikut:
+
+chmod 755 /home/darulist/sistem-2026/backend/data/backups
+
+find /home/darulist/sistem-2026/backend/data -type d -exec chmod 755 {} \;
+find /home/darulist/sistem-2026/backend/data -type f -exec chmod 644 {} \;
+
+
+Setelah permission diubah menjadi drwxr-xr-x, aplikasi berhasil membuat file backup tanpa mengalami error EACCES.
+
+CATATAN UNTUK DEPLOY BERIKUTNYA:
+Kalau nanti upload ulang / extract ulang dan muncul error EACCES serupa
+di folder lain, penyebabnya sama (permission rusak dari proses extract).
+Solusinya jalankan ulang dua perintah "find" di atas.
+
+===================================================================
+UPDATE APLIKASI (DEPLOY ULANG SETELAH ADA PERUBAHAN KODE)
+===================================================================
+1. Zip ulang project di lokal (tanpa data kalau tidak mau menimpa data
+   di server -- keluarkan folder backend/data dari zip)
+2. Upload ke server, extract (pilih overwrite/replace file lama)
+3. Jalankan ulang perintah fix permission (lihat bagian troubleshooting
+   di atas) karena proses extract bisa merusak permission lagi
+4. Restart aplikasi dari hPanel -> Setup Node.js App -> Restart
+
+JANGAN PERNAH menghapus atau menimpa folder backend/data/ di server
+setelah live -- isinya database produksi (data santri, pengurus, dll).
+

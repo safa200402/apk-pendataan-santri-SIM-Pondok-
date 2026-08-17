@@ -1,0 +1,308 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#9e2f22">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="../../shared-ui.css">
+  <link rel="stylesheet" href="../../shared-shell.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+  <script src="../../shared-ui.js"></script>
+  <title>Dashboard SDM</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700&display=swap');
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; }
+    .panel { padding: 22px; }
+    button { font: inherit; }
+    :root { --ink:#4d4034; --muted:#7b6a58; --line:rgba(91,73,57,0.15); --accent:#b97650; --danger:#a55a52; }
+    .btn { padding: 9px 18px; border-radius: 12px; border: none; cursor: pointer; font-weight: 700; display: inline-flex; align-items: center; gap: 8px; }
+    .audit-section { margin-bottom: 10px; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+    .sec-header { display: flex; align-items: center; padding: 11px 14px; background: rgba(242, 222, 154, 0.96); gap: 8px; border-bottom: 1px solid transparent; }
+    .audit-section:not(.collapsed) .sec-header { border-bottom-color: var(--line); }
+    .sec-clickable { flex: 1; display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; min-width: 0; }
+    .sec-title { font-size: 0.95rem; font-weight: 700; color: var(--ink); display: flex; align-items: center; gap: 7px; }
+    .sec-title i { opacity: .65; font-size: .9em; }
+    .sec-meta { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+    .status-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 99px; }
+    .badge-ok { background: #e8f5e9; color: #2e7d32; }
+    .badge-warn { background: #fff3e0; color: #e65100; }
+    .chevron { font-size: 10px; opacity: .5; transition: transform .2s; flex-shrink: 0; }
+    .audit-section:not(.collapsed) .chevron { transform: rotate(180deg); }
+    .sec-body { padding: 12px 14px; display: none; background: #f8f4ef; overflow-x: auto; }
+    .audit-section:not(.collapsed) .sec-body { display: block; }
+    .hint-box { background: #f8f4ef; border-top: 1px solid var(--line); padding: 9px 14px; font-size: 12.5px; color: var(--muted); line-height: 1.5; }
+    .issue-list { display: grid; gap: 6px; margin-bottom: 10px; overflow-x: auto; }
+    .issue-row { display: flex; align-items: flex-start; gap: 10px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 9px; background: #fffbf7; font-size: 13px; }
+    .issue-row .nm { font-weight: 600; min-width: 150px; color: var(--ink); }
+    .issue-row .detail { color: var(--muted); }
+    .tag-warn { background: #fff3e0; color: #c45300; border-radius: 5px; padding: 1px 7px; font-size: 11.5px; font-weight: 700; }
+    .pagination { display: flex; align-items: center; justify-content: center; gap: 4px; flex-wrap: wrap; margin-top: 8px; }
+    .pagination button { min-width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--line); background: #fff; color: var(--ink); font-size: 13px; font-weight: 600; cursor: pointer; padding: 0 6px; }
+    .pagination button:hover { background: #f5f0eb; }
+    .pagination button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .pagination button:disabled { opacity: .4; cursor: default; }
+    .sec-loading { text-align: center; padding: 20px; color: var(--muted); font-size: 13px; }
+    .empty-ok { text-align: center; padding: 18px; color: #2e7d32; font-size: 13px; }
+    .loading { text-align: center; padding: 40px; color: var(--muted); }
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; margin-bottom: 18px; }
+    .stat-card { background: rgba(242, 222, 154, 0.96); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; }
+    .stat-num { font-size: 1.8rem; font-weight: 800; color: var(--ink); line-height: 1; }
+    .stat-label { font-size: 12px; color: var(--muted); font-weight: 500; }
+  </style>
+</head>
+<body>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+  <main>
+    <div class="app-layout">
+      <section class="panel nav" id="nav"></section>
+      <div class="content-stack">
+        <section class="panel">
+          <h1 style="font-size:1.5rem;font-weight:700;color:var(--ink);margin:0 0 4px;">Dashboard SDM</h1>
+          <p style="color:var(--muted);font-size:14px;margin:0 0 14px;">Audit sumber daya manusia — kelengkapan jabatan dan status pengurus aktif.</p>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+            <button class="btn primary" id="refreshBtn"><i class="fa-solid fa-rotate-right"></i> Muat Ulang</button>
+          </div>
+        </section>
+        <section class="panel">
+          <div id="statsGrid" class="stats-grid" style="display:none;"></div>
+          <div id="content"><div class="loading"><i class="fa-solid fa-spinner fa-spin fa-2x"></i><p style="margin-top:12px;">Memuat data...</p></div></div>
+        </section>
+      </div>
+    </div>
+  </main>
+  <script src="../../shared-access.js"></script>
+  <script src="../../shared-nav.js"></script>
+  <script src="../../shared-shell.js"></script>
+  <script>
+    const API_BASE = window.location.origin + '/api';
+    const STORAGE = { apiBase: 'ps_api_base', token: 'ps_token', session: 'ps_session' };
+    localStorage.setItem(STORAGE.apiBase, API_BASE);
+
+    function getStoredSession() { try { return JSON.parse(localStorage.getItem(STORAGE.session)); } catch { return null; } }
+    function getToken() { return localStorage.getItem(STORAGE.token); }
+    function clearSession() { localStorage.removeItem(STORAGE.session); localStorage.removeItem(STORAGE.token); }
+    function escapeHtml(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+    function mountShell(session) { return window.PSShell.mount({ currentPage: window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : 'dashboardSdm.html', session, getStoredSession, storageKey: STORAGE.session }); }
+
+    async function api(action, payload = {}) {
+      const token = getToken();
+      if (!token) { clearSession(); window.location.replace('/pages/login/'); throw new Error('Sesi tidak ditemukan.'); }
+      const r = await fetch(`${API_BASE}?${new URLSearchParams({ action, token, ...payload })}`);
+      const json = await r.json();
+      if (!json.ok) { const e = new Error(json.error?.message || 'Gagal.'); e.code = json.error?.code || 500; if (e.code === 401) { clearSession(); window.location.replace('/pages/login/'); } throw e; }
+      return json.data;
+    }
+
+    const SECTIONS = [
+      {
+        id: 'pengurusTanpaJabatan', icon: 'fa-user-xmark', title: 'Pengurus Tanpa Jabatan Aktif',
+        hint: 'Pengurus yang berstatus aktif namun tidak memiliki jabatan aktif satupun. Perlu segera ditetapkan jabatannya atau dinonaktifkan.',
+        renderRow: r => `<div class="issue-row">
+          <span class="nm">${escapeHtml(r.name)}</span>
+          <span class="detail"><span class="tag-warn">Tidak ada jabatan aktif</span></span>
+        </div>`
+      },
+      // Audit yang sama juga ada di pages/dashboardKoordHalaqoh (section 'pengampu')
+      {
+        id: 'pengampuTanpaHalaqoh', icon: 'fa-user-slash', title: 'Pengampu Tanpa Halaqoh',
+        hint: 'Pengurus dengan jabatan pengampu halaqoh atau koordinator halaqoh yang aktif namun tidak terdaftar sebagai pengampu di halaqoh manapun pada tahun ajaran aktif.',
+        renderRow: r => `<div class="issue-row">
+          <span class="nm">${escapeHtml(r.name)}</span>
+          <span class="detail"><span class="tag-warn">Tidak di halaqoh manapun</span>
+            ${r.jabatanLabels.length ? '&nbsp;·&nbsp; '+escapeHtml(r.jabatanLabels.join(', ')) : ''}
+          </span></div>`
+      },
+      // Audit yang sama juga ada di pages/dashboardKoordHalaqoh (section 'pengampuTidakBerjabatan')
+      {
+        id: 'pengampuTidakBerjabatan', icon: 'fa-user-tag', title: 'Pengampu Tidak Menjabat sebagai Pengampu',
+        hint: 'Pengurus yang ditugaskan sebagai pengampu/badal halaqoh tetapi jabatan aktifnya tidak mengandung kata kunci pengampu.',
+        renderRow: r => `<div class="issue-row">
+          <span class="nm">${escapeHtml(r.pengurusName)}</span>
+          <span class="detail">di ${escapeHtml(r.entityName)} · <span class="tag-warn">Jabatan tidak sesuai</span></span>
+        </div>`
+      },
+      // Audit yang sama juga ada di pages/dashboardAkademik (section 'pengajarTidakBerjabatan')
+      {
+        id: 'pengajarTidakBerjabatan', icon: 'fa-user-tag', title: 'Pengajar Tidak Menjabat sebagai Pengajar',
+        hint: 'Pengurus yang ditugaskan sebagai pengajar/badal kelas tetapi jabatan aktifnya tidak mengandung kata kunci pengajar/ustadz/guru.',
+        renderRow: r => `<div class="issue-row">
+          <span class="nm">${escapeHtml(r.pengurusName)}</span>
+          <span class="detail">di ${escapeHtml(r.entityName)} · <span class="tag-warn">Jabatan tidak sesuai</span></span>
+        </div>`
+      },
+      // Audit yang sama juga ada di pages/dashboardKesantrian (section 'pembinaTidakBerjabatan')
+      {
+        id: 'pembinaTidakBerjabatan', icon: 'fa-user-tag', title: 'Pembina Tidak Menjabat sebagai Pembina',
+        hint: 'Pengurus yang ditugaskan sebagai pembina regu tetapi jabatan aktifnya tidak mengandung kata kunci pembina.',
+        renderRow: r => `<div class="issue-row">
+          <span class="nm">${escapeHtml(r.pengurusName)}</span>
+          <span class="detail">di ${escapeHtml(r.entityName)} · <span class="tag-warn">Jabatan tidak sesuai</span></span>
+        </div>`
+      },
+      {
+        id: 'kegiatanTanpaJabatan', icon: 'fa-list-check', title: 'Kegiatan Tanpa Jabatan Penanggung Jawab',
+        hint: 'Kegiatan operasional aktif yang tidak memiliki satupun item SOP dengan penanggung jawab (kolom PJ kosong di semua langkah).',
+        renderRow: r => `<div class="issue-row"><span class="nm">${escapeHtml(r.name)}</span><span class="detail"><span class="tag-warn">Tidak ada PJ</span></span></div>`
+      },
+      {
+        id: 'kegiatanTanpaJabatanUtama', icon: 'fa-user-tie', title: 'Kegiatan Tanpa Jabatan PJ Utama',
+        hint: 'Kegiatan operasional aktif yang tidak memiliki jabatan penanggung jawab utama.',
+        renderRow: r => `<div class="issue-row"><span class="nm">${escapeHtml(r.name)}</span><span class="detail"><span class="tag-warn">PJ Utama kosong</span></span></div>`
+      },
+      {
+        id: 'kegiatanTanpaKategori', icon: 'fa-tag', title: 'Kegiatan Tanpa Deskripsi/Kategori',
+        hint: 'Kegiatan operasional aktif yang tidak memiliki deskripsi/konteks.',
+        renderRow: r => `<div class="issue-row"><span class="nm">${escapeHtml(r.name)}</span><span class="detail"><span class="tag-warn">Deskripsi kosong</span></span></div>`
+      },
+      {
+        id: 'kegiatanTanpaSop', icon: 'fa-clipboard-list', title: 'Kegiatan Tanpa SOP',
+        hint: 'Kegiatan operasional aktif yang tidak memiliki langkah SOP sama sekali.',
+        renderRow: r => `<div class="issue-row"><span class="nm">${escapeHtml(r.name)}</span><span class="detail"><span class="tag-warn">SOP kosong</span></span></div>`
+      },
+      {
+        id: 'kegiatanJabatanHilang', icon: 'fa-link-slash', title: 'Kegiatan SOP dengan Referensi Jabatan Hilang',
+        hint: 'Item SOP yang mencantumkan nama jabatan PJ yang tidak ditemukan di daftar jabatan aktif.',
+        renderRow: r => `<div class="issue-row"><span class="nm">${escapeHtml(r.name)}</span><span class="detail">PJ: <span class="tag-warn">${escapeHtml(r.pjLabel)}</span> tidak ditemukan di jabatan</span></div>`
+      },
+      {
+        id: 'invalidRelasi', icon: 'fa-circle-exclamation', title: 'Relasi Menuju ID yang Tidak Ditemukan',
+        hint: 'Ada referensi ID santri atau pengurus di halaqoh/kelas/regu yang tidak ditemukan di data master.',
+        renderRow: r => `<div class="issue-row"><span class="nm">${escapeHtml(r.entity)}: ${escapeHtml(r.entityName)}</span><span class="detail">field ${escapeHtml(r.field)} &rarr; <span class="tag-warn">ID ${escapeHtml(r.missingId)}</span> tidak ditemukan</span></div>`
+      }
+    ];
+
+    const STAT_ITEMS = [
+      { key: 'santriAktif',         label: 'Santri Aktif',         icon: 'fa-user-graduate' },
+      { key: 'santriTidakAktif',    label: 'Santri Tidak Aktif',   icon: 'fa-user-slash',   muted: true },
+      { key: 'santriDibekukan',     label: 'Santri Dibekukan',     icon: 'fa-user-lock',    muted: true },
+      { key: 'pengurusAktif',       label: 'Pengurus Aktif',       icon: 'fa-id-badge' },
+      { key: 'pengurusTidakAktif',  label: 'Pengurus Tdk Aktif',   icon: 'fa-id-card-clip', muted: true },
+      { key: 'pengurusDibekukan',   label: 'Pengurus Dibekukan',   icon: 'fa-user-lock',    muted: true },
+      { key: 'pengurusBerJabatan',  label: 'Punya Jabatan',        icon: 'fa-user-check' },
+      { key: 'pengurusTanpaJabatan',label: 'Tanpa Jabatan',        icon: 'fa-user-xmark' },
+    ];
+
+    const state = {};
+    SECTIONS.forEach(s => { state[s.id] = { count: 0, loaded: false, page: 1 }; });
+
+    function renderStats(stats) {
+      if (!stats) return;
+      const grid = document.getElementById('statsGrid');
+      grid.style.display = '';
+      grid.innerHTML = STAT_ITEMS.map(item =>
+        `<div class="stat-card"${item.muted ? ' style="opacity:.7;"' : ''}>
+          <span class="stat-num" style="${item.muted ? 'font-size:1.4rem;' : ''}">${stats[item.key] ?? '-'}</span>
+          <span class="stat-label"><i class="fa-solid ${item.icon}" style="opacity:.55;margin-right:4px;"></i>${escapeHtml(item.label)}</span>
+        </div>`
+      ).join('');
+    }
+
+    function renderPagination(sectionId, page, total, limit) {
+      const pages = Math.ceil(total / limit);
+      if (pages <= 1) return '';
+      const maxBtn = 10;
+      let start = Math.max(1, page - Math.floor(maxBtn / 2));
+      let end = Math.min(pages, start + maxBtn - 1);
+      if (end - start < maxBtn - 1) start = Math.max(1, end - maxBtn + 1);
+      let html = '<div class="pagination">';
+      html += `<button onclick="goPage('${sectionId}',${page-1})" ${page<=1?'disabled':''}><i class="fa-solid fa-chevron-left"></i></button>`;
+      for (let i = start; i <= end; i++) html += `<button class="${i===page?'active':''}" onclick="goPage('${sectionId}',${i})">${i}</button>`;
+      html += `<button onclick="goPage('${sectionId}',${page+1})" ${page>=pages?'disabled':''}><i class="fa-solid fa-chevron-right"></i></button>`;
+      html += '</div>';
+      return html;
+    }
+
+    async function goPage(sectionId, page) {
+      const sy = window.scrollY;
+      state[sectionId].page = page;
+      await loadSection(sectionId, page);
+      window.scrollTo(0, sy);
+    }
+
+    async function loadSection(sectionId, page) {
+      const sec = SECTIONS.find(s => s.id === sectionId);
+      const listEl = document.getElementById('list_' + sectionId);
+      if (!listEl) return;
+      listEl.innerHTML = '<div class="sec-loading"><i class="fa-solid fa-spinner fa-spin"></i> Memuat...</div>';
+      try {
+        const d = await api('dashboard.sdm.audit', { section: sectionId, page });
+        state[sectionId].loaded = true;
+        const badgeEl = document.getElementById('badge_' + sectionId);
+        if (badgeEl) { badgeEl.className = `status-badge ${d.total===0?'badge-ok':'badge-warn'}`; badgeEl.innerHTML = d.total===0?'<i class="fa-solid fa-check-circle"></i> OK':`<i class="fa-solid fa-triangle-exclamation"></i> ${d.total}`; }
+        let html = '';
+        if (!d.items.length && d.total === 0) {
+          html = '<div class="empty-ok"><i class="fa-solid fa-circle-check"></i> Semua OK — tidak ada masalah.</div>';
+        } else {
+          html = '<div class="issue-list">' + d.items.map(sec.renderRow).join('') + '</div>';
+          html += renderPagination(sectionId, d.page, d.total, d.limit);
+        }
+        listEl.innerHTML = html;
+      } catch (e) {
+        listEl.innerHTML = `<div class="sec-loading" style="color:var(--danger);">${escapeHtml(e.message)}</div>`;
+      }
+    }
+
+    function toggleSection(sectionId) {
+      const el = document.getElementById('sec_' + sectionId);
+      if (!el) return;
+      const willOpen = el.classList.contains('collapsed');
+      el.classList.toggle('collapsed');
+      if (willOpen && !state[sectionId].loaded) loadSection(sectionId, 1);
+    }
+
+    function renderShell(d) {
+      renderStats(d.stats);
+      SECTIONS.forEach(s => { state[s.id].count = d.counts[s.id] ?? 0; });
+      const html = SECTIONS.map(s => {
+        const count = d.counts[s.id] ?? 0;
+        return `<div class="audit-section collapsed" id="sec_${s.id}">
+          <div class="sec-header">
+            <div class="sec-clickable" onclick="toggleSection('${s.id}')">
+              <div class="sec-title"><i class="fa-solid ${s.icon}"></i>${escapeHtml(s.title)}</div>
+              <i class="fa-solid fa-chevron-down chevron"></i>
+            </div>
+            <div class="sec-meta">
+              <span class="status-badge ${count===0?'badge-ok':'badge-warn'}" id="badge_${s.id}">
+                ${count===0?'<i class="fa-solid fa-check-circle"></i> OK':`<i class="fa-solid fa-triangle-exclamation"></i> ${count}`}
+              </span>
+            </div>
+          </div>
+          <div class="hint-box">${escapeHtml(s.hint)}</div>
+          <div class="sec-body" id="body_${s.id}">
+            <div id="list_${s.id}"><div class="sec-loading"><i class="fa-solid fa-hand-pointer" style="opacity:.4;"></i> Buka section untuk memuat data.</div></div>
+          </div>
+        </div>`;
+      }).join('');
+      document.getElementById('content').innerHTML = html;
+    }
+
+    async function load() {
+      document.getElementById('content').innerHTML = '<div class="loading"><i class="fa-solid fa-spinner fa-spin fa-2x"></i><p style="margin-top:12px;">Memuat data...</p></div>';
+      SECTIONS.forEach(s => { state[s.id].loaded = false; state[s.id].page = 1; });
+      try {
+        const d = await api('dashboard.sdm.audit');
+        renderShell(d);
+      } catch (e) {
+        document.getElementById('content').innerHTML = `<div class="loading" style="color:var(--danger);"><i class="fa-solid fa-triangle-exclamation fa-2x"></i><p style="margin-top:8px;font-weight:600;">${escapeHtml(e.message)}</p></div>`;
+      }
+    }
+
+    const session = getStoredSession();
+    if (!session) { clearSession(); window.location.replace('/pages/login/'); }
+    else if (window.PSAccess && window.PSAccess.redirectIfForbidden(session, '/pages/dashboardSdm/')) { /* redirected */ }
+    else {
+      mountShell(session);
+      document.getElementById('refreshBtn').addEventListener('click', load);
+      load();
+    }
+    if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {}); }
+  </script>
+</body>
+</html>
+
+
+
+

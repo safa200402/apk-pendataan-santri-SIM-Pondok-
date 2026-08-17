@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#9e2f22">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="../../../shared-ui.css">
+  <link rel="stylesheet" href="../../../shared-shell.css">
+  <script src="../../../shared-ui.js"></script>
+  <title>Kondisi Saya</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap');
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; }
+    h1,h2,h3 { margin: 0; }
+    p { margin: 0; line-height: 1.65; }
+    button, input, select { font: inherit; }
+    button { cursor: pointer; }
+    .panel { padding: 20px; }
+
+    .month-bar {
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    }
+    .month-bar label { font-weight: 700; font-size: 13px; opacity: 0.7; }
+    .month-bar input[type="month"] {
+      min-height: 40px; padding: 0 12px; border-radius: 10px;
+      border: 2px solid rgba(0,0,0,0.12); outline: none; font: inherit; font-size: 14px;
+      background: rgba(255,255,255,0.8);
+    }
+    .month-bar input[type="month"]:focus { border-color: rgba(158,47,34,0.5); }
+
+    .tabs {
+      display: flex; gap: 6px; flex-wrap: wrap;
+    }
+    .tab-btn {
+      min-height: 36px; padding: 0 14px; border-radius: 10px;
+      border: 2px solid rgba(0,0,0,0.12); background: transparent;
+      font-size: 13px; font-weight: 700; opacity: 0.65;
+      transition: background 0.15s, opacity 0.15s, border-color 0.15s;
+    }
+    .tab-btn.active {
+      opacity: 1; border-color: rgba(158,47,34,0.5);
+      background: rgba(158,47,34,0.08);
+    }
+    .tab-btn:hover:not(.active) { opacity: 0.85; background: rgba(0,0,0,0.04); }
+
+    .section { display: none; }
+    .section.active { display: block; }
+
+    .section-title {
+      font-size: 15px; font-weight: 800; margin-bottom: 14px;
+      text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.55;
+    }
+
+    .data-table {
+      width: 100%; border-collapse: collapse; font-size: 14px;
+    }
+    .data-table th {
+      text-align: left; padding: 8px 10px;
+      font-size: 11px; font-weight: 800; letter-spacing: 0.06em;
+      text-transform: uppercase; opacity: 0.5;
+      border-bottom: 2px solid rgba(0,0,0,0.08);
+    }
+    .data-table td {
+      padding: 10px; border-bottom: 1px solid rgba(0,0,0,0.06);
+      vertical-align: top; line-height: 1.5;
+    }
+    .data-table tr:last-child td { border-bottom: none; }
+
+    .badge {
+      display: inline-flex; align-items: center;
+      min-height: 22px; padding: 0 8px; border-radius: 999px;
+      font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .badge-success { background: rgba(74,107,72,0.12); color: #2d5a2b; }
+    .badge-danger  { background: rgba(139,58,53,0.12); color: #7a2420; }
+    .badge-warn    { background: rgba(170,130,0,0.12); color: #7a5a00; }
+    .badge-muted   { background: rgba(0,0,0,0.07); color: inherit; }
+
+    .zoom-card {
+      display: grid; gap: 8px; padding: 14px 0;
+      border-bottom: 1px solid rgba(0,0,0,0.06);
+    }
+    .zoom-card:last-child { border-bottom: none; }
+    .zoom-card-head {
+      display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;
+    }
+    .zoom-card-label { font-weight: 700; font-size: 14px; }
+    .zoom-card-details { display: flex; flex-wrap: wrap; gap: 6px; font-size: 13px; opacity: 0.7; }
+
+    .pagination {
+      display: flex; align-items: center; gap: 6px;
+      flex-wrap: wrap; justify-content: center; margin-top: 14px;
+    }
+    .pagination button {
+      min-height: 32px; min-width: 32px; padding: 0 10px;
+      border-radius: 8px; font-size: 13px; font-weight: 700;
+      border: 2px solid rgba(0,0,0,0.12); background: transparent;
+      transition: background 0.15s;
+    }
+    .pagination button:hover:not(:disabled) { background: rgba(0,0,0,0.06); }
+    .pagination button.active { background: rgba(158,47,34,0.15); border-color: rgba(158,47,34,0.4); }
+    .pagination button:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    .empty-state {
+      padding: 28px 16px; text-align: center; opacity: 0.55; font-size: 14px;
+    }
+    .loading-state {
+      padding: 20px 16px; text-align: center; opacity: 0.5; font-size: 14px;
+    }
+
+    .visit-banner {
+      border-radius: 12px; padding: 14px 16px; margin-bottom: 16px;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .visit-banner.boleh  { background: rgba(74,107,72,0.1);  border: 1.5px solid rgba(74,107,72,0.3); }
+    .visit-banner.tidak  { background: rgba(139,58,53,0.1); border: 1.5px solid rgba(139,58,53,0.3); }
+    .visit-banner.belum  { background: rgba(0,0,0,0.04);    border: 1.5px solid rgba(0,0,0,0.12); }
+    .visit-banner-label {
+      font-size: 15px; font-weight: 800; display: flex; align-items: center; gap: 8px;
+    }
+    .visit-banner.boleh .visit-banner-label { color: #2d5a2b; }
+    .visit-banner.tidak  .visit-banner-label { color: #7a2420; }
+    .visit-banner-section-title {
+      font-size: 11px; font-weight: 800; text-transform: uppercase;
+      letter-spacing: 0.07em; opacity: 0.5; margin-top: 4px;
+    }
+    .visit-banner-list { margin: 2px 0 0 0; padding-left: 16px; font-size: 13px; }
+    .visit-banner-list li { margin-bottom: 3px; line-height: 1.5; }
+    .visit-banner-list li.ok   { color: #2d5a2b; }
+    .visit-banner-list li.bad  { color: #7a2420; }
+    .visit-banner-list li.info { opacity: 0.75; }
+    .pel-inline-badge {
+      display: inline-flex; align-items: center; padding: 1px 7px;
+      border-radius: 5px; font-size: 10px; font-weight: 800;
+      text-transform: uppercase; margin-left: 4px; vertical-align: middle;
+    }
+    .pel-inline-badge.berat  { background: #a52020; color: #fff; }
+    .pel-inline-badge.sedang { background: #b58439; color: #fff; }
+    .pel-inline-badge.ringan { background: #5a7a44; color: #fff; }
+    .visit-banner-divider { border: none; border-top: 1px solid rgba(0,0,0,0.1); margin: 2px 0; }
+
+    @media (max-width: 600px) {
+      .data-table { display: block; overflow-x: auto; }
+    }
+  </style>
+</head>
+<body>
+  <div id="pageLayout" class="shell-layout">
+    <section class="shell-sidebar" id="nav"></section>
+    <main class="shell-main">
+      <div class="content-stack">
+
+        <section class="panel">
+          <div class="section-head">
+            <div class="section-title-wrap">
+              <h1 class="section-title">Kondisi Saya</h1>
+              <p class="section-desc">Zoom, pelanggaran, izin pulang, dan sakit</p>
+            </div>
+          </div>
+          <div class="month-bar" style="margin-top:16px;">
+            <label for="bulanInput">Bulan</label>
+            <input type="month" id="bulanInput">
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="tabs" id="tabs">
+            <button class="tab-btn active" data-tab="zoom">Zoom</button>
+            <button class="tab-btn" data-tab="pelanggaran">Pelanggaran</button>
+            <button class="tab-btn" data-tab="pulang">Izin Pulang</button>
+            <button class="tab-btn" data-tab="sakit">Sakit</button>
+          </div>
+        </section>
+
+        <!-- ZOOM -->
+        <section class="panel section active" id="section-zoom">
+          <p class="section-title">Kehadiran Zoom</p>
+          <div id="zoom-area"><p class="loading-state">Memuat...</p></div>
+          <div class="pagination" id="zoom-pagi"></div>
+        </section>
+
+        <!-- PELANGGARAN -->
+        <section class="panel section" id="section-pelanggaran">
+          <p class="section-title">Pelanggaran</p>
+          <div id="pel-area"><p class="loading-state">Memuat...</p></div>
+          <div class="pagination" id="pel-pagi"></div>
+        </section>
+
+        <!-- PULANG -->
+        <section class="panel section" id="section-pulang">
+          <p class="section-title">Izin Pulang</p>
+          <div id="pulang-area"><p class="loading-state">Memuat...</p></div>
+          <div class="pagination" id="pulang-pagi"></div>
+        </section>
+
+        <!-- SAKIT -->
+        <section class="panel section" id="section-sakit">
+          <p class="section-title">Sakit</p>
+          <div id="sakit-area"><p class="loading-state">Memuat...</p></div>
+          <div class="pagination" id="sakit-pagi"></div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <script src="../../../shared-access.js"></script>
+  <script src="../../../shared-nav.js"></script>
+  <script src="../../../shared-shell.js"></script>
+  <script>
+    const API_BASE = window.location.origin + '/api';
+    const STORAGE = { token: 'ps_token', session: 'ps_session' };
+
+    function getToken() { return localStorage.getItem(STORAGE.token) || ''; }
+    function getStoredSession() {
+      try { return JSON.parse(localStorage.getItem(STORAGE.session) || 'null'); } catch { return null; }
+    }
+
+    async function api(action, params = {}) {
+      const p = new URLSearchParams({ action, token: getToken(), ...params });
+      const res = await fetch(`${API_BASE}?${p}`);
+      const json = await res.json();
+      if (!json.ok) { const e = new Error(json.error?.message || 'Gagal.'); e.code = json.error?.code || 500; throw e; }
+      return json.data;
+    }
+
+    function buildPagi(total, page, pageSize, onPage) {
+      if (total <= pageSize) return '';
+      const totalPages = Math.ceil(total / pageSize);
+      const btns = [];
+      btns.push(`<button ${page <= 1 ? 'disabled' : ''} data-p="${page - 1}">&lsaquo;</button>`);
+      for (let i = 1; i <= totalPages; i++)
+        btns.push(`<button class="${i === page ? 'active' : ''}" data-p="${i}">${i}</button>`);
+      btns.push(`<button ${page >= totalPages ? 'disabled' : ''} data-p="${page + 1}">&rsaquo;</button>`);
+      return btns.join('');
+    }
+
+    function attachPagi(pagiEl, onPage) {
+      pagiEl.querySelectorAll('button[data-p]').forEach(btn => {
+        btn.addEventListener('click', () => { const p = parseInt(btn.dataset.p, 10); if (p) onPage(p); });
+      });
+    }
+
+    function badge(text, cls) {
+      return `<span class="badge ${cls}">${text}</span>`;
+    }
+
+    function statusZoom(s) {
+      if (s === 'hadir') return badge('Hadir', 'badge-success');
+      if (s === 'terlambat') return badge('Terlambat', 'badge-warn');
+      return badge('Tidak Ada Ket.', 'badge-muted');
+    }
+
+    function statusHukuman(s) {
+      if (!s) return '';
+      if (s.toLowerCase().includes('selesai') || s.toLowerCase().includes('sudah')) return badge(s, 'badge-success');
+      return badge(s, 'badge-warn');
+    }
+
+    function statusPulang(s) {
+      if (!s) return badge('-', 'badge-muted');
+      if (s === 'Sudah Kembali') return badge(s, 'badge-success');
+      return badge(s, 'badge-warn');
+    }
+
+    function statusSakit(s) {
+      if (!s) return badge('-', 'badge-muted');
+      if (s === 'Sembuh') return badge(s, 'badge-success');
+      return badge(s, 'badge-danger');
+    }
+
+    const state = {
+      bulan: '',
+      zoom: { page: 1 },
+      pelanggaran: { page: 1 },
+      pulang: { page: 1 },
+      sakit: { page: 1 },
+      activeTab: 'zoom'
+    };
+
+    function buildVisitBanner(statusDijenguk, statusKeluar, pelanggaranBulanIni, kunjunganCatatan) {
+      const pel = pelanggaranBulanIni || [];
+
+      // Status dijenguk
+      let dijengukHtml = '';
+      if (!statusDijenguk) {
+        dijengukHtml = `<div class="visit-banner-label" style="color:inherit;opacity:0.6;">&#9679;&ensp;Status dijenguk belum ditentukan</div>`;
+      } else if (statusDijenguk === 'boleh') {
+        dijengukHtml = `<div class="visit-banner-label">&#10003;&ensp;Boleh Dijenguk</div>`;
+      } else {
+        dijengukHtml = `<div class="visit-banner-label">&#10007;&ensp;Tidak Boleh Dijenguk</div>`;
+      }
+
+      // Status keluar (hanya tampil jika boleh dijenguk)
+      let keluarHtml = '';
+      if (statusDijenguk === 'boleh') {
+        if (statusKeluar === 'boleh') {
+          keluarHtml = `<div class="visit-banner-label" style="font-size:13px;margin-top:2px;">&#10003;&ensp;<span style="color:#2d5a2b;">Boleh Diajak Keluar</span></div>`;
+        } else if (statusKeluar === 'tidak_boleh') {
+          keluarHtml = `<div class="visit-banner-label" style="font-size:13px;margin-top:2px;color:#7a4000;">&#10007;&ensp;Tidak Boleh Diajak Keluar</div>`;
+        } else {
+          keluarHtml = `<div class="visit-banner-label" style="font-size:13px;margin-top:2px;opacity:0.5;">&#9679;&ensp;Status keluar belum ditentukan</div>`;
+        }
+      }
+
+      const cls = statusDijenguk === 'boleh' ? 'boleh' : statusDijenguk === 'tidak_boleh' ? 'tidak' : 'belum';
+      const clsMap = { boleh: 'boleh', tidak_boleh: 'tidak', '': 'tidak' };
+      const bannerCls = clsMap[statusDijenguk || ''] || 'tidak';
+
+      // Catatan
+      const catatanHtml = kunjunganCatatan ? `<div class="visit-banner-sub" style="margin-top:4px;">Catatan: ${kunjunganCatatan}</div>` : '';
+
+      // Pelanggaran bulan ini
+      let pelHtml = `<hr class="visit-banner-divider"><div class="visit-banner-section-title">Pelanggaran bulan ini:</div>`;
+      if (!pel.length) {
+        pelHtml += `<ul class="visit-banner-list"><li class="ok">Tidak ada pelanggaran</li></ul>`;
+      } else {
+        pelHtml += `<ul class="visit-banner-list">`;
+        pel.forEach(p => {
+          const kat = (p.kategori || '').toLowerCase();
+          const katLabel = kat === 'berat' ? 'Berat' : kat === 'sedang' ? 'Sedang' : 'Ringan';
+          const nama = p.jenisNama || p.deskripsi || '—';
+          const tgl = p.tanggal ? ` &mdash; ${p.tanggal}` : '';
+          const liCls = kat === 'berat' ? 'bad' : 'info';
+          pelHtml += `<li class="${liCls}">${nama}<span class="pel-inline-badge ${kat}">${katLabel}</span>${tgl}</li>`;
+        });
+        pelHtml += `</ul>`;
+      }
+
+      return `<div class="visit-banner ${bannerCls}">
+        ${dijengukHtml}${keluarHtml}${catatanHtml}
+        ${pelHtml}
+      </div>`;
+    }
+
+    async function loadZoom() {
+      const area = document.getElementById('zoom-area');
+      const pagiEl = document.getElementById('zoom-pagi');
+      area.innerHTML = '<p class="loading-state">Memuat...</p>';
+      pagiEl.innerHTML = '';
+      try {
+        const d = await api('santri.kondisi.zoom', { bulan: state.bulan, page: state.zoom.page });
+        const banner = buildVisitBanner(d.statusDijenguk, d.statusKeluar, d.pelanggaranBulanIni, d.kunjunganCatatan);
+        if (!d.items.length) {
+          area.innerHTML = banner + '<p class="empty-state">Tidak ada data zoom.</p>';
+          return;
+        }
+        const html = d.items.map(item => {
+          const bulanNama = ['', 'Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'][parseInt(item.bulan, 10)] || item.bulan;
+          return `<div class="zoom-card">
+            <div class="zoom-card-head">
+              <span class="zoom-card-label">Pekan ${item.pekan} &mdash; ${bulanNama} ${item.tahun}</span>
+              <span style="display:flex;gap:6px;flex-wrap:wrap;">${statusZoom(item.status)}</span>
+            </div>
+            <div class="zoom-card-details">
+              ${item.jamMasuk ? `<span>Masuk: ${item.jamMasuk}</span>` : ''}
+              <span>Kamera: ${item.kameraOn === '1' ? 'On' : item.kameraOn === '0' ? 'Off' : '-'}</span>
+              ${item.keterangan ? `<span>${item.keterangan}</span>` : ''}
+            </div>
+          </div>`;
+        }).join('');
+        area.innerHTML = banner + html;
+        pagiEl.innerHTML = buildPagi(d.total, d.page, d.pageSize);
+        attachPagi(pagiEl, p => { state.zoom.page = p; loadZoom(); });
+      } catch (e) {
+        area.innerHTML = `<p class="empty-state">Gagal memuat: ${e.message}</p>`;
+      }
+    }
+
+    async function loadPelanggaran() {
+      const area = document.getElementById('pel-area');
+      const pagiEl = document.getElementById('pel-pagi');
+      area.innerHTML = '<p class="loading-state">Memuat...</p>';
+      pagiEl.innerHTML = '';
+      try {
+        const d = await api('santri.kondisi.pelanggaran', { bulan: state.bulan, page: state.pelanggaran.page });
+        if (!d.items.length) { area.innerHTML = '<p class="empty-state">Tidak ada pelanggaran.</p>'; return; }
+        const rows = d.items.map(item => `
+          <tr>
+            <td>${item.tanggal || '-'}</td>
+            <td>
+              <div style="font-weight:700">${item.jenisNama || '-'}</div>
+              ${item.deskripsi ? `<div style="font-size:13px;opacity:0.7">${item.deskripsi}</div>` : ''}
+            </td>
+            <td>${item.kategori ? badge(item.kategori, item.kategori === 'berat' ? 'badge-danger' : item.kategori === 'sedang' ? 'badge-warn' : 'badge-muted') : '-'}</td>
+            <td>
+              ${item.hukuman ? `<div style="font-size:13px">${item.hukuman}</div>` : ''}
+              ${statusHukuman(item.statusHukuman)}
+            </td>
+          </tr>`).join('');
+        area.innerHTML = `<table class="data-table"><thead><tr><th>Tanggal</th><th>Pelanggaran</th><th>Kategori</th><th>Hukuman</th></tr></thead><tbody>${rows}</tbody></table>`;
+        pagiEl.innerHTML = buildPagi(d.total, d.page, d.pageSize);
+        attachPagi(pagiEl, p => { state.pelanggaran.page = p; loadPelanggaran(); });
+      } catch (e) {
+        area.innerHTML = `<p class="empty-state">Gagal memuat: ${e.message}</p>`;
+      }
+    }
+
+    async function loadPulang() {
+      const area = document.getElementById('pulang-area');
+      const pagiEl = document.getElementById('pulang-pagi');
+      area.innerHTML = '<p class="loading-state">Memuat...</p>';
+      pagiEl.innerHTML = '';
+      try {
+        const d = await api('santri.kondisi.pulang', { bulan: state.bulan, page: state.pulang.page });
+        if (!d.items.length) { area.innerHTML = '<p class="empty-state">Tidak ada data izin pulang.</p>'; return; }
+        const rows = d.items.map(item => `
+          <tr>
+            <td>${item.tanggalIzin || '-'}</td>
+            <td>${item.keperluan || '-'}</td>
+            <td>
+              ${item.tanggalKembaliRencana ? `<div style="font-size:13px">Rencana: ${item.tanggalKembaliRencana}</div>` : ''}
+              ${item.tanggalKembaliAktual ? `<div style="font-size:13px">Aktual: ${item.tanggalKembaliAktual}</div>` : ''}
+              ${item.hukumanKeterlambatan ? `<div style="font-size:12px;opacity:0.7">Telat: ${item.hukumanKeterlambatan}</div>` : ''}
+            </td>
+            <td>${statusPulang(item.status)}</td>
+          </tr>`).join('');
+        area.innerHTML = `<table class="data-table"><thead><tr><th>Tanggal</th><th>Keperluan</th><th>Kembali</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table>`;
+        pagiEl.innerHTML = buildPagi(d.total, d.page, d.pageSize);
+        attachPagi(pagiEl, p => { state.pulang.page = p; loadPulang(); });
+      } catch (e) {
+        area.innerHTML = `<p class="empty-state">Gagal memuat: ${e.message}</p>`;
+      }
+    }
+
+    async function loadSakit() {
+      const area = document.getElementById('sakit-area');
+      const pagiEl = document.getElementById('sakit-pagi');
+      area.innerHTML = '<p class="loading-state">Memuat...</p>';
+      pagiEl.innerHTML = '';
+      try {
+        const d = await api('santri.kondisi.sakit', { bulan: state.bulan, page: state.sakit.page });
+        if (!d.items.length) { area.innerHTML = '<p class="empty-state">Tidak ada data sakit.</p>'; return; }
+        const rows = d.items.map(item => `
+          <tr>
+            <td>${item.tanggalMulai || '-'}</td>
+            <td>${item.keterangan || '-'}</td>
+            <td>${item.tempatPerawatan || '-'}</td>
+            <td>${statusSakit(item.status)}</td>
+          </tr>`).join('');
+        area.innerHTML = `<table class="data-table"><thead><tr><th>Tanggal</th><th>Keterangan</th><th>Tempat</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table>`;
+        pagiEl.innerHTML = buildPagi(d.total, d.page, d.pageSize);
+        attachPagi(pagiEl, p => { state.sakit.page = p; loadSakit(); });
+      } catch (e) {
+        area.innerHTML = `<p class="empty-state">Gagal memuat: ${e.message}</p>`;
+      }
+    }
+
+    const loaders = { zoom: loadZoom, pelanggaran: loadPelanggaran, pulang: loadPulang, sakit: loadSakit };
+
+    function loadActiveTab() {
+      state[state.activeTab].page = 1;
+      loaders[state.activeTab]();
+    }
+
+    document.getElementById('tabs').addEventListener('click', e => {
+      const btn = e.target.closest('.tab-btn');
+      if (!btn) return;
+      const tab = btn.dataset.tab;
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b === btn));
+      document.querySelectorAll('.section').forEach(s => s.classList.toggle('active', s.id === `section-${tab}`));
+      state.activeTab = tab;
+      loaders[tab]();
+    });
+
+    document.getElementById('bulanInput').addEventListener('change', e => {
+      state.bulan = e.target.value;
+      state.zoom.page = 1; state.pelanggaran.page = 1; state.pulang.page = 1; state.sakit.page = 1;
+      loadActiveTab();
+    });
+
+    window.addEventListener('DOMContentLoaded', async () => {
+      const session = getStoredSession();
+      if (!session || session.role !== 'santri') {
+        window.location.replace('/pages/loginSantri/');
+        return;
+      }
+
+      try {
+        const d = await api('session');
+        if (!d.session || d.session.role !== 'santri') {
+          window.location.replace('/pages/loginSantri/');
+          return;
+        }
+        localStorage.setItem(STORAGE.session, JSON.stringify(d.session));
+      } catch (e) {
+        window.location.replace('/pages/loginSantri/');
+        return;
+      }
+
+      window.PSShell.mount({
+        currentPage: 'kondisiSantri.html',
+        session,
+        getStoredSession,
+        storageKey: STORAGE.session
+      });
+
+      // Default bulan = bulan ini
+      const now = new Date();
+      const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      document.getElementById('bulanInput').value = ym;
+      state.bulan = ym;
+
+      loadZoom();
+    });
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
+    }
+  </script>
+</body>
+</html>

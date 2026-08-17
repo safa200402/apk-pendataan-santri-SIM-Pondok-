@@ -1,0 +1,801 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#9e2f22">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="../../shared-ui.css">
+  <link rel="stylesheet" href="../../shared-shell.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+  <script src="../../shared-ui.js"></script>
+  <script src="../../shared-access.js"></script>
+  <script src="../../shared-nav.js"></script>
+  <script src="../../shared-shell.js"></script>
+  <title>Nilai UAS Hafalan</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700;800&display=swap');
+    :root {
+      --paper: #f6efe0; --ink: #4d4034; --muted: #7b6a58;
+      --line: rgba(91,73,57,0.15); --accent: #b97650; --success: #74846c;
+      --danger: #a55a52; --warning: #b58439;
+      --shadow: 0 18px 45px rgba(87,67,51,0.18); --radius: 24px;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; }
+    .panel { padding: 22px; }
+    h1, h2, h3 { margin: 0 0 10px; }
+    p { margin: 0; line-height: 1.65; }
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; font-weight: 800; text-transform: uppercase; font-family: 'Poppins'; padding: 7px; }
+    label { display: grid; gap: 7px; font-size: 14px; font-weight: 600; }
+
+    .paging { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; margin: 3px 0; }
+    .page-center { display: grid; gap: 8px; justify-items: center; }
+    .page-numbers { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+    .page-summary { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+    @media (max-width: 600px) { .paging { grid-template-columns: 1fr; } }
+
+    .comp-pills-row {
+      padding: 8px 16px 10px;
+      border-top: 1px dashed rgba(75,44,32,0.18);
+    }
+
+    /* Completion pills */
+    .comp-pills { display: flex; flex-wrap: wrap; gap: 5px; }
+    .comp-pill {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 3px 9px; border-radius: 999px; font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+    }
+    .comp-pill.done { background: rgba(116,132,108,0.18); color: var(--success); }
+    .comp-pill.empty { background: var(--line); color: var(--muted); }
+
+    /* Full-screen dialog */
+    #uasDialog {
+      width: 100%; max-width: 100%; height: 100%; max-height: 100%;
+      margin: 0; padding: 0; border: none; border-radius: 0;
+      background: var(--paper); overflow: hidden; position: relative;
+    }
+    #uasDialog::backdrop { background: rgba(41,23,15,0.45); backdrop-filter: blur(4px); }
+    .dialog-shell { height: 100%; display: grid; grid-template-rows: auto minmax(0,1fr); }
+    .dialog-head {
+      padding: 18px 22px 14px;
+      background: linear-gradient(135deg, rgba(255,251,243,0.97), rgba(248,228,174,0.72)), var(--paper);
+      border-bottom: 1px solid var(--line); display: grid; gap: 10px;
+    }
+    .dialog-title-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .dialog-title-row h2 { font-family: 'Playfair Display', serif; font-size: 1.35rem; margin: 0; line-height: 1.1; }
+    .close-btn {
+      width: 44px; min-width: 44px; height: 44px; padding: 0; border-radius: 999px;
+      border: none; background: transparent; font-size: 22px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .close-btn:hover { background: rgba(0,0,0,0.08); }
+    .dialog-body { overflow-y: auto; padding: 18px 22px; }
+
+    /* Table */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); border-bottom: 2px solid var(--line); white-space: nowrap; }
+    td { padding: 11px 14px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(91,73,57,0.04); }
+    .td-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+    .action-btn {
+      padding: 5px 12px; border-radius: 8px; border: 1.5px solid var(--line);
+      background: var(--paper); color: var(--ink); font-size: 12px; font-weight: 700;
+      cursor: pointer; transition: all 120ms; text-transform: none;
+    }
+    .action-btn:hover { background: var(--line); }
+    .action-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .action-btn.primary:hover { opacity: 0.88; }
+
+    .nilai-chip {
+      display: inline-block; padding: 3px 10px; border-radius: 8px;
+      font-size: 13px; font-weight: 700;
+    }
+    .nilai-chip.filled { background: rgba(116,132,108,0.15); color: var(--success); }
+    .nilai-chip.empty { background: var(--line); color: var(--muted); font-style: italic; font-weight: 400; }
+
+    /* Entry overlay */
+    #entryPanel { display: none; position: absolute; inset: 0; z-index: 10; }
+    #entryPanel.open { display: flex; flex-direction: column; }
+    .entry-backdrop { position: absolute; inset: 0; background: rgba(41,23,15,0.35); backdrop-filter: blur(3px); }
+    .entry-sheet {
+      position: relative; z-index: 1;
+      margin: auto 0 0; width: 100%; max-height: 92vh;
+      background: var(--paper); border-radius: 28px 28px 0 0;
+      display: flex; flex-direction: column; overflow: hidden;
+      box-shadow: 0 -8px 40px rgba(0,0,0,0.18);
+    }
+    .entry-head {
+      padding: 20px 22px 14px; border-bottom: 1px solid var(--line);
+      display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-shrink: 0;
+    }
+    .entry-head h3 { margin: 0; font-family: 'Playfair Display', serif; font-size: 1.2rem; }
+    .entry-head .sub { font-size: 11px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+    .entry-body { overflow-y: auto; padding: 18px 22px; flex: 1; }
+
+    /* Komponen sections */
+    .komp-section {
+      border: 2px solid var(--line); border-radius: 18px; padding: 18px; margin-bottom: 14px;
+    }
+    .komp-section:last-child { margin-bottom: 0; }
+    .komp-title {
+      display: flex; align-items: center; gap: 9px;
+      font-size: 13px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 14px; color: var(--ink);
+    }
+    .komp-icon { width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+    .komp-icon.quran { background: rgba(185,118,80,0.15); color: var(--accent); }
+    .komp-icon.mufrodat { background: rgba(116,132,108,0.15); color: var(--success); }
+    .komp-icon.hadits { background: rgba(181,132,57,0.15); color: var(--warning); }
+    .komp-icon.adzkar { background: rgba(75,111,159,0.15); color: #4b6f9f; }
+    .komp-filler { font-size: 11px; color: var(--muted); margin-bottom: 12px; font-style: italic; }
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .field-row.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+    .field-row.cols-1 { grid-template-columns: 1fr; }
+    @media (max-width: 500px) { .field-row, .field-row.cols-3 { grid-template-columns: 1fr; } }
+    .field-label { font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; display: block; }
+    .field-input {
+      width: 100%; padding: 9px 13px; border: 1.5px solid var(--line); border-radius: 11px;
+      background: rgba(255,255,255,0.7); color: var(--ink); font-size: 14px; outline: none;
+    }
+    .field-input:focus { border-color: var(--accent); }
+    .komp-save-row { display: flex; justify-content: flex-end; margin-top: 14px; }
+
+    /* KKM + daftar entri nilai */
+    .kkm-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; padding: 10px 12px; border: 1.5px dashed var(--line); border-radius: 12px; background: rgba(255,255,255,0.45); }
+    .kkm-row .field-label { margin-bottom: 0; }
+    .kkm-input { width: 90px; padding: 7px 10px; border: 1.5px solid var(--line); border-radius: 9px; background: #fff; color: var(--ink); font-size: 14px; font-weight: 700; outline: none; }
+    .kkm-input:focus { border-color: var(--accent); }
+    .entries-list { display: grid; gap: 8px; }
+    .entry-row { display: grid; grid-template-columns: 1.1fr 0.8fr auto; gap: 8px; align-items: center; }
+    .entry-row .field-input { padding: 8px 11px; }
+    .entry-row .ent-nilai.below-kkm { border-color: var(--danger); background: rgba(165,90,82,0.10); color: var(--danger); font-weight: 700; }
+    .entry-remove { width: 38px; height: 38px; min-height: 0; border-radius: 9px; border: 1.5px solid var(--line); background: var(--paper); color: var(--danger); font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; }
+    .entry-remove:hover { background: rgba(165,90,82,0.12); }
+    .entry-empty { font-size: 12px; color: var(--muted); font-style: italic; padding: 4px 2px; }
+    .entry-add-btn { margin-top: 10px; padding: 8px 16px; border-radius: 10px; border: 1.5px dashed var(--accent); background: rgba(185,118,80,0.08); color: var(--accent); font-size: 13px; font-weight: 700; cursor: pointer; text-transform: none; }
+    .entry-add-btn:hover { background: rgba(185,118,80,0.16); }
+    .entry-add-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .entry-count { font-size: 11px; color: var(--muted); font-weight: 700; }
+
+    /* Chip nilai di tabel */
+    .nilai-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+    .nilai-chip.below { background: rgba(165,90,82,0.16); color: var(--danger); }
+    .chip-ket { font-size: 9px; opacity: 0.7; font-weight: 600; }
+
+    .notice-inline { padding: 11px 16px; border-radius: 12px; font-size: 13px; font-weight: 600; margin-bottom: 12px; display: none; }
+    .notice-inline.show { display: block; }
+
+    /* Filter row */
+    .filter-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; margin-top: 14px; }
+    .filter-label { display: grid; gap: 5px; font-size: 11px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+    .search-field { display: grid; gap: 5px; font-size: 11px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); flex: 1; min-width: 180px; }
+    .search-field input { padding: 8px 12px; border-radius: 10px; border: 1.5px solid var(--line); background: var(--paper); color: var(--ink); }
+  </style>
+</head>
+<body>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+  <main>
+    <div class="app-layout">
+      <section class="panel nav" id="nav"></section>
+      <div class="content-stack">
+
+        <!-- Header -->
+        <section class="panel">
+          <h1 style="font-family:'Playfair Display',serif;font-size:2rem;letter-spacing:-0.03em;margin-bottom:4px;">Nilai UAS Hafalan</h1>
+          <p style="color:var(--muted);font-size:14px;">Input nilai ujian akhir semester: Al-Qur'an, Mufrodat, Hadits, dan Adzkar per santri per halaqoh.</p>
+        </section>
+
+        <!-- Cards -->
+        <section class="panel">
+          <div class="filter-row">
+            <label class="filter-label">
+              <span><i class="fa-solid fa-calendar-days" style="margin-right:4px;"></i>Tahun Ajaran</span>
+              <select id="tahunAjaranFilter" class="ps-input ps-border-radius-lg" style="padding:8px 14px;min-width:190px;">
+                <option value="">Semua tahun ajaran</option>
+              </select>
+            </label>
+            <label class="search-field">
+              <span><i class="fa-solid fa-magnifying-glass" style="margin-right:4px;"></i>Cari Halaqoh</span>
+              <input type="search" id="searchInput" placeholder="Nama halaqoh..." autocomplete="off">
+            </label>
+          </div>
+          <div class="paging" id="paginationTop" style="margin-top:16px;"></div>
+          <div id="cardsArea" style="margin-top:10px;">
+            <div class="empty-state">
+              <i class="fa-solid fa-spinner fa-spin"></i>
+              <p style="margin-top:8px;font-weight:600;">Memuat daftar halaqoh...</p>
+            </div>
+          </div>
+          <div class="paging" id="paginationBottom" style="margin-top:10px;"></div>
+        </section>
+
+      </div>
+    </div>
+  </main>
+
+  <!-- Halaqoh detail dialog -->
+  <dialog id="uasDialog">
+    <div class="dialog-shell">
+      <div class="dialog-head">
+        <div class="dialog-title-row">
+          <div>
+            <div id="dlgHalaqohLabel" style="font-size:11px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">Halaqoh</div>
+            <h2 id="dlgHalaqohName"></h2>
+          </div>
+          <button class="close-btn" id="dialogCloseBtn" aria-label="Tutup">&#x2715;</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <span id="dlgSantriCount" style="font-size:12px;font-weight:700;color:var(--muted);"></span>
+          <span id="dlgCompletionSummary" style="font-size:12px;font-weight:700;color:var(--success);"></span>
+        </div>
+      </div>
+
+      <div class="dialog-body">
+        <div id="dialogNotice" class="notice-inline ps-border-radius-lg"></div>
+        <div id="dialogContent">
+          <div class="empty-state">
+            <i class="fa-solid fa-spinner fa-spin"></i>
+            <p style="margin-top:8px;font-weight:600;">Memuat data santri...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Entry panel (sliding bottom sheet inside dialog) -->
+    <div id="entryPanel">
+      <div class="entry-backdrop" id="entryBackdrop"></div>
+      <div class="entry-sheet">
+        <div class="entry-head">
+          <div>
+            <div class="sub" id="entryHalaqohLabel"></div>
+            <h3 id="entrySantriName"></h3>
+          </div>
+          <button class="close-btn" id="entryCloseBtn" aria-label="Tutup">&#x2715;</button>
+        </div>
+        <div class="entry-body">
+          <div id="entryNotice" class="notice-inline ps-border-radius-lg"></div>
+          <div id="kompSections"></div>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <script>
+    'use strict';
+    const API_BASE = '/api';
+    const STORAGE = { session: 'ps_session' };
+
+    function getStoredSession() {
+      try { return JSON.parse(localStorage.getItem(STORAGE.session)); } catch { return null; }
+    }
+    function getScopedSession() {
+      return window.PSAccess && typeof window.PSAccess.getScopedSession === 'function'
+        ? window.PSAccess.getScopedSession(getStoredSession())
+        : getStoredSession();
+    }
+    async function api(action, payload = {}) {
+      const session = getStoredSession();
+      const scopeLabel = window.PSAccess ? (window.PSAccess.getActiveRoleScopeLabel(session) || '') : '';
+      const body = { action, token: session && session.token ? session.token : '', scopeLabel, ...payload };
+      const res = await fetch(API_BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const json = await res.json();
+      if (!json.ok) throw new Error((json.error && json.error.message) || 'Permintaan gagal.');
+      return json.data;
+    }
+    function escHtml(s) {
+      return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+    function fmtDate(d) {
+      if (!d) return '';
+      const p = String(d).split('-');
+      return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : d;
+    }
+    function showNotice(el, msg, type) {
+      el.textContent = msg;
+      el.className = 'notice-inline ps-border-radius-lg show';
+      if (type === 'error') el.classList.add('ps-bg-danger-soft');
+      else if (type === 'success') el.classList.add('ps-bg-success-soft');
+      else el.classList.add('ps-bg-warning-soft');
+    }
+    function hideNotice(el) { el.className = 'notice-inline ps-border-radius-lg'; el.textContent = ''; }
+
+    /* ── State ── */
+    const state = {
+      halaqohList: [],
+      records: [],
+      activeHalaqoh: null,
+      activeSantri: null,
+      activeRecord: null,
+      tahunAjaranList: [],
+      tahunAjaranFilter: '',
+      q: '',
+      page: 1,
+      pageSize: 12,
+      totalPages: 1,
+      total: 0,
+      isAdmin: false
+    };
+
+    function mountShell(session) {
+      return window.PSShell.mount({
+        currentPage: window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : 'nilaiUas.html',
+        session, getStoredSession, storageKey: STORAGE.session
+      });
+    }
+
+    /* ── Tahun ajaran ── */
+    function renderTahunAjaranFilter() {
+      const sel = document.getElementById('tahunAjaranFilter');
+      if (!sel) return;
+      sel.innerHTML = '<option value="">Semua tahun ajaran</option>' +
+        state.tahunAjaranList.map(ta =>
+          `<option value="${escHtml(ta.id)}" ${ta.id === state.tahunAjaranFilter ? 'selected' : ''}>${escHtml(ta.namaDisplay || ta.nama)}${ta.isAktif ? ' (Aktif)' : ''}</option>`
+        ).join('');
+      sel.value = state.tahunAjaranFilter;
+    }
+
+    /* ── Pagination ── */
+    function buildPaginationList(page, totalPages) {
+      const maxNumbers = 10;
+      const pages = [];
+      if (totalPages <= maxNumbers) {
+        for (let i = 1; i <= totalPages; i++) pages.push(i);
+      } else {
+        const half = Math.floor(maxNumbers / 2);
+        let start = Math.max(1, page - half);
+        let end = Math.min(totalPages, start + maxNumbers - 1);
+        if (end - start < maxNumbers - 1) start = Math.max(1, end - maxNumbers + 1);
+        for (let i = start; i <= end; i++) pages.push(i);
+      }
+      return pages;
+    }
+    function renderPagination(hostId) {
+      const el = document.getElementById(hostId);
+      if (!el) return;
+      if (state.totalPages <= 1) { el.innerHTML = ''; return; }
+      const pages = buildPaginationList(state.page, state.totalPages);
+      el.innerHTML = `
+        <div class="page-center">
+          <div class="page-numbers">
+            ${pages.map(p => `<button class="ps-btn ps-border-radius-md ${p === state.page ? 'ps-accent' : 'secondary'}" data-pg="${p}" style="padding:7px 14px;min-height:36px;">${p}</button>`).join('')}
+          </div>
+          <div class="page-summary">${state.total} halaqoh — hal. ${state.page} dari ${state.totalPages}</div>
+        </div>`;
+    }
+
+    /* ── Komponen config (multi-nilai + KKM) ── */
+    const KOMPONEN = [
+      { key: 'quran',    label: "Al-Qur'an", icon: 'fa-book-quran',    iconClass: 'quran',    color: 'var(--accent)',  ketPrefix: 'Juz',    ketPlaceholder: 'Mis. Juz 1',      max: 30 },
+      { key: 'mufrodat', label: 'Mufrodat',  icon: 'fa-spell-check',   iconClass: 'mufrodat', color: 'var(--success)', ketPrefix: 'Level',  ketPlaceholder: 'Mis. Level 1',    max: 0 },
+      { key: 'hadits',   label: 'Hadits',    icon: 'fa-scroll',        iconClass: 'hadits',   color: 'var(--warning)', ketPrefix: 'Kitab',  ketPlaceholder: 'Mis. Kitab 1',    max: 0 },
+      { key: 'adzkar',   label: 'Adzkar',    icon: 'fa-hands-praying', iconClass: 'adzkar',   color: '#4b6f9f',        ketPrefix: 'Adzkar', ketPlaceholder: 'Mis. Adzkar 1',   max: 0 }
+    ];
+    const KOMP_BY_KEY = Object.fromEntries(KOMPONEN.map(k => [k.key, k]));
+    function capKey(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+    function recEntries(rec, key) { return (rec && rec['entries' + capKey(key)]) || []; }
+    function recKkm(rec, key) { return (rec && rec['kkm' + capKey(key)]) || ''; }
+    function isBelowKkm(nilai, kkm) {
+      const n = parseFloat(nilai), k = parseFloat(kkm);
+      return !isNaN(n) && !isNaN(k) && n < k;
+    }
+
+    /* ── Completion helpers ── */
+    function getCompletion(halaqohId) {
+      const santri = (state.halaqohList.find(h => h.id === halaqohId) || {}).santriList || [];
+      if (!santri.length) return { total: 0, quran: 0, mufrodat: 0, hadits: 0, adzkar: 0 };
+      const tahun = state.tahunAjaranFilter;
+      const recs = state.records.filter(r => r.halaqohId === halaqohId && (!tahun || r.tahunAjaranId === tahun));
+      const recBySantri = {};
+      recs.forEach(r => { recBySantri[r.santriId] = r; });
+      let q = 0, m = 0, h = 0, a = 0, recorded = 0;
+      santri.forEach(s => {
+        const r = recBySantri[s.id] || {};
+        const hasAny = recEntries(r, 'quran').length || recEntries(r, 'mufrodat').length || recEntries(r, 'hadits').length || recEntries(r, 'adzkar').length;
+        if (hasAny) recorded++;
+        if (recEntries(r, 'quran').length) q++;
+        if (recEntries(r, 'mufrodat').length) m++;
+        if (recEntries(r, 'hadits').length) h++;
+        if (recEntries(r, 'adzkar').length) a++;
+      });
+      return { total: santri.length, quran: q, mufrodat: m, hadits: h, adzkar: a, recorded };
+    }
+
+    /* ── Cards ── */
+    function renderCards() {
+      const area = document.getElementById('cardsArea');
+      const q = state.q.toLowerCase();
+      let filtered = state.halaqohList.filter(h => !q || (h.name || '').toLowerCase().includes(q));
+      state.total = filtered.length;
+      state.totalPages = Math.max(1, Math.ceil(filtered.length / state.pageSize));
+      if (state.page > state.totalPages) state.page = state.totalPages;
+      const paged = filtered.slice((state.page - 1) * state.pageSize, state.page * state.pageSize);
+
+      if (!paged.length) {
+        area.innerHTML = `<div class="empty-state"><i class="fa-solid fa-graduation-cap" style="font-size:2rem;opacity:0.3;"></i><p style="margin-top:12px;font-weight:600;color:var(--muted);">${filtered.length === 0 && state.q ? 'Tidak ada halaqoh yang cocok.' : 'Belum ada halaqoh aktif.'}</p></div>`;
+        renderPagination('paginationTop');
+        renderPagination('paginationBottom');
+        return;
+      }
+
+      area.innerHTML = `<div class="list">${paged.map(h => {
+        const gender = (h.genderGroup || '').toLowerCase();
+        const comp = getCompletion(h.id);
+        const genderClass = gender.includes('ikhwan') ? 'entity-gender-ikhwan' : gender.includes('akhowat') ? 'entity-gender-akhowat' : '';
+        const genderLabel = gender.includes('ikhwan') ? 'Ikhwan' : gender.includes('akhowat') ? 'Akhowat' : '';
+        return `<article class="card minimal-list-card${genderClass ? ` ${genderClass}` : ''}">
+          <div class="minimal-list-card-head">
+            <div class="minimal-list-card-main" style="cursor:pointer" data-id="${escHtml(h.id)}">
+              <strong class="minimal-list-card-name">${escHtml(h.name)}</strong>
+              <span class="minimal-list-card-hint">${genderLabel ? `${genderLabel} &nbsp;·&nbsp; ` : ''}<i class="fa-solid fa-users"></i> ${comp.total} santri &nbsp;·&nbsp; <i class="fa-solid fa-pen-to-square"></i> ${comp.recorded} tercatat</span>
+            </div>
+            <button class="secondary minimal-list-card-toggle" type="button" data-id="${escHtml(h.id)}">Buka</button>
+          </div>
+          <div class="comp-pills-row">
+            <div class="comp-pills">
+              <span class="comp-pill ${comp.quran === comp.total && comp.total > 0 ? 'done' : 'empty'}"><i class="fa-solid fa-book-quran"></i> Q ${comp.quran}/${comp.total}</span>
+              <span class="comp-pill ${comp.mufrodat === comp.total && comp.total > 0 ? 'done' : 'empty'}"><i class="fa-solid fa-spell-check"></i> M ${comp.mufrodat}/${comp.total}</span>
+              <span class="comp-pill ${comp.hadits === comp.total && comp.total > 0 ? 'done' : 'empty'}"><i class="fa-solid fa-scroll"></i> H ${comp.hadits}/${comp.total}</span>
+              <span class="comp-pill ${comp.adzkar === comp.total && comp.total > 0 ? 'done' : 'empty'}"><i class="fa-solid fa-hands-praying"></i> A ${comp.adzkar}/${comp.total}</span>
+            </div>
+          </div>
+        </article>`;
+      }).join('')}</div>`;
+
+      renderPagination('paginationTop');
+      renderPagination('paginationBottom');
+    }
+
+    /* ── Dialog: santri table ── */
+    function openHalaqohDialog(halaqohId) {
+      const h = state.halaqohList.find(x => x.id === halaqohId);
+      if (!h) return;
+      state.activeHalaqoh = h;
+
+      document.getElementById('dlgHalaqohName').textContent = h.name || '';
+      document.getElementById('dlgHalaqohLabel').textContent = 'Halaqoh';
+      hideNotice(document.getElementById('dialogNotice'));
+
+      renderSantriTable();
+      document.getElementById('uasDialog').showModal();
+    }
+
+    function getSantriRecord(santriId) {
+      const tahun = state.tahunAjaranFilter;
+      return state.records.find(r =>
+        r.santriId === santriId &&
+        r.halaqohId === (state.activeHalaqoh || {}).id &&
+        (!tahun || r.tahunAjaranId === tahun)
+      ) || null;
+    }
+
+    function nilaiChip(val) {
+      if (!val) return `<span class="nilai-chip empty">—</span>`;
+      return `<span class="nilai-chip filled">${escHtml(val)}</span>`;
+    }
+
+    // Sel tabel: tampilkan semua entri nilai sebagai chip (merah bila di bawah KKM).
+    function entriesCell(rec, key) {
+      const entries = recEntries(rec, key);
+      const kkm = recKkm(rec, key);
+      if (!entries.length) return `<span class="nilai-chip empty">—</span>`;
+      const chips = entries.map(e => {
+        const below = isBelowKkm(e.nilai, kkm);
+        const ket = e.ket ? `<span class="chip-ket"> ${escHtml(e.ket)}</span>` : '';
+        return `<span class="nilai-chip ${below ? 'below' : 'filled'}" title="${escHtml(e.ket || '')}">${escHtml(e.nilai || '—')}${ket}</span>`;
+      }).join('');
+      const kkmLine = kkm ? `<div style="font-size:9px;color:var(--muted);margin-top:3px;">KKM ${escHtml(kkm)}</div>` : '';
+      return `<div class="nilai-chips">${chips}</div>${kkmLine}`;
+    }
+
+    function renderSantriTable() {
+      const h = state.activeHalaqoh;
+      if (!h) return;
+      const santriList = h.santriList || [];
+      const tahun = state.tahunAjaranFilter;
+
+      document.getElementById('dlgSantriCount').textContent = `${santriList.length} santri`;
+
+      const comp = getCompletion(h.id);
+      const allDone = comp.total > 0 && comp.quran + comp.mufrodat + comp.hadits + comp.adzkar === comp.total * 4;
+      document.getElementById('dlgCompletionSummary').textContent = allDone ? '✓ Semua nilai lengkap' : '';
+
+      if (!santriList.length) {
+        document.getElementById('dialogContent').innerHTML = `<div class="empty-state"><i class="fa-solid fa-users-slash" style="font-size:1.8rem;opacity:0.3;"></i><p style="margin-top:10px;font-weight:600;color:var(--muted);">Belum ada santri di halaqoh ini.</p></div>`;
+        return;
+      }
+
+      const rows = santriList.map((s, idx) => {
+        const rec = getSantriRecord(s.id) || {};
+        return `<tr>
+          <td style="color:var(--muted);font-size:12px;">${idx + 1}</td>
+          <td style="font-weight:600;">${escHtml(s.name)}</td>
+          <td>${entriesCell(rec, 'quran')}</td>
+          <td>${entriesCell(rec, 'mufrodat')}</td>
+          <td>${entriesCell(rec, 'hadits')}</td>
+          <td>${entriesCell(rec, 'adzkar')}</td>
+          <td class="td-actions">
+            <button class="action-btn primary" data-santri-id="${escHtml(s.id)}" data-santri-name="${escHtml(s.name)}">
+              <i class="fa-solid fa-pen"></i> Input
+            </button>
+          </td>
+        </tr>`;
+      }).join('');
+
+      document.getElementById('dialogContent').innerHTML = `
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Santri</th>
+                <th><i class="fa-solid fa-book-quran"></i> Al-Qur'an</th>
+                <th><i class="fa-solid fa-spell-check"></i> Mufrodat</th>
+                <th><i class="fa-solid fa-scroll"></i> Hadits</th>
+                <th><i class="fa-solid fa-hands-praying"></i> Adzkar</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`;
+
+      document.querySelectorAll('#dialogContent [data-santri-id]').forEach(btn => {
+        btn.addEventListener('click', () => openEntryPanel(btn.dataset.santriId, btn.dataset.santriName));
+      });
+    }
+
+    /* ── Entry panel (multi-nilai per komponen + KKM) ── */
+    function openEntryPanel(santriId, santriName) {
+      state.activeSantri = { id: santriId, name: santriName };
+      state.activeRecord = getSantriRecord(santriId);
+      const rec = state.activeRecord || {};
+      const h = state.activeHalaqoh || {};
+
+      document.getElementById('entryHalaqohLabel').textContent = h.name || '';
+      document.getElementById('entrySantriName').textContent = santriName || '';
+      hideNotice(document.getElementById('entryNotice'));
+
+      renderEntrySections(rec);
+      document.getElementById('entryPanel').classList.add('open');
+    }
+
+    function renderEntrySections(rec) {
+      const host = document.getElementById('kompSections');
+      host.innerHTML = KOMPONEN.map(k => {
+        const fillerName = rec['pengisi' + capKey(k.key) + 'Name'];
+        const fillerDate = rec['tanggal' + capKey(k.key)];
+        const filler = (fillerName || fillerDate)
+          ? `<div class="komp-filler">Diisi: ${escHtml(fillerName || '?')}${fillerDate ? ' — ' + fmtDate(fillerDate) : ''}</div>` : '';
+        const maxNote = k.max > 0 ? ` (maks ${k.max})` : '';
+        return `<div class="komp-section" data-komp="${k.key}">
+          <div class="komp-title"><div class="komp-icon ${k.iconClass}"><i class="fa-solid ${k.icon}"></i></div> ${escHtml(k.label)}</div>
+          ${filler}
+          <div class="kkm-row">
+            <span class="field-label">KKM (nilai minimal)</span>
+            <input type="number" class="kkm-input" data-kkm min="0" step="0.5" placeholder="—" value="${escHtml(recKkm(rec, k.key))}">
+            <span class="entry-count" data-count></span>
+          </div>
+          <div class="entries-list" data-entries></div>
+          <button type="button" class="entry-add-btn" data-add><i class="fa-solid fa-plus"></i> Tambah nilai${maxNote}</button>
+          <div class="komp-save-row">
+            <button class="ps-btn ps-border-radius-lg" data-save style="padding:9px 20px;min-height:40px;gap:7px;background:${k.color};border-color:${k.color};color:#fff;">
+              <i class="fa-solid fa-floppy-disk"></i> Simpan ${escHtml(k.label)}
+            </button>
+          </div>
+        </div>`;
+      }).join('');
+
+      KOMPONEN.forEach(k => {
+        const section = host.querySelector(`[data-komp="${k.key}"]`);
+        const entries = recEntries(rec, k.key);
+        if (entries.length) entries.forEach(e => addEntryRow(section, k, e.ket, e.nilai, false));
+        else addEntryRow(section, k, '', '', true);
+        refreshSection(section, k);
+        section.querySelector('[data-add]').addEventListener('click', () => { addEntryRow(section, k, '', '', true); refreshSection(section, k); });
+        section.querySelector('[data-kkm]').addEventListener('input', () => applyKkmFlags(section));
+        section.querySelector('[data-save]').addEventListener('click', () => saveKomponen(k.key, section));
+        section.querySelector('[data-entries]').addEventListener('input', e => { if (e.target.classList.contains('ent-nilai')) applyKkmFlags(section); });
+      });
+
+      if (!canManageNilaiUas()) {
+        const lockMsg = 'Mudir hanya bisa melihat nilai UAS, tidak bisa menyimpan perubahan.';
+        host.querySelectorAll('[data-save], [data-add]').forEach(el => window.PSUI.applyPermissionLock(el, false, lockMsg));
+        host.querySelectorAll('[data-kkm], .ent-nilai, .ent-ket').forEach(el => { el.disabled = true; });
+      }
+    }
+
+    function canManageNilaiUas() {
+      const scopedSession = getScopedSession();
+      const perms = (scopedSession && scopedSession.permissions) || {};
+      return !!(perms.canManageHalaqoh);
+    }
+
+    // Default keterangan untuk baris BARU: angka berikutnya berdasarkan baris yang sudah ada (Juz 1 → Juz 2, dst).
+    function nextKetDefault(section, k) {
+      if (!k.ketPrefix) return '';
+      let max = 0;
+      const re = new RegExp('^\\s*' + k.ketPrefix + '\\s*(\\d+)', 'i');
+      section.querySelectorAll('.entry-row .ent-ket').forEach(inp => {
+        const m = String(inp.value || '').match(re);
+        if (m) max = Math.max(max, parseInt(m[1], 10));
+      });
+      return `${k.ketPrefix} ${max + 1}`;
+    }
+
+    function addEntryRow(section, k, ket, nilai, autofill) {
+      const list = section.querySelector('[data-entries]');
+      let ketVal = ket || '';
+      if (autofill && !ketVal) ketVal = nextKetDefault(section, k);
+      const row = document.createElement('div');
+      row.className = 'entry-row';
+      row.innerHTML = `
+        <input type="text" class="field-input ent-ket" placeholder="${escHtml(k.ketPlaceholder)}" value="${escHtml(ketVal)}">
+        <input type="text" class="field-input ent-nilai" inputmode="decimal" placeholder="Nilai" value="${escHtml(nilai || '')}">
+        <button type="button" class="entry-remove" title="Hapus nilai">&times;</button>`;
+      row.querySelector('.entry-remove').addEventListener('click', () => { row.remove(); refreshSection(section, k); });
+      list.appendChild(row);
+    }
+
+    function refreshSection(section, k) {
+      const rows = section.querySelectorAll('.entry-row');
+      const countEl = section.querySelector('[data-count]');
+      const addBtn = section.querySelector('[data-add]');
+      if (k.max > 0) {
+        countEl.textContent = `${rows.length}/${k.max} nilai`;
+        addBtn.disabled = rows.length >= k.max;
+      } else {
+        countEl.textContent = `${rows.length} nilai`;
+        addBtn.disabled = false;
+      }
+      applyKkmFlags(section);
+    }
+
+    function applyKkmFlags(section) {
+      const kkm = section.querySelector('[data-kkm]').value;
+      section.querySelectorAll('.entry-row .ent-nilai').forEach(inp => {
+        inp.classList.toggle('below-kkm', isBelowKkm(inp.value, kkm));
+      });
+    }
+
+    function collectEntries(section) {
+      return Array.from(section.querySelectorAll('.entry-row')).map(row => ({
+        ket: row.querySelector('.ent-ket').value.trim(),
+        nilai: row.querySelector('.ent-nilai').value.trim()
+      })).filter(e => e.ket !== '' || e.nilai !== '');
+    }
+
+    function closeEntryPanel() {
+      document.getElementById('entryPanel').classList.remove('open');
+      state.activeSantri = null;
+      state.activeRecord = null;
+    }
+
+    async function saveKomponen(komponen, section) {
+      const s = state.activeSantri;
+      const h = state.activeHalaqoh;
+      if (!s || !h || !section) return;
+      const k = KOMP_BY_KEY[komponen];
+
+      const tahunAjaranId = state.tahunAjaranFilter || (state.tahunAjaranList[0] || {}).id || '';
+      if (!tahunAjaranId) {
+        showNotice(document.getElementById('entryNotice'), 'Pilih tahun ajaran terlebih dahulu.', 'error');
+        return;
+      }
+
+      const entries = collectEntries(section);
+      if (k.max > 0 && entries.length > k.max) {
+        showNotice(document.getElementById('entryNotice'), `Maksimal ${k.max} nilai untuk ${k.label}.`, 'error');
+        return;
+      }
+      const kkm = section.querySelector('[data-kkm]').value.trim();
+
+      const btn = section.querySelector('[data-save]');
+      if (btn) btn.disabled = true;
+      hideNotice(document.getElementById('entryNotice'));
+
+      try {
+        await api('uas.save', { komponen, santriId: s.id, halaqohId: h.id, tahunAjaranId, entries, kkm });
+        showNotice(document.getElementById('entryNotice'), 'Nilai berhasil disimpan.', 'success');
+        await loadRecords();
+        state.activeRecord = getSantriRecord(s.id);
+        renderSantriTable();
+        renderCards();
+      } catch (e) {
+        showNotice(document.getElementById('entryNotice'), e.message, 'error');
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
+
+    /* ── Data loading ── */
+    async function loadRecords() {
+      const data = await api('uas.list', { tahunAjaranId: state.tahunAjaranFilter });
+      state.records = data.records || [];
+      if (data.halaqohList) state.halaqohList = data.halaqohList;
+    }
+
+    async function loadAll() {
+      try {
+        const data = await api('uas.list', { tahunAjaranId: state.tahunAjaranFilter });
+        state.records = data.records || [];
+        state.halaqohList = data.halaqohList || [];
+        if (data.tahunAjaranList && data.tahunAjaranList.length) {
+          state.tahunAjaranList = data.tahunAjaranList;
+        }
+        if (!state.tahunAjaranFilter) {
+          const aktif = state.tahunAjaranList.find(ta => ta.isAktif);
+          if (aktif) {
+            state.tahunAjaranFilter = aktif.id;
+            renderTahunAjaranFilter();
+            loadAll();
+            return;
+          }
+        }
+        renderTahunAjaranFilter();
+        renderCards();
+      } catch (e) {
+        document.getElementById('cardsArea').innerHTML = `<div class="empty-state ps-bg-danger-soft" style="border-radius:16px;padding:20px;"><i class="fa-solid fa-circle-exclamation"></i><p style="margin-top:8px;">${escHtml(e.message)}</p></div>`;
+      }
+    }
+
+    /* ── Wiring ── */
+    document.getElementById('tahunAjaranFilter').addEventListener('change', function () {
+      state.tahunAjaranFilter = this.value;
+      state.page = 1;
+      loadAll();
+    });
+
+    document.getElementById('searchInput').addEventListener('input', function () {
+      state.q = this.value;
+      state.page = 1;
+      renderCards();
+    });
+
+    document.getElementById('cardsArea').addEventListener('click', e => {
+      const btn = e.target.closest('[data-id]');
+      if (btn) openHalaqohDialog(btn.dataset.id);
+    });
+
+    document.getElementById('dialogCloseBtn').addEventListener('click', () => {
+      document.getElementById('uasDialog').close();
+    });
+
+    document.getElementById('entryCloseBtn').addEventListener('click', closeEntryPanel);
+    document.getElementById('entryBackdrop').addEventListener('click', closeEntryPanel);
+    // Tombol simpan per komponen di-wire dinamis di renderEntrySections().
+
+    /* Pagination */
+    function handlePaginationClick(e) {
+      const btn = e.target.closest('[data-pg]');
+      if (!btn) return;
+      const pg = parseInt(btn.dataset.pg);
+      if (!isNaN(pg)) state.page = pg;
+      renderCards();
+      document.querySelector('.content-stack')?.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    document.getElementById('paginationTop').addEventListener('click', handlePaginationClick);
+    document.getElementById('paginationBottom').addEventListener('click', handlePaginationClick);
+
+    /* ── Init ── */
+    (async function init() {
+      const initialSession = getStoredSession();
+      if (!initialSession) { window.location.href = '../../pages/login/index.html'; return; }
+      if (window.PSAccess && window.PSAccess.redirectIfForbidden(initialSession, 'nilaiUas.html')) return;
+
+      const scopedSession = getScopedSession();
+      const perms = (scopedSession && scopedSession.permissions) || {};
+      state.isAdmin = !!(perms.isSuperAdmin || perms.isAdmin);
+
+      mountShell(initialSession);
+
+      await loadAll();
+    })();
+  </script>
+</body>
+</html>

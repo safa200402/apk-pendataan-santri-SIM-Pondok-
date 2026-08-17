@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#9e2f22">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="../../shared-ui.css">
+  <script src="../../shared-ui.js"></script>
+  <title>Kelola Pengumuman</title>
+  <link rel="stylesheet" href="../../shared-shell.css">
+  <link rel="stylesheet" href="../../vendor/fontawesome/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700&display=swap');
+    :root {
+      --paper: #f6efe0; --ink: #4d4034; --muted: #7b6a58;
+      --line: rgba(91,73,57,0.15); --accent: #b97650;
+      --success: #74846c; --danger: #a55a52; --warning: #b58439;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; }
+    body::before { content: ''; position: fixed; inset: 0; pointer-events: none; opacity: 0.15; mix-blend-mode: multiply; }
+    body::after  { content: ''; position: fixed; inset: 0; pointer-events: none; opacity: 0.23; }
+    h1, h2, h3 { margin: 0 0 10px; text-transform: uppercase; }
+    p { margin: 0; line-height: 1.65; }
+    .nav a, button { font-weight: 800 !important; text-transform: uppercase; }
+    .panel { padding: 22px; }
+    .card { padding: 16px; }
+    button, input, select, textarea { font: inherit; }
+    button { padding: 12px 18px; font-weight: 700; cursor: pointer; }
+    .primary { box-shadow: 0 14px 28px rgba(185,118,80,0.22); }
+    input, select, textarea { width: 100%; padding: 13px 14px; outline: none; }
+    label { display: grid; gap: 7px; font-size: 14px; font-weight: 600; }
+    .notice { display: none; padding: 14px 16px; line-height: 1.55; }
+    .notice.show { display: block; }
+    .toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+    .field-grid { display: grid; gap: 12px; margin-top: 12px; }
+    .form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: end; }
+    @media (max-width: 600px) { .form-row-2 { grid-template-columns: 1fr; } }
+    .section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .section-head-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .empty-state { padding: 36px 20px; text-align: center; color: var(--muted); font-size: 14px; }
+    .page-center { display: grid; gap: 8px; justify-items: center; }
+    .page-numbers { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+
+    .pengumuman-list { display: grid; gap: 8px; margin-top: 14px; }
+    .pengumuman-card { padding: 12px 16px; border-radius: 14px; display: flex; align-items: flex-start; gap: 10px; background: rgba(242, 222, 154, 0.96) !important; }
+    .pengumuman-card-body { flex: 1; min-width: 0; }
+    .pengumuman-title { font-weight: 700; font-size: 14px; text-transform: uppercase; letter-spacing: 0.04em; }
+    .pengumuman-msg-toggle { display: inline-flex; align-items: center; gap: 5px; margin-top: 6px; padding: 3px 9px; font-size: 11px; font-weight: 700; border-radius: 999px; background: rgba(185,118,80,0.14); color: var(--accent); border: none; cursor: pointer; text-transform: uppercase; }
+    .pengumuman-isi-body { font-size: 13.5px; color: var(--ink); white-space: pre-wrap; line-height: 1.6; }
+    .pengumuman-meta { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+    .pengumuman-meta-row { display: flex; flex-wrap: wrap; gap: 6px; }
+    .pengumuman-meta-row:empty { display: none; }
+    .jab-chip { display: inline-flex; padding: 3px 9px; font-size: 11px; font-weight: 700; border-radius: 999px; background: rgba(185,118,80,0.14); color: var(--accent); text-transform: uppercase; }
+    .jab-chip-toggle, .jab-chip-collapse { padding: 3px 9px; font-size: 11px; font-weight: 700; border-radius: 999px; background: rgba(185,118,80,0.14); color: var(--accent); border: none; cursor: pointer; }
+    .jab-chip-extra, .jab-chip-collapse { display: none; }
+    .jab-chip-toggle { display: inline-flex; }
+    .pengumuman-meta.show-all-jabatan .jab-chip-extra { display: inline-flex; }
+    .pengumuman-meta.show-all-jabatan .jab-chip-toggle { display: none; }
+    .pengumuman-meta.show-all-jabatan .jab-chip-collapse { display: inline-flex; }
+    .count-chip { display: inline-flex; padding: 3px 9px; font-size: 11px; font-weight: 700; border-radius: 999px; background: rgba(116,132,108,0.14); color: #3a5a30; text-transform: uppercase; }
+    .pengumuman-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+    .respon-item { padding: 10px 12px; border-radius: 10px; background: rgba(255,255,255,0.55); border: 1px solid var(--line); }
+    .respon-item-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+    .respon-item-name { font-weight: 700; font-size: 12.5px; }
+    .respon-item-time { font-size: 11px; color: var(--muted); }
+    .respon-item-note { font-size: 12.5px; margin-top: 4px; white-space: pre-wrap; }
+    .respon-item-delete { font-size: 10px; padding: 3px 9px; min-height: 0; }
+
+    .respon-tabs { display: flex; gap: 8px; margin-top: 4px; }
+    .respon-tab-btn { padding: 8px 14px; font-size: 12px; opacity: 0.6; }
+    .respon-tab-btn.active { opacity: 1; box-shadow: inset 0 -3px 0 var(--accent); }
+    .respon-tab-panel { display: none; margin-top: 10px; }
+    .respon-tab-panel.active { display: block; }
+    .respon-tab-panel-actions { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
+    .respon-search-input { flex: 1 1 180px; min-width: 140px; padding: 8px 10px; font-size: 12px; }
+    .respon-mini-paging { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 4px; margin: 10px 0; }
+    .respon-mini-paging button { padding: 5px 10px; font-size: 11px; min-height: 0; }
+    .respon-mini-paging button.active { background: var(--accent); color: #fff; }
+
+    .pengumuman-media-list { display: grid; gap: 10px; }
+    .pengumuman-media-item { display: flex; gap: 10px; align-items: flex-start; padding: 8px; border-radius: 10px; border: 1px solid var(--line); background: rgba(255,255,255,0.5); }
+    .pengumuman-media-thumb { width: 72px; height: 72px; border-radius: 8px; object-fit: cover; flex-shrink: 0; background: #000; cursor: zoom-in; }
+    .pengumuman-media-body { flex: 1; min-width: 0; display: grid; gap: 6px; }
+    .pengumuman-media-body input[type="text"] { padding: 7px 9px; font-size: 12px; }
+    .pengumuman-media-meta { font-size: 11px; color: var(--muted); display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+
+    .pengumuman-media-preview-shell { background: #000; border-radius: 12px; }
+    .pengumuman-media-preview-head { min-height: 0 !important; padding: 0 !important; border-bottom: none !important; background: transparent !important; backdrop-filter: none !important; }
+    .pengumuman-media-preview-content { display: flex; align-items: center; justify-content: center; padding: 44px 16px 16px; min-height: 220px; }
+    .pengumuman-media-preview-content img, .pengumuman-media-preview-content video { max-width: 100%; max-height: 78vh; border-radius: 8px; display: block; }
+
+    .jabatan-checklist { display: grid; gap: 6px; max-height: 220px; overflow: auto; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; background: rgba(255,255,255,0.5); }
+    .jabatan-checklist label { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; text-transform: none; }
+    .jabatan-checklist input[type="checkbox"] { width: auto; padding: 0; }
+    .jabatan-checklist label[hidden] { display: none; }
+    .selector-group { display: grid; gap: 8px; }
+    .selector-hint { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+    .unlimited-row { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; }
+    .unlimited-row input[type="checkbox"] { width: auto; padding: 0; }
+  </style>
+</head>
+<body>
+  <script src="../../shared-nav.js"></script>
+  <script src="../../shared-access.js"></script>
+  <script src="../../shared-shell.js"></script>
+  <header class="app-header">
+    <div class="header-left">
+      <button class="drawer-toggle" id="navToggle" type="button" aria-label="Toggle sidebar">Menu</button>
+      <div class="header-brand">Pendataan Santri</div>
+      <div class="header-page">Kelola Pengumuman</div>
+    </div>
+    <div class="header-right">
+      <span class="header-chip" id="headerRole">Admin</span>
+    </div>
+  </header>
+  <div class="drawer-backdrop" id="navBackdrop"></div>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+  <main>
+    <div class="app-layout">
+      <section class="panel nav" id="nav"></section>
+      <div class="content-stack">
+
+        <section class="panel">
+          <div class="section-head">
+            <div>
+              <h2>Kelola Pengumuman</h2>
+              <p style="color:var(--muted);font-size:13px;margin-top:4px;">Pengumuman/pengingat popup untuk jabatan tertentu. Begitu disimpan, langsung muncul ke akun dengan jabatan yang dipilih, tiap kali mereka buka halaman apa pun, sampai batas tampilnya habis.</p>
+            </div>
+            <div class="section-head-actions">
+              <button class="primary" type="button" id="btnTambahPengumuman"><i class="fa-solid fa-plus"></i>&ensp;Tambah Pengumuman</button>
+            </div>
+          </div>
+
+          <div class="paging-host" id="paginationTop" style="margin-top:16px;"></div>
+          <div class="pengumuman-list" id="pengumumanList" style="margin-top:16px;"></div>
+          <div class="paging-host" id="paginationBottom" style="margin-top:16px;"></div>
+        </section>
+
+      </div>
+    </div>
+  </main>
+
+  <dialog class="ps-floating-dialog" id="pengumumanDialog">
+    <form class="dialog-body duplicate-dialog-body ps-dialog-shell" id="pengumumanForm" method="dialog">
+      <div class="duplicate-dialog-head ps-dialog-header">
+        <div>
+          <h3 id="pengumumanDialogTitle">Tambah pengumuman</h3>
+        </div>
+      </div>
+      <input type="hidden" id="pengumumanEditId">
+      <label>Judul <span style="color:var(--danger)">*</span>
+        <input type="text" id="pengumumanTitle" placeholder="Judul pengumuman">
+      </label>
+      <label>Isi Pengumuman <span style="color:var(--danger)">*</span>
+        <textarea id="pengumumanMessage" rows="4" placeholder="Isi pengumuman/pengingat..."></textarea>
+      </label>
+      <label>Target Jabatan <span style="color:var(--danger)">*</span>
+        <div class="selector-group">
+          <input type="search" data-selector-target="pengumumanJabatanChecklist" placeholder="Cari jabatan...">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+            <div class="selector-hint" data-selector-count="pengumumanJabatanChecklist">Belum ada dipilih</div>
+            <div style="display:flex;gap:4px;flex-shrink:0">
+              <button type="button" class="secondary" style="font-size:11px;padding:2px 10px;min-height:0;white-space:nowrap" onclick="window.PSUI.selectAllVisible('pengumumanJabatanChecklist')">Pilih semua</button>
+              <button type="button" class="secondary" style="font-size:11px;padding:2px 10px;min-height:0;white-space:nowrap" onclick="window.PSUI.deselectAllVisible('pengumumanJabatanChecklist')">Batalkan semua</button>
+            </div>
+          </div>
+          <div class="jabatan-checklist" id="pengumumanJabatanChecklist"></div>
+        </div>
+      </label>
+      <div class="form-row-2">
+        <div class="unlimited-row">
+          <input type="checkbox" id="pengumumanUnlimited">
+          <label for="pengumumanUnlimited" style="margin:0;">Tampilkan tanpa batas (selamanya)</label>
+        </div>
+        <label>Jumlah tampil maksimal (per akun)
+          <input type="number" id="pengumumanMaxShow" min="1" value="1">
+        </label>
+      </div>
+      <div class="form-row-2">
+        <div class="unlimited-row">
+          <input type="checkbox" id="pengumumanFullscreen">
+          <label for="pengumumanFullscreen" style="margin:0;">Tampilkan layar penuh (100% x 100%)</label>
+        </div>
+        <label>Warna popup
+          <select id="pengumumanColorType">
+            <option value="biasa">Biasa (default)</option>
+            <option value="merah">Merah</option>
+            <option value="jingga">Jingga</option>
+            <option value="hijau">Hijau</option>
+          </select>
+        </label>
+      </div>
+      <div>
+        <div class="unlimited-row">
+          <input type="checkbox" id="pengumumanWajibRespon">
+          <label for="pengumumanWajibRespon" style="margin:0;">Wajib Direspon</label>
+        </div>
+        <p style="color:var(--muted);font-size:11.5px;margin-top:4px;">Kalau dicentang: popup TIDAK BISA ditutup (klik di luar/tombol x) sebelum pengurus kirim minimal 1 respon lewat panel "Respon" di popup. Kalau dimatikan (default): perilaku normal seperti biasa, bisa ditutup kapan saja.</p>
+      </div>
+      <div class="form-row-2">
+        <label>Tanggal mulai (opsional)
+          <input type="date" id="pengumumanStartDate">
+        </label>
+        <label>Tanggal berakhir (opsional)
+          <input type="date" id="pengumumanEndDate">
+        </label>
+      </div>
+      <div>
+        <h3 style="margin:0 0 6px;font-size:14px;">Lampiran gambar/video (opsional)</h3>
+        <p style="color:var(--muted);font-size:12px;margin:0 0 8px;">Bisa lebih dari satu gambar, atau video. Maks 8 lampiran — gambar maks 8 MB, video maks 1 GB (otomatis dikompres saat diunggah).</p>
+        <input type="file" id="pengumumanMediaInput" accept="image/*,video/*" multiple>
+        <p id="pengumumanMediaUploadStatus" style="color:var(--muted);font-size:12px;margin:8px 0 0;display:none;align-items:center;justify-content:space-between;gap:7px;">
+          <span id="pengumumanMediaUploadStatusText" style="display:inline-flex;align-items:center;gap:7px;"></span>
+          <button type="button" id="btnCancelPengumumanUpload" class="secondary" style="display:none;flex-shrink:0;padding:2px 8px;min-height:0;font-size:11px;" title="Batalkan upload"><i class="fa-solid fa-xmark"></i></button>
+        </p>
+        <div id="pengumumanMediaUploadBar" style="display:none;height:5px;border-radius:99px;background:var(--line);overflow:hidden;margin-top:6px;">
+          <div id="pengumumanMediaUploadBarFill" style="height:100%;width:0%;background:var(--accent);transition:width 0.15s;"></div>
+        </div>
+        <div class="pengumuman-media-list" id="pengumumanMediaList" style="margin-top:10px;"></div>
+      </div>
+      <div class="toolbar ps-dialog-footer">
+        <button class="primary" type="submit" id="btnPengumumanSave"><i class="fa-solid fa-floppy-disk"></i>&ensp;Simpan</button>
+        <button class="secondary" type="button" id="btnPengumumanCancel">Batal</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="ps-floating-dialog" id="pengumumanResponDialog">
+    <div class="dialog-body duplicate-dialog-body ps-dialog-shell">
+      <div class="duplicate-dialog-head ps-dialog-header">
+        <div>
+          <h3 id="pengumumanResponDialogTitle">Respon pengumuman</h3>
+        </div>
+      </div>
+      <div class="respon-tabs">
+        <button type="button" class="secondary respon-tab-btn" data-tab="respon">Respon</button>
+        <button type="button" class="secondary respon-tab-btn" data-tab="seen">Sudah Dilihat</button>
+      </div>
+      <div class="respon-tab-panel" data-tab-panel="respon">
+        <div class="respon-tab-panel-actions">
+          <input type="search" id="responSearchInput" class="respon-search-input" placeholder="Cari nama...">
+          <button class="danger" type="button" id="btnHapusSemuaRespon" style="font-size:11px;padding:6px 12px;">Hapus Semua Respon</button>
+        </div>
+        <div class="respon-mini-paging" id="responPaginationTop"></div>
+        <div class="pengumuman-respon-list" id="pengumumanResponList" style="display:grid;gap:8px;max-height:45vh;overflow:auto;"></div>
+        <div class="respon-mini-paging" id="responPaginationBottom"></div>
+      </div>
+      <div class="respon-tab-panel" data-tab-panel="seen">
+        <div class="respon-tab-panel-actions">
+          <input type="search" id="seenSearchInput" class="respon-search-input" placeholder="Cari nama...">
+          <button class="danger" type="button" id="btnHapusSemuaSeen" style="font-size:11px;padding:6px 12px;">Hapus Semua Data Dilihat</button>
+        </div>
+        <div class="respon-mini-paging" id="seenPaginationTop"></div>
+        <div class="pengumuman-respon-list" id="pengumumanSeenList" style="display:grid;gap:8px;max-height:45vh;overflow:auto;"></div>
+        <div class="respon-mini-paging" id="seenPaginationBottom"></div>
+      </div>
+      <div class="toolbar ps-dialog-footer">
+        <button class="secondary" type="button" id="btnPengumumanResponClose">Tutup</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog class="ps-floating-dialog" id="pengumumanIsiDialog">
+    <div class="dialog-body duplicate-dialog-body ps-dialog-shell">
+      <div class="duplicate-dialog-head ps-dialog-header">
+        <div>
+          <h3 id="pengumumanIsiDialogTitle">Isi pengumuman</h3>
+        </div>
+      </div>
+      <div class="pengumuman-isi-body" id="pengumumanIsiDialogBody"></div>
+      <div class="toolbar ps-dialog-footer">
+        <button class="secondary" type="button" id="btnPengumumanIsiClose">Tutup</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog class="ps-floating-dialog" id="pengumumanMediaPreviewDialog">
+    <div class="dialog-body pengumuman-media-preview-shell ps-dialog-shell">
+      <div class="pengumuman-media-preview-head ps-dialog-header"></div>
+      <div id="pengumumanMediaPreviewContent" class="pengumuman-media-preview-content"></div>
+    </div>
+  </dialog>
+
+  <script>
+    const API_BASE = window.location.origin + '/api';
+    const STORAGE = { token: 'ps_token', session: 'ps_session' };
+
+    function getToken() { return localStorage.getItem(STORAGE.token) || ''; }
+    function getStoredSession() { try { return JSON.parse(localStorage.getItem(STORAGE.session) || 'null'); } catch (_) { return null; } }
+    function getScopedSession() { return window.PSAccess && typeof window.PSAccess.getScopedSession === 'function' ? window.PSAccess.getScopedSession(getStoredSession()) : getStoredSession(); }
+    function canManage() { const s = getScopedSession(); return !!(s && s.permissions && (s.permissions.isAdmin || s.permissions.isSuperAdmin || s.permissions.isMudir)); }
+    function canDelete() { const s = getScopedSession(); return !!(s && s.permissions && s.permissions.canDelete); }
+
+    function toParams(d) { const p = new URLSearchParams(); Object.entries(d).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') p.append(k, typeof v === 'object' ? JSON.stringify(v) : String(v)); }); return p; }
+    async function api(d) { const r = await fetch(API_BASE + '?' + toParams({ ...d, token: getToken() })); const j = await r.json(); if (!j.ok) throw new Error(j.error?.message || 'Error'); return j.data; }
+    async function apiPost(d) { const r = await fetch(API_BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...d, token: getToken() }) }); const j = await r.json(); if (!j.ok) throw new Error(j.error?.message || 'Error'); return j.data; }
+
+    const uiState = { counter: 0, shownAt: 0, pending: null, currentId: '' };
+    // Dialog dibuka lewat showModal(), yang membuat semua elemen di luar dialog jadi inert
+    // (tidak menerima klik) -- termasuk #noticeStack yang normalnya anak <body>. Pindahkan
+    // sementara jadi anak dialog yang lagi terbuka supaya notice tetap bisa di-klik utk
+    // di-dismiss; dipindah balik ke <body> saat dialog ditutup (lihat listener 'close').
+    function relocateNoticeStack() {
+      const stack = document.getElementById('noticeStack');
+      const openDialog = document.querySelector('dialog[open]');
+      if (openDialog) {
+        if (stack.parentNode !== openDialog) openDialog.appendChild(stack);
+      } else if (stack.parentNode !== document.body) {
+        document.body.prepend(stack);
+      }
+    }
+    function createNoticeEl(text, type) {
+      const el = document.createElement('section');
+      el.className = `notice show ${type || 'info'}`; el.dataset.noticeId = `n-${Date.now()}-${uiState.counter += 1}`; el.textContent = text;
+      function dismiss() { if (!el.parentNode) return; el.classList.add('notice-dismissing'); setTimeout(() => { el.remove(); const s = document.getElementById('noticeStack'); if (s && !s.hasChildNodes() && s.matches(':popover-open')) s.hidePopover(); }, 220); }
+      el.addEventListener('click', dismiss); setTimeout(dismiss, type === 'error' ? 10000 : 5000); return el;
+    }
+    function showNotice(text, type) {
+      if (uiState.pending) { clearTimeout(uiState.pending); uiState.pending = null; }
+      const elapsed = Date.now() - uiState.shownAt;
+      if (elapsed < 2000 && uiState.currentId) { uiState.pending = setTimeout(() => { uiState.pending = null; showNotice(text, type); }, 2000 - elapsed); return; }
+      const el = createNoticeEl(text, type); const stack = document.getElementById('noticeStack');
+      relocateNoticeStack();
+      stack.prepend(el); uiState.currentId = el.dataset.noticeId; uiState.shownAt = Date.now();
+      if (stack.matches(':popover-open')) stack.hidePopover(); stack.showPopover();
+    }
+    function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
+    let pengumumanItems = [];
+    let jabatanRefs = [];
+    const state = { page: 1, pageSize: 10, totalPages: 1 };
+
+    async function loadRefs() {
+      try {
+        const refs = await api({ action: 'references', sheetKey: 'pengurus' });
+        jabatanRefs = refs.jabatan || [];
+      } catch (_) { jabatanRefs = []; }
+      renderJabatanChecklist([]);
+    }
+
+    function renderJabatanChecklist(selectedIds) {
+      const selected = new Set(selectedIds || []);
+      const el = document.getElementById('pengumumanJabatanChecklist');
+      if (!jabatanRefs.length) { el.innerHTML = '<span style="font-size:12px;color:var(--muted);">Belum ada data jabatan.</span>'; return; }
+      el.innerHTML = jabatanRefs.map((j, index) => `
+        <label data-item-index="${index}">
+          <input type="checkbox" value="${esc(j.id)}" ${selected.has(String(j.id)) ? 'checked' : ''}>
+          <span>${esc(j.name)}${j.level ? ` (Level ${esc(j.level)})` : ''}</span>
+        </label>
+      `).join('');
+      updateChecklistHint('pengumumanJabatanChecklist');
+    }
+
+    function getSelectedJabatanIds() {
+      return Array.from(document.querySelectorAll('#pengumumanJabatanChecklist input:checked')).map(i => i.value);
+    }
+
+    let pengumumanMediaDrafts = [];
+
+    function openPengumumanMediaPreview(m) {
+      const body = document.getElementById('pengumumanMediaPreviewContent');
+      body.innerHTML = m.type === 'video'
+        ? `<video src="/${esc(m.url)}" controls autoplay></video>`
+        : `<img src="/${esc(m.url)}" alt="${esc(m.caption || '')}">`;
+      document.getElementById('pengumumanMediaPreviewDialog').showModal();
+    }
+    document.getElementById('pengumumanMediaPreviewDialog').addEventListener('close', () => {
+      document.getElementById('pengumumanMediaPreviewContent').innerHTML = '';
+    });
+
+    function renderPengumumanMediaList() {
+      const el = document.getElementById('pengumumanMediaList');
+      if (!pengumumanMediaDrafts.length) { el.innerHTML = ''; return; }
+      el.innerHTML = pengumumanMediaDrafts.map((m, index) => `
+        <div class="pengumuman-media-item" data-index="${index}">
+          ${m.type === 'video'
+            ? `<video class="pengumuman-media-thumb" src="/${esc(m.url)}" muted></video>`
+            : `<img class="pengumuman-media-thumb" src="/${esc(m.url)}" alt="">`}
+          <div class="pengumuman-media-body">
+            <div class="pengumuman-media-meta">
+              <span>${m.type === 'video' ? 'Video' : 'Gambar'}</span>
+              <button type="button" class="secondary btn-remove-pengumuman-media" data-index="${index}" style="font-size:11px;padding:2px 8px;min-height:0;">Hapus</button>
+            </div>
+            <input type="text" placeholder="Tulisan/keterangan gambar (opsional)" value="${esc(m.caption || '')}" data-index="${index}" class="pengumuman-media-caption">
+            ${m.type === 'video' ? `
+              <label style="display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;text-transform:none;">
+                <input type="checkbox" style="width:auto;padding:0;" data-index="${index}" class="pengumuman-media-watch" ${m.mustWatchFull ? 'checked' : ''}>
+                Wajib ditonton sampai habis (popup tidak bisa ditutup sebelum video ini selesai diputar)
+              </label>
+            ` : ''}
+          </div>
+        </div>
+      `).join('');
+      el.querySelectorAll('.pengumuman-media-thumb').forEach(thumb => thumb.addEventListener('click', () => {
+        const index = Number(thumb.closest('.pengumuman-media-item').dataset.index);
+        openPengumumanMediaPreview(pengumumanMediaDrafts[index]);
+      }));
+      el.querySelectorAll('.btn-remove-pengumuman-media').forEach(b => b.addEventListener('click', async () => {
+        const index = Number(b.dataset.index);
+        const [removed] = pengumumanMediaDrafts.splice(index, 1);
+        renderPengumumanMediaList();
+        // Kalau lampiran ini baru diupload di sesi ini (belum pernah tersimpan ke pengumuman
+        // manapun), hapus juga file-nya di server -- kalau tidak, nyangkut permanen di disk.
+        if (removed && removed.isNew) {
+          try { await apiPost({ action: 'pengumuman.discardMedia', url: removed.url }); } catch (_) {}
+        }
+      }));
+      el.querySelectorAll('.pengumuman-media-caption').forEach(inp => inp.addEventListener('input', () => {
+        pengumumanMediaDrafts[Number(inp.dataset.index)].caption = inp.value;
+      }));
+      el.querySelectorAll('.pengumuman-media-watch').forEach(cb => cb.addEventListener('change', () => {
+        pengumumanMediaDrafts[Number(cb.dataset.index)].mustWatchFull = cb.checked;
+        // Video wajib-ditonton cuma masuk akal kalau popup-nya layar penuh -- auto-centang biar
+        // admin tidak lupa (tetap divalidasi ulang saat submit & di server, ini cuma bantuan UI).
+        if (cb.checked) document.getElementById('pengumumanFullscreen').checked = true;
+      }));
+    }
+
+    // Pakai XMLHttpRequest (bukan fetch) supaya bisa dapat progress upload asli lewat
+    // xhr.upload.onprogress -- fetch tidak punya cara mudah untuk ini. xhr juga ditempel
+    // ke promise (promise.xhr) supaya pemanggil bisa panggil .abort() dari tombol batalkan.
+    function uploadPengumumanMediaFile(file, onProgress) {
+      const xhr = new XMLHttpRequest();
+      const promise = new Promise((resolve, reject) => {
+        const params = new URLSearchParams({ token: getToken(), filename: file.name });
+        xhr.open('POST', `${API_BASE}/pengumuman/upload-media?${params}`);
+        xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+        xhr.upload.onprogress = e => { if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100)); };
+        xhr.upload.onload = () => onProgress(100);
+        xhr.onload = () => {
+          let j; try { j = JSON.parse(xhr.responseText); } catch (_) { j = null; }
+          if (!j || !j.ok) return reject(new Error((j && j.error && j.error.message) || 'Gagal upload file'));
+          resolve(j.data);
+        };
+        xhr.onerror = () => reject(new Error('Koneksi terputus saat upload.'));
+        xhr.onabort = () => reject(new Error('__CANCELLED__'));
+        xhr.send(file);
+      });
+      promise.xhr = xhr;
+      return promise;
+    }
+
+    document.getElementById('pengumumanMediaInput').addEventListener('change', async e => {
+      const files = Array.from(e.target.files || []);
+      e.target.value = '';
+      const statusEl = document.getElementById('pengumumanMediaUploadStatus');
+      const statusTextEl = document.getElementById('pengumumanMediaUploadStatusText');
+      const cancelBtn = document.getElementById('btnCancelPengumumanUpload');
+      const barWrap = document.getElementById('pengumumanMediaUploadBar');
+      const barFill = document.getElementById('pengumumanMediaUploadBarFill');
+      const saveBtn = document.getElementById('btnPengumumanSave');
+      const spinner = '<i class="fa-solid fa-spinner fa-spin"></i>';
+      // Jangan biarkan Simpan diklik selagi upload/kompres masih jalan -- kalau tidak,
+      // pengumuman bisa tersimpan tanpa lampiran yang baru saja dipilih (belum sempat
+      // masuk ke pengumumanMediaDrafts karena masih menunggu response upload).
+      saveBtn.disabled = true;
+      for (const file of files) {
+        if (pengumumanMediaDrafts.length >= 8) { showNotice('Maksimal 8 lampiran per pengumuman.', 'error'); break; }
+        const isVideo = file.type.startsWith('video/');
+        statusEl.style.display = 'flex';
+        barWrap.style.display = 'block';
+        barFill.style.width = '0%';
+        statusTextEl.innerHTML = `${spinner} <span>Mengunggah ${esc(file.name)}... 0%</span>`;
+        // Tombol batal cuma masuk akal selagi bytes masih dikirim -- begitu 100% (sudah
+        // sepenuhnya diterima server dan mulai dikompres di sisi server), abort() tidak
+        // membatalkan proses server, jadi tombolnya disembunyikan supaya tidak menyesatkan.
+        cancelBtn.style.display = 'inline-flex';
+        const uploadPromise = uploadPengumumanMediaFile(file, percent => {
+          barFill.style.width = percent + '%';
+          if (percent < 100) {
+            statusTextEl.innerHTML = `${spinner} <span>Mengunggah ${esc(file.name)}... ${percent}%</span>`;
+          } else {
+            cancelBtn.style.display = 'none';
+            statusTextEl.innerHTML = isVideo
+              ? `${spinner} <span>Mengompres ${esc(file.name)}... (bisa beberapa menit untuk video besar, jangan tutup/reload halaman)</span>`
+              : `${spinner} <span>Memproses ${esc(file.name)}...</span>`;
+          }
+        });
+        cancelBtn.onclick = () => uploadPromise.xhr.abort();
+        try {
+          const d = await uploadPromise;
+          pengumumanMediaDrafts.push({ type: d.mediaType, url: d.url, caption: '', mustWatchFull: false, isNew: true });
+          renderPengumumanMediaList();
+        } catch (err) {
+          if (err.message === '__CANCELLED__') {
+            showNotice('Upload dibatalkan.', 'error');
+            break;
+          }
+          showNotice(err.message, 'error');
+        } finally {
+          cancelBtn.onclick = null;
+          cancelBtn.style.display = 'none';
+        }
+      }
+      statusEl.style.display = 'none';
+      barWrap.style.display = 'none';
+      saveBtn.disabled = false;
+    });
+
+    function updateChecklistHint(targetId) {
+      const count = document.querySelectorAll(`#${targetId} input:checked`).length;
+      const hint = document.querySelector(`[data-selector-count="${targetId}"]`);
+      if (!hint) return;
+      hint.textContent = count ? `${count} dipilih` : 'Belum ada dipilih';
+    }
+
+    function applyChecklistFilter(targetId, query) {
+      const normalized = query.trim().toLowerCase();
+      const container = document.getElementById(targetId);
+      if (!container) return;
+      const labels = Array.from(container.querySelectorAll('label'));
+      if (!normalized) {
+        labels.sort((a, b) => {
+          const ac = !!a.querySelector('input[type="checkbox"]:checked');
+          const bc = !!b.querySelector('input[type="checkbox"]:checked');
+          if (ac !== bc) return ac ? -1 : 1;
+          return Number(a.dataset.itemIndex || 0) - Number(b.dataset.itemIndex || 0);
+        });
+        labels.forEach(label => { label.hidden = false; container.appendChild(label); });
+        return;
+      }
+      labels.forEach(label => {
+        label.hidden = !label.textContent.toLowerCase().includes(normalized);
+      });
+    }
+
+    function resetChecklistFilters() {
+      document.querySelectorAll('[data-selector-target]').forEach(input => {
+        input.value = '';
+        applyChecklistFilter(input.dataset.selectorTarget, '');
+      });
+    }
+
+    async function loadPengumuman() {
+      try { const d = await api({ action: 'pengumuman.list' }); pengumumanItems = d.items || []; } catch (_) { pengumumanItems = []; }
+      renderPengumumanList();
+    }
+
+    function buildPaginationList(page, totalPages) {
+      const max = 10;
+      if (totalPages <= max) return Array.from({ length: totalPages }, (_, i) => i + 1);
+      const mid = max - 2;
+      const pages = [1];
+      let start = Math.max(2, page - Math.floor(mid / 2));
+      let end = start + mid - 1;
+      if (end > totalPages - 1) { end = totalPages - 1; start = end - mid + 1; }
+      if (start > 2) pages.push('...');
+      for (let v = start; v <= end; v++) pages.push(v);
+      if (end < totalPages - 1) pages.push('...');
+      pages.push(totalPages);
+      return pages;
+    }
+
+    function renderPaging(total) {
+      const pg = state.page, totalPages = Math.max(1, Math.ceil(total / state.pageSize));
+      state.totalPages = totalPages;
+      const markup = total ? `
+        <div class="paging">
+          <button class="secondary" type="button" data-page="${pg - 1}" ${pg <= 1 ? 'disabled' : ''}>Sebelumnya</button>
+          <div class="page-center">
+            <div class="page-numbers">
+              ${buildPaginationList(pg, totalPages).map(item =>
+                item === '...'
+                  ? '<span class="page-summary">...</span>'
+                  : `<button class="secondary page-btn ${item === pg ? 'active' : ''}" type="button" data-page="${item}">${item}</button>`
+              ).join('')}
+            </div>
+            <div class="page-summary">Halaman ${pg} dari ${totalPages} &nbsp;|&nbsp; Total ${total} data</div>
+          </div>
+          <button class="secondary" type="button" data-page="${pg + 1}" ${pg >= totalPages ? 'disabled' : ''}>Berikutnya</button>
+        </div>
+      ` : '';
+      window.PSUI.syncPaginationHosts({ markup, visibleCount: total ? Math.min(state.pageSize, total) : 0, totalCount: total, topId: 'paginationTop', bottomId: 'paginationBottom' });
+    }
+
+    function renderPengumumanList() {
+      const list = document.getElementById('pengumumanList');
+      const manage = canManage();
+      const del = canDelete();
+      const totalPages = Math.max(1, Math.ceil(pengumumanItems.length / state.pageSize));
+      if (state.page > totalPages) state.page = totalPages;
+      if (!pengumumanItems.length) {
+        list.innerHTML = '<div class="empty-state">Belum ada pengumuman.</div>';
+        renderPaging(0);
+        return;
+      }
+      const pageItems = pengumumanItems.slice((state.page - 1) * state.pageSize, state.page * state.pageSize);
+      let html = '';
+      pageItems.forEach(p => {
+        const inactive = !p.active;
+        const countLabel = p.isUnlimited ? 'Tanpa batas' : `Maks ${p.maxShowCount}x per akun`;
+        html += `<div class="card pengumuman-card" style="${inactive ? 'opacity:0.55;' : ''}">
+          <div class="pengumuman-card-body">
+            <div class="pengumuman-title">${esc(p.title)}${inactive ? ' <em style="font-size:10px;font-weight:400;text-transform:none;">(Nonaktif)</em>' : ''}</div>
+            <button type="button" class="pengumuman-msg-toggle btn-lihat-isi-pengumuman" data-id="${esc(p.id)}">Lihat Isi</button>
+            <div class="pengumuman-meta">
+              <div class="pengumuman-meta-row">
+                ${(p.targetJabatanLabels || []).slice(0, 4).map(l => `<span class="jab-chip">${esc(l)}</span>`).join('')}
+                ${(p.targetJabatanLabels || []).length > 4 ? `
+                  ${(p.targetJabatanLabels || []).slice(4).map(l => `<span class="jab-chip jab-chip-extra">${esc(l)}</span>`).join('')}
+                  <button class="jab-chip-toggle" type="button" data-jab-toggle>+${p.targetJabatanLabels.length - 4}</button>
+                  <button class="jab-chip-collapse" type="button" data-jab-collapse>&minus;</button>
+                ` : ''}
+              </div>
+              <div class="pengumuman-meta-row">
+                <span class="count-chip">${esc(countLabel)}</span>
+                ${p.isFullscreen ? '<span class="count-chip">Layar penuh</span>' : ''}
+                ${p.wajibRespon ? '<span class="count-chip">Wajib direspon</span>' : ''}
+                ${p.colorType && p.colorType !== 'biasa' ? `<span class="count-chip">Warna: ${esc(p.colorType)}</span>` : ''}
+                ${p.media && p.media.length ? `<span class="count-chip">${p.media.length} lampiran</span>` : ''}
+                ${p.startDate || p.endDate ? `<span class="count-chip">${esc(p.startDate || '...')} s/d ${esc(p.endDate || '...')}</span>` : ''}
+              </div>
+            </div>
+          </div>
+          <div class="pengumuman-actions">
+            ${manage ? `<button class="secondary btn-respon-pengumuman" data-id="${esc(p.id)}" data-title="${esc(p.title)}" type="button" style="padding:8px 12px;" title="Lihat respon &amp; siapa saja yang sudah menutup popup ini"><i class="fa-solid fa-comment-dots"></i>&ensp;${Number(p.responCount || 0)}</button>
+            <button class="secondary btn-edit-pengumuman" data-id="${esc(p.id)}" type="button" style="padding:8px 12px;" title="Edit"><i class="fa-solid fa-pen"></i></button>
+            <button class="secondary btn-toggle-pengumuman" data-id="${esc(p.id)}" data-active="${p.active ? '1' : '0'}" type="button" style="padding:8px 12px;" title="${inactive ? 'Aktifkan' : 'Nonaktifkan'}"><i class="fa-solid ${inactive ? 'fa-toggle-off' : 'fa-toggle-on'}"></i></button>` : ''}
+            ${del ? `<button class="danger btn-delete-pengumuman" data-id="${esc(p.id)}" type="button" style="padding:8px 12px;" title="Hapus"><i class="fa-solid fa-trash"></i></button>` : ''}
+          </div>
+        </div>`;
+      });
+      list.innerHTML = html;
+      list.querySelectorAll('.btn-respon-pengumuman').forEach(b => b.addEventListener('click', () => openPengumumanResponDialog(b.dataset.id, b.dataset.title)));
+      list.querySelectorAll('.btn-edit-pengumuman').forEach(b => b.addEventListener('click', () => openPengumumanEdit(b.dataset.id)));
+      list.querySelectorAll('.btn-toggle-pengumuman').forEach(b => b.addEventListener('click', () => togglePengumuman(b.dataset.id, b.dataset.active === '1')));
+      list.querySelectorAll('.btn-delete-pengumuman').forEach(b => b.addEventListener('click', () => deletePengumuman(b.dataset.id)));
+      list.querySelectorAll('[data-jab-toggle]').forEach(b => b.addEventListener('click', () => b.closest('.pengumuman-meta').classList.add('show-all-jabatan')));
+      list.querySelectorAll('[data-jab-collapse]').forEach(b => b.addEventListener('click', () => b.closest('.pengumuman-meta').classList.remove('show-all-jabatan')));
+      list.querySelectorAll('.btn-lihat-isi-pengumuman').forEach(b => b.addEventListener('click', () => openPengumumanIsiDialog(b.dataset.id)));
+      renderPaging(pengumumanItems.length);
+    }
+
+    document.addEventListener('click', e => {
+      const b = e.target.closest('[data-page]');
+      if (!b || b.disabled) return;
+      const p = parseInt(b.dataset.page, 10);
+      if (!p || p < 1 || p > state.totalPages || p === state.page) return;
+      state.page = p;
+      renderPengumumanList();
+    });
+
+    function openPengumumanEdit(id) {
+      const item = pengumumanItems.find(p => p.id === id); if (!item) return;
+      document.getElementById('pengumumanDialogTitle').textContent = 'Edit pengumuman';
+      document.getElementById('pengumumanEditId').value = item.id;
+      document.getElementById('pengumumanTitle').value = item.title || '';
+      document.getElementById('pengumumanMessage').value = item.message || '';
+      document.getElementById('pengumumanUnlimited').checked = !!item.isUnlimited;
+      document.getElementById('pengumumanMaxShow').value = item.isUnlimited ? 1 : (item.maxShowCount || 1);
+      document.getElementById('pengumumanMaxShow').disabled = !!item.isUnlimited;
+      document.getElementById('pengumumanFullscreen').checked = !!item.isFullscreen;
+      document.getElementById('pengumumanWajibRespon').checked = !!item.wajibRespon;
+      document.getElementById('pengumumanColorType').value = item.colorType || 'biasa';
+      document.getElementById('pengumumanStartDate').value = item.startDate || '';
+      document.getElementById('pengumumanEndDate').value = item.endDate || '';
+      pengumumanMediaDrafts = (item.media || []).map(m => ({ ...m }));
+      renderPengumumanMediaList();
+      resetChecklistFilters();
+      renderJabatanChecklist(item.targetJabatanIds || []);
+      document.getElementById('pengumumanDialog').showModal();
+      document.getElementById('pengumumanTitle').focus();
+    }
+
+    function openPengumumanIsiDialog(id) {
+      const item = pengumumanItems.find(p => p.id === id); if (!item) return;
+      document.getElementById('pengumumanIsiDialogTitle').textContent = item.title || '';
+      document.getElementById('pengumumanIsiDialogBody').textContent = item.message || '';
+      document.getElementById('pengumumanIsiDialog').showModal();
+    }
+    document.getElementById('btnPengumumanIsiClose').addEventListener('click', () => document.getElementById('pengumumanIsiDialog').close());
+    document.getElementById('pengumumanIsiDialog').addEventListener('close', relocateNoticeStack);
+
+    let pengumumanResponDialogTargetId = '';
+    const responTabState = { items: [], page: 1, pageSize: 10, search: '' };
+    const seenTabState = { items: [], page: 1, pageSize: 10, search: '' };
+
+    function switchResponTab(tab) {
+      document.querySelectorAll('.respon-tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+      document.querySelectorAll('.respon-tab-panel').forEach(p => p.classList.toggle('active', p.dataset.tabPanel === tab));
+    }
+    document.querySelectorAll('.respon-tab-btn').forEach(b => b.addEventListener('click', () => switchResponTab(b.dataset.tab)));
+
+    async function openPengumumanResponDialog(id, title) {
+      pengumumanResponDialogTargetId = id;
+      document.getElementById('pengumumanResponDialogTitle').textContent = `Respon & Dilihat — ${title || ''}`;
+      responTabState.search = ''; responTabState.page = 1;
+      seenTabState.search = ''; seenTabState.page = 1;
+      document.getElementById('responSearchInput').value = '';
+      document.getElementById('seenSearchInput').value = '';
+      switchResponTab('respon');
+      document.getElementById('pengumumanResponDialog').showModal();
+      await Promise.all([loadPengumumanResponList(), loadPengumumanSeenList()]);
+    }
+
+    // Pagination angka SAJA (maks 10 tombol, reuse buildPaginationList yg sama dgn list
+    // utama) -- TIDAK ada tombol Sebelumnya/Berikutnya (sengaja dihapus). Dirender di DUA
+    // tempat (atas & bawah list, containerIds dikasih array), dan SENGAJA selalu
+    // ditampilkan walau cuma 1 halaman/1 item (beda dari renderPaging punya list utama
+    // yg sembunyi kalau totalnya 0).
+    function renderMiniPagination(containerIds, state, totalFiltered, onPageChange) {
+      const totalPages = Math.max(1, Math.ceil(totalFiltered / state.pageSize));
+      if (state.page > totalPages) state.page = totalPages;
+      const pages = buildPaginationList(state.page, totalPages);
+      const html = pages.map(p => p === '...'
+        ? '<span class="page-summary">...</span>'
+        : `<button class="secondary page-btn ${p === state.page ? 'active' : ''}" type="button" data-mini-page="${p}">${p}</button>`
+      ).join('');
+      containerIds.forEach(containerId => {
+        const el = document.getElementById(containerId);
+        el.innerHTML = html;
+        el.querySelectorAll('[data-mini-page]').forEach(b => b.addEventListener('click', () => {
+          const p = parseInt(b.dataset.miniPage, 10);
+          if (!p || p < 1 || p > totalPages || p === state.page) return;
+          state.page = p;
+          onPageChange();
+        }));
+      });
+    }
+
+    function filterByName(items, search) {
+      const q = search.trim().toLowerCase();
+      if (!q) return items;
+      return items.filter(item => (item.pengurusName || '').toLowerCase().includes(q));
+    }
+
+    function renderResponList() {
+      const listEl = document.getElementById('pengumumanResponList');
+      const filtered = filterByName(responTabState.items, responTabState.search);
+      const totalPages = Math.max(1, Math.ceil(filtered.length / responTabState.pageSize));
+      if (responTabState.page > totalPages) responTabState.page = totalPages;
+      const pageItems = filtered.slice((responTabState.page - 1) * responTabState.pageSize, responTabState.page * responTabState.pageSize);
+      if (!filtered.length) {
+        listEl.innerHTML = `<div class="empty-state">${responTabState.search ? 'Tidak ada nama yang cocok.' : 'Belum ada respon.'}</div>`;
+      } else {
+        listEl.innerHTML = pageItems.map(r => `
+          <div class="respon-item">
+            <div class="respon-item-head">
+              <span class="respon-item-name">${esc(r.pengurusName)}${r.quickTypeLabel ? ` <span class="count-chip">${esc(r.quickTypeLabel)}</span>` : ''}</span>
+              <span class="respon-item-time">${esc(r.createdAt)}</span>
+              <button type="button" class="danger respon-item-delete btn-delete-respon-item" data-id="${esc(r.id)}">Hapus</button>
+            </div>
+            ${r.note ? `<div class="respon-item-note">${esc(r.note)}</div>` : ''}
+          </div>
+        `).join('');
+        listEl.querySelectorAll('.btn-delete-respon-item').forEach(b => b.addEventListener('click', () => deletePengumumanResponItem(b.dataset.id)));
+      }
+      renderMiniPagination(['responPaginationTop', 'responPaginationBottom'], responTabState, filtered.length, renderResponList);
+    }
+
+    function renderSeenList() {
+      const listEl = document.getElementById('pengumumanSeenList');
+      const filtered = filterByName(seenTabState.items, seenTabState.search);
+      const totalPages = Math.max(1, Math.ceil(filtered.length / seenTabState.pageSize));
+      if (seenTabState.page > totalPages) seenTabState.page = totalPages;
+      const pageItems = filtered.slice((seenTabState.page - 1) * seenTabState.pageSize, seenTabState.page * seenTabState.pageSize);
+      if (!filtered.length) {
+        listEl.innerHTML = `<div class="empty-state">${seenTabState.search ? 'Tidak ada nama yang cocok.' : 'Belum ada yang menutup popup ini.'}</div>`;
+      } else {
+        listEl.innerHTML = pageItems.map(s => `
+          <div class="respon-item">
+            <div class="respon-item-head">
+              <span class="respon-item-name">${esc(s.pengurusName)} <span class="count-chip">${Number(s.seenCount || 0)}x ditutup</span></span>
+              <span class="respon-item-time">${esc(s.lastSeenAt)}</span>
+              <button type="button" class="danger respon-item-delete btn-delete-seen-item" data-id="${esc(s.id)}">Hapus</button>
+            </div>
+          </div>
+        `).join('');
+        listEl.querySelectorAll('.btn-delete-seen-item').forEach(b => b.addEventListener('click', () => deletePengumumanSeenItem(b.dataset.id)));
+      }
+      renderMiniPagination(['seenPaginationTop', 'seenPaginationBottom'], seenTabState, filtered.length, renderSeenList);
+    }
+
+    document.getElementById('responSearchInput').addEventListener('input', e => {
+      responTabState.search = e.target.value;
+      responTabState.page = 1;
+      renderResponList();
+    });
+    document.getElementById('seenSearchInput').addEventListener('input', e => {
+      seenTabState.search = e.target.value;
+      seenTabState.page = 1;
+      renderSeenList();
+    });
+
+    async function loadPengumumanResponList() {
+      const listEl = document.getElementById('pengumumanResponList');
+      listEl.innerHTML = '<div class="empty-state">Memuat respon...</div>';
+      try {
+        const d = await api({ action: 'pengumuman.responses', id: pengumumanResponDialogTargetId });
+        responTabState.items = d.items || [];
+        responTabState.page = 1;
+        renderResponList();
+      } catch (e) {
+        listEl.innerHTML = `<div class="empty-state">${esc(e.message)}</div>`;
+      }
+    }
+
+    async function loadPengumumanSeenList() {
+      const listEl = document.getElementById('pengumumanSeenList');
+      listEl.innerHTML = '<div class="empty-state">Memuat data...</div>';
+      try {
+        const d = await api({ action: 'pengumuman.seenList', id: pengumumanResponDialogTargetId });
+        seenTabState.items = d.items || [];
+        seenTabState.page = 1;
+        renderSeenList();
+      } catch (e) {
+        listEl.innerHTML = `<div class="empty-state">${esc(e.message)}</div>`;
+      }
+    }
+
+    async function deletePengumumanResponItem(id) {
+      if (!confirm('Hapus respon ini? Tindakan ini tidak bisa dibatalkan.')) return;
+      try {
+        await apiPost({ action: 'pengumuman.respon.delete', id });
+        showNotice('Respon dihapus.');
+        await loadPengumumanResponList();
+      } catch (e) { showNotice(e.message, 'error'); }
+    }
+
+    async function deletePengumumanSeenItem(id) {
+      if (!confirm('Hapus data ini? Popup akan tampil lagi ke akun ini sesuai batas tampil pengumuman. Tindakan ini tidak bisa dibatalkan.')) return;
+      try {
+        await apiPost({ action: 'pengumuman.seen.delete', id });
+        showNotice('Data dihapus.');
+        await loadPengumumanSeenList();
+      } catch (e) { showNotice(e.message, 'error'); }
+    }
+
+    document.getElementById('btnHapusSemuaRespon').addEventListener('click', async () => {
+      if (!confirm('Hapus SEMUA respon untuk pengumuman ini? Tindakan ini tidak bisa dibatalkan.')) return;
+      try {
+        await apiPost({ action: 'pengumuman.respon.deleteAll', id: pengumumanResponDialogTargetId });
+        showNotice('Semua respon dihapus.');
+        await loadPengumumanResponList();
+      } catch (e) { showNotice(e.message, 'error'); }
+    });
+
+    document.getElementById('btnHapusSemuaSeen').addEventListener('click', async () => {
+      if (!confirm('Hapus SEMUA data "sudah dilihat" untuk pengumuman ini? Popup akan tampil lagi ke semua akun sesuai batas tampil pengumuman. Tindakan ini tidak bisa dibatalkan.')) return;
+      try {
+        await apiPost({ action: 'pengumuman.seen.deleteAll', id: pengumumanResponDialogTargetId });
+        showNotice('Semua data dilihat dihapus.');
+        await loadPengumumanSeenList();
+      } catch (e) { showNotice(e.message, 'error'); }
+    });
+
+    async function togglePengumuman(id, active) {
+      try {
+        await apiPost({ action: 'pengumuman.toggle', id, active: !active });
+        showNotice(active ? 'Pengumuman dinonaktifkan.' : 'Pengumuman diaktifkan.');
+        await loadPengumuman();
+      } catch (e) { showNotice(e.message, 'error'); }
+    }
+
+    async function deletePengumuman(id) {
+      const item = pengumumanItems.find(p => p.id === id);
+      if (!confirm(`Hapus permanen pengumuman "${item ? item.title : ''}"? Tindakan ini tidak bisa dibatalkan.`)) return;
+      try {
+        await apiPost({ action: 'pengumuman.delete', id });
+        showNotice('Pengumuman dihapus.');
+        await loadPengumuman();
+      } catch (e) { showNotice(e.message, 'error'); }
+    }
+
+    function resetForm() {
+      const dlg = document.getElementById('pengumumanDialog');
+      if (dlg.open) dlg.close();
+      document.getElementById('pengumumanForm').reset();
+      document.getElementById('pengumumanEditId').value = '';
+      document.getElementById('pengumumanMaxShow').disabled = false;
+      document.getElementById('pengumumanFullscreen').checked = false;
+      document.getElementById('pengumumanWajibRespon').checked = false;
+      document.getElementById('pengumumanColorType').value = 'biasa';
+      document.getElementById('pengumumanStartDate').value = '';
+      document.getElementById('pengumumanEndDate').value = '';
+      pengumumanMediaDrafts = [];
+      renderPengumumanMediaList();
+      resetChecklistFilters();
+      renderJabatanChecklist([]);
+    }
+
+    document.getElementById('btnTambahPengumuman').addEventListener('click', () => {
+      resetForm();
+      document.getElementById('pengumumanDialogTitle').textContent = 'Tambah pengumuman';
+      document.getElementById('pengumumanDialog').showModal();
+      document.getElementById('pengumumanTitle').focus();
+    });
+    document.getElementById('btnPengumumanCancel').addEventListener('click', () => document.getElementById('pengumumanDialog').close());
+    document.getElementById('btnPengumumanResponClose').addEventListener('click', () => document.getElementById('pengumumanResponDialog').close());
+    // Safety net: 'close' native event selalu fires apa pun cara dialog ditutup (dialog.close(),
+    // Esc, form method="dialog") -- pastikan notice balik ke <body>.
+    document.getElementById('pengumumanDialog').addEventListener('close', relocateNoticeStack);
+    // Dialog ditutup TANPA lewat Simpan (Batal/Esc) -- lampiran yang sempat diupload di sesi ini
+    // tapi belum pernah tersimpan (isNew) jadi orphan kalau dibiarkan, jadi hapus di server juga.
+    // Simpan yang sukses TIDAK memicu event 'close' ini (dialognya tetap terbuka), dan resetForm()
+    // sudah mengosongkan pengumumanMediaDrafts saat itu, jadi tidak ada risiko menghapus lampiran
+    // yang baru saja berhasil disimpan.
+    document.getElementById('pengumumanDialog').addEventListener('close', () => {
+      const toDiscard = pengumumanMediaDrafts.filter(m => m.isNew);
+      toDiscard.forEach(m => { apiPost({ action: 'pengumuman.discardMedia', url: m.url }).catch(() => {}); });
+    });
+    // Kasus lain yang tidak lewat event 'close' di atas: tab ditutup, direfresh, atau pindah
+    // halaman langsung TANPA klik Batal dulu -- fetch biasa (apiPost) bisa batal di tengah jalan
+    // begitu halaman unload, jadi request hapusnya tidak sempat terkirim. navigator.sendBeacon
+    // dirancang khusus supaya tetap terkirim meski halamannya sudah ditinggalkan.
+    function discardUnsavedPengumumanMediaOnUnload() {
+      const toDiscard = pengumumanMediaDrafts.filter(m => m.isNew);
+      if (!toDiscard.length || !navigator.sendBeacon) return;
+      toDiscard.forEach(m => {
+        const blob = new Blob([JSON.stringify({ action: 'pengumuman.discardMedia', url: m.url, token: getToken() })], { type: 'application/json' });
+        navigator.sendBeacon(API_BASE, blob);
+      });
+    }
+    window.addEventListener('pagehide', discardUnsavedPengumumanMediaOnUnload);
+    window.addEventListener('beforeunload', discardUnsavedPengumumanMediaOnUnload);
+    document.getElementById('pengumumanResponDialog').addEventListener('close', relocateNoticeStack);
+    document.getElementById('pengumumanUnlimited').addEventListener('change', e => {
+      document.getElementById('pengumumanMaxShow').disabled = e.target.checked;
+    });
+    document.querySelectorAll('[data-selector-target]').forEach(input => {
+      input.addEventListener('input', event => applyChecklistFilter(event.target.dataset.selectorTarget, event.target.value));
+    });
+    document.getElementById('pengumumanJabatanChecklist').addEventListener('change', event => {
+      window.PSUI.handleChecklistItemCheck(event, 'pengumumanJabatanChecklist');
+      updateChecklistHint('pengumumanJabatanChecklist');
+    });
+    document.getElementById('pengumumanForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      const id = document.getElementById('pengumumanEditId').value.trim();
+      const title = document.getElementById('pengumumanTitle').value.trim();
+      const message = document.getElementById('pengumumanMessage').value.trim();
+      const targetJabatanIds = getSelectedJabatanIds();
+      const isUnlimited = document.getElementById('pengumumanUnlimited').checked;
+      const maxShowCount = document.getElementById('pengumumanMaxShow').value;
+      const isFullscreen = document.getElementById('pengumumanFullscreen').checked;
+      const wajibRespon = document.getElementById('pengumumanWajibRespon').checked;
+      const colorType = document.getElementById('pengumumanColorType').value;
+      const startDate = document.getElementById('pengumumanStartDate').value;
+      const endDate = document.getElementById('pengumumanEndDate').value;
+      if (!title) { showNotice('Judul wajib diisi.', 'error'); return; }
+      if (!message) { showNotice('Isi pengumuman wajib diisi.', 'error'); return; }
+      if (!targetJabatanIds.length) { showNotice('Pilih minimal satu jabatan target.', 'error'); return; }
+      if (startDate && endDate && startDate > endDate) { showNotice('Tanggal mulai tidak boleh setelah tanggal berakhir.', 'error'); return; }
+      if (!isFullscreen && pengumumanMediaDrafts.some(m => m.mustWatchFull)) { showNotice('Video yang wajib ditonton sampai habis mengharuskan pengumuman ditampilkan layar penuh (100% x 100%). Centang dulu opsi itu.', 'error'); return; }
+      const btn = document.getElementById('btnPengumumanSave'); btn.disabled = true;
+      try {
+        await apiPost({ action: 'pengumuman.save', id, title, message, target_jabatan_ids: targetJabatanIds, is_unlimited: isUnlimited, max_show_count: maxShowCount, is_fullscreen: isFullscreen, wajib_respon: wajibRespon, color_type: colorType, start_date: startDate, end_date: endDate, media: pengumumanMediaDrafts });
+        showNotice(id ? 'Pengumuman diperbarui.' : 'Pengumuman ditambahkan.');
+        resetForm();
+        await loadPengumuman();
+      } catch (e) { showNotice(e.message, 'error'); } finally { btn.disabled = false; }
+    });
+
+    window.addEventListener('DOMContentLoaded', async () => {
+      if (window.PSAccess && window.PSAccess.redirectIfForbidden(getStoredSession(), 'pengumuman.html')) return;
+      if (window.PSShell) window.PSShell.mount({ currentPage: window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : '/pages/pengumuman/', session: getStoredSession(), getStoredSession, storageKey: STORAGE.session });
+      if (!canManage()) document.getElementById('btnTambahPengumuman').hidden = true;
+      await loadRefs();
+      await loadPengumuman();
+    });
+  </script>
+</body>
+</html>

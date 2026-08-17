@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#9e2f22">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="../../shared-ui.css">
+  <script src="../../shared-ui.js"></script>
+  <title>Jenis Pelanggaran</title>
+  <link rel="stylesheet" href="../../shared-shell.css">
+  <link rel="stylesheet" href="../../vendor/fontawesome/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700&display=swap');
+    :root {
+      --paper: #f6efe0; --ink: #4d4034; --muted: #7b6a58;
+      --line: rgba(91,73,57,0.15); --accent: #b97650;
+      --success: #74846c; --danger: #a55a52; --warning: #b58439;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; }
+    body::before { content: ''; position: fixed; inset: 0; pointer-events: none; opacity: 0.15; mix-blend-mode: multiply; }
+    body::after  { content: ''; position: fixed; inset: 0; pointer-events: none; opacity: 0.23; }
+    h1, h2, h3 { margin: 0 0 10px; text-transform: uppercase; }
+    p { margin: 0; line-height: 1.65; }
+    .nav a, button { font-weight: 800 !important; text-transform: uppercase; }
+    .panel { padding: 22px; }
+    .card { padding: 16px; }
+    button, input, select, textarea { font: inherit; }
+    button { padding: 12px 18px; font-weight: 700; cursor: pointer; }
+    .primary { box-shadow: 0 14px 28px rgba(185,118,80,0.22); }
+    input, select, textarea { width: 100%; padding: 13px 14px; outline: none; }
+    label { display: grid; gap: 7px; font-size: 14px; font-weight: 600; }
+    .notice { display: none; padding: 14px 16px; line-height: 1.55; }
+    .notice.show { display: block; }
+    .toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+    .field-grid { display: grid; gap: 12px; margin-top: 12px; }
+    .form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 600px) { .form-row-2 { grid-template-columns: 1fr; } }
+    .section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .section-head-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .empty-state { padding: 36px 20px; text-align: center; color: var(--muted); font-size: 14px; }
+
+    .jenis-list { display: grid; gap: 8px; margin-top: 14px; }
+    .jenis-card { padding: 12px 16px; border-radius: 14px; display: flex; align-items: center; gap: 10px; background: rgba(242, 222, 154, 0.96) !important;}
+    .jenis-card-body { flex: 1; min-width: 0; }
+    .jenis-name { font-weight: 700; font-size: 14px; text-transform: uppercase; letter-spacing: 0.04em; }
+    .jenis-desc { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .jenis-actions { display: flex; gap: 6px; }
+    .jenis-group-label { font-size: 11px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin: 14px 0 6px; }
+    .kat-badge { display: inline-flex; padding: 3px 9px; font-size: 11px; font-weight: 700; border-radius: 6px; text-transform: uppercase; }
+    .kat-berat  { background: rgba(165,90,82,0.14); color: #8a3a30; }
+    .kat-sedang { background: rgba(181,132,57,0.14); color: #7a5a0a; }
+    .kat-ringan { background: rgba(116,132,108,0.14); color: #3a5a30; }
+    .tab-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+    .tab-btn { padding: 10px 16px; font-size: 12px; font-weight: 800 !important; letter-spacing: 0.08em; border-radius: 12px; }
+    .tab-btn.active { box-shadow: 0 14px 28px rgba(185, 118, 80, 0.22); }
+
+    .paging-host { display: grid; gap: 8px; justify-items: center; }
+    .paging { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; }
+    .page-center { display: grid; gap: 8px; justify-items: center; }
+    .page-numbers { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+    @media (max-width: 600px) { .paging { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <script src="../../shared-nav.js"></script>
+  <script src="../../shared-access.js"></script>
+  <script src="../../shared-shell.js"></script>
+  <header class="app-header">
+    <div class="header-left">
+      <button class="drawer-toggle" id="navToggle" type="button" aria-label="Toggle sidebar">Menu</button>
+      <div class="header-brand">Pendataan Santri</div>
+      <div class="header-page">Jenis Pelanggaran</div>
+    </div>
+    <div class="header-right">
+      <span class="header-chip" id="headerRole">Admin</span>
+    </div>
+  </header>
+  <div class="drawer-backdrop" id="navBackdrop"></div>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+  <main>
+    <div class="app-layout">
+      <section class="panel nav" id="nav"></section>
+      <div class="content-stack">
+
+        <section class="panel">
+          <div class="section-head">
+            <div>
+              <h2>Jenis Pelanggaran</h2>
+              <p style="color:var(--muted);font-size:13px;margin-top:4px;">Kelola daftar jenis pelanggaran, kategori, dan deskripsinya.</p>
+            </div>
+            <div class="section-head-actions">
+              <button class="primary" type="button" id="btnTambahJenis"><i class="fa-solid fa-plus"></i>&ensp;Tambah Jenis</button>
+            </div>
+          </div>
+
+          <div id="jenisFormWrap" hidden>
+            <form id="jenisForm" class="field-grid" style="margin-top:14px;">
+              <input type="hidden" id="jenisEditId">
+              <div class="form-row-2">
+                <label>Nama Jenis <span style="color:var(--danger)">*</span>
+                  <input type="text" id="jenisNama" placeholder="Nama jenis pelanggaran">
+                </label>
+                <label>Kategori <span style="color:var(--danger)">*</span>
+                  <select id="jenisKategori">
+                    <option value="">— pilih —</option>
+                    <option value="berat">Berat</option>
+                    <option value="sedang">Sedang</option>
+                    <option value="ringan">Ringan</option>
+                  </select>
+                </label>
+              </div>
+              <label>Deskripsi (opsional)
+                <input type="text" id="jenisDeskripsi" placeholder="Penjelasan singkat">
+              </label>
+              <div class="toolbar">
+                <button class="primary" type="submit" id="btnJenisSave"><i class="fa-solid fa-floppy-disk"></i>&ensp;Simpan</button>
+                <button class="secondary" type="button" id="btnJenisCancel">Batal</button>
+              </div>
+            </form>
+          </div>
+
+          <div class="tab-bar" id="katTabBar">
+            <button class="primary tab-btn active" data-kat="ringan" type="button">Ringan</button>
+            <button class="secondary tab-btn" data-kat="sedang" type="button">Sedang</button>
+            <button class="secondary tab-btn" data-kat="berat" type="button">Berat</button>
+          </div>
+
+          <div class="paging-host" id="paginationTop" style="margin-top:16px;"></div>
+          <div class="jenis-list" id="jenisList" style="margin-top:16px;"></div>
+          <div class="paging-host" id="paginationBottom" style="margin-top:16px;"></div>
+        </section>
+
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const API_BASE = window.location.origin + '/api';
+    const STORAGE = { token: 'ps_token', session: 'ps_session' };
+
+    function getToken() { return localStorage.getItem(STORAGE.token) || ''; }
+    function getStoredSession() { try { return JSON.parse(localStorage.getItem(STORAGE.session) || 'null'); } catch (_) { return null; } }
+    function getScopedSession() { return window.PSAccess && typeof window.PSAccess.getScopedSession === 'function' ? window.PSAccess.getScopedSession(getStoredSession()) : getStoredSession(); }
+    function canManage() { const s = getScopedSession(); return !!(s && s.permissions && (s.permissions.isAdmin || s.permissions.isKsantrian || s.permissions.canDelete)); }
+
+    function toParams(d) { const p = new URLSearchParams(); Object.entries(d).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') p.append(k, String(v)); }); return p; }
+    async function api(d) { const r = await fetch(API_BASE + '?' + toParams({ ...d, token: getToken() })); const j = await r.json(); if (!j.ok) throw new Error(j.error?.message || 'Error'); return j.data; }
+    async function apiPost(d) { const r = await fetch(API_BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...d, token: getToken() }) }); const j = await r.json(); if (!j.ok) throw new Error(j.error?.message || 'Error'); return j.data; }
+
+    const uiState = { counter: 0, shownAt: 0, pending: null, currentId: '' };
+    function createNoticeEl(text, type) {
+      const el = document.createElement('section');
+      el.className = `notice show ${type || 'info'}`; el.dataset.noticeId = `n-${Date.now()}-${uiState.counter += 1}`; el.textContent = text;
+      function dismiss() { if (!el.parentNode) return; el.classList.add('notice-dismissing'); setTimeout(() => { el.remove(); const s = document.getElementById('noticeStack'); if (s && !s.hasChildNodes() && s.matches(':popover-open')) s.hidePopover(); }, 220); }
+      el.addEventListener('click', dismiss); setTimeout(dismiss, type === 'error' ? 10000 : 5000); return el;
+    }
+    function showNotice(text, type) {
+      if (uiState.pending) { clearTimeout(uiState.pending); uiState.pending = null; }
+      const elapsed = Date.now() - uiState.shownAt;
+      if (elapsed < 2000 && uiState.currentId) { uiState.pending = setTimeout(() => { uiState.pending = null; showNotice(text, type); }, 2000 - elapsed); return; }
+      const el = createNoticeEl(text, type); const stack = document.getElementById('noticeStack');
+      stack.prepend(el); uiState.currentId = el.dataset.noticeId; uiState.shownAt = Date.now();
+      if (stack.matches(':popover-open')) stack.hidePopover(); stack.showPopover();
+    }
+    function esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
+    let jenisItems = [];
+    const state = { page: 1, pageSize: 10, activeKat: 'ringan', totalPages: 1 };
+
+    async function loadJenis() {
+      try { const d = await api({ action: 'pelanggaran.jenis.list', status: 'all' }); jenisItems = d.items || []; } catch (_) { jenisItems = []; }
+      renderJenisList();
+    }
+
+    function getFilteredJenisItems() {
+      return jenisItems.filter(j => (j.kategori || '').toLowerCase() === state.activeKat);
+    }
+
+    function buildPaginationList(page, totalPages) {
+      const max = 10;
+      if (totalPages <= max) return Array.from({ length: totalPages }, (_, i) => i + 1);
+      const mid = max - 2;
+      const pages = [1];
+      let start = Math.max(2, page - Math.floor(mid / 2));
+      let end = start + mid - 1;
+      if (end > totalPages - 1) { end = totalPages - 1; start = end - mid + 1; }
+      if (start > 2) pages.push('...');
+      for (let v = start; v <= end; v++) pages.push(v);
+      if (end < totalPages - 1) pages.push('...');
+      pages.push(totalPages);
+      return pages;
+    }
+
+    function renderPaging(total) {
+      const pg = state.page, totalPages = Math.max(1, Math.ceil(total / state.pageSize));
+      state.totalPages = totalPages;
+      const markup = total ? `
+        <div class="paging">
+          <button class="secondary" type="button" data-page="${pg - 1}" ${pg <= 1 ? 'disabled' : ''}>Sebelumnya</button>
+          <div class="page-center">
+            <div class="page-numbers">
+              ${buildPaginationList(pg, totalPages).map(item =>
+                item === '...'
+                  ? '<span class="page-summary">...</span>'
+                  : `<button class="secondary page-btn ${item === pg ? 'active' : ''}" type="button" data-page="${item}">${item}</button>`
+              ).join('')}
+            </div>
+            <div class="page-summary">Halaman ${pg} dari ${totalPages} &nbsp;|&nbsp; Total ${total} data</div>
+          </div>
+          <button class="secondary" type="button" data-page="${pg + 1}" ${pg >= totalPages ? 'disabled' : ''}>Berikutnya</button>
+        </div>
+      ` : '';
+      window.PSUI.syncPaginationHosts({ markup, visibleCount: total ? Math.min(state.pageSize, total) : 0, totalCount: total, topId: 'paginationTop', bottomId: 'paginationBottom' });
+    }
+
+    function renderJenisList() {
+      const list = document.getElementById('jenisList');
+      const manage = canManage();
+      const filtered = getFilteredJenisItems();
+      const totalPages = Math.max(1, Math.ceil(filtered.length / state.pageSize));
+      if (state.page > totalPages) state.page = totalPages;
+      if (!filtered.length) {
+        list.innerHTML = '<div class="empty-state">Belum ada jenis pelanggaran kategori ini.</div>';
+        renderPaging(0);
+        return;
+      }
+      const pageItems = filtered.slice((state.page - 1) * state.pageSize, state.page * state.pageSize);
+      let html = '';
+      pageItems.forEach(j => {
+        const inactive = (j.status || '').toLowerCase() === 'nonaktif';
+        html += `<div class="card jenis-card" style="${inactive ? 'opacity:0.55;' : ''}">
+          <div class="jenis-card-body">
+            <div class="jenis-name">${esc(j.nama)}${inactive ? ' <em style="font-size:10px;font-weight:400;text-transform:none;">(Nonaktif)</em>' : ''}</div>
+            ${j.deskripsi ? `<div class="jenis-desc">${esc(j.deskripsi)}</div>` : ''}
+          </div>
+          ${manage ? `<div class="jenis-actions">
+            <button class="secondary btn-edit-jenis" data-id="${esc(j.id)}" type="button" style="padding:8px 12px;" title="Edit"><i class="fa-solid fa-pen"></i></button>
+            <button class="secondary btn-toggle-jenis" data-id="${esc(j.id)}" data-status="${esc(j.status || 'Aktif')}" type="button" style="padding:8px 12px;" title="${inactive ? 'Aktifkan' : 'Nonaktifkan'}"><i class="fa-solid ${inactive ? 'fa-toggle-off' : 'fa-toggle-on'}"></i></button>
+          </div>` : ''}
+        </div>`;
+      });
+      list.innerHTML = html;
+      list.querySelectorAll('.btn-edit-jenis').forEach(b => b.addEventListener('click', () => openJenisEdit(b.dataset.id)));
+      list.querySelectorAll('.btn-toggle-jenis').forEach(b => b.addEventListener('click', () => toggleJenis(b.dataset.id, b.dataset.status)));
+      renderPaging(filtered.length);
+    }
+
+    document.getElementById('katTabBar').addEventListener('click', e => {
+      const b = e.target.closest('.tab-btn'); if (!b) return;
+      state.activeKat = b.dataset.kat;
+      state.page = 1;
+      document.querySelectorAll('#katTabBar .tab-btn').forEach(btn => {
+        const active = btn === b;
+        btn.classList.toggle('primary', active);
+        btn.classList.toggle('secondary', !active);
+        btn.classList.toggle('active', active);
+      });
+      renderJenisList();
+    });
+    document.addEventListener('click', e => {
+      const b = e.target.closest('[data-page]');
+      if (!b || b.disabled) return;
+      const p = parseInt(b.dataset.page, 10);
+      if (!p || p < 1 || p > state.totalPages || p === state.page) return;
+      state.page = p;
+      renderJenisList();
+    });
+
+    function openJenisEdit(id) {
+      const item = jenisItems.find(j => j.id === id); if (!item) return;
+      document.getElementById('jenisEditId').value = item.id;
+      document.getElementById('jenisNama').value = item.nama || '';
+      document.getElementById('jenisKategori').value = item.kategori || '';
+      document.getElementById('jenisDeskripsi').value = item.deskripsi || '';
+      document.getElementById('jenisFormWrap').hidden = false;
+      document.getElementById('jenisNama').focus();
+    }
+
+    async function toggleJenis(id, status) {
+      try {
+        const active = (status || '').toLowerCase() !== 'nonaktif';
+        await apiPost({ action: 'pelanggaran.jenis.toggle', id, status: active ? 'Nonaktif' : 'Aktif' });
+        showNotice(active ? 'Jenis dinonaktifkan.' : 'Jenis diaktifkan.');
+        await loadJenis();
+      } catch (e) { showNotice(e.message, 'error'); }
+    }
+
+    function resetForm() {
+      document.getElementById('jenisFormWrap').hidden = true;
+      document.getElementById('jenisForm').reset();
+      document.getElementById('jenisEditId').value = '';
+    }
+
+    document.getElementById('btnTambahJenis').addEventListener('click', () => {
+      resetForm();
+      document.getElementById('jenisFormWrap').hidden = false;
+      document.getElementById('jenisNama').focus();
+    });
+    document.getElementById('btnJenisCancel').addEventListener('click', resetForm);
+    document.getElementById('jenisForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      const id = document.getElementById('jenisEditId').value.trim();
+      const nama = document.getElementById('jenisNama').value.trim();
+      const kategori = document.getElementById('jenisKategori').value;
+      const deskripsi = document.getElementById('jenisDeskripsi').value.trim();
+      if (!nama) { showNotice('Nama jenis wajib diisi.', 'error'); return; }
+      if (!kategori) { showNotice('Kategori wajib dipilih.', 'error'); return; }
+      const btn = document.getElementById('btnJenisSave'); btn.disabled = true;
+      try {
+        await apiPost({ action: 'pelanggaran.jenis.save', id, nama, kategori, deskripsi });
+        showNotice(id ? 'Jenis diperbarui.' : 'Jenis ditambahkan.');
+        resetForm();
+        await loadJenis();
+      } catch (e) { showNotice(e.message, 'error'); } finally { btn.disabled = false; }
+    });
+
+    window.addEventListener('DOMContentLoaded', async () => {
+      if (window.PSAccess && window.PSAccess.redirectIfForbidden(getStoredSession(), 'jenisPelanggaran.html')) return;
+      if (window.PSShell) window.PSShell.mount({ currentPage: window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : '/pages/jenisPelanggaran/', session: getStoredSession(), getStoredSession, storageKey: STORAGE.session });
+      if (!canManage()) document.getElementById('btnTambahJenis').hidden = true;
+      await loadJenis();
+    });
+  </script>
+</body>
+</html>

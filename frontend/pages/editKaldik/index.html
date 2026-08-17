@@ -1,0 +1,580 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#9e2f22">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="../../shared-ui.css">
+  <script src="../../shared-ui.js"></script>
+  <title>Edit Kaldik</title>
+  <link rel="stylesheet" href="../../shared-shell.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700&display=swap');
+    :root {
+      --paper: #f6efe0;
+      --ink: #4d4034;
+      --muted: #7b6a58;
+      --line: rgba(91, 73, 57, 0.15);
+      --accent: #b97650;
+      --success: #74846c;
+      --danger: #a55a52;
+      --warning: #b58439;
+      --shadow: 0 18px 45px rgba(87, 67, 51, 0.18);
+      --radius: 24px;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; }
+    .panel { padding: 22px; }
+    h1, h2, h3 { margin: 0 0 10px; }
+    p { margin: 0; line-height: 1.65; }
+    .toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+    button, input, select, textarea { font: inherit; }
+    button { padding: 12px 18px; font-weight: 700; cursor: pointer; }
+    .primary { box-shadow: 0 14px 28px rgba(185, 118, 80, 0.22); }
+    input, select, textarea { width: 100%; padding: 13px 14px; outline: none; }
+    label { display: grid; gap: 7px; font-size: 14px; font-weight: 600; }
+    dialog { width: min(540px, calc(100vw - 20px)); padding: 0; }
+    .dialog-body { padding: 22px; display: grid; gap: 14px; max-height: 90vh; overflow: auto; }
+    .list { display: grid; gap: 10px; margin-top: 16px; }
+    .empty-state { padding: 32px 16px; text-align: center; color: var(--muted); font-size: 14px; line-height: 1.65; }
+    h2, h3 { text-transform: uppercase; }
+
+    /* Filter bar */
+    .filter-bar {
+      display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; align-items: center;
+    }
+    .filter-bar select, .filter-bar input[type="month"] {
+      width: auto; flex: 1; min-width: 140px;
+      padding: 10px 14px; border-radius: 20px;
+      border: 1.5px solid var(--line); background: var(--paper); color: var(--ink);
+    }
+
+    /* Event card */
+    .ev-card {
+      padding: 14px 18px; display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 6px 12px; align-items: start;
+      border-left: 4px solid var(--accent);
+    }
+    .ev-card-judul { font-size: 15px; font-weight: 700; margin: 0 0 3px; }
+    .ev-card-date { font-size: 12px; color: var(--muted); font-weight: 600; margin: 0; }
+    .ev-card-desc { font-size: 12.5px; color: var(--muted); margin: 4px 0 0; line-height: 1.5; }
+    .ev-card-actions { display: flex; gap: 6px; }
+    .ev-badge-small {
+      display: inline-flex; align-items: center; gap: 5px;
+      border-radius: 20px; padding: 3px 9px;
+      font-size: 10px; font-weight: 700; color: #fff; white-space: nowrap;
+    }
+
+    /* Color picker in form */
+    .color-picker { display: flex; flex-wrap: wrap; gap: 8px; }
+    .color-opt { display: none; }
+    .color-opt + label {
+      display: flex; align-items: center; gap: 7px;
+      padding: 8px 14px; border-radius: 20px; cursor: pointer;
+      border: 2px solid transparent; font-size: 12px; font-weight: 700;
+      transition: border-color 0.13s, box-shadow 0.13s;
+      color: var(--ink); user-select: none;
+    }
+    .color-opt + label::before {
+      content: ''; width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0;
+    }
+    .color-opt:checked + label {
+      border-color: var(--ink); box-shadow: 0 2px 8px rgba(0,0,0,0.13);
+    }
+    .color-opt[value="merah"]  + label::before { background: #e57373; }
+    .color-opt[value="kuning"] + label::before { background: #e6b800; }
+    .color-opt[value="hijau"]  + label::before { background: #5daa7a; }
+    .color-opt[value="biru"]   + label::before { background: #4e8fc0; }
+    .color-opt[value="ungu"]   + label::before { background: #8b64c2; }
+    .color-opt[value="oranye"] + label::before { background: #e07b2c; }
+
+    /* Border color per warna */
+    .border-merah  { border-left-color: #e57373; }
+    .border-kuning { border-left-color: #e6b800; }
+    .border-hijau  { border-left-color: #5daa7a; }
+    .border-biru   { border-left-color: #4e8fc0; }
+    .border-ungu   { border-left-color: #8b64c2; }
+    .border-oranye { border-left-color: #e07b2c; }
+
+    /* Range indicator */
+    .range-info {
+      font-size: 12px; color: var(--muted); font-weight: 600; padding: 6px 0 0;
+    }
+    .range-info span { color: var(--accent); font-weight: 700; }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-left">
+      <button class="drawer-toggle" id="navToggle" type="button" aria-label="Toggle sidebar">Menu</button>
+      <div class="header-brand">Pendataan Santri</div>
+      <div class="header-page">Edit Kaldik</div>
+    </div>
+    <div class="header-right">
+      <span class="header-chip" id="headerRole">Admin</span>
+    </div>
+  </header>
+  <div class="drawer-backdrop" id="navBackdrop"></div>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+
+  <main>
+    <div class="app-layout">
+      <section class="panel nav" id="nav"></section>
+      <div class="content-stack">
+        <section class="notice info" id="notice"></section>
+        <section class="panel">
+          <div class="section-head">
+            <h2>Edit Kalender Akademik</h2>
+            <p>Tambah dan kelola agenda, jadwal ujian, libur, dan kegiatan pesantren.</p>
+          </div>
+
+          <div class="toolbar">
+            <button class="primary" id="addButton" type="button">+ Tambah acara</button>
+            <button class="secondary" id="refreshButton" type="button">Muat ulang</button>
+          </div>
+
+          <div class="filter-bar">
+            <select id="filterTa">
+              <option value="">Semua tahun ajaran</option>
+            </select>
+            <input type="month" id="filterMonth" title="Filter bulan">
+            <select id="filterWarna">
+              <option value="">Semua kategori</option>
+              <option value="merah">Libur / Hari Besar</option>
+              <option value="kuning">Ujian / Evaluasi</option>
+              <option value="hijau">Kegiatan</option>
+              <option value="biru">Akademik</option>
+              <option value="ungu">Rapat / Admin</option>
+              <option value="oranye">Lainnya</option>
+            </select>
+          </div>
+
+          <div class="list" id="list">
+            <p class="empty-state">Memuat data...</p>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <div id="dialogRoot">
+    <dialog class="ps-floating-dialog" id="dialog">
+      <form class="dialog-body duplicate-dialog-body ps-dialog-shell" id="form" method="dialog">
+        <div class="duplicate-dialog-head ps-dialog-header">
+          <div>
+            <h3 id="dialogTitle">Tambah acara</h3>
+            <p>Isi detail acara. Gunakan tanggal selesai untuk acara multi-hari.</p>
+          </div>
+        </div>
+        <input type="hidden" name="id">
+
+        <label>
+          Judul acara <span style="color:var(--danger)">*</span>
+          <input type="text" name="judul" required placeholder="Contoh: Ujian Tengah Semester, Hari Raya Idul Fitri">
+        </label>
+
+        <label>
+          Deskripsi / keterangan
+          <textarea name="deskripsi" rows="2" placeholder="Opsional — tambahkan detail atau catatan"></textarea>
+        </label>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <label>
+            Tanggal mulai <span style="color:var(--danger)">*</span>
+            <input type="date" name="tanggalMulai" required>
+          </label>
+          <label>
+            Tanggal selesai
+            <input type="date" name="tanggalSelesai">
+          </label>
+        </div>
+
+        <div class="range-info" id="rangeInfo" style="display:none">
+          Range: <span id="rangeLabel"></span>
+        </div>
+
+        <div>
+          <div style="font-size:14px;font-weight:600;margin-bottom:8px">Kategori warna</div>
+          <div class="color-picker">
+            <input class="color-opt" type="radio" name="warna" id="c-merah"  value="merah">
+            <label for="c-merah">Libur / Hari Besar</label>
+            <input class="color-opt" type="radio" name="warna" id="c-kuning" value="kuning">
+            <label for="c-kuning">Ujian / Evaluasi</label>
+            <input class="color-opt" type="radio" name="warna" id="c-hijau"  value="hijau">
+            <label for="c-hijau">Kegiatan</label>
+            <input class="color-opt" type="radio" name="warna" id="c-biru"   value="biru" checked>
+            <label for="c-biru">Akademik</label>
+            <input class="color-opt" type="radio" name="warna" id="c-ungu"   value="ungu">
+            <label for="c-ungu">Rapat / Admin</label>
+            <input class="color-opt" type="radio" name="warna" id="c-oranye" value="oranye">
+            <label for="c-oranye">Lainnya</label>
+          </div>
+        </div>
+
+        <div class="toolbar ps-dialog-footer">
+          <button class="primary" id="saveFormButton" type="submit">Simpan</button>
+          <button class="secondary" id="closeDialog" type="button">Batal</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="ps-floating-dialog danger-dialog" id="deleteDialog">
+      <form class="dialog-body duplicate-dialog-body ps-dialog-shell" id="deleteForm" method="dialog">
+        <div class="duplicate-dialog-head ps-dialog-header danger-dialog-copy">
+          <div>
+            <h3>Hapus acara</h3>
+            <p id="deleteDialogMsg">Acara ini akan dihapus permanen.</p>
+          </div>
+        </div>
+        <div class="toolbar ps-dialog-footer">
+          <button class="danger" id="confirmDeleteButton" type="submit">Hapus permanen</button>
+          <button class="secondary" id="closeDeleteDialog" type="button">Batal</button>
+        </div>
+      </form>
+    </dialog>
+  </div>
+
+  <script src="../../shared-access.js"></script>
+  <script src="../../shared-nav.js"></script>
+  <script src="../../shared-shell.js"></script>
+  <script>
+    const STORAGE = { apiBase: 'ps_api_base', token: 'ps_token', session: 'ps_session' };
+    const state = { items: [], tahunAjaranList: [], deleteTargetId: null };
+    const uiState = { currentNoticeId: '', noticeCounter: 0, noticeShownAt: 0, pendingNotice: null };
+
+    const WARNA = {
+      merah:  { label: 'Libur / Hari Besar',  hex: '#e57373' },
+      kuning: { label: 'Ujian / Evaluasi',     hex: '#e6b800' },
+      hijau:  { label: 'Kegiatan',             hex: '#5daa7a' },
+      biru:   { label: 'Akademik',             hex: '#4e8fc0' },
+      ungu:   { label: 'Rapat / Administrasi', hex: '#8b64c2' },
+      oranye: { label: 'Lainnya',              hex: '#e07b2c' }
+    };
+
+    function escapeHtml(s) {
+      return String(s == null ? '' : s)
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+        .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    }
+
+    function getApiBase()       { return localStorage.getItem(STORAGE.apiBase) || ''; }
+    function getToken()         { return localStorage.getItem(STORAGE.token) || ''; }
+    function getStoredSession() { try { return JSON.parse(localStorage.getItem(STORAGE.session) || 'null'); } catch(e) { return null; } }
+    function clearSession()     { localStorage.removeItem(STORAGE.token); localStorage.removeItem(STORAGE.session); }
+
+    function canManageRecords() {
+      const session = window.PSAccess && typeof window.PSAccess.getScopedSession === 'function'
+        ? window.PSAccess.getScopedSession(getStoredSession())
+        : getStoredSession();
+      const p = session && session.permissions;
+      return !!(p && (p.isAdmin || p.isSuperAdmin || p.isAcademic));
+    }
+
+    function createNoticeElement(text, type) {
+      const el = document.createElement('section');
+      el.className = 'notice show ' + (type || 'info');
+      el.dataset.noticeId = 'n-' + Date.now() + '-' + (uiState.noticeCounter += 1);
+      el.textContent = text;
+      function dismiss() {
+        if (!el.parentNode) return;
+        el.classList.add('notice-dismissing');
+        setTimeout(() => { el.remove(); }, 220);
+      }
+      el.addEventListener('click', dismiss);
+      setTimeout(dismiss, type === 'error' ? 10000 : 5000);
+      return el;
+    }
+    function showNotice(text, type) {
+      if (uiState.pendingNotice) { clearTimeout(uiState.pendingNotice); uiState.pendingNotice = null; }
+      const elapsed = Date.now() - uiState.noticeShownAt;
+      if (elapsed < 2000 && uiState.currentNoticeId) {
+        uiState.pendingNotice = setTimeout(() => { uiState.pendingNotice = null; showNotice(text, type); }, 2000 - elapsed);
+        return;
+      }
+      clearNotice();
+      const el = createNoticeElement(text, type);
+      const stack = document.getElementById('noticeStack');
+      stack.prepend(el);
+      uiState.currentNoticeId = el.dataset.noticeId;
+      uiState.noticeShownAt = Date.now();
+      if (stack.matches(':popover-open')) stack.hidePopover();
+      stack.showPopover();
+    }
+    function clearNotice() {
+      if (uiState.pendingNotice) { clearTimeout(uiState.pendingNotice); uiState.pendingNotice = null; }
+      if (!uiState.currentNoticeId) return;
+      const el = document.querySelector('[data-notice-id="' + uiState.currentNoticeId + '"]');
+      if (el) el.remove();
+      uiState.currentNoticeId = '';
+    }
+
+    async function api(action, payload, method) {
+      const apiBase = getApiBase();
+      const token = getToken();
+      if (!apiBase || !token) { clearSession(); window.location.replace('/pages/login/'); throw new Error('Sesi tidak ditemukan.'); }
+      payload = payload || {};
+      method = method || 'GET';
+      if (method === 'GET') {
+        const params = new URLSearchParams({ action, token, ...payload });
+        const res = await fetch(apiBase + '?' + params.toString());
+        const json = await res.json();
+        if (!json.ok) throw new Error(json.error && json.error.message ? 'Server: ' + json.error.message : 'Permintaan gagal.');
+        return json.data;
+      }
+      const res = await fetch(apiBase + '?action=' + encodeURIComponent(action) + '&token=' + encodeURIComponent(token), {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error && json.error.message ? 'Server: ' + json.error.message : 'Permintaan gagal.');
+      return json.data;
+    }
+
+    function formatDate(str) {
+      if (!str) return '';
+      try {
+        const [y, m, d] = str.split('-').map(Number);
+        return new Date(y, m - 1, d).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+      } catch(e) { return str; }
+    }
+
+    function diffDays(start, end) {
+      if (!start || !end) return 0;
+      const a = new Date(start), b = new Date(end);
+      return Math.round((b - a) / 86400000);
+    }
+
+    function getFilteredItems() {
+      const taId  = document.getElementById('filterTa').value;
+      const month = document.getElementById('filterMonth').value;
+      const warna = document.getElementById('filterWarna').value;
+      const selectedTa = taId ? state.tahunAjaranList.find(function(x) { return x.id === taId; }) : null;
+
+      return state.items.filter(function(ev) {
+        if (warna && ev.warna !== warna) return false;
+        const evStart = ev.tanggalMulai || '';
+        const evEnd   = ev.tanggalSelesai || evStart;
+        if (selectedTa) {
+          const taStart = selectedTa.tanggalMulai || '';
+          const taEnd   = selectedTa.tanggalSelesai || '';
+          if (taStart || taEnd) {
+            if (taEnd && evStart > taEnd) return false;
+            if (taStart && evEnd < taStart) return false;
+          }
+        }
+        if (month) {
+          const [y, m] = month.split('-').map(Number);
+          const monthStart = y + '-' + String(m).padStart(2, '0') + '-01';
+          const nextMonth  = m === 12
+            ? (y + 1) + '-01-01'
+            : y + '-' + String(m + 1).padStart(2, '0') + '-01';
+          if (evEnd < monthStart || evStart >= nextMonth) return false;
+        }
+        return true;
+      }).sort(function(a, b) {
+        return (a.tanggalMulai || '').localeCompare(b.tanggalMulai || '');
+      });
+    }
+
+    function renderList() {
+      const items = getFilteredItems();
+      const list  = document.getElementById('list');
+      if (!items.length) {
+        list.innerHTML = '<p class="empty-state">Belum ada acara yang cocok dengan filter.<br>Klik "Tambah acara" untuk menambahkan.</p>';
+        return;
+      }
+      list.innerHTML = items.map(function(ev) {
+        const w = WARNA[ev.warna] || WARNA.oranye;
+        const isSingle = ev.tanggalMulai === (ev.tanggalSelesai || ev.tanggalMulai);
+        const days = diffDays(ev.tanggalMulai, ev.tanggalSelesai);
+        const dateLabel = isSingle
+          ? formatDate(ev.tanggalMulai)
+          : formatDate(ev.tanggalMulai) + ' — ' + formatDate(ev.tanggalSelesai)
+            + ' <span style="color:var(--muted);font-size:11px">(' + (days + 1) + ' hari)</span>';
+
+        return '<div class="card ev-card border-' + escapeHtml(ev.warna || 'biru') + '">'
+          + '<div class="ev-card-info">'
+          + '<p class="ev-card-judul">' + escapeHtml(ev.judul) + '</p>'
+          + '<p class="ev-card-date">' + dateLabel + '</p>'
+          + (ev.deskripsi ? '<p class="ev-card-desc">' + escapeHtml(ev.deskripsi) + '</p>' : '')
+          + '</div>'
+          + '<div class="ev-card-actions">'
+          + '<span class="ev-badge-small" style="background:' + w.hex + '">' + escapeHtml(w.label) + '</span>'
+          + '<button class="secondary" type="button" data-edit="' + escapeHtml(ev.id) + '" style="padding:7px 12px;font-size:12px">Edit</button>'
+          + (canManageRecords() ? '<button class="danger" type="button" data-delete="' + escapeHtml(ev.id) + '" style="padding:7px 12px;font-size:12px">Hapus</button>' : '')
+          + '</div>'
+          + '</div>';
+      }).join('');
+    }
+
+    async function loadData() {
+      clearNotice();
+      showNotice('Memuat data...', 'info');
+      try {
+        const [kaldikData, taData] = await Promise.all([
+          api('kaldik.list'),
+          api('tahunAjaran.list')
+        ]);
+        state.items = kaldikData.items || [];
+        state.tahunAjaranList = taData.items || [];
+
+        const sel = document.getElementById('filterTa');
+        const activeTa = state.tahunAjaranList.find(function(x) { return x.isAktif; });
+        sel.innerHTML = '<option value="">Semua tahun ajaran</option>'
+          + state.tahunAjaranList.map(function(ta) {
+            return '<option value="' + escapeHtml(ta.id) + '"'
+              + (activeTa && ta.id === activeTa.id ? ' selected' : '') + '>'
+              + escapeHtml(ta.namaDisplay || ta.nama) + '</option>';
+          }).join('');
+
+        clearNotice();
+        renderList();
+      } catch(err) {
+        showNotice(err.message || 'Gagal memuat data.', 'error');
+      }
+    }
+
+    function syncRangeInfo() {
+      const form  = document.getElementById('form');
+      const start = form.elements.namedItem('tanggalMulai').value;
+      const end   = form.elements.namedItem('tanggalSelesai').value;
+      const info  = document.getElementById('rangeInfo');
+      const label = document.getElementById('rangeLabel');
+      if (start && end && end > start) {
+        const days = diffDays(start, end);
+        label.textContent = formatDate(start) + ' sampai ' + formatDate(end) + ' (' + (days + 1) + ' hari)';
+        info.style.display = 'block';
+      } else {
+        info.style.display = 'none';
+      }
+    }
+
+    function openDialog(item) {
+      const form   = document.getElementById('form');
+      const fields = form.elements;
+      document.getElementById('dialogTitle').textContent = item ? 'Edit acara' : 'Tambah acara';
+      fields.namedItem('id').value             = (item && item.id)             || '';
+      fields.namedItem('judul').value          = (item && item.judul)          || '';
+      fields.namedItem('deskripsi').value      = (item && item.deskripsi)      || '';
+      fields.namedItem('tanggalMulai').value   = (item && item.tanggalMulai)   || '';
+      fields.namedItem('tanggalSelesai').value = (item && item.tanggalSelesai) || '';
+
+      const warna = (item && item.warna) || 'biru';
+      const radio = form.querySelector('input[name="warna"][value="' + warna + '"]');
+      if (radio) radio.checked = true;
+      else {
+        const def = form.querySelector('input[name="warna"][value="biru"]');
+        if (def) def.checked = true;
+      }
+
+      syncRangeInfo();
+      window.PSUI.applyPermissionLock(document.getElementById('saveFormButton'), canManageRecords(), 'Mudir hanya bisa melihat kalender akademik, tidak bisa menyimpan perubahan.');
+      document.getElementById('dialog').showModal();
+    }
+
+    async function saveForm(event) {
+      event.preventDefault();
+      const form   = event.currentTarget;
+      const fields = form.elements;
+
+      const tanggalMulai   = fields.namedItem('tanggalMulai').value;
+      const tanggalSelesai = fields.namedItem('tanggalSelesai').value;
+      if (tanggalSelesai && tanggalSelesai < tanggalMulai) {
+        showNotice('Tanggal selesai tidak boleh sebelum tanggal mulai.', 'error');
+        return;
+      }
+
+      const warnaEl = form.querySelector('input[name="warna"]:checked');
+      const record  = {
+        id:             fields.namedItem('id').value.trim(),
+        judul:          fields.namedItem('judul').value.trim(),
+        deskripsi:      fields.namedItem('deskripsi').value.trim(),
+        tanggalMulai,
+        tanggalSelesai: tanggalSelesai || tanggalMulai,
+        warna:          warnaEl ? warnaEl.value : 'biru'
+      };
+
+      try {
+        showNotice('Menyimpan...', 'info');
+        await api('kaldik.save', { record }, 'POST');
+        document.getElementById('dialog').close();
+        await loadData();
+        showNotice('Acara berhasil disimpan.', 'success');
+      } catch(err) {
+        showNotice(err.message || 'Gagal menyimpan.', 'error');
+      }
+    }
+
+    function openDeleteDialog(id) {
+      const ev = state.items.find(function(x) { return x.id === id; });
+      if (!ev) return;
+      state.deleteTargetId = id;
+      document.getElementById('deleteDialogMsg').textContent =
+        '"' + ev.judul + '" akan dihapus permanen dari kalender.';
+      document.getElementById('deleteDialog').showModal();
+    }
+
+    async function confirmDelete() {
+      const id = state.deleteTargetId;
+      if (!id) return;
+      try {
+        showNotice('Menghapus...', 'info');
+        await api('kaldik.delete', { id }, 'POST');
+        document.getElementById('deleteDialog').close();
+        state.deleteTargetId = null;
+        await loadData();
+        showNotice('Acara dihapus.', 'success');
+      } catch(err) {
+        showNotice(err.message || 'Gagal menghapus.', 'error');
+      }
+    }
+
+    function mountShell() {
+      return window.PSShell.mount({
+        currentPage: window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : '/pages/editKaldik/',
+        session: getStoredSession(),
+        getStoredSession,
+        storageKey: STORAGE.session
+      });
+    }
+
+    const initialSession = getStoredSession();
+    if (!initialSession) { clearSession(); window.location.replace('/pages/login/'); }
+    else if (!(window.PSAccess && window.PSAccess.redirectIfForbidden(initialSession, '/pages/editKaldik/'))) {
+      mountShell();
+      loadData();
+
+      window.PSUI.applyPermissionLock(document.getElementById('addButton'), canManageRecords(), 'Mudir hanya bisa melihat kalender akademik, tidak bisa menambah acara.');
+      document.getElementById('addButton').addEventListener('click', function() { openDialog(null); });
+      document.getElementById('refreshButton').addEventListener('click', loadData);
+      document.getElementById('form').addEventListener('submit', saveForm);
+      document.getElementById('closeDialog').addEventListener('click', function() { document.getElementById('dialog').close(); });
+      document.getElementById('deleteForm').addEventListener('submit', function(e) { e.preventDefault(); confirmDelete(); });
+      document.getElementById('closeDeleteDialog').addEventListener('click', function() { document.getElementById('deleteDialog').close(); });
+
+      document.getElementById('form').elements.namedItem('tanggalMulai').addEventListener('change', syncRangeInfo);
+      document.getElementById('form').elements.namedItem('tanggalSelesai').addEventListener('change', syncRangeInfo);
+
+      document.getElementById('filterTa').addEventListener('change', renderList);
+      document.getElementById('filterMonth').addEventListener('change', renderList);
+      document.getElementById('filterWarna').addEventListener('change', renderList);
+
+      document.getElementById('list').addEventListener('click', function(e) {
+        const editBtn   = e.target.closest('[data-edit]');
+        const deleteBtn = e.target.closest('[data-delete]');
+        if (editBtn) {
+          const item = state.items.find(function(x) { return x.id === editBtn.getAttribute('data-edit'); });
+          if (item) openDialog(item);
+        } else if (deleteBtn) {
+          openDeleteDialog(deleteBtn.getAttribute('data-delete'));
+        }
+      });
+    }
+  </script>
+</body>
+</html>

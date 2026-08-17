@@ -1,0 +1,1913 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#9e2f22">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+    <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="stylesheet" href="../../shared-ui.css">
+    <script src="../../shared-ui.js"></script>
+  <title>Setoran Tasmi' Pekanan</title>
+  <link rel="stylesheet" href="../../shared-shell.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700&display=swap');
+    :root {
+      --paper: #f6efe0;
+      --ink: #4d4034;
+      --muted: #7b6a58;
+      --line: rgba(91, 73, 57, 0.15);
+      --accent: #b97650;
+      --success: #4e7a55;
+      --success-soft: rgb(150, 214, 163);
+      --warning: #9f7600;
+      --warning-soft: rgb(255, 210, 76);
+      --sick: #c4661f;
+      --sick-soft: rgb(255, 165, 110);
+      --alpha: #b23d3d;
+      --alpha-soft: rgb(255, 140, 140);
+      --status-empty: #a39a8f;
+      --status-empty-soft: rgba(163, 154, 143, 0.12);
+      --info: #4b6f9f;
+      --info-soft: rgb(150, 185, 235);
+      --danger: #a55a52;
+      --shadow: 0 18px 45px rgba(87, 67, 51, 0.18);
+      --radius: 24px;
+    }
+    * { box-sizing: border-box; }
+
+    body { margin: 0; min-height: 100vh; }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.15;
+      mix-blend-mode: multiply;
+    }
+
+    .panel { padding: 22px; }
+
+    h1, h2, h3 { margin: 0 0 10px; text-transform: uppercase; }
+
+    p { margin: 0; line-height: 1.6; }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 16px;
+      align-items: flex-end;
+    }
+
+    .toolbar label {
+      display: grid;
+      gap: 6px;
+      font-size: 13px;
+      font-weight: 700;
+      min-width: 220px;
+    }
+
+    button, input, select, textarea { font: inherit; }
+
+    button {
+      padding: 11px 18px;
+      font-weight: 800;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+
+    .primary { box-shadow: 0 14px 28px rgba(185, 118, 80, 0.22); }
+    .primary:disabled {
+      background: #cfcac2;
+      border-color: #8a8378;
+      color: #6b665d;
+      box-shadow: none;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      padding: 11px 13px;
+      outline: none;
+    }
+
+    .notice {
+      display: none;
+      padding: 14px 16px;
+      line-height: 1.55;
+    }
+    .notice.show { display: block; }
+
+    .catatan-box {
+      margin-top: 16px;
+    }
+    .catatan-box textarea {
+      min-height: 70px;
+      resize: vertical;
+    }
+
+    .grid-wrap {
+      margin-top: 18px;
+      overflow: auto;
+      max-height: 60vh;
+      border: 1.5px solid var(--line);
+      border-radius: 14px;
+    }
+
+    #halaqohList .minimal-list-card-toggle { white-space: normal; text-align: center; }
+    .paging-host { display: grid; gap: 8px; margin: 16px 0; }
+    .paging { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; }
+    .page-center { display: grid; gap: 8px; justify-items: center; }
+    .page-numbers { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+    .page-summary { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+    @media (max-width: 960px) { .paging { grid-template-columns: 1fr; } }
+
+    table.setoran-table {
+      border-collapse: separate;
+      border-spacing: 0;
+      font-size: 12px;
+    }
+
+    .setoran-table th, .setoran-table td {
+      border: 1px solid var(--line);
+      padding: 0;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    .setoran-table thead th {
+      position: sticky;
+      top: 0;
+      background: #efe4cf;
+      padding: 6px 4px;
+      font-size: 10.5px;
+    }
+
+    .setoran-table thead tr.group-row th {
+      top: 0;
+      font-size: 11px;
+    }
+
+    .setoran-table thead tr.item-row th {
+      top: 27px;
+    }
+
+    .col-no, .col-name {
+      position: sticky;
+      z-index: 3;
+      background: var(--paper);
+    }
+    .col-no { left: 0; min-width: 30px; }
+    .col-name { left: 30px; min-width: 150px; text-align: left; padding: 6px 8px !important; }
+    .santri-dibekukan-badge { display: inline-flex; margin-left: 6px; padding: 1px 8px; font-size: 10px; font-weight: 700; border-radius: 999px; background: rgba(181,132,57,0.18); color: var(--warning, #b8860b); text-transform: uppercase; vertical-align: middle; }
+    .hide-name-col .col-name { display: none; }
+    .col-catatan { min-width: 160px; text-align: left; padding: 3px 6px !important; background: var(--paper); }
+    .col-status { min-width: 130px; text-align: left; padding: 3px 6px !important; background: var(--paper); }
+    thead .col-no, thead .col-name { z-index: 6; background: #efe4cf; }
+    thead .col-catatan, thead .col-status { background: #efe4cf; }
+
+    .status-select {
+      width: 100%;
+      padding: 5px 6px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      background: var(--status-empty-soft);
+      color: var(--status-empty);
+    }
+    .status-select[data-value="lulus"] { background: var(--success-soft); color: var(--success); }
+    .status-select[data-value="gagal"] { background: var(--alpha-soft); color: var(--alpha); }
+    .status-select[data-value="tidak"] { background: var(--warning-soft); color: var(--warning); }
+
+    .catatan-cell-input {
+      width: 100%;
+      padding: 5px 7px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      font-size: 12px;
+      background: rgba(255,255,255,0.7);
+    }
+    .catatan-cell-input:focus { border-color: var(--accent); outline: none; }
+    .catatan-wajib-info {
+      position: absolute; inset: 0; width: 100%; height: 100%; z-index: 20;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+      padding: 24px; text-align: center;
+      background: rgba(181, 132, 57, 0.85);
+      color: #fff;
+    }
+    .catatan-wajib-info[hidden] { display: none; }
+    .catatan-wajib-info p { margin: 0; max-width: 420px; font-size: 15px; line-height: 1.55; }
+    .catatan-wajib-info button { padding: 9px 28px; border: none; border-radius: 10px; background: #fff; color: var(--warning); font-size: 13px; font-weight: 800; cursor: pointer; }
+
+    .col-akum {
+      min-width: 78px;
+      font-weight: 700;
+      background: rgba(185, 118, 80, 0.08);
+    }
+
+    .cell-toggle {
+      min-width: 26px;
+      width: 26px;
+      height: 26px;
+      cursor: pointer;
+      font-weight: 800;
+      user-select: none;
+      background: var(--status-empty-soft);
+      color: var(--status-empty);
+    }
+    .cell-toggle:hover { filter: brightness(0.96); }
+
+    .cell-toggle[data-value="0"] { background: var(--success-soft); color: var(--success); }
+    .cell-toggle[data-value="1"] { background: var(--warning-soft); color: var(--warning); }
+    .cell-toggle[data-value="2"] { background: var(--sick-soft); color: var(--sick); }
+    .cell-toggle[data-value="3"] { background: var(--alpha-soft); color: var(--alpha); }
+
+    .legend {
+      margin-top: 14px;
+      display: grid;
+      gap: 4px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .legend-swatches {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 6px;
+    }
+    .legend-swatch {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11.5px;
+      font-weight: 700;
+    }
+    .legend-swatch i {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border-radius: 4px;
+    }
+
+    #tasmiInputDialog {
+      width: 100% !important;
+      min-width: 100% !important;
+      max-width: 100% !important;
+      height: 100% !important;
+      min-height: 100% !important;
+      max-height: 100% !important;
+      margin: 0;
+      padding: 0;
+      border: 0;
+      border-radius: 0;
+      box-sizing: border-box !important;
+      overflow: hidden !important;
+      box-shadow: 0 34px 90px rgba(42, 28, 16, 0.34);
+    }
+    #tasmiInputDialog::backdrop {
+      background: rgba(35, 24, 15, 0.52);
+      backdrop-filter: blur(6px);
+    }
+    .tasmi-input-shell {
+      position: relative;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background:
+        linear-gradient(135deg, rgba(255, 253, 247, 0.98), rgba(247, 226, 156, 0.9)),
+        #fff8e6;
+    }
+    #closeTasmiInputDialogButton {
+      width: 38px;
+      height: 38px;
+      border: none;
+      border-radius: 50%;
+      background: rgba(94, 68, 49, 0.1);
+      color: #29170f;
+      font-size: 18px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800 !important;
+      text-transform: none !important;
+      flex-shrink: 0;
+    }
+    #closeTasmiInputDialogButton:hover { background: rgba(94, 68, 49, 0.2); }
+    #tasmiInputDialogBody { overflow: auto; flex: 1; padding: 18px 22px; }
+
+    #tasmiRekapOverlay {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      background: rgba(35, 24, 15, 0.52);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(4px);
+    }
+    #tasmiRekapOverlay[hidden] { display: none; }
+    #tasmiRekapPanel {
+      position: relative;
+      width: 80%;
+      max-width: 640px;
+      max-height: 80vh;
+      background:
+        linear-gradient(135deg, rgba(255, 253, 247, 0.98), rgba(247, 226, 156, 0.9)),
+        #fff8e6;
+      border: 1px solid rgba(94, 68, 49, 0.16);
+      border-radius: 24px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 24px 70px rgba(33, 23, 14, 0.28);
+    }
+    .rekap-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 16px 22px;
+      border-bottom: 1px solid rgba(94, 68, 49, 0.14);
+      background: rgba(255, 251, 238, 0.9);
+      flex-shrink: 0;
+    }
+    .rekap-head h3 { margin: 0; font-size: 1.1rem; color: #29170f; line-height: 1.3; text-transform: none; }
+    #closeTasmiRekapButton {
+      width: 38px;
+      height: 38px;
+      border: none;
+      border-radius: 50%;
+      background: rgba(94, 68, 49, 0.1);
+      color: #29170f;
+      font-size: 18px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800 !important;
+      text-transform: none !important;
+      flex-shrink: 0;
+    }
+    #closeTasmiRekapButton:hover { background: rgba(94, 68, 49, 0.2); }
+    #tasmiRekapBody { overflow: auto; flex: 1; padding: 18px 22px; }
+    .rekap-cat { margin-bottom: 22px; }
+    .rekap-cat-title {
+      font-size: 0.82rem;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin: 0 0 10px;
+      padding: 4px 12px;
+      border-radius: 999px;
+      display: inline-block;
+    }
+    .rekap-cat-title.sakit { background: var(--sick-soft); color: var(--sick); }
+    .rekap-cat-title.izin { background: var(--warning-soft); color: var(--warning); }
+    .rekap-names { color: var(--ink); line-height: 1.7; }
+    .rekap-empty { color: var(--muted); font-size: 0.92rem; font-style: italic; margin: 0; }
+
+    #unsavedOverlay {
+      position: fixed;
+      inset: 0;
+      z-index: 60;
+      background: rgba(35, 24, 15, 0.52);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(4px);
+    }
+    #unsavedOverlay[hidden] { display: none; }
+    #unsavedPanel {
+      width: min(420px, 92vw);
+      padding: 22px;
+      display: grid;
+      gap: 14px;
+      border: 1px solid rgba(94, 68, 49, 0.16);
+      border-radius: 16px;
+      background:
+        linear-gradient(135deg, rgba(255, 253, 247, 0.98), rgba(247, 226, 156, 0.9)),
+        #fff8e6;
+      box-shadow: 0 24px 70px rgba(33, 23, 14, 0.28);
+      color: #3a2f25;
+    }
+    #unsavedPanel h3 { margin: 0; font-size: 1.15rem; text-transform: none; }
+    #unsavedPanel p { margin: 0; font-size: 13.5px; line-height: 1.6; text-transform: none; }
+    #unsavedPanel .unsaved-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 10px; }
+
+    .pengampu-info {
+      margin-top: 16px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 26px;
+      font-size: 13px;
+      color: var(--ink);
+      padding: 10px 14px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: rgba(255, 251, 238, 0.75);
+    }
+    .pengampu-info strong { color: var(--accent); text-transform: uppercase; font-size: 11px; letter-spacing: 0.04em; }
+
+    #tasmiRekapBulananOverlay {
+      position: fixed;
+      inset: 0;
+      z-index: 55;
+      background: rgba(35, 24, 15, 0.52);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(4px);
+    }
+    #tasmiRekapBulananOverlay[hidden] { display: none; }
+    #tasmiRekapBulananPanel {
+      width: 92%;
+      max-width: 960px;
+      max-height: 86vh;
+      padding: 0;
+      background:
+        linear-gradient(135deg, rgba(255, 253, 247, 0.98), rgba(247, 226, 156, 0.9)),
+        #fff8e6;
+      border: 1px solid rgba(94, 68, 49, 0.16);
+      border-radius: 24px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 24px 70px rgba(33, 23, 14, 0.28);
+    }
+    #closeTasmiRekapBulananButton {
+      width: 38px;
+      height: 38px;
+      border: none;
+      border-radius: 50%;
+      background: rgba(94, 68, 49, 0.1);
+      color: #29170f;
+      font-size: 18px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800 !important;
+      text-transform: none !important;
+      flex-shrink: 0;
+    }
+    #closeTasmiRekapBulananButton:hover { background: rgba(94, 68, 49, 0.2); }
+    .rekap-bulanan-controls { padding: 14px 22px 0; flex-shrink: 0; display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .rekap-bulanan-controls label { display: grid; gap: 6px; font-size: 13px; font-weight: 700; max-width: 200px; }
+    #tasmiRekapBulananBody { overflow: auto; flex: 1; padding: 18px 22px; }
+
+    table.rekap-bulanan-table { border-collapse: separate; border-spacing: 0; font-size: 12px; width: 100%; }
+    .rekap-bulanan-table th, .rekap-bulanan-table td { border: 1px solid var(--line); padding: 6px 8px; text-align: center; white-space: nowrap; }
+    .rekap-bulanan-table thead th { background: #efe4cf; position: sticky; top: 0; font-size: 11px; }
+    .rb-name { text-align: left; font-weight: 700; }
+    .rb-lulus { background: var(--success-soft); color: var(--success); font-weight: 800; }
+    .rb-gagal { background: var(--alpha-soft); color: var(--alpha); font-weight: 800; }
+    .rb-tidak { background: var(--warning-soft); color: var(--warning); font-weight: 800; }
+    .rb-kosong { background: var(--status-empty-soft); color: var(--status-empty); }
+    .rb-count { font-weight: 800; background: rgba(185, 118, 80, 0.08); }
+    .ha-belum { background: var(--status-empty-soft); color: var(--status-empty); font-weight: 700; font-style: italic; }
+    .ha-videocall { background: var(--success-soft); color: var(--success); font-weight: 800; }
+    .ha-seluler { background: var(--info-soft); color: var(--info); font-weight: 800; }
+    .ha-tidakada { background: var(--alpha-soft); color: var(--alpha); font-weight: 800; }
+
+    #tasmiRekapBulananLengkapOverlay {
+      position: fixed;
+      inset: 0;
+      z-index: 55;
+      background: rgba(35, 24, 15, 0.52);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(4px);
+    }
+    #tasmiRekapBulananLengkapOverlay[hidden] { display: none; }
+    #tasmiRekapBulananLengkapPanel {
+      width: 92%;
+      max-width: 720px;
+      max-height: 86vh;
+      padding: 0;
+      background:
+        linear-gradient(135deg, rgba(255, 253, 247, 0.98), rgba(247, 226, 156, 0.9)),
+        #fff8e6;
+      border: 1px solid rgba(94, 68, 49, 0.16);
+      border-radius: 24px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 24px 70px rgba(33, 23, 14, 0.28);
+    }
+    #closeTasmiRekapBulananLengkapButton {
+      width: 38px;
+      height: 38px;
+      border: none;
+      border-radius: 50%;
+      background: rgba(94, 68, 49, 0.1);
+      color: #29170f;
+      font-size: 18px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800 !important;
+      text-transform: none !important;
+      flex-shrink: 0;
+    }
+    #closeTasmiRekapBulananLengkapButton:hover { background: rgba(94, 68, 49, 0.2); }
+    #tasmiRekapBulananLengkapBody { overflow: auto; flex: 1; padding: 18px 22px; }
+
+    #downloadRekapSemuaDialog {
+      position: fixed;
+      width: 92%;
+      max-width: 420px;
+      margin: auto;
+      padding: 0;
+      background:
+        linear-gradient(135deg, rgba(255, 253, 247, 0.98), rgba(247, 226, 156, 0.9)),
+        #fff8e6;
+      border: 1px solid rgba(94, 68, 49, 0.16);
+      border-radius: 24px;
+      overflow: hidden;
+      display: none;
+      flex-direction: column;
+      box-shadow: 0 24px 70px rgba(33, 23, 14, 0.28);
+    }
+    #downloadRekapSemuaDialog[open] { display: flex; }
+    #downloadRekapSemuaDialog::backdrop {
+      background: rgba(35, 24, 15, 0.52);
+      backdrop-filter: blur(4px);
+    }
+    #closeDownloadRekapSemuaButton {
+      width: 38px;
+      height: 38px;
+      border: none;
+      border-radius: 50%;
+      background: rgba(94, 68, 49, 0.1);
+      color: #29170f;
+      font-size: 18px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800 !important;
+      text-transform: none !important;
+      flex-shrink: 0;
+    }
+    #closeDownloadRekapSemuaButton:hover { background: rgba(94, 68, 49, 0.2); }
+    #downloadRekapSemuaBody { padding: 18px 22px 22px; display: grid; gap: 14px; }
+    #downloadRekapSemuaBody label { display: grid; gap: 6px; font-size: 13px; font-weight: 700; }
+
+    .rb-note-row td {
+      font-size: 10.5px;
+      font-weight: 400;
+      padding-top: 2px;
+      padding-bottom: 4px;
+    }
+    .rb-note-cell {
+      color: var(--muted);
+      font-style: italic;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 90px;
+    }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-left">
+      <button class="drawer-toggle" id="navToggle" type="button" aria-label="Toggle sidebar">Menu</button>
+      <div class="header-brand">Pendataan Santri</div>
+      <div class="header-page">Setoran Tasmi' Pekanan</div>
+    </div>
+    <div class="header-right">
+      <span class="header-chip" id="headerRole">Admin</span>
+    </div>
+  </header>
+  <div class="drawer-backdrop" id="navBackdrop"></div>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+  <main>
+    <div class="app-layout">
+      <section class="panel nav" id="nav"></section>
+      <div class="content-stack">
+        <section class="notice info" id="notice"></section>
+        <section class="panel">
+          <div class="section-head">
+            <h2>Setoran Tasmi' Pekanan</h2>
+            <p style="color:var(--muted);font-size:13px;">Pilih halaqoh tasmi' di bawah untuk membuka input setoran tanggal tertentu.</p>
+          </div>
+
+          <div class="filters" id="filtersPanel">
+            <label>
+              Cari halaqoh
+              <input id="searchInput" type="search" placeholder="Nama halaqoh atau pengampu...">
+            </label>
+            <label>
+              Tahun Ajaran
+              <select id="filterTa"><option value="">Semua Tahun Ajaran</option></select>
+            </label>
+            <label>
+              Gender
+              <select id="filterGender">
+                <option value="">Semua</option>
+                <option value="ikhwan">Ikhwan</option>
+                <option value="akhowat">Akhowat</option>
+                <option value="campur">Campur</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="toolbar" id="actionToolbar">
+            <button class="secondary" id="refreshButton" type="button">Muat Ulang</button>
+            <button class="primary" id="downloadRekapLengkapPdfButton" type="button">Download PDF — Semua Halaqoh</button>
+          </div>
+
+          <div class="paging-host" id="paginationTop"></div>
+          <div class="list" id="halaqohList"></div>
+          <div class="paging-host" id="paginationBottom"></div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <div id="dialogRoot">
+    <dialog id="tasmiInputDialog" data-ps-floating-dialog-enhanced="true">
+     <div class="tasmi-input-shell">
+      <div class="rekap-head">
+        <h3 id="tasmiInputDialogTitle">Halaqoh Tasmi'</h3>
+        <button id="closeTasmiInputDialogButton" type="button" title="Tutup">&#x2715;</button>
+      </div>
+      <div class="catatan-wajib-info" id="catatanWajibInfo">
+        <p>Kalau status <strong>Tidak Tasmi'</strong>, kolom Catatan (sebelah kiri kolom Status) wajib diisi.</p>
+        <button type="button" id="catatanWajibInfoOkButton">Oke</button>
+      </div>
+      <div id="tasmiInputDialogBody">
+        <div class="toolbar">
+          <label>
+            Tanggal
+            <input type="date" id="tanggalInput">
+          </label>
+        </div>
+
+        <div class="catatan-box">
+          <label>
+            Catatan sesi
+            <textarea id="catatanInput" placeholder="Catatan umum untuk sesi tasmi' tanggal ini (opsional)"></textarea>
+          </label>
+        </div>
+
+        <div class="pengampu-info" id="pengampuInfo" hidden>
+          <span><strong>Pengampu:</strong> <span id="pengampuNames">-</span></span>
+          <span><strong>Pembimbing Pengganti (Badal):</strong> <span id="badalNames">-</span></span>
+        </div>
+
+        <div class="grid-wrap" id="gridWrap" hidden>
+          <table class="setoran-table" id="setoranTable"></table>
+        </div>
+        <p id="emptyState" style="margin-top:16px;color:var(--muted);">Memuat data setoran tasmi'...</p>
+
+        <div class="legend">
+          <div class="legend-swatches">
+            <span class="legend-swatch"><i style="background:var(--status-empty-soft);"></i> Belum diuji</span>
+            <span class="legend-swatch"><i style="background:var(--success-soft);"></i> 0 salah</span>
+            <span class="legend-swatch"><i style="background:var(--warning-soft);"></i> 1 salah</span>
+            <span class="legend-swatch"><i style="background:var(--sick-soft);"></i> 2 salah</span>
+            <span class="legend-swatch"><i style="background:var(--alpha-soft);"></i> 3 salah</span>
+          </div>
+          <p>Salah maksimal 3 kali per item.</p>
+          <p>Soal Adzkar 1-5 = Bacaan Sholat (1-31), Soal 6-10 = Adzkar (32-72).</p>
+          <p>Hadits: satu kitab hadits = 5 soal.</p>
+          <p>Status Tasmi': pilih <strong>Lulus Tasmi'</strong> (hijau), <strong>Gagal Tasmi'</strong> (merah), atau <strong>Tidak Tasmi'</strong> (kuning) untuk tiap santri.</p>
+        </div>
+
+        <div class="toolbar">
+          <button class="primary" id="simpanButton" type="button" hidden>Simpan</button>
+          <button class="secondary" id="toggleNamaButton" type="button">Sembunyikan Nama</button>
+          <button class="secondary" id="rekapTasmiButton" type="button" hidden>Rekap Sakit &amp; Izin</button>
+          <button class="secondary" id="rekapBulananButton" type="button" hidden>Rekap Bulanan Tasmi'</button>
+          <button class="secondary" id="rekapBulananLengkapButton" type="button" hidden>Rekap Bulanan Lengkap (+Catatan)</button>
+        </div>
+      </div>
+     </div>
+
+      <div id="tasmiRekapOverlay" hidden>
+        <div id="tasmiRekapPanel">
+          <div class="rekap-head">
+            <h3 id="tasmiRekapTitle">Rekap Sakit &amp; Izin</h3>
+            <button id="closeTasmiRekapButton" type="button" title="Tutup">&#x2715;</button>
+          </div>
+          <div id="tasmiRekapBody"></div>
+        </div>
+      </div>
+
+      <div id="unsavedOverlay" hidden>
+        <div id="unsavedPanel">
+          <h3>Ada perubahan belum disimpan</h3>
+          <p>Data setoran tasmi' yang sedang diisi belum disimpan. Simpan dulu sebelum pindah?</p>
+          <div class="unsaved-actions">
+            <button class="secondary" type="button" id="unsavedDiscardButton">Jangan Simpan</button>
+            <button class="secondary" type="button" id="unsavedCancelButton">Batal</button>
+            <button class="primary" type="button" id="unsavedSaveButton">Simpan</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="tasmiRekapBulananOverlay" hidden>
+        <div id="tasmiRekapBulananPanel">
+          <div class="rekap-head">
+            <h3 id="tasmiRekapBulananTitle">Rekap Bulanan Tasmi'</h3>
+            <button id="closeTasmiRekapBulananButton" type="button" title="Tutup">&#x2715;</button>
+          </div>
+          <div class="rekap-bulanan-controls">
+            <label>
+              Bulan
+              <input type="month" id="rekapBulanInput">
+            </label>
+          </div>
+          <div id="tasmiRekapBulananBody"></div>
+        </div>
+      </div>
+
+      <div id="tasmiRekapBulananLengkapOverlay" hidden>
+        <div id="tasmiRekapBulananLengkapPanel">
+          <div class="rekap-head">
+            <h3 id="tasmiRekapBulananLengkapTitle">Rekap Bulanan Lengkap Tasmi'</h3>
+            <button id="closeTasmiRekapBulananLengkapButton" type="button" title="Tutup">&#x2715;</button>
+          </div>
+          <div class="rekap-bulanan-controls">
+            <label>
+              Bulan
+              <input type="month" id="rekapBulanLengkapInput">
+            </label>
+          </div>
+          <div id="tasmiRekapBulananLengkapBody"></div>
+        </div>
+      </div>
+    </dialog>
+  </div>
+
+  <dialog id="downloadRekapSemuaDialog" data-ps-floating-dialog-enhanced="true">
+    <div class="rekap-head">
+      <h3>Download PDF — Semua Halaqoh</h3>
+      <button id="closeDownloadRekapSemuaButton" type="button" title="Tutup">&#x2715;</button>
+    </div>
+    <div id="downloadRekapSemuaBody">
+      <label>
+        Tahun Ajaran
+        <select id="downloadRekapTahunAjaranSelect"></select>
+      </label>
+      <label>
+        Bulan
+        <input type="month" id="downloadRekapBulanInput">
+      </label>
+      <label>
+        Jenis Kelamin
+        <select id="downloadRekapGenderSelect">
+          <option value="">Semua</option>
+          <option value="Ikhwan">Ikhwan</option>
+          <option value="Akhowat">Akhowat</option>
+          <option value="Campur">Campur</option>
+        </select>
+      </label>
+      <button class="primary" id="submitDownloadRekapSemuaButton" type="button">Download PDF</button>
+    </div>
+  </dialog>
+
+  <script src="../../shared-access.js"></script>
+  <script src="../../shared-nav.js"></script>
+  <script src="../../shared-shell.js"></script>
+  <script src="../../shared-export.js"></script>
+  <script>
+    const API_BASE = window.location.origin + '/api';
+    const STORAGE = { apiBase: 'ps_api_base', token: 'ps_token', session: 'ps_session', hideNameCol: 'ps_tasmi_hide_name' };
+    localStorage.setItem(STORAGE.apiBase, API_BASE);
+
+    const TASMI_JUZ_COUNT = 30;
+    const TASMI_ADZKAR_COUNT = 10;
+    const TASMI_MUFRODAT_COUNT = 10;
+    const TASMI_HADITS_COUNT = 10;
+    const COLUMN_GROUPS = [
+      { prefix: 'juz', akumKey: 'quran', count: TASMI_JUZ_COUNT, short: 'J', groupLabel: "Al-Qur'an (Juz)" },
+      { prefix: 'adzkar', akumKey: 'adzkar', count: TASMI_ADZKAR_COUNT, short: 'A', groupLabel: 'Adzkar (Soal)' },
+      { prefix: 'mufrodat', akumKey: 'mufrodat', count: TASMI_MUFRODAT_COUNT, short: 'M', groupLabel: 'Mufrodat (Level)' },
+      { prefix: 'hadits', akumKey: 'hadits', count: TASMI_HADITS_COUNT, short: 'H', groupLabel: 'Hadits (Soal)' }
+    ];
+    const CYCLE = ['', '0', '1', '2', '3'];
+    const STATUS_OPTIONS = [
+      { value: '', label: '-' },
+      { value: 'lulus', label: "Lulus Tasmi'" },
+      { value: 'gagal', label: "Gagal Tasmi'" },
+      { value: 'tidak', label: 'Tidak Tasmi\'' }
+    ];
+
+    const state = {
+      halaqohList: [],
+      tahunAjaranList: [],
+      halaqohId: '',
+      tanggal: '',
+      santriList: [],
+      grid: {},
+      catatanBySantri: {},
+      statusBySantri: {},
+      loaded: false,
+      dirty: false,
+      searchQuery: '',
+      filterTa: '',
+      filterGender: '',
+      page: 1,
+      pageSize: 10,
+      total: 0,
+      totalPages: 1
+    };
+
+    function todayStr() {
+      const d = new Date();
+      const pad = n => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    }
+
+    function isSaturdayDate(dateStr) {
+      if (!dateStr) return false;
+      const d = new Date(`${dateStr}T00:00:00`);
+      return !isNaN(d.getTime()) && d.getDay() === 6;
+    }
+
+    function nearestSaturdayStr(dateStr) {
+      const d = new Date(`${dateStr}T00:00:00`);
+      if (isNaN(d.getTime())) return dateStr;
+      const day = d.getDay();
+      if (day !== 6) {
+        const daysSincePrevSaturday = (day - 6 + 7) % 7;
+        const daysUntilNextSaturday = (6 - day + 7) % 7;
+        const offset = daysSincePrevSaturday <= daysUntilNextSaturday ? -daysSincePrevSaturday : daysUntilNextSaturday;
+        d.setDate(d.getDate() + offset);
+      }
+      const pad = n => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    }
+
+    function getApiBase() { return localStorage.getItem(STORAGE.apiBase) || ''; }
+    function getToken() { return localStorage.getItem(STORAGE.token) || ''; }
+    function clearSession() { localStorage.removeItem(STORAGE.token); localStorage.removeItem(STORAGE.session); }
+    function getStoredSession() {
+      try { return JSON.parse(localStorage.getItem(STORAGE.session) || 'null'); } catch (error) { return null; }
+    }
+    function getScopedSession() {
+      return window.PSAccess && typeof window.PSAccess.getScopedSession === 'function'
+        ? window.PSAccess.getScopedSession(getStoredSession())
+        : getStoredSession();
+    }
+
+    function canAccessTasmiSetoran() {
+      const session = getScopedSession();
+      const p = session && session.permissions;
+      return !!(p && (p.isSuperAdmin || p.isAdmin || p.isHalaqohCoordinator || p.isPengampuHalaqoh || p.canManageHalaqoh));
+    }
+
+    // Download PDF rekap semua halaqoh mengekspor data LINTAS halaqoh dalam satu tahun
+    // ajaran, jadi cakupannya dibatasi ke role yang sama dengan yang punya akses lintas
+    // halaqoh di backend: super admin, admin, koordinator halaqoh saja.
+    function canAccessTasmiSetoranPdfExport() {
+      const session = getScopedSession();
+      const p = session && session.permissions;
+      return !!(p && (p.isSuperAdmin || p.isAdmin || p.isHalaqohCoordinator));
+    }
+
+    function toParams(data) {
+      const params = new URLSearchParams();
+      Object.entries(data).forEach(([key, value]) => {
+        if (value === undefined || value === null) return;
+        params.append(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
+      });
+      return params;
+    }
+
+    const uiState = { currentNoticeId: '', noticeCounter: 0, noticeShownAt: 0, pendingNotice: null };
+
+    function createNoticeElement(text, type = 'info') {
+      const element = document.createElement('section');
+      element.className = `notice show ${type}`;
+      element.dataset.noticeId = `notice-${Date.now()}-${uiState.noticeCounter += 1}`;
+      element.textContent = text;
+      function dismiss() {
+        if (!element.parentNode) return;
+        element.remove();
+        const stack = document.getElementById('noticeStack');
+        if (stack && !stack.hasChildNodes() && stack.matches(':popover-open')) stack.hidePopover();
+      }
+      element.addEventListener('click', dismiss);
+      window.setTimeout(dismiss, type === 'error' ? 10000 : 6000);
+      return element;
+    }
+
+    function clearNotice() {
+      if (uiState.pendingNotice) { clearTimeout(uiState.pendingNotice); uiState.pendingNotice = null; }
+      if (!uiState.currentNoticeId) return;
+      const element = document.querySelector(`[data-notice-id="${uiState.currentNoticeId}"]`);
+      if (element) element.remove();
+      uiState.currentNoticeId = '';
+    }
+
+    // showModal() membuat semua elemen di luar dialog jadi inert (tidak menerima klik),
+    // termasuk #noticeStack yang normalnya anak <body> -- pindahkan sementara jadi anak
+    // dialog supaya notice tetap bisa di-dismiss selagi dialog terbuka, lalu pindah balik
+    // ke <body> saat dialog ditutup (lihat pemanggilan di event 'close' dialog).
+    function relocateNoticeStack() {
+      const stack = document.getElementById('noticeStack');
+      const dialog = document.getElementById('tasmiInputDialog');
+      if (dialog && dialog.open) {
+        if (stack.parentNode !== dialog) dialog.appendChild(stack);
+      } else if (stack.parentNode !== document.body) {
+        document.body.prepend(stack);
+      }
+    }
+
+    function showNotice(text, type = 'info') {
+      clearNotice();
+      relocateNoticeStack();
+      const element = createNoticeElement(text, type);
+      const stack = document.getElementById('noticeStack');
+      stack.prepend(element);
+      uiState.currentNoticeId = element.dataset.noticeId;
+      if (stack.matches(':popover-open')) stack.hidePopover();
+      stack.showPopover();
+      return uiState.currentNoticeId;
+    }
+
+    function escapeHtml(value) {
+      return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function mountShell(session) {
+      return window.PSShell.mount({
+        currentPage: window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : '/pages/tasmiSetoran/',
+        session,
+        getStoredSession,
+        storageKey: STORAGE.session
+      });
+    }
+
+    async function api(action, payload = {}, method = 'GET') {
+      const apiBase = getApiBase();
+      const token = getToken();
+      if (!apiBase || !token) {
+        clearSession();
+        window.location.replace('/pages/login/');
+        throw new Error('Sesi tidak ditemukan.');
+      }
+      const scopeLabel = window.PSAccess ? (window.PSAccess.getActiveRoleScopeLabel(getStoredSession()) || '') : '';
+      if (method === 'GET') {
+        const params = toParams({ action, token, scopeLabel, ...payload });
+        const response = await fetch(`${apiBase}?${params.toString()}`);
+        const json = await response.json();
+        if (!json.ok) {
+          const error = new Error(json.error?.message ? `Server mengatakan: ${json.error.message}` : 'Permintaan gagal.');
+          error.code = json.error?.code || response.status || 500;
+          if (error.code === 401) { clearSession(); window.location.replace('/pages/login/'); }
+          throw error;
+        }
+        return json.data;
+      }
+      const response = await fetch(apiBase, { method, body: toParams({ action, token, scopeLabel, ...payload }) });
+      const json = await response.json();
+      if (!json.ok) {
+        const error = new Error(json.error?.message ? `Server mengatakan: ${json.error.message}` : 'Permintaan gagal.');
+        error.code = json.error?.code || response.status || 500;
+        if (error.code === 401) { clearSession(); window.location.replace('/pages/login/'); }
+        throw error;
+      }
+      return json.data;
+    }
+
+    function nextCycleValue(current) {
+      const idx = CYCLE.indexOf(current || '');
+      return CYCLE[(idx + 1) % CYCLE.length];
+    }
+
+    function halaqohPengampuText(h) {
+      return (h.pengampuLabels && h.pengampuLabels.length) ? h.pengampuLabels.join(', ') : 'Belum ada pengampu';
+    }
+
+    function halaqohSearchText(h) {
+      return [h.name, halaqohPengampuText(h), (h.badalLabels || []).join(' '), h.tahunAjaranNama].join(' ').toLowerCase();
+    }
+
+    function normalizeGenderKey(value) {
+      const t = String(value || '').toLowerCase();
+      if (['ikhwan', 'putra', 'laki-laki', 'laki', 'male', 'l'].some(k => t.includes(k))) return 'ikhwan';
+      if (['akhowat', 'akhwat', 'putri', 'perempuan', 'female', 'p', 'wanita'].some(k => t.includes(k))) return 'akhowat';
+      if (['campur', 'mixed', 'mix', 'gabungan'].some(k => t.includes(k))) return 'campur';
+      return '';
+    }
+
+    function getGenderCardClass(value) {
+      const key = normalizeGenderKey(value);
+      return key ? `entity-gender-${key}` : '';
+    }
+
+    async function loadHalaqohList(showMessage) {
+      const data = await api('tasmiSetoran.halaqohList');
+      state.halaqohList = data.items || [];
+      renderHalaqohCards();
+      if (showMessage) showNotice('Daftar halaqoh tasmi\' berhasil dimuat ulang.', 'info');
+    }
+
+    // Filter Tahun Ajaran di panel daftar kartu -- defaultnya tahun ajaran aktif,
+    // supaya daftar halaqoh tasmi' tidak tercampur dengan tahun ajaran lama.
+    async function loadTahunAjaranList() {
+      const data = await api('tahunAjaran.list');
+      state.tahunAjaranList = data.items || [];
+      populateTaFilter();
+    }
+
+    function populateTaFilter() {
+      const select = document.getElementById('filterTa');
+      const opts = state.tahunAjaranList || [];
+      const prev = state.filterTa;
+      select.innerHTML = '<option value="">Semua Tahun Ajaran</option>'
+        + opts.map(t => `<option value="${escapeHtml(t.id)}">${escapeHtml(t.namaDisplay || t.nama)}${t.isAktif ? ' (Aktif)' : ''}</option>`).join('');
+      if (prev && opts.some(t => t.id === prev)) {
+        select.value = prev;
+      } else if (!prev) {
+        const aktif = opts.find(t => t.isAktif);
+        if (aktif) { state.filterTa = aktif.id; select.value = aktif.id; }
+        else { select.value = ''; state.filterTa = ''; }
+      } else { select.value = ''; state.filterTa = ''; }
+    }
+
+    function renderPengampuInfoFromData(halaqoh) {
+      const box = document.getElementById('pengampuInfo');
+      if (!halaqoh) { box.hidden = true; return; }
+      box.hidden = false;
+      document.getElementById('pengampuNames').textContent = (halaqoh.pengampuLabels && halaqoh.pengampuLabels.length) ? halaqoh.pengampuLabels.join(', ') : 'Belum ada';
+      document.getElementById('badalNames').textContent = (halaqoh.badalLabels && halaqoh.badalLabels.length) ? halaqoh.badalLabels.join(', ') : 'Belum ada';
+    }
+
+    function getFilteredHalaqohItems() {
+      const query = state.searchQuery.trim().toLowerCase();
+      return (state.halaqohList || []).filter(h => {
+        if (state.filterTa && h.tahunAjaranId !== state.filterTa) return false;
+        if (state.filterGender && normalizeGenderKey(h.genderGroup) !== state.filterGender) return false;
+        if (query && !halaqohSearchText(h).includes(query)) return false;
+        return true;
+      });
+    }
+
+    function halaqohCardHtml(h) {
+      const genderClass = getGenderCardClass(h.genderGroup);
+      const badalText = (h.badalLabels && h.badalLabels.length) ? ` &middot; Badal: ${escapeHtml(h.badalLabels.join(', '))}` : '';
+      return `
+        <article class="card minimal-list-card${genderClass ? ` ${genderClass}` : ''}">
+          <div class="minimal-list-card-head">
+            <div class="minimal-list-card-main">
+              <strong class="minimal-list-card-name">${escapeHtml(h.name || '-')}</strong>
+              <span class="minimal-list-card-hint">Pengampu: ${escapeHtml(halaqohPengampuText(h))}${badalText}</span>
+              <span class="minimal-list-card-hint">${h.santriCount || 0} santri${h.tahunAjaranNama ? ' &middot; ' + escapeHtml(h.tahunAjaranNama) : ''}</span>
+            </div>
+            <button class="secondary minimal-list-card-toggle" type="button" data-open-halaqoh="${escapeHtml(h.id)}">Buka</button>
+          </div>
+        </article>
+      `;
+    }
+
+    function buildPaginationList(page, totalPages) {
+      const maxNumbers = 10;
+      if (totalPages <= maxNumbers) return Array.from({ length: totalPages }, (_, index) => index + 1);
+      const middleSlots = maxNumbers - 2;
+      const pages = [1];
+      let start = Math.max(2, page - Math.floor(middleSlots / 2));
+      let end = start + middleSlots - 1;
+      if (end > totalPages - 1) {
+        end = totalPages - 1;
+        start = end - middleSlots + 1;
+      }
+      if (start > 2) pages.push('...');
+      for (let value = start; value <= end; value += 1) pages.push(value);
+      if (end < totalPages - 1) pages.push('...');
+      pages.push(totalPages);
+      return pages;
+    }
+
+    function renderHalaqohPagination() {
+      const markup = state.total ? `
+        <div class="paging">
+          <button class="secondary" type="button" data-page="${state.page - 1}" ${state.page <= 1 ? 'disabled' : ''}>Sebelumnya</button>
+          <div class="page-center">
+            <div class="page-numbers">
+              ${buildPaginationList(state.page, state.totalPages).map(item =>
+                item === '...'
+                  ? '<span class="page-summary">...</span>'
+                  : `<button class="secondary page-btn ${item === state.page ? 'active' : ''}" type="button" data-page="${item}">${item}</button>`
+              ).join('')}
+            </div>
+            <div class="page-summary">Halaman ${state.page} dari ${state.totalPages} | total ${state.total} halaqoh</div>
+          </div>
+          <button class="secondary" type="button" data-page="${state.page + 1}" ${state.page >= state.totalPages ? 'disabled' : ''}>Berikutnya</button>
+        </div>` : '';
+      window.PSUI.syncPaginationHosts({ markup, visibleCount: Math.min(state.pageSize, state.total), totalCount: state.total, minimumCount: 0, topId: 'paginationTop', bottomId: 'paginationBottom' });
+    }
+
+    function renderHalaqohCards() {
+      const target = document.getElementById('halaqohList');
+      const filtered = getFilteredHalaqohItems();
+      state.total = filtered.length;
+      state.totalPages = Math.max(1, Math.ceil(filtered.length / state.pageSize));
+      if (state.page > state.totalPages) state.page = state.totalPages;
+      const items = filtered.slice((state.page - 1) * state.pageSize, state.page * state.pageSize);
+
+      if (!items.length) {
+        const filtering = state.searchQuery || state.filterTa || state.filterGender;
+        target.innerHTML = `
+          <div class="empty-state">
+            <h3 style="margin-bottom:10px;">${filtering ? 'Tidak ada halaqoh yang cocok filter' : 'Belum ada halaqoh tasmi\''}</h3>
+            <p>${filtering ? 'Coba ubah kata kunci, tahun ajaran, atau gender pada filter di atas.' : 'Hubungi admin atau koordinator halaqoh untuk menambahkan halaqoh tasmi\'.'}</p>
+          </div>
+        `;
+        renderHalaqohPagination();
+        return;
+      }
+
+      target.innerHTML = items.map(halaqohCardHtml).join('');
+      renderHalaqohPagination();
+    }
+
+    function statusSelectHtml(santriId, value) {
+      const options = STATUS_OPTIONS.map(opt => `<option value="${opt.value}"${opt.value === (value || '') ? ' selected' : ''}>${escapeHtml(opt.label)}</option>`).join('');
+      return `<select class="status-select" data-santri="${santriId}" data-value="${value || ''}">${options}</select>`;
+    }
+
+    function buildHeaderHtml() {
+      let groupRow = `<th class="col-no" rowspan="2">No</th><th class="col-name" rowspan="2">Nama Santri</th><th class="col-catatan" rowspan="2">Catatan</th><th class="col-status" rowspan="2">Status Tasmi'</th>`;
+      let itemRow = '';
+      COLUMN_GROUPS.forEach(group => {
+        groupRow += `<th class="col-akum" rowspan="2">Jumlah Hafalan${group.prefix === 'juz' ? " Al-Qur'an" : ''}${group.prefix === 'adzkar' ? ' Adzkar' : ''}${group.prefix === 'mufrodat' ? ' Mufrodat' : ''}${group.prefix === 'hadits' ? ' Hadits' : ''}<br>(akumulasi)</th>`;
+        groupRow += `<th colspan="${group.count}">${escapeHtml(group.groupLabel)}</th>`;
+        for (let i = 1; i <= group.count; i++) {
+          itemRow += `<th>${group.short}${i}</th>`;
+        }
+      });
+      return `<thead><tr class="group-row">${groupRow}</tr><tr class="item-row">${itemRow}</tr></thead>`;
+    }
+
+    function cellHtml(santriId, key, value) {
+      return `<td class="cell-toggle" data-santri="${santriId}" data-key="${key}" data-value="${value || ''}">${value || ''}</td>`;
+    }
+
+    function buildBodyHtml() {
+      return '<tbody>' + state.santriList.map((s, idx) => {
+        const grid = state.grid[s.id] || {};
+        const catatanVal = state.catatanBySantri[s.id] || '';
+        const statusVal = state.statusBySantri[s.id] || '';
+        const dibekukanBadge = s.statusKey === 'dibekukan' ? '<span class="santri-dibekukan-badge">Dibekukan</span>' : '';
+        let row = `<tr><td class="col-no">${idx + 1}</td><td class="col-name">${escapeHtml(s.name)}${dibekukanBadge}</td>`
+          + `<td class="col-catatan"><input type="text" class="catatan-cell-input" data-santri="${s.id}" value="${escapeHtml(catatanVal)}" placeholder="Catatan..."></td>`
+          + `<td class="col-status">${statusSelectHtml(s.id, statusVal)}</td>`;
+        COLUMN_GROUPS.forEach(group => {
+          const akum = s.akumulasi && s.akumulasi[group.akumKey] ? s.akumulasi[group.akumKey] : { label: '-' };
+          row += `<td class="col-akum" id="akum-${group.prefix}-${s.id}">${escapeHtml(akum.label || '-')}</td>`;
+          for (let i = 1; i <= group.count; i++) {
+            const key = group.prefix + i;
+            row += cellHtml(s.id, key, grid[key] || '');
+          }
+        });
+        row += '</tr>';
+        return row;
+      }).join('') + '</tbody>';
+    }
+
+    function formatShortDate(dateStr) {
+      if (!dateStr) return '-';
+      const d = new Date(`${dateStr}T00:00:00`);
+      if (isNaN(d.getTime())) return dateStr;
+      return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+    }
+
+    function sakitBolehLabel(sakit) {
+      if (!sakit) return '';
+      const map = { semua: 'Boleh semua kegiatan', halaqoh: 'Boleh halaqoh saja', kelas: 'Boleh kelas saja', tidak: 'Tidak boleh ikut kegiatan' };
+      return map[sakit.bolehMasuk || 'semua'] || map.semua;
+    }
+
+    function openTasmiRekapPanel() {
+      if (!state.loaded) return;
+      const overlay = document.getElementById('tasmiRekapOverlay');
+      const body = document.getElementById('tasmiRekapBody');
+      const title = document.getElementById('tasmiRekapTitle');
+
+      const halaqoh = state.halaqohList.find(h => h.id === state.halaqohId);
+      let titleText = 'Rekap Sakit & Izin';
+      if (halaqoh) titleText += ' — ' + halaqoh.name;
+      if (state.tanggal) titleText += ' (' + formatShortDate(state.tanggal) + ')';
+      title.textContent = titleText;
+
+      const sakitList = [];
+      const izinList = [];
+      state.santriList.forEach(s => {
+        if (s.sakit) {
+          const ket = s.sakit.keterangan ? ' — ' + s.sakit.keterangan : '';
+          if (!s.sakit.ongoing && s.sakit.tanggalSembuh === state.tanggal) {
+            const jam = s.sakit.jamSembuh ? ' ' + s.sakit.jamSembuh : '';
+            sakitList.push(`${s.name} — Sembuh${jam}${ket}`);
+          } else {
+            const sampai = s.sakit.tanggalSembuh ? ' s.d. ' + formatShortDate(s.sakit.tanggalSembuh) + (s.sakit.jamSembuh ? ' ' + s.sakit.jamSembuh : '') : ' (belum sembuh)';
+            sakitList.push(`${s.name}${sampai}${ket} — ${sakitBolehLabel(s.sakit)}`);
+          }
+        }
+        if (s.izin) {
+          const ket = s.izin.keperluan ? ' — ' + s.izin.keperluan : '';
+          if (!s.izin.ongoing && s.izin.tanggalKembaliAktual === state.tanggal) {
+            const jam = s.izin.jamKembaliAktual ? ' ' + s.izin.jamKembaliAktual : '';
+            izinList.push(`${s.name} — Sudah Kembali${jam}${ket}`);
+          } else {
+            const sampai = s.izin.tanggalKembali ? ' s.d. ' + formatShortDate(s.izin.tanggalKembali) + (s.izin.jamKembali ? ' ' + s.izin.jamKembali : '') : ' (belum kembali)';
+            izinList.push(`${s.name}${sampai}${ket}`);
+          }
+        }
+      });
+
+      function buildCatHtml(catLabel, catClass, list) {
+        let html = '<div class="rekap-cat">';
+        html += '<p class="rekap-cat-title ' + catClass + '">' + escapeHtml(catLabel) + '</p>';
+        html += list.length
+          ? '<p class="rekap-names">' + list.map(escapeHtml).join(' &middot; ') + '</p>'
+          : '<p class="rekap-empty">Tidak ada</p>';
+        html += '</div>';
+        return html;
+      }
+
+      body.innerHTML = buildCatHtml('Sakit', 'sakit', sakitList) + buildCatHtml('Izin Pulang', 'izin', izinList);
+      overlay.hidden = false;
+    }
+
+    function closeTasmiRekapPanel() {
+      document.getElementById('tasmiRekapOverlay').hidden = true;
+    }
+
+    const BULAN_NAMES = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+    function formatBulanLabel(bulan) {
+      if (!bulan) return '';
+      const parts = bulan.split('-').map(n => parseInt(n, 10));
+      return `${BULAN_NAMES[parts[1] - 1] || ''} ${parts[0]}`;
+    }
+
+    // Daftar catatan umum (catatan sesi, bukan per santri) per pekan -- dipakai di bawah tabel
+    // matriks rekap ringkas maupun rekap lengkap, supaya keduanya konsisten menampilkannya.
+    function buildPekanCatatanListHtml(pekanList, pekanCatatan) {
+      const items = (pekanCatatan || []).map((p, idx) => {
+        const text = p.catatan ? escapeHtml(p.catatan) : '<em>Tidak ada catatan</em>';
+        return `<li><strong>Pekan ${idx + 1} (${formatShortDate(p.tanggal)}):</strong> ${text}</li>`;
+      }).join('');
+      if (!items) return '';
+      return `<div style="margin-top:16px;">
+        <p style="font-weight:800;margin:0 0 6px;font-size:13px;">Catatan sesi per pekan:</p>
+        <ul style="margin:0;padding-left:18px;font-size:12.5px;line-height:1.7;">${items}</ul>
+      </div>`;
+    }
+
+    // Rekomendasi tindak lanjut wali santri berdasarkan hasil tasmi' sebulan: data belum
+    // lengkap (masih ada pekan kosong) diprioritaskan duluan sebelum menghitung lulus/tidak.
+    function computeHasilAkhir(counts) {
+      if (counts.kosong > 0) return { label: 'Data belum lengkap', cls: 'ha-belum' };
+      const tidakLulus = counts.gagal + counts.tidak;
+      if (tidakLulus === 0) return { label: 'Video Call', cls: 'ha-videocall' };
+      if (tidakLulus <= 2) return { label: 'Seluler', cls: 'ha-seluler' };
+      return { label: 'Tidak ada penelponan', cls: 'ha-tidakada' };
+    }
+
+    function buildHasilAkhirLegendHtml() {
+      return `<p style="margin-top:10px;font-size:12px;color:var(--muted);"><strong>Ketentuan Hasil Akhir:</strong> `
+        + `"Data belum lengkap" jika masih ada pekan yang belum direkam &middot; `
+        + `"Video Call" jika lulus semua pekan &middot; `
+        + `"Seluler" jika tidak lulus 1&ndash;2 kali &middot; `
+        + `"Tidak ada penelponan" jika tidak lulus lebih dari 2 kali. `
+        + `Status <strong>Tidak Tasmi'</strong> dianggap sama seperti <strong>Gagal Tasmi'</strong> (dihitung sebagai tidak lulus).</p>`;
+    }
+
+    function renderRekapBulanan(data) {
+      const halaqohName = (data.halaqoh && data.halaqoh.name) || '';
+      document.getElementById('tasmiRekapBulananTitle').textContent =
+        `Rekap Bulanan Tasmi' — ${halaqohName} (${formatBulanLabel(data.bulan)}) — ${data.totalPekan} pekan`;
+
+      const body = document.getElementById('tasmiRekapBulananBody');
+      if (!data.totalPekan) {
+        body.innerHTML = '<p class="rekap-empty">Tidak ada pekan (hari Sabtu) di bulan ini.</p>';
+        return;
+      }
+      if (!data.santriList.length) {
+        body.innerHTML = '<p class="rekap-empty">Belum ada santri di halaqoh tasmi\' ini.</p>';
+        return;
+      }
+      const weekHeaders = data.pekanList.map((tgl, idx) => `<th>Pkn ${idx + 1}<br><span style="font-weight:400;">${formatShortDate(tgl)}</span></th>`).join('');
+      const STATUS_CLASS = { lulus: 'rb-lulus', gagal: 'rb-gagal', tidak: 'rb-tidak' };
+      const STATUS_SHORT = { lulus: 'L', gagal: 'G', tidak: 'T' };
+      const rows = data.santriList.map(s => {
+        const cells = s.perPekan.map(v => `<td class="${STATUS_CLASS[v] || 'rb-kosong'}">${STATUS_SHORT[v] || '-'}</td>`).join('');
+        const hasil = computeHasilAkhir(s.counts);
+        return `<tr><td class="rb-name">${escapeHtml(s.name)}</td>${cells}`
+          + `<td class="rb-count rb-lulus">${s.counts.lulus}</td><td class="rb-count rb-gagal">${s.counts.gagal}</td>`
+          + `<td class="rb-count rb-tidak">${s.counts.tidak}</td><td class="rb-count rb-kosong">${s.counts.kosong}</td>`
+          + `<td class="${hasil.cls}">${escapeHtml(hasil.label)}</td></tr>`;
+      }).join('');
+      body.innerHTML = `<div style="overflow:auto;">
+        <table class="rekap-bulanan-table">
+          <thead><tr><th>Nama Santri</th>${weekHeaders}<th>Lulus</th><th>Gagal</th><th>Tidak</th><th>Belum Direkam</th><th>Hasil Akhir</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+      <p style="margin-top:12px;font-size:12px;color:var(--muted);">L = Lulus Tasmi', G = Gagal Tasmi', T = Tidak Tasmi', - = belum direkam pada pekan itu. Total <strong>${data.totalPekan} pekan</strong> (hari Sabtu) di bulan ${formatBulanLabel(data.bulan)}.</p>`
+        + buildHasilAkhirLegendHtml()
+        + buildPekanCatatanListHtml(data.pekanList, data.pekanCatatan);
+    }
+
+    async function loadRekapBulanan(bulan) {
+      if (!state.halaqohId) return;
+      const body = document.getElementById('tasmiRekapBulananBody');
+      body.innerHTML = '<p class="rekap-empty">Memuat rekap bulanan...</p>';
+      try {
+        const data = await api('tasmiSetoran.rekapBulanan', { halaqohTasmiId: state.halaqohId, bulan });
+        renderRekapBulanan(data);
+      } catch (error) {
+        body.innerHTML = `<p class="rekap-empty">${escapeHtml(error.message || 'Gagal memuat rekap bulanan.')}</p>`;
+      }
+    }
+
+    function openTasmiRekapBulananPanel() {
+      if (!state.loaded || !state.halaqohId) return;
+      const monthInput = document.getElementById('rekapBulanInput');
+      if (!monthInput.value) monthInput.value = (state.tanggal || todayStr()).slice(0, 7);
+      document.getElementById('tasmiRekapBulananOverlay').hidden = false;
+      loadRekapBulanan(monthInput.value);
+    }
+
+    function closeTasmiRekapBulananPanel() {
+      document.getElementById('tasmiRekapBulananOverlay').hidden = true;
+    }
+
+    // Potong catatan santri jadi teks pendek buat ditampilkan langsung di sel (tanpa klik) --
+    // teks penuhnya tetap ada lewat atribut title (tooltip saat di-hover).
+    function truncateNoteText(text, max = 14) {
+      const clean = String(text || '').trim();
+      if (!clean) return '-';
+      return clean.length > max ? clean.slice(0, max - 1) + '…' : clean;
+    }
+
+    function renderRekapBulananLengkap(data) {
+      const halaqohName = (data.halaqoh && data.halaqoh.name) || '';
+      document.getElementById('tasmiRekapBulananLengkapTitle').textContent =
+        `Rekap Bulanan Lengkap Tasmi' — ${halaqohName} (${formatBulanLabel(data.bulan)}) — ${data.totalPekan} pekan`;
+
+      const body = document.getElementById('tasmiRekapBulananLengkapBody');
+      if (!data.totalPekan) {
+        body.innerHTML = '<p class="rekap-empty">Tidak ada pekan (hari Sabtu) di bulan ini.</p>';
+        return;
+      }
+      if (!data.santriList.length) {
+        body.innerHTML = '<p class="rekap-empty">Belum ada santri di halaqoh tasmi\' ini.</p>';
+        return;
+      }
+      const weekHeaders = data.pekanList.map((tgl, idx) => `<th>Pkn ${idx + 1}<br><span style="font-weight:400;">${formatShortDate(tgl)}</span></th>`).join('');
+      const STATUS_CLASS = { lulus: 'rb-lulus', gagal: 'rb-gagal', tidak: 'rb-tidak' };
+      const STATUS_SHORT = { lulus: 'L', gagal: 'G', tidak: 'T' };
+      const rows = data.santriList.map(s => {
+        const statusCells = s.perPekan.map(v => `<td class="${STATUS_CLASS[v.status] || 'rb-kosong'}">${STATUS_SHORT[v.status] || '-'}</td>`).join('');
+        const hasil = computeHasilAkhir(s.counts);
+        const statusRow = `<tr><td class="rb-name">${escapeHtml(s.name)}</td>${statusCells}`
+          + `<td class="rb-count rb-lulus">${s.counts.lulus}</td><td class="rb-count rb-gagal">${s.counts.gagal}</td>`
+          + `<td class="rb-count rb-tidak">${s.counts.tidak}</td><td class="rb-count rb-kosong">${s.counts.kosong}</td>`
+          + `<td class="${hasil.cls}">${escapeHtml(hasil.label)}</td></tr>`;
+        const noteCells = s.perPekan.map(v => {
+          const full = String(v.catatan || '').trim();
+          const titleAttr = full ? ` title="${escapeHtml(full)}"` : '';
+          return `<td class="rb-note-cell"${titleAttr}>${escapeHtml(truncateNoteText(full))}</td>`;
+        }).join('');
+        const noteRow = `<tr class="rb-note-row"><td class="rb-name"></td>${noteCells}`
+          + `<td class="rb-count"></td><td class="rb-count"></td><td class="rb-count"></td><td class="rb-count"></td><td></td></tr>`;
+        return statusRow + noteRow;
+      }).join('');
+      body.innerHTML = `<div style="overflow:auto;">
+        <table class="rekap-bulanan-table">
+          <thead><tr><th>Nama Santri</th>${weekHeaders}<th>Lulus</th><th>Gagal</th><th>Tidak</th><th>Belum Direkam</th><th>Hasil Akhir</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+      <p style="margin-top:12px;font-size:12px;color:var(--muted);">L = Lulus Tasmi', G = Gagal Tasmi', T = Tidak Tasmi', - = belum direkam pada pekan itu. Baris kecil di bawah tiap nama = catatan santri pekan itu (arahkan kursor buat lihat teks penuh). Total <strong>${data.totalPekan} pekan</strong> (hari Sabtu) di bulan ${formatBulanLabel(data.bulan)}.</p>`
+        + buildHasilAkhirLegendHtml()
+        + buildPekanCatatanListHtml(data.pekanList, data.pekanCatatan);
+    }
+
+    var HASIL_AKHIR_KATEGORI_ORDER = ['ha-videocall', 'ha-seluler', 'ha-tidakada', 'ha-belum'];
+
+    // Isi dropdown Tahun Ajaran di dialog download PDF dari daftar tahun ajaran LENGKAP
+    // (state.tahunAjaranList, sama sumbernya dengan filter tahun ajaran di toolbar) --
+    // supaya tahun ajaran yang belum punya halaqoh tasmi' pun tetap muncul & bisa dipilih.
+    function populateDownloadRekapTahunAjaranSelect() {
+      const select = document.getElementById('downloadRekapTahunAjaranSelect');
+      select.innerHTML = state.tahunAjaranList
+        .map(t => `<option value="${t.id}">${escapeHtml(t.namaDisplay || t.nama)}</option>`).join('');
+    }
+
+    function openDownloadRekapSemuaDialog() {
+      if (!canAccessTasmiSetoranPdfExport()) {
+        showNotice('Fitur download PDF hanya untuk super admin, admin, atau koordinator halaqoh.', 'error');
+        return;
+      }
+      populateDownloadRekapTahunAjaranSelect();
+      const select = document.getElementById('downloadRekapTahunAjaranSelect');
+      const currentHalaqoh = state.halaqohList.find(h => h.id === state.halaqohId);
+      const aktifTa = state.tahunAjaranList.find(t => t.isAktif);
+      if (currentHalaqoh && currentHalaqoh.tahunAjaranId) select.value = currentHalaqoh.tahunAjaranId;
+      else if (aktifTa) select.value = aktifTa.id;
+      const bulanInput = document.getElementById('downloadRekapBulanInput');
+      if (!bulanInput.value) bulanInput.value = (state.tanggal || todayStr()).slice(0, 7);
+      document.getElementById('downloadRekapGenderSelect').value = '';
+      document.getElementById('downloadRekapSemuaDialog').showModal();
+    }
+
+    function closeDownloadRekapSemuaDialog() {
+      document.getElementById('downloadRekapSemuaDialog').close();
+    }
+
+    // Susun PDF rekap bulanan lengkap sebagai SATU tabel rapi (bukan kartu), mencakup
+    // SEMUA halaqoh tasmi' dalam satu tahun ajaran & bulan yang dipilih -- santri
+    // dikelompokkan & diurutkan per kategori Hasil Akhir (lulus dulu) supaya gampang
+    // discan "siapa aja yang boleh Seluler/Video Call/dst", lengkap dengan nama
+    // halaqoh, status per pekan, & catatannya.
+    async function handleDownloadRekapSemuaPdf() {
+      if (!window.PSExport) {
+        showNotice('Modul export PDF belum termuat.', 'error');
+        return;
+      }
+      const tahunAjaranId = document.getElementById('downloadRekapTahunAjaranSelect').value;
+      const bulan = document.getElementById('downloadRekapBulanInput').value;
+      const genderGroup = document.getElementById('downloadRekapGenderSelect').value;
+      if (!tahunAjaranId) {
+        showNotice('Pilih tahun ajaran dulu.', 'error');
+        return;
+      }
+      if (!bulan) {
+        showNotice('Pilih bulan dulu.', 'error');
+        return;
+      }
+      let data;
+      showNotice('Menyusun PDF rekap bulanan lengkap...', 'info');
+      try {
+        data = await api('tasmiSetoran.rekapBulananLengkapSemua', { tahunAjaranId, bulan, genderGroup });
+      } catch (error) {
+        showNotice(error.message || 'Gagal memuat data rekap untuk PDF.', 'error');
+        return;
+      }
+      if (!data || !data.totalPekan || !data.santriList.length) {
+        showNotice('Belum ada data setoran untuk santri di bulan, tahun ajaran, & jenis kelamin ini.', 'error');
+        return;
+      }
+
+      const STATUS_SHORT = { lulus: 'L', gagal: 'G', tidak: 'T' };
+      const groups = { 'ha-videocall': [], 'ha-seluler': [], 'ha-tidakada': [], 'ha-belum': [] };
+      data.santriList.forEach(s => {
+        groups[computeHasilAkhir(s.counts).cls].push(s);
+      });
+      HASIL_AKHIR_KATEGORI_ORDER.forEach(clsKey => {
+        groups[clsKey].sort((a, b) => (a.halaqohName || '').localeCompare(b.halaqohName || '') || (a.name || '').localeCompare(b.name || ''));
+      });
+
+      const weekCount = data.pekanList.length;
+      const weekColWidth = 26;
+      const noWidth = 20, namaWidth = 110, halaqohWidth = 85, hasilWidth = 90;
+      const catatanWidth = Math.max(140, 781 - noWidth - namaWidth - halaqohWidth - hasilWidth - (weekColWidth * weekCount));
+      const columns = [
+        { label: 'No', width: noWidth },
+        { label: 'Nama Santri', width: namaWidth },
+        { label: 'Nama Halaqoh', width: halaqohWidth },
+        { label: 'Hasil Akhir', width: hasilWidth },
+        ...data.pekanList.map((tgl, idx) => ({ label: `Pkn${idx + 1}`, width: weekColWidth })),
+        { label: 'Catatan', width: catatanWidth }
+      ];
+
+      const rows = [];
+      let no = 1;
+      HASIL_AKHIR_KATEGORI_ORDER.forEach(clsKey => {
+        groups[clsKey].forEach(s => {
+          const hasil = computeHasilAkhir(s.counts);
+          const weekCells = s.perPekan.map(v => STATUS_SHORT[v.status] || '-');
+          const catatanGabung = s.perPekan
+            .map((v, idx) => {
+              const c = String(v.catatan || '').trim();
+              return c ? `Pkn${idx + 1}: ${c}` : '';
+            })
+            .filter(Boolean)
+            .join('; ') || '-';
+          rows.push([String(no++), s.name, s.halaqohName || '-', hasil.label, ...weekCells, catatanGabung]);
+        });
+      });
+
+      const tahunAjaranNama = (state.tahunAjaranList.find(t => t.id === tahunAjaranId) || {}).namaDisplay || tahunAjaranId;
+      const genderLabel = genderGroup || 'Semua';
+      const subtitle = `Tahun Ajaran ${tahunAjaranNama} — ${genderLabel} — ${data.halaqohCount} halaqoh — Bulan ${formatBulanLabel(data.bulan)} — ${data.totalPekan} pekan — `
+        + `L=Lulus, G=Gagal, T=Tidak, -=Belum direkam (Tidak Tasmi' dihitung sebagai tidak lulus)`;
+      try {
+        const blob = window.PSExport.buildTablePdfBlob({
+          title: `Rekap Bulanan Lengkap Tasmi' — Semua Halaqoh${genderGroup ? ' (' + genderGroup + ')' : ''}`,
+          subtitle: subtitle,
+          columns: columns,
+          rows: rows,
+          exportedAt: new Date().toISOString()
+        });
+        const taSlug = String(tahunAjaranNama).replace(/\s+/g, '-').toLowerCase() || 'ta';
+        const genderSlug = genderGroup ? '-' + genderGroup.toLowerCase() : '';
+        window.PSExport.downloadBlobFile(blob, `rekap-tasmi-lengkap-semua-${taSlug}${genderSlug}-${data.bulan}-${window.PSExport.formatExportFileTimestamp(new Date().toISOString())}.pdf`);
+        showNotice('PDF rekap bulanan lengkap siap diunduh.', 'info');
+        closeDownloadRekapSemuaDialog();
+      } catch (error) {
+        showNotice(error.message || 'Gagal membuat PDF rekap.', 'error');
+      }
+    }
+
+    async function loadRekapBulananLengkap(bulan) {
+      if (!state.halaqohId) return;
+      const body = document.getElementById('tasmiRekapBulananLengkapBody');
+      body.innerHTML = '<p class="rekap-empty">Memuat rekap bulanan lengkap...</p>';
+      try {
+        const data = await api('tasmiSetoran.rekapBulananLengkap', { halaqohTasmiId: state.halaqohId, bulan });
+        renderRekapBulananLengkap(data);
+      } catch (error) {
+        body.innerHTML = `<p class="rekap-empty">${escapeHtml(error.message || 'Gagal memuat rekap bulanan lengkap.')}</p>`;
+      }
+    }
+
+    function openTasmiRekapBulananLengkapPanel() {
+      if (!state.loaded || !state.halaqohId) return;
+      const monthInput = document.getElementById('rekapBulanLengkapInput');
+      if (!monthInput.value) monthInput.value = (state.tanggal || todayStr()).slice(0, 7);
+      document.getElementById('tasmiRekapBulananLengkapOverlay').hidden = false;
+      loadRekapBulananLengkap(monthInput.value);
+    }
+
+    function closeTasmiRekapBulananLengkapPanel() {
+      document.getElementById('tasmiRekapBulananLengkapOverlay').hidden = true;
+    }
+
+    function applyHideNameColPref(hide) {
+      document.getElementById('gridWrap').classList.toggle('hide-name-col', hide);
+      document.getElementById('toggleNamaButton').textContent = hide ? 'Tampilkan Nama' : 'Sembunyikan Nama';
+      localStorage.setItem(STORAGE.hideNameCol, hide ? '1' : '0');
+    }
+
+    function renderTable() {
+      const table = document.getElementById('setoranTable');
+      table.innerHTML = buildHeaderHtml() + buildBodyHtml();
+      document.getElementById('gridWrap').hidden = state.santriList.length === 0;
+      document.getElementById('emptyState').hidden = state.santriList.length > 0;
+      document.getElementById('simpanButton').hidden = state.santriList.length === 0;
+      document.getElementById('rekapTasmiButton').hidden = state.santriList.length === 0;
+      document.getElementById('rekapBulananButton').hidden = state.santriList.length === 0;
+      document.getElementById('rekapBulananLengkapButton').hidden = state.santriList.length === 0;
+    }
+
+    function handleCellClick(td) {
+      const santriId = td.dataset.santri;
+      const key = td.dataset.key;
+      if (!santriId || !key) return;
+      if (!state.grid[santriId]) state.grid[santriId] = {};
+      const current = state.grid[santriId][key] || '';
+      const next = nextCycleValue(current);
+      if (next === '') delete state.grid[santriId][key];
+      else state.grid[santriId][key] = next;
+      td.dataset.value = next;
+      td.textContent = next;
+      state.dirty = true;
+    }
+
+    // Bukan <dialog> baru -- kalau dibuat dialog terpisah lalu ditampilkan lewat
+    // showModal() sementara #tasmiInputDialog masih modal-open, dialog baru itu akan
+    // dianggap inert (tombolnya tidak bisa diklik) karena bukan descendant dari dialog
+    // yang sedang jadi topmost modal. Makanya overlay ini sebuah <div> yang sudah
+    // dinested DI DALAM #tasmiInputDialog (lihat markup #unsavedOverlay), cukup
+    // di-toggle hidden/show saja.
+    function showUnsavedDialog() {
+      return new Promise(resolve => {
+        const overlay = document.getElementById('unsavedOverlay');
+        const cancelBtn = document.getElementById('unsavedCancelButton');
+        const discardBtn = document.getElementById('unsavedDiscardButton');
+        const saveBtn = document.getElementById('unsavedSaveButton');
+        overlay.hidden = false;
+        const finish = result => {
+          overlay.hidden = true;
+          cancelBtn.removeEventListener('click', onCancel);
+          discardBtn.removeEventListener('click', onDiscard);
+          saveBtn.removeEventListener('click', onSave);
+          resolve(result);
+        };
+        const onCancel = () => finish('cancel');
+        const onDiscard = () => finish('discard');
+        const onSave = () => finish('save');
+        cancelBtn.addEventListener('click', onCancel);
+        discardBtn.addEventListener('click', onDiscard);
+        saveBtn.addEventListener('click', onSave);
+      });
+    }
+
+    async function loadGridFor(halaqohId, tanggal) {
+      if (!halaqohId || !tanggal) return false;
+      showNotice('Memuat data setoran tasmi\'...', 'info');
+      try {
+        const data = await api('tasmiSetoran.list', { halaqohTasmiId: halaqohId, tanggal });
+        state.halaqohId = halaqohId;
+        state.tanggal = tanggal;
+        state.santriList = data.santriList || [];
+        state.grid = {};
+        state.catatanBySantri = {};
+        state.statusBySantri = {};
+        state.santriList.forEach(s => {
+          state.grid[s.id] = Object.assign({}, s.nilai || {});
+          state.catatanBySantri[s.id] = s.catatan || '';
+          state.statusBySantri[s.id] = s.statusTasmi || '';
+        });
+        document.getElementById('tanggalInput').value = tanggal;
+        document.getElementById('catatanInput').value = data.catatan || '';
+        document.getElementById('tasmiInputDialogTitle').textContent = (data.halaqoh && data.halaqoh.name) || 'Halaqoh Tasmi\'';
+        renderPengampuInfoFromData(data.halaqoh);
+        state.loaded = true;
+        state.dirty = false;
+        renderTable();
+        showNotice(`Data dimuat: ${data.halaqoh?.name || ''} — ${tanggal}.`, 'info');
+        return true;
+      } catch (error) {
+        showNotice(error.message || 'Gagal memuat data setoran tasmi\'.', 'error');
+        return false;
+      }
+    }
+
+    async function saveGrid() {
+      if (!state.loaded || !state.halaqohId || !state.tanggal) {
+        showNotice('Muat data terlebih dahulu sebelum menyimpan.', 'error');
+        return false;
+      }
+      const entries = state.santriList.map(s => ({ santriId: s.id, nilai: state.grid[s.id] || {}, catatan: state.catatanBySantri[s.id] || '', statusTasmi: state.statusBySantri[s.id] || '' }));
+      // Status "Tidak Tasmi'" wajib disertai catatan/alasan (sama seperti yg dicek audit
+      // backend) -- dicegah di sini SEBELUM kirim ke server supaya pengampu langsung tahu
+      // saat itu juga, bukan belakangan lewat popup audit.
+      const santriTanpaCatatan = state.santriList.find(s => (state.statusBySantri[s.id] || '') === 'tidak' && !(state.catatanBySantri[s.id] || '').trim());
+      if (santriTanpaCatatan) {
+        showNotice(`Catatan wajib diisi untuk ${santriTanpaCatatan.name} (status "Tidak Tasmi'").`, 'error');
+        const input = document.querySelector(`.catatan-cell-input[data-santri="${santriTanpaCatatan.id}"]`);
+        if (input) {
+          input.scrollIntoView({ block: 'center' });
+          input.focus();
+          input.style.outline = '2px solid #c0392b';
+          setTimeout(() => { input.style.outline = ''; }, 2000);
+        }
+        return false;
+      }
+      const btn = document.getElementById('simpanButton');
+      btn.disabled = true;
+      try {
+        const res = await api('tasmiSetoran.save', {
+          halaqohTasmiId: state.halaqohId,
+          tanggal: state.tanggal,
+          catatan: document.getElementById('catatanInput').value,
+          entries
+        }, 'POST');
+        showNotice(res.message || 'Setoran tasmi\' berhasil disimpan.', 'success');
+        await loadGridFor(state.halaqohId, state.tanggal);
+        return true;
+      } catch (error) {
+        showNotice(error.message || 'Gagal menyimpan setoran tasmi\'.', 'error');
+        return false;
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function handleDialogDateChange() {
+      if (!state.halaqohId) return;
+      let nextTanggal = document.getElementById('tanggalInput').value;
+
+      if (!nextTanggal) return;
+      if (!isSaturdayDate(nextTanggal)) {
+        nextTanggal = nearestSaturdayStr(nextTanggal);
+        document.getElementById('tanggalInput').value = nextTanggal;
+        showNotice(`Tanggal disesuaikan ke hari Sabtu terdekat: ${nextTanggal}.`, 'info');
+      }
+      if (nextTanggal === state.tanggal) return;
+
+      if (state.dirty) {
+        const choice = await showUnsavedDialog();
+        if (choice === 'cancel') {
+          document.getElementById('tanggalInput').value = state.tanggal;
+          return;
+        }
+        if (choice === 'save') {
+          const ok = await saveGrid();
+          if (!ok) return;
+        }
+      }
+      await loadGridFor(state.halaqohId, nextTanggal);
+    }
+
+    // Buka dialog input tasmi' untuk satu halaqoh (dipicu dari kartu di daftar, atau
+    // deep-link ?openHalaqoh=... dari popup audit) -- tanggal default Sabtu terdekat
+    // kecuali dioverride lewat options.tanggal (dipakai deep-link utk Sabtu terakhir yg lewat).
+    async function openTasmiInputDialog(halaqohId, options = {}) {
+      const halaqoh = state.halaqohList.find(h => h.id === halaqohId);
+      if (!halaqoh) {
+        showNotice('Halaqoh tasmi\' tidak ditemukan atau Anda tidak punya akses.', 'error');
+        return;
+      }
+      const dialog = document.getElementById('tasmiInputDialog');
+      document.getElementById('catatanWajibInfo').hidden = false;
+      document.getElementById('tasmiInputDialogTitle').textContent = halaqoh.name;
+      document.getElementById('gridWrap').hidden = true;
+      document.getElementById('emptyState').hidden = false;
+      document.getElementById('emptyState').textContent = 'Memuat data setoran tasmi\'...';
+      document.getElementById('simpanButton').hidden = true;
+      document.getElementById('rekapTasmiButton').hidden = true;
+      document.getElementById('rekapBulananButton').hidden = true;
+      document.getElementById('rekapBulananLengkapButton').hidden = true;
+      if (!dialog.open) dialog.showModal();
+      const tanggal = options.tanggal || nearestSaturdayStr(todayStr());
+      document.getElementById('tanggalInput').value = tanggal;
+      await loadGridFor(halaqohId, tanggal);
+    }
+
+    async function closeTasmiInputDialog(force) {
+      const dialog = document.getElementById('tasmiInputDialog');
+      if (!dialog.open) return;
+      if (!force && state.dirty) {
+        const choice = await showUnsavedDialog();
+        if (choice === 'cancel') return;
+        if (choice === 'save') {
+          const ok = await saveGrid();
+          if (!ok) return;
+        }
+      }
+      dialog.close();
+      state.loaded = false;
+      state.dirty = false;
+      state.halaqohId = '';
+      state.tanggal = '';
+    }
+
+    const currentPage = window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : '/pages/tasmiSetoran/';
+    const initialSession = getStoredSession();
+    if (!initialSession) {
+      clearSession();
+      window.location.replace('/pages/login/');
+    }
+    if (!(window.PSAccess && window.PSAccess.redirectIfForbidden(initialSession, currentPage))) {
+      mountShell();
+      if (!canAccessTasmiSetoranPdfExport()) {
+        const pdfBtn = document.getElementById('downloadRekapLengkapPdfButton');
+        pdfBtn.disabled = true;
+        pdfBtn.title = 'Hanya untuk super admin, admin, atau koordinator halaqoh.';
+      }
+      document.getElementById('searchInput').addEventListener('input', event => {
+        state.searchQuery = event.target.value || '';
+        state.page = 1;
+        renderHalaqohCards();
+      });
+      document.getElementById('filterTa').addEventListener('change', event => {
+        state.filterTa = event.target.value || '';
+        state.page = 1;
+        renderHalaqohCards();
+      });
+      document.getElementById('filterGender').addEventListener('change', event => {
+        state.filterGender = event.target.value || '';
+        state.page = 1;
+        renderHalaqohCards();
+      });
+      function handleHalaqohPaginationClick(event) {
+        const btn = event.target.closest('[data-page]');
+        if (!btn) return;
+        const pg = parseInt(btn.dataset.page, 10);
+        if (!isNaN(pg)) { state.page = pg; renderHalaqohCards(); }
+      }
+      document.getElementById('paginationTop').addEventListener('click', handleHalaqohPaginationClick);
+      document.getElementById('paginationBottom').addEventListener('click', handleHalaqohPaginationClick);
+      document.getElementById('refreshButton').addEventListener('click', async () => {
+        try {
+          await loadTahunAjaranList();
+          await loadHalaqohList(true);
+        } catch (error) {
+          showNotice(error.message || 'Gagal memuat ulang daftar halaqoh tasmi\'.', 'error');
+        }
+      });
+      document.getElementById('halaqohList').addEventListener('click', event => {
+        const trigger = event.target.closest('[data-open-halaqoh]');
+        if (!trigger) return;
+        openTasmiInputDialog(trigger.getAttribute('data-open-halaqoh'));
+      });
+      document.getElementById('closeTasmiInputDialogButton').addEventListener('click', () => closeTasmiInputDialog(false));
+      document.getElementById('catatanWajibInfoOkButton').addEventListener('click', () => { document.getElementById('catatanWajibInfo').hidden = true; });
+      document.getElementById('tasmiInputDialog').addEventListener('cancel', event => {
+        event.preventDefault();
+        closeTasmiInputDialog(false);
+      });
+      // Safety net: 'close' native event selalu fires apa pun cara dialog ditutup
+      // (dialog.close(), Esc, dst) -- pastikan noticeStack balik ke <body>.
+      document.getElementById('tasmiInputDialog').addEventListener('close', () => {
+        relocateNoticeStack();
+      });
+      document.getElementById('tanggalInput').addEventListener('change', handleDialogDateChange);
+      document.getElementById('tanggalInput').addEventListener('input', handleDialogDateChange);
+      document.getElementById('catatanInput').addEventListener('input', () => { state.dirty = true; });
+      document.getElementById('simpanButton').addEventListener('click', saveGrid);
+      applyHideNameColPref(localStorage.getItem(STORAGE.hideNameCol) === '1');
+      document.getElementById('toggleNamaButton').addEventListener('click', () => {
+        applyHideNameColPref(!document.getElementById('gridWrap').classList.contains('hide-name-col'));
+      });
+      document.getElementById('rekapTasmiButton').addEventListener('click', openTasmiRekapPanel);
+      document.getElementById('closeTasmiRekapButton').addEventListener('click', closeTasmiRekapPanel);
+      document.getElementById('tasmiRekapOverlay').addEventListener('click', event => {
+        if (event.target === document.getElementById('tasmiRekapOverlay')) closeTasmiRekapPanel();
+      });
+      document.getElementById('rekapBulananButton').addEventListener('click', openTasmiRekapBulananPanel);
+      document.getElementById('closeTasmiRekapBulananButton').addEventListener('click', closeTasmiRekapBulananPanel);
+      document.getElementById('tasmiRekapBulananOverlay').addEventListener('click', event => {
+        if (event.target === document.getElementById('tasmiRekapBulananOverlay')) closeTasmiRekapBulananPanel();
+      });
+      document.getElementById('rekapBulanInput').addEventListener('change', () => {
+        const val = document.getElementById('rekapBulanInput').value;
+        if (val) loadRekapBulanan(val);
+      });
+      document.getElementById('rekapBulananLengkapButton').addEventListener('click', openTasmiRekapBulananLengkapPanel);
+      document.getElementById('closeTasmiRekapBulananLengkapButton').addEventListener('click', closeTasmiRekapBulananLengkapPanel);
+      document.getElementById('tasmiRekapBulananLengkapOverlay').addEventListener('click', event => {
+        if (event.target === document.getElementById('tasmiRekapBulananLengkapOverlay')) closeTasmiRekapBulananLengkapPanel();
+      });
+      document.getElementById('rekapBulanLengkapInput').addEventListener('change', () => {
+        const val = document.getElementById('rekapBulanLengkapInput').value;
+        if (val) loadRekapBulananLengkap(val);
+      });
+      document.getElementById('downloadRekapLengkapPdfButton').addEventListener('click', openDownloadRekapSemuaDialog);
+      document.getElementById('closeDownloadRekapSemuaButton').addEventListener('click', closeDownloadRekapSemuaDialog);
+      document.getElementById('downloadRekapSemuaDialog').addEventListener('click', event => {
+        if (event.target === document.getElementById('downloadRekapSemuaDialog')) closeDownloadRekapSemuaDialog();
+      });
+      document.getElementById('submitDownloadRekapSemuaButton').addEventListener('click', handleDownloadRekapSemuaPdf);
+      document.getElementById('setoranTable').addEventListener('click', event => {
+        const td = event.target.closest('.cell-toggle');
+        if (td) handleCellClick(td);
+      });
+      document.getElementById('setoranTable').addEventListener('input', event => {
+        const input = event.target.closest('.catatan-cell-input');
+        if (!input) return;
+        const santriId = input.dataset.santri;
+        if (!santriId) return;
+        state.catatanBySantri[santriId] = input.value;
+        state.dirty = true;
+      });
+      document.getElementById('setoranTable').addEventListener('change', event => {
+        const select = event.target.closest('.status-select');
+        if (!select) return;
+        const santriId = select.dataset.santri;
+        if (!santriId) return;
+        state.statusBySantri[santriId] = select.value;
+        select.dataset.value = select.value;
+        state.dirty = true;
+      });
+      window.addEventListener('beforeunload', event => {
+        if (!state.dirty) return;
+        event.preventDefault();
+        event.returnValue = '';
+      });
+      window.addEventListener('load', async () => {
+        if (!canAccessTasmiSetoran()) {
+          showNotice('Anda tidak punya akses ke halaman ini.', 'error');
+          return;
+        }
+        try {
+          await loadTahunAjaranList();
+          await loadHalaqohList();
+          const openHalaqohId = new URLSearchParams(location.search).get('openHalaqoh');
+          if (openHalaqohId && state.halaqohList.some(h => h.id === openHalaqohId)) {
+            history.replaceState(null, '', location.pathname);
+            // Sengaja MUNDUR ke Sabtu terakhir yg SUDAH LEWAT (bukan nearestSaturdayStr, yg
+            // bisa maju ke Sabtu berikutnya kalau itu lebih dekat) -- audit cuma menagih
+            // Sabtu yg sudah lewat, jadi deep-link ini harus buka Sabtu yg relevan dgn gap-nya.
+            const d = new Date(`${todayStr()}T00:00:00`);
+            d.setDate(d.getDate() - ((d.getDay() - 6 + 7) % 7));
+            const lastSaturday = d.toISOString().slice(0, 10);
+            await openTasmiInputDialog(openHalaqohId, { tanggal: lastSaturday });
+            return;
+          }
+          clearNotice();
+        } catch (error) {
+          showNotice(error.message || 'Gagal memuat daftar halaqoh tasmi\'.', 'error');
+        }
+      });
+    }
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,43 @@
+CATATAN SETUP - BRIDGE FINGERPRINT LOKAL
+==========================================
+
+Script ini dipakai KALAU pilihannya adalah jalur "bridge lokal": server aplikasi
+jalan terpisah (hosting/cloud), sedangkan alat fingerprint ada di jaringan lokal
+(LAN) yang tidak terhubung internet langsung.
+
+Script ini jalan di PC/mini-PC mana pun yang SATU JARINGAN (WiFi/LAN) dengan alat
+fingerprint. Tugasnya: konek ke alat lewat port 4370 (SDK/TCP bawaan alat), tarik
+data scan yang belum pernah dikirim, lalu kirim ke server lewat internet.
+
+CARA PAKAI
+----------
+1. Pastikan PC ini bisa ping ke IP alat (default alat: 192.168.1.201).
+2. Install Node.js (versi 18 ke atas, butuh `fetch` bawaan).
+3. Di folder ini, jalankan:
+     npm install
+4. Copy file .env.example jadi .env, lalu isi:
+   - DEVICE_IP / DEVICE_PORT   = IP & port alat (lihat menu Ethernet di alat)
+   - SERVER_API_BASE           = alamat API server, contoh: https://domain-kamu.com/api
+   - FINGERPRINT_BRIDGE_KEY    = login ke aplikasi sebagai Admin/Super Admin, buka
+                                  /pages/jadwalFingerprint/, di bagian "Pengaturan Bridge
+                                  Fingerprint" klik "Generate Kunci Baru", lalu "Salin"
+                                  hasilnya ke sini. TIDAK diatur lewat env var di server.
+5. Jalankan:
+     npm start
+   Script akan sync sekali di awal, lalu otomatis ulang tiap POLL_INTERVAL_MS
+   (default 2 menit). Biarkan tetap jalan (bisa pakai pm2, Task Scheduler, atau
+   NSSM kalau mau dijadikan service Windows supaya jalan terus/auto-start).
+
+CATATAN PENTING
+----------------
+- PIN yang terdaftar di alat WAJIB SAMA PERSIS dengan id_pengurus di aplikasi
+  (bukan nomor urut enrollment bebas) -- pencocokan langsung 1:1, tidak ada
+  tabel mapping terpisah.
+- Script TIDAK menghapus log di alat, cuma menandai "terakhir sync" di file
+  lastSync.json lokal. Kalau lastSync.json dihapus, sync berikutnya akan kirim
+  ULANG semua log yang masih ada di alat (server otomatis dedupe, jadi aman,
+  cuma boros request kalau alat sudah menyimpan sangat banyak).
+- Kalau nanti ternyata jalur "ADMS push langsung" (device push sendiri ke server)
+  yang dipakai di lokasi, script bridge ini TIDAK PERLU dijalankan sama sekali.
+  Dua jalur ini independen, boleh dipakai salah satu atau dua-duanya sekaligus
+  (server dedupe otomatis di tabel fingerprintLog).

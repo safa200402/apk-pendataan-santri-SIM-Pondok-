@@ -1,0 +1,855 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#9e2f22">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="../../shared-ui.css">
+  <script src="../../shared-ui.js"></script>
+  <title>Cek Absensi Pengurus</title>
+  <link rel="stylesheet" href="../../shared-shell.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700&display=swap');
+    :root {
+      --paper: #f6efe0;
+      --ink: #4d4034;
+      --muted: #7b6a58;
+      --line: rgba(91, 73, 57, 0.15);
+      --accent: #b97650;
+      --success: #74846c;
+      --danger: #a55a52;
+      --warning: #b58439;
+      --shadow: 0 18px 45px rgba(87, 67, 51, 0.18);
+      --radius: 24px;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; }
+    body::before { content: ''; position: fixed; inset: 0; pointer-events: none; opacity: 0.15 !important; mix-blend-mode: multiply; }
+    body::after { content: ''; position: fixed; inset: 0; pointer-events: none; opacity: 0.23; }
+
+    .panel { padding: 22px; }
+    h1, h2, h3 { margin: 0 0 10px; text-transform: uppercase; }
+    p { margin: 0; line-height: 1.65; }
+    .nav { display: grid; gap: 10px; }
+    .nav a { padding: 12px 14px; text-decoration: none; }
+    .nav a, button { font-weight: 800 !important; text-transform: uppercase; }
+    .toolbar, .meta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+    button, input, select, textarea { font: inherit; }
+    button { padding: 12px 18px; font-weight: 700; cursor: pointer; }
+    .primary { box-shadow: 0 14px 28px rgba(185, 118, 80, 0.22); }
+    input, select, textarea { width: 100%; padding: 13px 14px; outline: none; }
+    label { display: grid; gap: 7px; font-size: 14px; font-weight: 600; }
+
+    .filters { display: grid; gap: 12px; margin-top: 16px; }
+    .list { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+    @media (max-width: 960px) { .list { grid-template-columns: 1fr; } }
+    .card { padding: 16px; }
+    .pill { display: inline-flex; padding: 7px 11px; font-size: 12px; font-weight: 700; }
+
+    .notice { display: none; padding: 14px 16px; line-height: 1.55; }
+    .notice.show { display: block; }
+
+    .paging-host { display: grid; gap: 8px; margin: 16px 0; }
+    .paging { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; }
+    .page-center { display: grid; gap: 8px; justify-items: center; }
+    .page-numbers { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+    .page-summary { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+    @media (max-width: 960px) { .paging { grid-template-columns: 1fr; } }
+
+    .empty-state { padding: 32px 0; text-align: center; color: var(--muted); font-size: 14px; text-transform: uppercase; letter-spacing: .06em; }
+    .loading-state { padding: 20px 0; text-align: center; color: var(--muted); font-size: 13px; }
+
+    /* Pengurus Gender & Status Styling */
+    .minimal-list-card.row-male            { background: #ddeeff; border-color: rgba(70,130,180,0.25); }
+    .minimal-list-card.row-female          { background: #ffe4f0; border-color: rgba(200,100,140,0.25); }
+    .minimal-list-card.row-male-inactive   { background: linear-gradient(135deg, #888 0%, #cce6ff 100%); border-color: rgba(70,130,180,0.25); }
+    .minimal-list-card.row-female-inactive { background: linear-gradient(135deg, #888 0%, #ffd6e8 100%); border-color: rgba(200,100,140,0.25); }
+    .minimal-list-card.row-male-frozen     { background: linear-gradient(135deg, #d0d0d0 0%, #cce6ff 100%); border-color: rgba(70,130,180,0.25); }
+    .minimal-list-card.row-female-frozen   { background: linear-gradient(135deg, #d0d0d0 0%, #ffd6e8 100%); border-color: rgba(200,100,140,0.25); }
+    .minimal-list-card.row-nogender-inactive { background: linear-gradient(135deg, #888 0%, rgba(255,248,230,0.96) 100%); }
+    .minimal-list-card.row-nogender-frozen   { background: linear-gradient(135deg, #d0d0d0 0%, rgba(255,248,230,0.96) 100%); }
+
+    /* ════════════ DIALOG DETAIL 88×88 (Kalender) ════════════ */
+    dialog.ps-floating-dialog.rekap-detail-dialog {
+      width: 88% !important; min-width: 88% !important; max-width: 88% !important;
+      height: 88%; min-height: 88%; max-height: 88%;
+    }
+    .rekap-detail-dialog .dialog-body {
+      padding: 22px; display: flex; flex-direction: column; gap: 0;
+      height: 100% !important; max-height: 100%; overflow: auto;
+      justify-content: flex-start !important;
+    }
+
+    .pengurus-strip {
+      display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+      padding: 16px 18px; border: 1.5px solid var(--line); border-radius: var(--radius);
+      background: rgba(255,251,243,0.82); position: sticky; top: -22px; z-index: 3;
+    }
+    .pengurus-strip.ps-male   { background: #ddeeff; border-color: rgba(70,130,180,0.25); }
+    .pengurus-strip.ps-female { background: #ffe4f0; border-color: rgba(200,100,140,0.25); }
+    .pengurus-strip-body { flex: 1; min-width: 0; }
+    .pengurus-strip-label { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 3px; }
+    .pengurus-strip-name { font-size: clamp(18px,3vw,26px); font-weight: 900; font-family: 'Playfair Display', serif; text-transform: uppercase; margin: 0 0 2px; color: var(--ink); line-height: 1.15; }
+    .pengurus-strip-jabatan { font-size: 13px; color: var(--muted); margin: 0; }
+    .dialog-close { width: 46px; min-width: 46px; min-height: 46px; padding: 0; border-radius: 999px !important; font-size: 24px; line-height: 1; flex-shrink: 0; }
+
+    .month-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 16px; margin-bottom: 4px; }
+    .month-row input[type=month] { width: auto; min-width: 155px; padding: 12px 14px; }
+    .month-row .month-label { font-size: 15px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: var(--ink); font-family: 'Poppins', sans-serif; }
+
+    .stats-strip { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; margin-bottom: 4px; }
+    .stat-tile { flex: 1 1 72px; min-width: 72px; background: rgba(255,251,243,0.88); border: 1.5px solid var(--line); border-radius: 18px; padding: 14px 12px; text-align: center; display: grid; gap: 4px; }
+    .stat-tile-num { font-size: 26px; font-weight: 800; line-height: 1; font-family: 'Poppins', sans-serif; }
+    .stat-tile-lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+    .c-wajib { color: var(--ink); } .c-hadir { color: #5a7a52; } .c-terlambat { color: #b08030; } .c-awal { color: #2f8f86; }
+    .c-alpa { color: var(--danger); } .c-izin { color: #4a68a0; } .c-sakit { color: #7a4890; }
+    .stat-tile.st-rate-great { border-color: rgba(90,122,82,.35); background: rgba(90,122,82,.08); }
+    .stat-tile.st-rate-ok    { border-color: rgba(176,128,48,.35); background: rgba(176,128,48,.08); }
+    .stat-tile.st-rate-bad   { border-color: rgba(165,80,72,.35);  background: rgba(165,80,72,.08); }
+    .c-rate-great{ color: #5a7a52; } .c-rate-ok { color: #b08030; } .c-rate-bad { color: var(--danger); }
+
+    .aturan-details { border: 1px dashed rgba(111,87,69,0.22); border-radius: 18px; padding: 12px 14px; background: rgba(255,251,243,0.72); margin-top: 18px; }
+    .aturan-details summary { cursor: pointer; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; font-size: 13px; color: var(--ink); user-select: none; }
+    .aturan-list { display: grid; gap: 10px; margin-top: 12px; }
+    .aturan-entry { background: rgba(246,239,224,.8); border: 1px solid var(--line); border-radius: 14px; padding: 10px 14px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .aturan-entry-name { font-weight: 800; font-size: 13px; text-transform: uppercase; color: var(--ink); flex-shrink: 0; }
+    .aturan-entry .pill { font-size: 11px; padding: 4px 10px; }
+
+    /* Calendar */
+    .cal-section-title { margin-top: 22px; margin-bottom: 10px; font-size: 13px; }
+    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+    .cal-head-row { margin-bottom: 6px; }
+    .cal-head-cell { text-align: center; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: 6px 0; }
+    .cal-head-cell.ch-fri { color: var(--success); }
+    .cal-cell { min-height: 86px; border: 1.5px solid var(--line); border-radius: 14px; padding: 8px 9px; display: flex; flex-direction: column; gap: 3px; position: relative; background: rgba(255,251,243,0.7); overflow: hidden; }
+    .cal-empty { border: none; background: transparent; }
+    .cal-day { font-size: 17px; font-weight: 800; font-family: 'Poppins', sans-serif; line-height: 1; }
+    .cal-status { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .03em; }
+    .cal-time { font-size: 12px; font-family: monospace; font-weight: 700; color: var(--muted); margin-top: auto; }
+    .cal-count { font-size: 11px; font-weight: 800; color: var(--accent); margin-top: auto; }
+    .cal-today { outline: 2.5px solid var(--accent); outline-offset: -1px; }
+    .cal-warn { position: absolute; top: 6px; right: 8px; font-size: 13px; color: var(--danger); cursor: help; }
+    .cal-hadir     { background: rgba(116,132,108,.16); border-color: rgba(116,132,108,.42); }
+    .cal-hadir     .cal-status { color: #3d5236; }
+    .cal-terlambat { background: rgba(181,132,57,.16);  border-color: rgba(181,132,57,.48); }
+    .cal-terlambat .cal-status { color: #7a5010; }
+    .cal-sebagian  { background: rgba(196,153,58,.12);  border-color: rgba(196,153,58,.5); border-style: dashed; }
+    .cal-sebagian  .cal-status { color: #8a6312; }
+    .cal-awal      { background: rgba(64,150,140,.15);   border-color: rgba(64,150,140,.45); }
+    .cal-awal      .cal-status { color: #246b60; }
+    .cal-alpa      { background: rgba(165,90,82,.16);   border-color: rgba(165,90,82,.48); }
+    .cal-alpa      .cal-status { color: #7a2820; }
+    .cal-izin      { background: rgba(84,113,160,.14);  border-color: rgba(84,113,160,.42); }
+    .cal-izin      .cal-status { color: #2e4a7a; }
+    .cal-sakit     { background: rgba(130,80,140,.14);  border-color: rgba(130,80,140,.42); }
+    .cal-sakit     .cal-status { color: #5a2870; }
+    .cal-libur     { background: rgba(91,73,57,.05); }
+    .cal-libur     .cal-day, .cal-libur .cal-status { color: rgba(91,73,57,.4); }
+    .cal-future    { background: rgba(255,251,243,.4); border-style: dashed; }
+    .cal-future    .cal-day { color: rgba(91,73,57,.25); }
+    @media (max-width: 720px) {
+      .cal-cell { min-height: 60px; padding: 5px 6px; gap: 2px; }
+      .cal-day { font-size: 14px; } .cal-status { font-size: 8px; } .cal-time { font-size: 10px; }
+      .cal-head-cell { font-size: 9px; padding: 4px 0; } .cal-grid { gap: 4px; }
+    }
+
+    /* Tabel rincian */
+    .table-outer { overflow-x: auto; border: 1.5px solid var(--line); border-radius: 18px; margin-top: 12px; }
+    table.ab-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .ab-table thead tr { background: rgba(246,239,224,.9); }
+    .ab-table th { padding: 10px 14px; text-align: left; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .09em; color: var(--muted); border-bottom: 1.5px solid var(--line); white-space: nowrap; }
+    .ab-table td { padding: 10px 14px; border-bottom: 1px solid rgba(91,73,57,.08); vertical-align: middle; }
+    .ab-table tr:last-child td { border-bottom: none; }
+    .r-hadir td { background: rgba(116,132,108,.07); } .r-terlambat td { background: rgba(181,132,57,.09); }
+    .r-sebagian td { background: rgba(196,153,58,.07); } .r-awal td { background: rgba(64,150,140,.07); }
+    .r-alpa td { background: rgba(165,90,82,.09); } .r-izin td { background: rgba(84,113,160,.06); }
+    .r-sakit td { background: rgba(130,80,140,.06); } .r-libur td { color: rgba(91,73,57,.4); } .r-future td { color: rgba(91,73,57,.22); }
+    .ab-table td:first-child { border-left: 3px solid transparent; padding-left: 12px; }
+    .r-hadir td:first-child { border-left-color: #74846c; } .r-terlambat td:first-child { border-left-color: #c8993a; }
+    .r-sebagian td:first-child { border-left-color: #c4993a; } .r-awal td:first-child { border-left-color: #3f9688; }
+    .r-alpa td:first-child { border-left-color: var(--danger); } .r-izin td:first-child { border-left-color: #5471a0; } .r-sakit td:first-child { border-left-color: #8a5090; }
+    .sbadge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; }
+    .sbadge-hadir { background: rgba(116,132,108,.16); color: #3d5236; } .sbadge-terlambat { background: rgba(181,132,57,.16); color: #7a5010; }
+    .sbadge-sebagian { background: rgba(196,153,58,.16); color: #8a6312; } .sbadge-awal { background: rgba(64,150,140,.16); color: #246b60; }
+    .sbadge-alpa { background: rgba(165,90,82,.16); color: #7a2820; } .sbadge-izin { background: rgba(84,113,160,.16); color: #2e4a7a; }
+    .sbadge-sakit { background: rgba(130,80,140,.16); color: #5a2870; } .sbadge-libur { background: rgba(91,73,57,.09); color: var(--muted); }
+    .violation { display: block; font-size: 11px; color: var(--danger); margin-top: 3px; }
+    .ok-note { display: inline-block; font-size: 11px; font-weight: 700; color: #5a7a52; margin-left: 6px; }
+    /* Baris konteks aturan per hari */
+    tr.day-rule-row td { background: rgba(246,239,224,.65); border-bottom: 1px solid var(--line); padding-top: 12px; padding-bottom: 12px; }
+    tr.day-rule-row td:first-child { border-left: 3px solid var(--accent); }
+    .dr-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
+    .dr-label { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .09em; color: var(--muted); }
+    .dr-count { font-size: 11px; font-weight: 800; color: var(--accent); }
+    .dr-item { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12.5px; font-weight: 700; color: var(--ink); padding: 3px 0; }
+    .dr-win { font-size: 12px; font-weight: 500; color: var(--muted); font-family: monospace; }
+    .dr-win b { color: var(--ink); font-weight: 700; }
+    .tgl-num { font-weight: 800; font-size: 16px; font-family: 'Poppins',sans-serif; line-height: 1; }
+    .tgl-hari { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 700; }
+    .jam-cell { font-family: monospace; font-size: 13px; font-weight: 700; }
+    .jarak-cell { font-size: 12px; color: var(--muted); } .catatan-cell { font-size: 12px; color: var(--muted); max-width: 180px; }
+
+    .legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; padding: 12px 14px; border: 1px dashed rgba(91,73,57,.18); border-radius: 14px; background: rgba(255,251,243,.72); }
+    .legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+    .legend-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+    .ld-h { background: #74846c; } .ld-t { background: #c8993a; } .ld-a { background: var(--danger); }
+    .ld-aw { background: #3f9688; }
+    .ld-sb { background: repeating-linear-gradient(45deg, #c4993a, #c4993a 3px, #f6efe0 3px, #f6efe0 5px); }
+    .ld-i { background: #5471a0; } .ld-s { background: #8a5090; } .ld-l { background: rgba(91,73,57,.2); }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-left">
+      <button class="drawer-toggle" id="navToggle" type="button" aria-label="Toggle sidebar">Menu</button>
+      <div class="header-brand">Pendataan Santri</div>
+      <div class="header-page">Cek Absensi Pengurus</div>
+    </div>
+    <div class="header-right">
+      <span class="header-chip" id="headerRole">Admin</span>
+    </div>
+  </header>
+  <div class="drawer-backdrop" id="navBackdrop"></div>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+  <main>
+    <div class="app-layout">
+      <section class="panel nav" id="nav"></section>
+      <div class="content-stack">
+        <section class="notice info" id="notice"></section>
+        <section class="panel">
+          <div class="section-head">
+            <h2>Cek Absensi Pengurus</h2>
+          </div>
+          <p style="color:var(--muted);font-size:13px;margin-top:6px;">Klik kartu pengurus untuk membuka kalender absensi satu bulan dan memeriksa kesesuaiannya dengan aturan absensi (Koordinat Absensi &rarr; Aturan Absensi).</p>
+          <div class="toolbar" id="actionToolbar">
+            <button class="secondary" id="refreshButton" type="button">Muat ulang</button>
+            <button class="secondary" id="toggleExpandButton" type="button" data-expand-state="collapsed">Buka semua</button>
+          </div>
+          <div class="filters" id="filtersPanel">
+            <label>
+              Cari nama, email, jabatan
+              <input type="search" id="searchInput" placeholder="Mis. fauzan, mudir, email">
+            </label>
+            <div style="display: grid; grid-auto-flow: column; gap: 10px;">
+              <label>
+                <select id="statusFilter">
+                  <option value="">Semua</option>
+                  <option value="active">Aktif</option>
+                  <option value="dibekukan">Dibekukan</option>
+                  <option value="inactive">Nonaktif</option>
+                </select>
+              </label>
+              <label>
+                <select id="sortSelect">
+                  <option value="updated_desc" selected>Edit terbaru</option>
+                  <option value="name_asc">Nama A-Z</option>
+                  <option value="name_desc">Nama Z-A</option>
+                  <option value="id_asc">ID kecil-besar</option>
+                  <option value="id_desc">ID besar-kecil</option>
+                </select>
+              </label>
+              <label>
+                <select id="pageSizeSelect">
+                  <option value="10">10</option>
+                  <option value="25" selected>25</option>
+                  <option value="50">50</option>
+                  <option value="100">100</option>
+                </select>
+              </label>
+            </div>
+          </div>
+          <div class="paging-host" id="paginationTop"></div>
+          <div class="list" id="list"></div>
+          <div class="paging-host" id="paginationBottom"></div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <!-- ═══ Dialog: Kalender Absensi (88×88) ═══════════════════════════════ -->
+  <dialog class="ps-floating-dialog rekap-detail-dialog" id="detailDialog">
+    <div class="dialog-body">
+      <div class="pengurus-strip ps-none" id="pengurusStrip">
+        <div class="pengurus-strip-body">
+          <p class="pengurus-strip-label">Cek Absensi</p>
+          <h2 class="pengurus-strip-name" id="detailNama">—</h2>
+          <p class="pengurus-strip-jabatan" id="detailJabatan"></p>
+        </div>
+        <button type="button" class="secondary dialog-close" id="btnTutupDialog" aria-label="Tutup">&times;</button>
+      </div>
+
+      <div class="month-row">
+        <button type="button" class="secondary" id="btnPrevBulan" style="padding:12px 16px;">&#8249;</button>
+        <input type="month" id="inputBulan">
+        <button type="button" class="secondary" id="btnNextBulan" style="padding:12px 16px;">&#8250;</button>
+        <span class="month-label" id="bulanLabel"></span>
+      </div>
+
+      <section class="notice" id="detailNotice" style="margin-top:12px;"></section>
+
+      <div class="stats-strip" id="statsStrip"></div>
+
+      <details class="aturan-details" id="aturanDetails" style="display:none;">
+        <summary>&#x1F4CD; Aturan Absensi</summary>
+        <div class="aturan-list" id="aturanList"></div>
+      </details>
+
+      <h3 class="cal-section-title">Kalender Absensi &mdash; <span id="calMonthLabel"></span></h3>
+      <div class="cal-grid cal-head-row">
+        <div class="cal-head-cell">Sen</div>
+        <div class="cal-head-cell">Sel</div>
+        <div class="cal-head-cell">Rab</div>
+        <div class="cal-head-cell">Kam</div>
+        <div class="cal-head-cell ch-fri">Jum</div>
+        <div class="cal-head-cell">Sab</div>
+        <div class="cal-head-cell">Ahad</div>
+      </div>
+      <div class="cal-grid" id="calGrid">
+        <div class="loading-state" style="grid-column:1/-1;">Memuat kalender…</div>
+      </div>
+
+      <div class="legend">
+        <span class="legend-item"><span class="legend-dot ld-h"></span>Hadir</span>
+        <span class="legend-item"><span class="legend-dot ld-t"></span>Terlambat</span>
+        <span class="legend-item"><span class="legend-dot ld-aw"></span>Lebih Awal</span>
+        <span class="legend-item"><span class="legend-dot ld-sb"></span>Sebagian aturan</span>
+        <span class="legend-item"><span class="legend-dot ld-a"></span>Tidak Hadir</span>
+        <span class="legend-item"><span class="legend-dot ld-i"></span>Izin</span>
+        <span class="legend-item"><span class="legend-dot ld-s"></span>Sakit</span>
+        <span class="legend-item"><span class="legend-dot ld-l"></span>Libur / Tidak wajib</span>
+        <span class="legend-item">N&times; = jumlah absensi sehari</span>
+        <span class="legend-item">&#x26A0; = ada sesi di luar jam acuan</span>
+      </div>
+
+      <details class="aturan-details" id="rincianDetails">
+        <summary>&#x1F4C4; Rincian Per Hari</summary>
+        <div class="table-outer">
+          <table class="ab-table">
+            <thead>
+              <tr><th>Tgl</th><th>Status</th><th>Jam</th><th>Jarak</th><th>Catatan</th></tr>
+            </thead>
+            <tbody id="detailTbody"><tr><td colspan="5" class="loading-state">—</td></tr></tbody>
+          </table>
+        </div>
+      </details>
+    </div>
+  </dialog>
+
+  <script src="../../shared-audit.js"></script>
+  <script src="../../shared-access.js"></script>
+  <script src="../../shared-nav.js"></script>
+  <script src="../../shared-shell.js"></script>
+  <script>
+    const API_BASE = window.location.origin + '/api';
+    const STORAGE = { apiBase: 'ps_api_base', token: 'ps_token', session: 'ps_session' };
+    localStorage.setItem(STORAGE.apiBase, API_BASE);
+
+    const BULAN_NAMES  = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+    const HARI_LABEL   = { senin:'Senin', selasa:'Selasa', rabu:'Rabu', kamis:'Kamis', jumat:'Jumat', sabtu:'Sabtu', ahad:'Ahad' };
+    const HARI_ORDER   = ['senin','selasa','rabu','kamis','jumat','sabtu','ahad'];
+    const STATUS_LABEL = { hadir:'Hadir', terlambat:'Terlambat', awal:'Lebih Awal', sebagian:'Sebagian', alpa:'Tidak Hadir', izin:'Izin', sakit:'Sakit', libur:'Libur', 'akan-datang':'—' };
+
+    const state = {
+      items: [], page: 1, pageSize: 25, totalPages: 1, total: 0,
+      expandedIds: new Set(),
+      activePengurus: null, bulan: ''
+    };
+
+    /* ── Helpers ────────────────────────────────────────────────────── */
+    function escapeHtml(text) {
+      return String(text == null ? '' : text)
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    }
+    function bulanStr(ym) {
+      if (!ym) return '';
+      const p = ym.split('-');
+      return BULAN_NAMES[parseInt(p[1],10)-1] + ' ' + p[0];
+    }
+    function todayStr() {
+      const n = new Date();
+      return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0');
+    }
+    function normalizeLookupValue(value) {
+      const text = String(value == null ? '' : value);
+      const normalized = typeof text.normalize === 'function' ? text.normalize('NFD').replace(/[̀-ͯ]/g, '') : text;
+      return normalized.toLowerCase().replace(/[^0-9a-z\s]/g, ' ').replace(/\s+/g, ' ').trim();
+    }
+    function getPengurusStatusKey(value) {
+      const n = normalizeLookupValue(value);
+      if (n === 'inactive' || n === 'nonaktif') return 'inactive';
+      if (n === 'dibekukan' || n === 'frozen' || n === 'beku') return 'dibekukan';
+      return 'active';
+    }
+    function getPengurusStatusCardClass(value) {
+      const k = getPengurusStatusKey(value);
+      return k === 'inactive' ? 'status-inactive' : k === 'dibekukan' ? 'status-dibekukan' : '';
+    }
+    function getPengurusStatusPillClass(value) {
+      const k = getPengurusStatusKey(value);
+      return k === 'inactive' ? 'inactive' : k === 'dibekukan' ? 'warn' : '';
+    }
+    function genderStripClass(gender) {
+      const g = normalizeLookupValue(gender);
+      return g === 'male' ? 'ps-male' : g === 'female' ? 'ps-female' : 'ps-none';
+    }
+    function isPengurusBaru(item) {
+      const createdAt = item?.record?.created_at;
+      if (!createdAt) return false;
+      const created = new Date(createdAt);
+      if (isNaN(created)) return false;
+      const oneMonthLater = new Date(created);
+      oneMonthLater.setMonth(oneMonthLater.getMonth() + 1);
+      return new Date() < oneMonthLater;
+    }
+    function getCardRowClass(gender, statusKey) {
+      if (statusKey === 'inactive') {
+        if (gender === 'male') return 'row-male-inactive';
+        if (gender === 'female') return 'row-female-inactive';
+        return 'row-nogender-inactive';
+      }
+      if (statusKey === 'dibekukan') {
+        if (gender === 'male') return 'row-male-frozen';
+        if (gender === 'female') return 'row-female-frozen';
+        return 'row-nogender-frozen';
+      }
+      if (gender === 'male') return 'row-male';
+      if (gender === 'female') return 'row-female';
+      return '';
+    }
+
+    /* ── Auth / API ─────────────────────────────────────────────────── */
+    function getApiBase() { return localStorage.getItem(STORAGE.apiBase) || ''; }
+    function getToken() { return localStorage.getItem(STORAGE.token) || ''; }
+    function clearSession() { localStorage.removeItem(STORAGE.token); localStorage.removeItem(STORAGE.session); }
+    function getStoredSession() { try { return JSON.parse(localStorage.getItem(STORAGE.session) || 'null'); } catch (_) { return null; } }
+
+    function toParams(data) {
+      const params = new URLSearchParams();
+      Object.entries(data).forEach(([key, value]) => {
+        if (value === undefined || value === null) return;
+        params.append(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
+      });
+      return params;
+    }
+    async function api(action, payload = {}) {
+      const apiBase = getApiBase(), token = getToken();
+      if (!apiBase || !token) { clearSession(); window.location.replace('/pages/login/'); throw new Error('Sesi tidak ditemukan.'); }
+      const params = toParams({ action, token, ...payload });
+      const response = await fetch(`${apiBase}?${params.toString()}`);
+      const json = await response.json();
+      if (!json.ok) {
+        const error = new Error(json.error && json.error.message ? json.error.message : 'Permintaan gagal.');
+        error.code = (json.error && json.error.code) || response.status || 500;
+        if (error.code === 401) { clearSession(); window.location.replace('/pages/login/'); }
+        throw error;
+      }
+      return json.data;
+    }
+
+    /* ── Notice (inline) ────────────────────────────────────────────── */
+    function showNotice(msg, type) { const el = document.getElementById('notice'); el.textContent = msg; el.className = 'notice show '+(type||'info'); }
+    function clearNotice() { const el = document.getElementById('notice'); el.textContent = ''; el.className = 'notice info'; }
+    function setDetailNotice(msg, type) { const el = document.getElementById('detailNotice'); el.textContent = msg; el.className = 'notice show '+(type||'info'); }
+    function clearDetailNotice() { const el = document.getElementById('detailNotice'); el.textContent = ''; el.className = 'notice'; }
+
+    /* ── Pagination ─────────────────────────────────────────────────── */
+    function renderPaging(currentPage, totalPages) {
+      const start = Math.max(1, Math.min(currentPage - 4, totalPages - 9));
+      const end = Math.min(totalPages, start + 9);
+      let html = '';
+      for (let p = start; p <= end; p++) {
+        html += `<button ${p === currentPage ? 'class="active"' : ''} data-page="${p}">${p}</button>`;
+      }
+      return html;
+    }
+    function renderPagination() {
+      const markup = state.total ? `
+        <div class="paging">
+          <div class="page-center">
+            <div class="page-numbers">
+              ${renderPaging(state.page, state.totalPages)}
+            </div>
+            <div class="page-summary">Halaman ${state.page} dari ${state.totalPages} | total ${state.total} data</div>
+          </div>
+        </div>` : '';
+      window.PSUI.syncPaginationHosts({ markup, visibleCount: state.items.length, totalCount: state.total, topId: 'paginationTop', bottomId: 'paginationBottom' });
+    }
+
+    /* ── Expand ─────────────────────────────────────────────────────── */
+    function isItemExpanded(id) { return state.expandedIds.has(id); }
+    function pruneExpandedIds() {
+      const visible = new Set(state.items.map(i => i.id));
+      Array.from(state.expandedIds).forEach(id => { if (!visible.has(id)) state.expandedIds.delete(id); });
+    }
+    function syncExpandToggleButton() {
+      const button = document.getElementById('toggleExpandButton');
+      const hasItems = state.items.length > 0;
+      const allExpanded = hasItems && state.items.every(i => state.expandedIds.has(i.id));
+      button.disabled = !hasItems;
+      button.dataset.expandState = allExpanded ? 'expanded' : 'collapsed';
+      button.textContent = allExpanded ? 'Tutup semua' : 'Buka semua';
+    }
+    function toggleExpandedList() {
+      const allExpanded = state.items.length > 0 && state.items.every(i => state.expandedIds.has(i.id));
+      if (allExpanded) state.expandedIds.clear();
+      else state.items.forEach(i => state.expandedIds.add(i.id));
+      renderList();
+    }
+    function toggleItemExpanded(id) {
+      if (!id) return;
+      if (state.expandedIds.has(id)) state.expandedIds.delete(id);
+      else state.expandedIds.add(id);
+      renderList();
+    }
+
+    /* ── List (gaya editPengurus) ───────────────────────────────────── */
+    async function loadData() {
+      clearNotice();
+      showNotice('Memuat pengurus…', 'info');
+      try {
+        const list = await api('pengurus.list', {
+          page: state.page, pageSize: state.pageSize,
+          q: document.getElementById('searchInput').value.trim(),
+          status: document.getElementById('statusFilter').value,
+          sort: document.getElementById('sortSelect').value
+        });
+        state.items = list.items || [];
+        state.page = list.page || 1;
+        state.pageSize = list.pageSize || state.pageSize;
+        state.totalPages = list.totalPages || 1;
+        state.total = list.total || 0;
+        pruneExpandedIds();
+        clearNotice();
+        renderList();
+      } catch (error) {
+        showNotice(error.message || 'Gagal memuat pengurus.', 'error');
+      }
+    }
+
+    function renderList() {
+      const target = document.getElementById('list');
+      const items = state.items;
+      if (!items.length) {
+        target.innerHTML = `<p class="empty-state">Belum ada pengurus yang cocok dengan filter.</p>`;
+      } else {
+        target.innerHTML = items.map(item => {
+          const genderNorm = normalizeLookupValue(item.gender);
+          const genderKey = genderNorm === 'male' ? 'male' : genderNorm === 'female' ? 'female' : '';
+          const statusKey = getPengurusStatusKey(item.status);
+          const rowClass = getCardRowClass(genderKey, statusKey);
+          return `
+          <article class="card minimal-list-card ${isItemExpanded(item.id) ? 'is-expanded' : ''} ${rowClass}">
+            <div class="minimal-list-card-head">
+              <div class="minimal-list-card-main" data-collapse="${item.id}" role="button" tabindex="0" aria-expanded="${isItemExpanded(item.id) ? 'true' : 'false'}" aria-label="Buka detail pengurus ${escapeHtml(item.name || '-')}">
+                <div class="minimal-list-card-title-row">
+                  ${isPengurusBaru(item) ? `<span style="display:inline-flex;align-items:center;padding:2px 8px;border-radius:99px;font-size:10.5px;font-weight:800;letter-spacing:.03em;background:#dff5df;color:#1e7e34;">NEW</span>` : ''}
+                  <strong class="minimal-list-card-name">${escapeHtml(item.name || '-')}</strong>
+                </div>
+                <span class="minimal-list-card-hint">${escapeHtml(item.email || 'Tanpa email')} &nbsp;·&nbsp; ${escapeHtml(item.noHp || 'Tanpa nomor HP')} &nbsp;·&nbsp; ${escapeHtml(item.primaryJabatanLabel || 'Tanpa jabatan utama')}</span>
+              </div>
+              <button class="primary minimal-list-card-toggle" type="button" data-cek="${item.id}" aria-label="Cek absensi ${escapeHtml(item.name || '-')}">Cek Absensi</button>
+            </div>
+            <div class="minimal-list-card-detail">
+              <div class="minimal-list-card-meta">
+                <span class="pill ${getPengurusStatusPillClass(item.status)}">${escapeHtml(item.status || '-')}</span>
+                ${item.gender ? `<span class="pill">${escapeHtml(item.gender)}</span>` : ''}
+                <span class="pill">Jabatan ${Number(item.jabatanCount || 0)}</span>
+              </div>
+              <div class="minimal-list-card-summary">
+                <p><strong>Email:</strong> ${escapeHtml(item.email || '-')}</p>
+                <p><strong>No HP:</strong> ${escapeHtml(item.noHp || '-')}</p>
+                <p><strong>Jabatan:</strong> ${escapeHtml((item.jabatanLabels || []).length ? item.jabatanLabels.join(', ') : '-')}</p>
+                <p><strong>Jabatan utama:</strong> ${escapeHtml(item.primaryJabatanLabel || '-')}</p>
+              </div>
+              <div class="toolbar minimal-list-card-actions">
+                <button class="primary" type="button" data-cek="${item.id}">Cek Absensi Bulan Ini</button>
+              </div>
+            </div>
+          </article>`;
+        }).join('');
+      }
+      renderPagination();
+      syncExpandToggleButton();
+      if (window.PSUI && window.PSUI.syncScrollButtons) window.PSUI.syncScrollButtons();
+    }
+
+    /* ── Dialog: Kalender ───────────────────────────────────────────── */
+    function openDetailDialog(item) {
+      if (!item) return;
+      state.activePengurus = {
+        id: item.id, name: item.name,
+        jabatan: (item.jabatanLabels || []).length ? item.jabatanLabels.join(', ') : (item.primaryJabatanLabel || ''),
+        gender: item.gender
+      };
+      const strip = document.getElementById('pengurusStrip');
+      strip.className = 'pengurus-strip ' + genderStripClass(item.gender);
+      document.getElementById('detailNama').textContent = item.name || '—';
+      document.getElementById('detailJabatan').textContent = state.activePengurus.jabatan || 'Tanpa jabatan';
+
+      clearDetailNotice();
+      document.getElementById('statsStrip').innerHTML = '';
+      const det = document.getElementById('aturanDetails');
+      det.style.display = 'none'; det.open = false;
+      document.getElementById('aturanList').innerHTML = '';
+      document.getElementById('rincianDetails').open = false;
+      document.getElementById('calGrid').innerHTML = '<div class="loading-state" style="grid-column:1/-1;">Memuat kalender…</div>';
+      document.getElementById('detailTbody').innerHTML = '<tr><td colspan="5" class="loading-state">Memuat data absensi…</td></tr>';
+
+      const dialog = document.getElementById('detailDialog');
+      if (!dialog.open) dialog.showModal();
+      loadDetailAbsensi();
+    }
+
+    async function loadDetailAbsensi() {
+      if (!state.activePengurus) return;
+      clearDetailNotice();
+      document.getElementById('calMonthLabel').textContent = bulanStr(state.bulan);
+      document.getElementById('calGrid').innerHTML = '<div class="loading-state" style="grid-column:1/-1;">Memuat ' + escapeHtml(bulanStr(state.bulan)) + '…</div>';
+      try {
+        const data = await api('rekap.absensi.pengurus.detail', { pengurusId: state.activePengurus.id, bulan: state.bulan });
+        renderDetailAbsensi(data);
+      } catch (e) {
+        setDetailNotice(e.message || 'Gagal memuat data absensi.', 'error');
+        document.getElementById('calGrid').innerHTML = '';
+        document.getElementById('detailTbody').innerHTML = '';
+      }
+    }
+
+    function renderDetailAbsensi(data) {
+      const s = data.stats;
+      const rateC  = s.rate===null ? '' : s.rate>=90 ? 'c-rate-great' : s.rate>=70 ? 'c-rate-ok' : 'c-rate-bad';
+      const rateST = s.rate===null ? '' : s.rate>=90 ? 'st-rate-great' : s.rate>=70 ? 'st-rate-ok' : 'st-rate-bad';
+      document.getElementById('statsStrip').innerHTML =
+        mkStatTile(s.wajib,'Hari Wajib','c-wajib') + mkStatTile(s.hadir,'Hari Hadir','c-hadir') +
+        mkStatTile(s.alpa,'Hari Alpa','c-alpa') +
+        mkStatTile(s.totalSesi!=null?s.totalSesi:0,'Total Sesi','c-izin') +
+        mkStatTile(s.terlambatSesi!=null?s.terlambatSesi:0,'Sesi Telat','c-terlambat') +
+        (s.awalSesi ? mkStatTile(s.awalSesi,'Sesi Awal','c-awal') : '') +
+        (s.izin ? mkStatTile(s.izin,'Izin','c-izin') : '') +
+        (s.sakit ? mkStatTile(s.sakit,'Sakit','c-sakit') : '') +
+        (s.rate!==null ? '<div class="stat-tile '+rateST+'"><span class="stat-tile-num '+rateC+'">'+s.rate+'%</span><span class="stat-tile-lbl">Kehadiran</span></div>' : '');
+
+      const det = document.getElementById('aturanDetails');
+      const lst = document.getElementById('aturanList');
+      if (!data.aturan || !data.aturan.length) {
+        lst.innerHTML = '<p style="color:var(--muted);font-size:13px;font-style:italic;padding:8px 0;">Belum ada aturan absensi untuk pengurus ini. Atur di menu Koordinat Absensi &rarr; tab Aturan Absensi.</p>';
+      } else {
+        lst.innerHTML = data.aturan.map(a => {
+          const hari = a.hariWajib && a.hariWajib.length ? a.hariWajib.map(h => HARI_LABEL[h]||h).join(', ') : 'Setiap hari';
+          const jam = a.jamMasuk ? a.jamMasuk+' (buka -'+(a.toleransiSebelumMenit||0)+'m, batas +'+(a.toleransiTerlambatMenit||0)+'m)' : 'Bebas';
+          return '<div class="aturan-entry">' +
+            '<span class="aturan-entry-name">'+escapeHtml(a.namaLokasi||'Lokasi')+'</span>' +
+            '<span class="pill">&#x1F4C5; '+escapeHtml(hari)+'</span>' +
+            '<span class="pill">&#x23F0; '+escapeHtml(jam)+'</span>' +
+            '<span class="pill">&#x1F4D0; '+escapeHtml(a.radiusMeter)+' m</span>' +
+          '</div>';
+        }).join('');
+      }
+      det.style.display = ''; det.open = true;
+
+      const rows = data.detail || [];
+      renderCalendar(rows);
+      renderRincianTable(rows);
+    }
+
+    // Aturan yang TIDAK terpenuhi pada hari wajib (kecuali hari izin/sakit) — inti pengecekan multi-aturan.
+    function unmetRules(row) {
+      if (!row || row.isFuture || row.status === 'akan-datang') return [];
+      if (!row.isWajib || row.status === 'izin' || row.status === 'sakit') return [];
+      if (!Array.isArray(row.ruleResults)) return [];
+      return row.ruleResults.filter(r => r.status === 'alpa');
+    }
+
+    function renderCalendar(rows) {
+      const grid = document.getElementById('calGrid');
+      if (!rows.length) { grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1;">Tidak ada data</div>'; return; }
+      const today = todayStr();
+      let firstCol = HARI_ORDER.indexOf(rows[0].hariNama);
+      if (firstCol < 0) firstCol = 0;
+      let cells = '';
+      for (let i = 0; i < firstCol; i++) cells += '<div class="cal-cell cal-empty"></div>';
+      rows.forEach(row => {
+        const isFuture = row.status === 'akan-datang';
+        const cls = 'cal-' + (isFuture ? 'future' : (row.status || 'libur'));
+        const dayNo = parseInt(row.tanggal.split('-')[2], 10);
+        const label = STATUS_LABEL[row.status] || row.status;
+        const count = row.count || 0;
+        const isToday = row.tanggal === today;
+        const sesTitles = (row.sessions || []).reduce((acc, ses) => acc.concat((ses.violations || []).map(v => (ses.waktu || '') + ' — ' + v)), []);
+        const missTitles = unmetRules(row).map(r => 'Aturan "' + (r.namaLokasi || 'Lokasi') + '"' + (r.jamMasuk ? ' (' + r.jamMasuk + ')' : '') + ' belum terpenuhi');
+        const warnTitle = sesTitles.concat(missTitles).join('; ');
+        cells += '<div class="cal-cell ' + cls + (isToday ? ' cal-today' : '') + '">' +
+          '<span class="cal-day">' + dayNo + '</span>' +
+          (isFuture ? '' : '<span class="cal-status">' + escapeHtml(label) + '</span>') +
+          (count > 1 ? '<span class="cal-count">' + count + '× absensi</span>'
+                     : (row.waktu ? '<span class="cal-time">' + escapeHtml(row.waktu) + '</span>' : '')) +
+          (row.hasWarning ? '<span class="cal-warn" title="' + escapeHtml(warnTitle || 'Ada absensi di luar jam acuan') + '">&#x26A0;</span>' : '') +
+        '</div>';
+      });
+      grid.innerHTML = cells;
+    }
+
+    function renderRincianTable(rows) {
+      const tbody = document.getElementById('detailTbody');
+      if (!rows.length) { tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Tidak ada data</td></tr>'; return; }
+      let html = '';
+      rows.forEach(row => {
+        const isFuture = row.status === 'akan-datang';
+        const tglParts = row.tanggal.split('-');
+        const hariStr = HARI_LABEL[row.hariNama] || row.hariNama;
+        const dayCell = '<td><div class="tgl-num">'+parseInt(tglParts[2],10)+'</div><div class="tgl-hari">'+escapeHtml(hariStr)+'</div></td>';
+        const sessions = row.sessions || [];
+        const unmet = unmetRules(row);
+        const ruleResults = (!isFuture && Array.isArray(row.ruleResults)) ? row.ruleResults : [];
+
+        // Hari tanpa aturan & tanpa input (libur / akan datang)
+        if (!sessions.length && !unmet.length && !ruleResults.length) {
+          const rowCls = 'r-' + (isFuture ? 'future' : row.status || 'libur');
+          const label = STATUS_LABEL[row.status] || row.status;
+          const badgeCls = 'sbadge-' + (isFuture ? 'libur' : row.status || 'libur');
+          html += '<tr class="'+rowCls+'">' + dayCell +
+            '<td>'+(isFuture ? '<span style="color:rgba(91,73,57,.22);">—</span>' : '<span class="sbadge '+badgeCls+'">'+escapeHtml(label)+'</span>')+'</td>' +
+            '<td class="jam-cell">—</td><td class="jarak-cell">—</td><td class="catatan-cell"></td>' +
+          '</tr>';
+          return;
+        }
+
+        let dateEmitted = false;
+        const nextDayCell = () => { if (dateEmitted) return '<td></td>'; dateEmitted = true; return dayCell; };
+
+        // 1) Baris konteks ATURAN hari ini: sebutkan aturannya + jendela jam + jumlah input.
+        if (ruleResults.length) {
+          const ruleTxt = ruleResults.map(r => {
+            const win = r.jamMasuk
+              ? 'masuk <b>'+escapeHtml(r.jamMasuk)+'</b> · boleh sejak <b>'+escapeHtml(r.buka||r.jamMasuk)+'</b> · batas <b>'+escapeHtml(r.batas||r.jamMasuk)+'</b>'
+              : 'jam bebas';
+            const rb = '<span class="sbadge sbadge-'+(r.status||'alpa')+'">'+escapeHtml(STATUS_LABEL[r.status]||r.status)+(r.waktu?' '+escapeHtml(r.waktu):'')+'</span>';
+            return '<div class="dr-item">&laquo;'+escapeHtml(r.namaLokasi||'Lokasi')+'&raquo; <span class="dr-win">'+win+'</span> '+rb+'</div>';
+          }).join('');
+          html += '<tr class="day-rule-row">' + nextDayCell() +
+            '<td colspan="4"><div class="dr-head"><span class="dr-label">Aturan hari ini</span>'+
+            '<span class="dr-count">'+sessions.length+'&times; input</span></div>'+ruleTxt+'</td>' +
+          '</tr>';
+        }
+
+        // 2) Tiap INPUT absensi pengurus hari itu, dicocokkan ke aturan → hadir / lebih awal / terlambat.
+        sessions.forEach((ses, i) => {
+          const tipe = ses.tipe || 'hadir';
+          const rowCls = 'r-' + tipe;
+          const label = STATUS_LABEL[tipe] || tipe;
+          const badgeCls = 'sbadge-' + tipe;
+          const violHtml = (ses.violations||[]).map(v => '<span class="violation">&#x26A0; '+escapeHtml(v)+'</span>').join('');
+          const lokasiBadge = ses.namaLokasi ? ' <span class="tgl-hari">'+escapeHtml(ses.namaLokasi)+'</span>' : '';
+          const inputBadge = ' <span class="tgl-hari">Input '+(i+1)+'/'+sessions.length+'</span>';
+          const cocokNote = (tipe === 'hadir' && ruleResults.length) ? '<span class="ok-note">&#x2714; Cocok</span>' : '';
+          html += '<tr class="'+rowCls+'">' + nextDayCell() +
+            '<td><span class="sbadge '+badgeCls+'">'+escapeHtml(label)+'</span>'+inputBadge+lokasiBadge+cocokNote+violHtml+'</td>' +
+            '<td class="jam-cell">'+(ses.waktu||'—')+'</td>' +
+            '<td class="jarak-cell">'+(ses.jarak!=null ? ses.jarak+' m' : '—')+'</td>' +
+            '<td class="catatan-cell">'+escapeHtml(ses.catatan||'')+'</td>' +
+          '</tr>';
+        });
+
+        // 3) Aturan yang tidak punya input cocok sama sekali → Tidak Hadir.
+        unmet.forEach((r) => {
+          html += '<tr class="r-alpa">' + nextDayCell() +
+            '<td><span class="sbadge sbadge-alpa">Tidak Hadir</span> <span class="tgl-hari">Aturan tak terpenuhi</span></td>' +
+            '<td class="jam-cell">'+escapeHtml(r.jamMasuk || '—')+'</td>' +
+            '<td class="jarak-cell">—</td>' +
+            '<td class="catatan-cell">Tidak ada input cocok untuk aturan &laquo;'+escapeHtml(r.namaLokasi||'Lokasi')+'&raquo;</td>' +
+          '</tr>';
+        });
+      });
+      tbody.innerHTML = html;
+    }
+
+    function mkStatTile(num, lbl, cls) {
+      return '<div class="stat-tile"><span class="stat-tile-num '+(cls||'')+'">' + escapeHtml(String(num)) + '</span><span class="stat-tile-lbl">' + escapeHtml(lbl) + '</span></div>';
+    }
+
+    /* ── Month nav ──────────────────────────────────────────────────── */
+    function setBulan(ym) {
+      state.bulan = ym;
+      document.getElementById('inputBulan').value = ym;
+      document.getElementById('bulanLabel').textContent = bulanStr(ym);
+    }
+    function shiftBulan(delta) {
+      const p = state.bulan.split('-');
+      const d = new Date(parseInt(p[0],10), parseInt(p[1],10)-1+delta, 1);
+      setBulan(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'));
+      if (state.activePengurus) loadDetailAbsensi();
+    }
+
+    /* ── Events ─────────────────────────────────────────────────────── */
+    const currentPage = window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : '/pages/rekapAbsensiPengurus/';
+    const initialSession = getStoredSession();
+    if (!initialSession) { clearSession(); window.location.replace('/pages/login/'); }
+
+    if (!(window.PSAccess && window.PSAccess.redirectIfForbidden(initialSession, currentPage))) {
+      if (window.PSShell) {
+        window.PSShell.mount({ currentPage, session: getStoredSession(), getStoredSession, storageKey: STORAGE.session });
+      }
+      document.getElementById('refreshButton').addEventListener('click', loadData);
+      document.getElementById('toggleExpandButton').addEventListener('click', toggleExpandedList);
+      document.getElementById('searchInput').addEventListener('input', () => { state.page = 1; loadData(); });
+      document.getElementById('statusFilter').addEventListener('change', () => { state.page = 1; loadData(); });
+      document.getElementById('sortSelect').addEventListener('change', () => { state.page = 1; loadData(); });
+      document.getElementById('pageSizeSelect').addEventListener('change', event => { state.pageSize = Number(event.target.value); state.page = 1; loadData(); });
+
+      document.getElementById('list').addEventListener('click', event => {
+        const cekButton = event.target.closest('[data-cek]');
+        const collapseButton = event.target.closest('[data-collapse]');
+        if (cekButton) {
+          const item = state.items.find(i => i.id === cekButton.getAttribute('data-cek'));
+          if (item) openDetailDialog(item);
+          return;
+        }
+        if (collapseButton) { toggleItemExpanded(collapseButton.getAttribute('data-collapse')); }
+      });
+      document.getElementById('list').addEventListener('keydown', event => {
+        const collapseTarget = event.target.closest('[data-collapse]');
+        if (!collapseTarget || (event.key !== 'Enter' && event.key !== ' ')) return;
+        event.preventDefault();
+        toggleItemExpanded(collapseTarget.getAttribute('data-collapse'));
+      });
+
+      document.getElementById('btnTutupDialog').addEventListener('click', () => {
+        state.activePengurus = null;
+        const dialog = document.getElementById('detailDialog');
+        if (dialog.open) dialog.close();
+      });
+      document.getElementById('detailDialog').addEventListener('cancel', () => { state.activePengurus = null; });
+      document.getElementById('inputBulan').addEventListener('change', function() {
+        if (this.value) { setBulan(this.value); if (state.activePengurus) loadDetailAbsensi(); }
+      });
+      document.getElementById('btnPrevBulan').addEventListener('click', () => shiftBulan(-1));
+      document.getElementById('btnNextBulan').addEventListener('click', () => shiftBulan(1));
+    }
+
+    document.addEventListener('click', event => {
+      const page = event.target.getAttribute && event.target.getAttribute('data-page');
+      if (!page) return;
+      const nextPage = Number(page);
+      if (!nextPage || nextPage < 1 || nextPage > state.totalPages || nextPage === state.page) return;
+      state.page = nextPage;
+      loadData();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
+    window.addEventListener('load', async () => {
+      if (window.PSAccess && window.PSAccess.redirectIfForbidden(getStoredSession(), currentPage)) return;
+      document.getElementById('pageSizeSelect').value = String(state.pageSize);
+      const now = new Date();
+      setBulan(now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0'));
+      await loadData();
+    });
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
+    }
+  </script>
+</body>
+</html>

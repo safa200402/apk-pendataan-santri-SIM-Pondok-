@@ -1,0 +1,662 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#9e2f22">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="../../shared-ui.css">
+  <link rel="stylesheet" href="../../shared-shell.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+  <script src="../../shared-ui.js"></script>
+  <title>Raport Santri</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700&family=Lora:ital,wght@0,400;0,600;1,400&family=Amiri:wght@400;700&display=swap');
+    :root { --paper:#f6efe0; --ink:#4d4034; --muted:#7b6a58; --line:rgba(91,73,57,0.15); --accent:#b97650; --success:#74846c; --danger:#a55a52; --warning:#b58439; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; }
+    .panel { padding: 22px; }
+    h1,h2,h3 { margin: 0 0 10px; }
+    p { margin: 0; line-height: 1.6; }
+    button, input, select { font: inherit; }
+    label { display: grid; gap: 6px; font-size: 13px; font-weight: 600; }
+    .ctl { padding: 10px 14px; border-radius: 14px; border: 1.5px solid var(--line); background: rgba(255, 247, 210, 0.98); font-weight: 600; color: var(--ink); outline: none; }
+    .ctl:focus { border-color: var(--accent); }
+    .search-wrap { position: relative; flex: 1; min-width: 200px; }
+    .search-wrap input { width: 100%; padding-left: 38px; }
+    .search-wrap i { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--muted); }
+    .santri-list { display: grid; gap: 8px; margin-top: 16px; }
+    .santri-row { display: flex; align-items: center; gap: 12px; padding: 12px 14px !important; border: 1px solid var(--line); border-radius: 14px; background: rgba(255,251,243,0.7); flex-wrap: wrap; }
+    .santri-row .nm { flex: 1; min-width: 140px; }
+    .santri-row .nm strong { display: block; font-size: 14px; }
+    .santri-row .nm small { color: var(--muted); font-size: 11px; }
+    .btn { padding: 9px 16px; border-radius: 12px; border: none; cursor: pointer; font-weight: 700; min-height: 42px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+    .btn.sm { min-height: 36px; padding: 7px 12px; font-size: 13px; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+    .pager { display: flex; gap: 8px; align-items: center; justify-content: center; margin-top: 16px; flex-wrap: wrap; }
+    .empty-state { text-align: center; padding: 40px 16px; color: var(--muted); }
+    .empty-state i { font-size: 32px; opacity: 0.4; }
+    .minimal-list-card.row-male            { background: #ddeeff; border-color: rgba(70,130,180,0.25); }
+    .minimal-list-card.row-female          { background: #ffe4f0; border-color: rgba(200,100,140,0.25); }
+    .minimal-list-card.row-male-inactive   { background: linear-gradient(135deg, #888 0%, #cce6ff 100%); border-color: rgba(70,130,180,0.25); }
+    .minimal-list-card.row-female-inactive { background: linear-gradient(135deg, #888 0%, #ffd6e8 100%); border-color: rgba(200,100,140,0.25); }
+    .minimal-list-card.row-male-frozen     { background: linear-gradient(135deg, #d0d0d0 0%, #cce6ff 100%); border-color: rgba(70,130,180,0.25); }
+    .minimal-list-card.row-female-frozen   { background: linear-gradient(135deg, #d0d0d0 0%, #ffd6e8 100%); border-color: rgba(200,100,140,0.25); }
+    .minimal-list-card.row-nogender-inactive { background: linear-gradient(135deg, #888 0%, rgba(255,248,230,0.96) 100%); }
+    .minimal-list-card.row-nogender-frozen   { background: linear-gradient(135deg, #d0d0d0 0%, rgba(255,248,230,0.96) 100%); }
+    .pager button { padding: 7px 13px; border-radius: 10px; border: 1.5px solid var(--line); background: rgba(255,255,255,0.7); font-weight: 700; font-size: 13px; cursor: pointer; color: var(--ink); min-width: 38px; }
+    .pager button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .pager button:hover:not(.active) { border-color: var(--accent); }
+
+    #raportOverlay { position: fixed; inset: 0; width: 100%; max-width: 100%; height: 100%; max-height: 100%; margin: 0; padding: 24px 12px !important; border: none; background: transparent; overflow-y: auto; box-sizing: border-box; }
+    #raportOverlay::backdrop { background: rgba(40,30,20,0.55); }
+    .rp-dlg-toolbar {
+        max-width: 820px;
+        margin: 0 auto 14px;
+        display: flex;
+        gap: 10px;
+        justify-content: space-between;
+        flex-direction: row-reverse;
+    }
+    .sheet { max-width: 820px; margin: 0 auto; background: #fff; color: #222; padding: 38px 42px; border-radius: 6px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); font-family: 'Lora', serif; }
+    .raport-page { padding-bottom: 10px; min-height: 889px; display: flex; flex-direction: column; }
+    .raport-page + .raport-page { margin-top: 30px; padding-top: 28px; }
+    .rp-head { text-align: center; border-bottom: 3px double #555; padding-bottom: 12px; margin-bottom: 16px; }
+    .rp-head h1 { font-family: 'Playfair Display', serif; font-size: 1.5rem; margin: 0 0 2px; }
+    .rp-head p { font-size: 12px; color: #666; }
+    .rp-ident { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 24px; font-size: 13.5px; margin-bottom: 18px; }
+    .rp-ident .row { display: flex; gap: 8px; }
+    .rp-ident .row .k { width: auto; white-space: nowrap; flex-shrink: 0; font-weight: 600; color: #444; flex: 1 1 calc(1% - 10px);}
+    .rp-ident .row .v { flex: 1; min-width: 0; }
+    .rp-sec { margin-bottom: 16px; }
+    .rp-sec h2 {
+        font-family: 'Playfair Display', serif;
+        font-size: 1rem;
+        margin: 0 0 7px;
+        padding: 4px 0px;
+    }
+    table.rp-tbl { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    table.rp-tbl th, table.rp-tbl td { border: 1px solid #ccc; padding: 5px 8px; text-align: left; }
+    table.rp-tbl th {
+        background: #9090901f;
+        font-weight: 600;
+    }
+    table.rp-tbl td.num, table.rp-tbl th.num { text-align: center; }
+    table.rp-tbl tfoot td { font-weight: 700; background: #faf6ee; }
+    .rp-absen { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13.5px; justify-content: flex-end;}
+    .rp-absen .box {
+        padding: 3px 5px;
+        text-align: center;
+    }
+    .rp-absen .box b { display: block; font-size: 1.4rem; }
+    .rp-sign { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; padding-top: 28px; font-size: 13px; text-align: center; }
+    .raport-page > .rp-sec:has(+ .rp-sign) { margin-top: auto; }
+    /* .raport-page > .rp-sec:last-child { margin-top: auto; } */
+    .rp-sign .slot { min-height: 110px; display: flex; flex-direction: column; justify-content: space-between; }
+    .rp-sign .slot .nm { border-top: 1px solid #555; padding-top: 4px; font-weight: 600; min-height: 18px; }
+    .rp-sign .slot .nm:empty::after { content: '...'; color: #aaa; font-weight: 400; }
+    .rp-sign-jabatan { font-weight: 600; font-size: 13px; }
+    .rp-sign-date { font-size: 11px; color: #666; margin-bottom: 2px; }
+    .rp-sign-sig { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 56px; }
+    .rp-sign-sig img { max-height: 60px; max-width: 100%; }
+    .rp-basmalah { font-family: 'Amiri', serif; font-size: 1rem; text-align: center; margin: 6px 0 14px; }
+    .rp-para { font-size: 13.5px; line-height: 1.7; margin-bottom: 12px; text-align: justify; text-indent: 2em; }
+    .rp-pencapaian { font-size: 13.5px; line-height: 1.8; margin: 8px 0 14px; }
+    .rp-pencapaian .k { display: inline-block; width: 110px; font-weight: 600; }
+    .rp-desc { font-size: 13.5px; line-height: 1.7; white-space: pre-wrap; padding: 12px 16px; background: #9090901f; border-radius: 8px; border: 1px solid #e6dcc8; min-height: 60px; }
+    .muted-note { color: #999; font-size: 12.5px; font-style: italic; }
+    .rp-missing { color: #7c4a00; background: #fff3cd; border-radius: 3px; padding: 1px 5px; font-style: italic; font-size: 12px; }
+    p.rp-para.rp-missing {
+      display: block;
+      background: #fff8e1;
+      padding: 8px 12px;
+      text-indent: 0;
+    }
+    @media print { .rp-missing { background: none !important; color: inherit !important; border: none !important; padding: 0 !important; font-style: normal; } p.rp-para.rp-missing { background: none !important; border: none !important; padding: 0 !important; } }
+
+    /* Rekam jejak sheet reuse */
+    #rekamJejakSheet .rp-sec h2 { text-align: center; }
+    #rekamJejakSheet .rj-bottom { margin-top: auto; }
+    #rekamJejakSheet .rj-bottom .rp-sec { text-align: center; }
+    .rj-perk { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid #ccc; border-left: 1px solid #ccc; }
+    .rj-perk .pe { font-size: 13px; line-height: 1.55; padding: 5px 8px; border-right: 1px solid #ccc; border-bottom: 1px solid #ccc; min-height: 28px; }
+    .rj-perk .pe .d { font-weight: 600; color: var(--accent); }
+    .rj-totals { margin-top: 8px; font-size: 13px; display: flex; gap: 16px; flex-wrap: wrap; }
+    .rj-nasehat {
+        margin-top: 8px;
+        font-style: italic;
+        font-size: 13px;
+        /* line-height: 1.6; */
+        /* padding: 12px 16px; */
+        /* background: #f7f3ea; */
+        /* border-radius: 8px; */
+        /* border: 1px solid #e6dcc8; */
+    }
+
+    #rekamJejakOverlay { position: fixed; inset: 0; width: 100%; max-width: 100%; height: 100%; max-height: 100%; margin: 0; padding: 24px 12px !important; border: none; outline: none; box-shadow: none; border-radius: 0; background: transparent; overflow-y: auto; box-sizing: border-box; }
+    #rekamJejakOverlay::backdrop { background: rgba(40,30,20,0.55); }
+
+    #exportContainer { display: none; }
+    @media print {
+      body { background: #fff; }
+      body > *:not(#raportOverlay):not(#rekamJejakOverlay):not(#exportContainer):not(#exportProgress) { display: none !important; }
+      #raportOverlay.rp-dlg-printing { position: static !important; background: #fff !important; padding: 0 !important; overflow: visible; display: block !important; border: none !important; outline: none !important; box-shadow: none !important; border-radius: 0 !important; }
+      #raportOverlay:not(.rp-dlg-printing) { display: none !important; }
+      #rekamJejakOverlay.rp-dlg-printing { position: static !important; background: #fff !important; padding: 0 !important; overflow: visible; display: block !important; border: none !important; outline: none !important; box-shadow: none !important; border-radius: 0 !important; }
+      #rekamJejakOverlay:not(.rp-dlg-printing) { display: none !important; }
+      .rp-dlg-toolbar { display: none !important; }
+      body.exporting-all #raportOverlay { display: none !important; }
+      body.exporting-all #exportContainer { display: block !important; position: static; background: #fff; padding: 0; }
+      .sheet { box-shadow: none; max-width: 100%; margin: 0; padding: 0; border-radius: 0; }
+      .raport-page { page-break-after: always; height: 100vh; }
+      .raport-page:last-child { page-break-after: auto; }
+    }
+  </style>
+</head>
+<body>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+  <main>
+    <div class="app-layout">
+      <section class="panel nav" id="nav"></section>
+      <div class="content-stack">
+        <section class="panel">
+          <h1 style="font-family:'Playfair Display',serif;font-size:1.9rem;">Raport Santri</h1>
+          <p style="color:var(--muted);font-size:14px;">Pilih tahun ajaran &amp; santri untuk melihat &amp; mencetak raport semester (3 lembar).</p>
+          <div style="margin-top:14px;display:flex;flex-wrap:wrap;gap:12px;align-items:end;">
+            <label>Tahun Ajaran &amp; Semester <select id="taSelect" class="ctl" style="min-width:220px;"></select></label>
+            <label>Bulan Rekam Jejak <input type="month" id="bulanRjInput" class="ctl"></label>
+            <label>Gender <select id="genderInput" class="ctl"><option value="">Semua</option><option value="male">Putra</option><option value="female">Putri</option></select></label>
+            <div class="search-wrap"><i class="fa-solid fa-magnifying-glass"></i><input type="search" id="searchInput" class="ctl" placeholder="Cari nama / NIS..."></div>
+          </div>
+          <div class="toolbar" id="actionToolbar">
+            <button class="btn primary" id="exportAllBtn" type="button" disabled title="Hanya untuk Super Admin, Admin, Mudir, Koordinator Halaqoh, Akademik, Ksantrian, atau Pembina Regu." style="white-space:nowrap;"><i class="fa-solid fa-file-pdf"></i> Export Semua Raport</button>
+            <button class="btn secondary" id="exportAllRjBtn" type="button" disabled title="Hanya untuk Super Admin, Admin, Mudir, Koordinator Halaqoh, Akademik, Ksantrian, atau Pembina Regu." style="white-space:nowrap;"><i class="fa-solid fa-file-pdf"></i> Export Semua Rekam Jejak</button>
+          </div>
+        </section>
+        <section class="panel">
+          <div id="pagerTop" class="pager" style="margin-bottom:8px;"></div>
+          <div id="area"><div class="empty-state"><i class="fa-solid fa-spinner fa-spin"></i><p style="margin-top:8px;">Memuat...</p></div></div>
+          <div id="pager" class="pager"></div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <!-- Export progress overlay -->
+  <div id="exportProgress" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.72);z-index:9999;align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:14px;padding:28px 32px;max-width:340px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+      <i class="fa-solid fa-file-pdf fa-2x" style="color:var(--accent);display:block;margin-bottom:12px;"></i>
+      <p id="exportProgText" style="margin:0 0 12px;font-weight:600;font-size:14px;color:var(--ink);">Memuat raport...</p>
+      <div style="background:#eee;border-radius:99px;height:8px;overflow:hidden;"><div id="exportProgBar" style="height:100%;background:var(--accent);width:0%;transition:width 0.25s;border-radius:99px;"></div></div>
+      <p style="margin:8px 0 0;font-size:12px;color:var(--muted);">Mohon tunggu sebentar</p>
+      <button id="exportCancelBtn" style="margin-top:16px;padding:8px 22px;border-radius:10px;border:1.5px solid #ccc;background:#fff;font-weight:700;font-size:13px;cursor:pointer;color:#a55a52;">Batalkan</button>
+    </div>
+  </div>
+  <!-- Export print container -->
+  <div id="exportContainer"></div>
+
+  <!-- Raport dialog (3 lembar) -->
+  <dialog id="raportOverlay" data-ps-floating-dialog-enhanced="true">
+    <div class="rp-dlg-toolbar"><button class="btn ghost" onclick="closeOverlay('raportOverlay')"><i class="fa-solid fa-xmark"></i> Tutup</button><button class="btn primary" onclick="printOverlay('raportOverlay')"><i class="fa-solid fa-print"></i> Cetak Raport</button></div>
+    <div class="sheet" id="raportSheet"></div>
+  </dialog>
+
+  <!--
+    SYNC: dialog #rekamJejakOverlay ini + renderRekamJejak()/viewRekamJejak() di bawah DIDUPLIKASI ke
+    pages/perkembanganSantri/index.html (dialog #rekamJejakOverlay + renderRekamJejak() + viewRekamJejakSheet()),
+    karena halaman raport&rekamJejak ini dibatasi hanya utk Admin/SuperAdmin/Ksantrian sedangkan Pembina Regu
+    (pengguna utama perkembanganSantri) tetap perlu lihat sheet RJ santri di regunya sendiri.
+    Kalau format sheet RJ di sini diubah, salin juga perubahannya ke perkembanganSantri/index.html.
+  -->
+  <!-- Rekam Jejak dialog -->
+  <dialog id="rekamJejakOverlay" data-ps-floating-dialog-enhanced="true">
+    <div class="rp-dlg-toolbar"><button class="btn ghost" onclick="closeOverlay('rekamJejakOverlay')"><i class="fa-solid fa-xmark"></i> Tutup</button><button class="btn primary" onclick="printOverlay('rekamJejakOverlay')"><i class="fa-solid fa-print"></i> Cetak</button></div>
+    <div class="sheet" id="rekamJejakSheet"></div>
+  </dialog>
+
+  <script src="../../shared-access.js"></script>
+  <script src="../../shared-nav.js"></script>
+  <script src="../../shared-shell.js"></script>
+  <script>
+    const API_BASE = window.location.origin + '/api';
+    const STORAGE = { apiBase: 'ps_api_base', token: 'ps_token', session: 'ps_session' };
+    localStorage.setItem(STORAGE.apiBase, API_BASE);
+    const state = { tahunAjaranId: '', tahunAjaranList: [], santriList: [], filtered: [], page: 1, pageSize: 20, search: '', gender: '' };
+    let noticeId = '', noticeCounter = 0;
+    const BULAN_ID = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+
+    function getToken() { return localStorage.getItem(STORAGE.token) || ''; }
+    function clearSession() { localStorage.removeItem(STORAGE.token); localStorage.removeItem(STORAGE.session); }
+    function getStoredSession() { try { return JSON.parse(localStorage.getItem(STORAGE.session) || 'null'); } catch (e) { return null; } }
+    function toParams(d) { const p = new URLSearchParams(); Object.entries(d).forEach(([k, v]) => { if (v === undefined || v === null) return; p.append(k, typeof v === 'object' ? JSON.stringify(v) : String(v)); }); return p; }
+    function escapeHtml(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+    function fmtMonth(ym) { if (!/^\d{4}-\d{2}$/.test(ym || '')) return ym || '-'; const [y, m] = ym.split('-'); return BULAN_ID[parseInt(m, 10) - 1] + ' ' + y; }
+    function fmtDate(s) { if (!s) return '-'; const d = new Date(s + 'T00:00:00'); if (isNaN(d)) return s; return d.getDate() + ' ' + BULAN_ID[d.getMonth()] + ' ' + d.getFullYear(); }
+    function showNotice(text, type) {
+      const stack = document.getElementById('noticeStack');
+      const el = document.createElement('div'); el.className = `notice show ${type || ''}`.trim();
+      el.dataset.noticeId = `n-${Date.now()}-${noticeCounter += 1}`; el.textContent = text;
+      el.addEventListener('click', () => el.remove()); setTimeout(() => el.remove(), type === 'error' ? 9000 : 5000);
+      if (noticeId) { const o = document.querySelector(`[data-notice-id="${noticeId}"]`); if (o) o.remove(); }
+      stack.prepend(el); noticeId = el.dataset.noticeId; if (stack.matches(':popover-open')) stack.hidePopover(); stack.showPopover();
+    }
+    async function api(action, payload = {}, method = 'GET') {
+      const token = getToken();
+      if (!token) { clearSession(); window.location.replace('/pages/login/'); throw new Error('Sesi tidak ditemukan.'); }
+      const scopeLabel = window.PSAccess ? (window.PSAccess.getActiveRoleScopeLabel(getStoredSession()) || '') : '';
+      const response = method === 'GET'
+        ? await fetch(`${API_BASE}?${toParams({ action, token, scopeLabel, ...payload }).toString()}`)
+        : await fetch(API_BASE, { method, body: toParams({ action, token, scopeLabel, ...payload }) });
+      const json = await response.json();
+      if (!json.ok) { const e = new Error(json.error?.message ? `Server: ${json.error.message}` : 'Gagal.'); e.code = json.error?.code || 500; if (e.code === 401) { clearSession(); window.location.replace('/pages/login/'); } throw e; }
+      return json.data;
+    }
+    function mountShell(session) { return window.PSShell.mount({ currentPage: window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : 'raport&rekamJejak.html', session, getStoredSession, storageKey: STORAGE.session }); }
+
+    function canExportRaportRekamJejak(session) {
+      const scoped = window.PSAccess && typeof window.PSAccess.getScopedSession === 'function'
+        ? window.PSAccess.getScopedSession(session)
+        : session;
+      const p = scoped && scoped.permissions;
+      return !!(p && (p.isSuperAdmin || p.isAdmin || p.isAcademic || p.isHalaqohCoordinator || p.isKsantrian || p.isPembinaRegu || p.isMudir));
+    }
+
+    function closeOverlay(id) { document.getElementById(id).close(); }
+    function printOverlay(id) {
+      const scoped = window.PSAccess && typeof window.PSAccess.getScopedSession === 'function'
+        ? window.PSAccess.getScopedSession(getStoredSession())
+        : getStoredSession();
+      const perm = scoped && scoped.permissions;
+      const canPrint = !!(perm && (perm.isSuperAdmin || perm.isAdmin || perm.isAcademic || perm.isHalaqohCoordinator || perm.isKsantrian || perm.isMudir));
+      if (!canPrint) {
+        showNotice('Cetak raport/rekam jejak hanya untuk Super Admin, Admin, Mudir, Koordinator Halaqoh, Akademik, atau Ksantrian. Anda hanya bisa melihat.', 'error');
+        return;
+      }
+      const ov = document.getElementById(id);
+      ov.classList.add('rp-dlg-printing');
+      const after = () => { ov.classList.remove('rp-dlg-printing'); window.removeEventListener('afterprint', after); };
+      window.addEventListener('afterprint', after);
+      window.print();
+    }
+
+    function normalizeGender(g) {
+      const v = (g || '').trim().toLowerCase();
+      if (['l','lk','laki-laki','laki','pria','male'].includes(v)) return 'male';
+      if (['p','pr','perempuan','wanita','female'].includes(v)) return 'female';
+      return '';
+    }
+    function normalizeStatus(s) {
+      const v = (s || '').trim().toLowerCase();
+      if (['inactive','nonaktif'].includes(v)) return 'inactive';
+      if (['dibekukan','frozen','beku'].includes(v)) return 'dibekukan';
+      return 'active';
+    }
+    function getCardRowClass(gender, statusKey) {
+      if (statusKey === 'inactive') {
+        if (gender === 'male') return 'row-male-inactive';
+        if (gender === 'female') return 'row-female-inactive';
+        return 'row-nogender-inactive';
+      }
+      if (statusKey === 'dibekukan') {
+        if (gender === 'male') return 'row-male-frozen';
+        if (gender === 'female') return 'row-female-frozen';
+        return 'row-nogender-frozen';
+      }
+      if (gender === 'male') return 'row-male';
+      if (gender === 'female') return 'row-female';
+      return '';
+    }
+    function renderPaging(currentPage, totalPages) {
+      const start = Math.max(1, Math.min(currentPage - 4, totalPages - 9));
+      const end = Math.min(totalPages, start + 9);
+      let html = '';
+      for (let p = start; p <= end; p++) {
+        html += `<button ${p === currentPage ? 'class="active"' : ''} data-page="${p}" onclick="goPage(${p})">${p}</button>`;
+      }
+      return html;
+    }
+
+    async function loadSantri() {
+      const area = document.getElementById('area');
+      area.innerHTML = '<div class="empty-state"><i class="fa-solid fa-spinner fa-spin"></i></div>';
+      try { const data = await api('rekamJejak.santriList'); state.santriList = data.santriList || []; applyFilter(); }
+      catch (e) { area.innerHTML = `<div class="empty-state"><i class="fa-solid fa-triangle-exclamation" style="color:var(--danger)"></i><p style="margin-top:8px;color:var(--danger);font-weight:600;">${escapeHtml(e.message)}</p></div>`; }
+    }
+    function applyFilter() {
+      const q = state.search.trim().toLowerCase();
+      state.filtered = state.santriList.filter(s => {
+        if (state.gender && s.jenisKelamin !== state.gender) return false;
+        if (q && !s.name.toLowerCase().includes(q) && !(s.noInduk || '').toLowerCase().includes(q)) return false;
+        return true;
+      });
+      state.page = 1; renderList();
+    }
+    function renderList() {
+      const area = document.getElementById('area');
+      const pager = document.getElementById('pager');
+      const pagerTop = document.getElementById('pagerTop');
+      if (!state.filtered.length) { area.innerHTML = '<div class="empty-state"><i class="fa-solid fa-user-slash"></i><p style="margin-top:8px;font-weight:600;">Tidak ada santri.</p></div>'; pager.innerHTML = ''; pagerTop.innerHTML = ''; return; }
+      const totalPages = Math.max(1, Math.ceil(state.filtered.length / state.pageSize));
+      if (state.page > totalPages) state.page = totalPages;
+      const start = (state.page - 1) * state.pageSize;
+      const slice = state.filtered.slice(start, start + state.pageSize);
+      area.innerHTML = '<div class="santri-list">' + slice.map(s => {
+        const gender = normalizeGender(s.jenisKelamin);
+        const statusKey = normalizeStatus(s.status);
+        const rowClass = getCardRowClass(gender, statusKey);
+        return `<div class="santri-row minimal-list-card${rowClass ? ' ' + rowClass : ''}">
+          <div class="nm"><strong>${escapeHtml(s.name)}</strong><small>${escapeHtml(s.noInduk || '-')}${s.reguName ? ' · Regu ' + escapeHtml(s.reguName) : ''}${s.halaqohName ? ' · ' + escapeHtml(s.halaqohName) : ''}</small></div>
+          <button class="btn secondary sm" onclick="viewRekamJejak('${escapeHtml(s.id)}')"><i class="fa-solid fa-book-open"></i> Rekam Jejak</button>
+          <button class="btn primary sm" onclick="viewRaport('${escapeHtml(s.id)}')"><i class="fa-solid fa-file-lines"></i> Lihat Raport</button>
+        </div>`;
+      }).join('') + '</div>';
+      if (totalPages <= 1) {
+        const info = `<span style="color:var(--muted);font-size:13px;">${state.filtered.length} santri</span>`;
+        pager.innerHTML = info; pagerTop.innerHTML = '';
+      } else {
+        const pgHtml = renderPaging(state.page, totalPages);
+        pager.innerHTML = pgHtml; pagerTop.innerHTML = pgHtml;
+      }
+    }
+    function goPage(p) { state.page = p; renderList(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+
+    /* ── Raport (3 lembar) ── */
+    async function viewRaport(santriId) {
+      const sheet = document.getElementById('raportSheet');
+      sheet.innerHTML = '<div class="empty-state"><i class="fa-solid fa-spinner fa-spin"></i><p style="margin-top:8px;">Memuat raport...</p></div>';
+      document.getElementById('raportOverlay').showModal();
+      try { const d = await api('raport.data', { santriId, tahunAjaranId: state.tahunAjaranId }); sheet.innerHTML = renderRaport(d); }
+      catch (e) { sheet.innerHTML = `<p style="color:var(--danger);font-weight:600;">${escapeHtml(e.message)}</p>`; }
+    }
+    function identBlock(d) {
+      const ta = d.tahunAjaran || {};
+      return `<div class="rp-ident">
+        <div class="row"><span class="k">Nama</span><span class="v">${escapeHtml(d.santri.name)}</span></div>
+        <div class="row"><span class="k">NIS</span><span class="v${d.santri.noInduk ? '' : ' rp-missing'}">${escapeHtml(d.santri.noInduk || 'belum diisi')}</span></div>
+        <div class="row"><span class="k">Kelas</span><span class="v${d.kelasLevel ? '' : ' rp-missing'}">${escapeHtml(d.kelasLevel || 'belum diisi')}</span></div>
+        <div class="row"><span class="k">Semester</span><span class="v">${escapeHtml(ta.semester || '-')}</span></div>
+        <div class="row"><span class="k">Tahun Ajaran</span><span class="v">${escapeHtml(ta.nama || '-')}</span></div>
+      </div>`;
+    }
+    function nilaiTable(rows, rata) {
+      if (!rows.length) return '<p class="muted-note">Belum ada data nilai.</p>';
+      return `<table class="rp-tbl"><thead><tr><th>Kelas</th><th class="num" style="width:90px;">Nilai</th><th style="width:200px;">Terbilang</th></tr></thead><tbody>`
+        + rows.map(r => `<tr><td>${escapeHtml(r.kelasName)}</td><td class="num">${r.akumulasi != null ? r.akumulasi : '-'}</td><td>${escapeHtml(r.terbilang || '-')}</td></tr>`).join('')
+        + `</tbody>${rata != null ? `<tfoot><tr><td>Rata-rata</td><td class="num">${rata}</td><td></td></tr></tfoot>` : ''}</table>`;
+    }
+    function uasTable(group, label) {
+      if (!group.entries.length) return `<p class="muted-note">Belum ada nilai ${label}.</p>`;
+      return `<table class="rp-tbl"><thead><tr><th>${escapeHtml(label)}</th><th class="num" style="width:70px;">KKM</th><th class="num" style="width:70px;">Angka</th><th style="width:180px;">Terbilang</th></tr></thead><tbody>`
+        + group.entries.map(e => `<tr><td>${escapeHtml(e.ket || '-')}</td><td class="num">${escapeHtml(group.kkm || '-')}</td><td class="num">${escapeHtml(e.nilai || '-')}</td><td>${escapeHtml(e.terbilang || '-')}</td></tr>`).join('')
+        + `</tbody>${group.rata != null ? `<tfoot><tr><td>Rata-rata</td><td class="num">${escapeHtml(group.kkm || '-')}</td><td class="num">${group.rata}</td><td></td></tr></tfoot>` : ''}</table>`;
+    }
+    function signImg(person) {
+      if (person && person.ttd) return `<img src="${escapeHtml(person.ttd)}" alt="ttd">`;
+      return '';
+    }
+    function renderRaport(d) {
+      const ta = d.tahunAjaran || {};
+      const k = d.ketidakhadiran || { sakit: 0, izin: 0, alfa: 0 };
+      const tglAkhir = ta.tanggalSelesai ? fmtDate(ta.tanggalSelesai) : '';
+      const musyrifName = (d.musyrif && d.musyrif.name) || (d.pembina && d.pembina.name) || '';
+      // Page 1
+      const page1 = `<div class="raport-page">
+        <div class="rp-head"><h1>Laporan Hasil Belajar</h1><p>Tahun Ajaran ${escapeHtml(ta.nama || '')} — Semester ${escapeHtml(ta.semester || '')}</p></div>
+        ${identBlock(d)}
+        <div class="rp-sec"><h2>Nilai Mata Pelajaran</h2>${nilaiTable(d.kelasNilai, d.rataRataKelas)}</div>
+        <div class="rp-sec"><h2>Ekstrakurikuler</h2>${
+          (d.ekskulNilai && d.ekskulNilai.length)
+            ? nilaiTable(d.ekskulNilai, null)
+            : `<table class="rp-tbl"><thead><tr><th>Ekstrakurikuler</th><th class="num" style="width:90px;">Nilai</th><th style="width:200px;">Terbilang</th></tr></thead><tbody><tr><td>&nbsp;</td><td></td><td></td></tr><tr><td>&nbsp;</td><td></td><td></td></tr><tr><td>&nbsp;</td><td></td><td></td></tr></tbody></table>`
+        }</div>
+        <div class="rp-sec"><h2>Akhlak &amp; Kepribadian</h2>
+          <table class="rp-tbl"><thead><tr><th>Aspek</th><th class="num" style="width:70px;">Nilai</th><th style="width:160px;">Keterangan</th></tr></thead><tbody>
+          ${d.akhlak.map(a => `<tr><td>${escapeHtml(a.label)}</td><td class="num">${escapeHtml(a.nilai || '-')}</td><td>${escapeHtml(a.keterangan || '-')}</td></tr>`).join('')}
+          </tbody></table></div>
+        <div class="rp-sec"><h2>Ketidakhadiran</h2>
+          <div class="rp-absen">
+            <div class="box"><b>${k.sakit}</b>Sakit</div>
+            <div class="box"><b>${k.izin}</b>Izin</div>
+            <div class="box"><b>${k.alfa}</b>Alfa</div>
+          </div></div>
+        <div class="rp-sign">
+          <div class="slot">
+            <div class="rp-sign-jabatan">Orang Tua / Wali</div>
+            <div class="rp-sign-sig"></div>
+            <div class="nm"></div>
+          </div>
+          <div class="slot">
+            <div class="rp-sign-jabatan">Musyrif/ah</div>
+            <div class="rp-sign-sig">${signImg(d.musyrif || d.pembina)}</div>
+            <div class="nm">${musyrifName ? escapeHtml(musyrifName) : '<span class="rp-missing">belum diisi</span>'}</div>
+          </div>
+          <div class="slot">
+            <div>${tglAkhir ? `<div class="rp-sign-date">${escapeHtml(tglAkhir)}</div>` : ''}<div class="rp-sign-jabatan">Mudir / Mudiroh</div></div>
+            <div class="rp-sign-sig"></div>
+            <div class="nm"></div>
+          </div>
+        </div>
+      </div>`;
+      // Page 2
+      const page2 = `<div class="raport-page">
+        <div class="rp-head"><h1>Rincian Hafalan Santri</h1><p>Tahun Ajaran ${escapeHtml(ta.nama || '')} — Semester ${escapeHtml(ta.semester || '')}</p></div>
+        ${identBlock(d)}
+        <div class="rp-sec"><h2>A. Al-Qur'an</h2>${uasTable(d.hafalanRincian.quran, 'Juz')}</div>
+        <div class="rp-sec"><h2>B. Hadits &amp; Adzkar</h2>${uasTable(d.hafalanRincian.hadits, 'Hadits / Kitab')}${uasTable(d.hafalanRincian.adzkar, 'Adzkar')}</div>
+        <div class="rp-sec"><h2>C. Mufrodat</h2>${uasTable(d.hafalanRincian.mufrodat, 'Level')}</div>
+      </div>`;
+      // Page 3
+      const p = d.pencapaian || {};
+      const sert = (d.sertifikasi && d.sertifikasi.length) ? d.sertifikasi.map(s => `${escapeHtml(s.tipe)}${s.juz ? ' (' + escapeHtml(s.juz) + ')' : ''}${s.lulus ? ' — ' + escapeHtml(s.lulus) : ''}`).join('; ') : '-';
+      const page3 = `<div class="raport-page">
+        <div class="rp-head"><h1>Lembaran Deskripsi</h1><p>Tahun Ajaran ${escapeHtml(ta.nama || '')} — Semester ${escapeHtml(ta.semester || '')}</p></div>
+        ${identBlock(d)}
+        <div class="rp-basmalah">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</div>
+        <p class="rp-para">Kepada wali santri yang kami hormati, kami selaku pembimbing halaqoh ingin melaporkan perkembangan ananda <strong>${escapeHtml(d.santri.name)}</strong> pada semester ini. Ananda memiliki pencapaian sebagai berikut:</p>
+        <div class="rp-pencapaian">
+          <div><span class="k">Al-Qur'an</span>: ${escapeHtml(p.quran || '-')}</div>
+          <div><span class="k">Hadits</span>: ${escapeHtml(p.hadits || '-')}</div>
+          <div><span class="k">Mufrodat</span>: ${escapeHtml(p.mufrodat || '-')}</div>
+          <div><span class="k">Adzkar</span>: ${escapeHtml(p.adzkar || '-')}</div>
+          <div><span class="k">Sertifikasi</span>: ${sert}</div>
+        </div>
+        <p class="rp-para${d.deskripsi ? '' : ' rp-missing'}">${d.deskripsi ? escapeHtml(d.deskripsi) : '— Deskripsi belum diisi —'}</p>
+        <div class="rp-sign" style="grid-template-columns:1fr;justify-items:end;">
+          <div class="slot" style="max-width:240px;">
+            <div class="rp-sign-jabatan">Musyrif/ah / Pembina</div>
+            <div class="rp-sign-sig">${signImg(d.pembina || d.musyrif)}</div>
+            <div class="nm">${escapeHtml((d.pembina && d.pembina.name) || musyrifName || '')}</div>
+          </div>
+        </div>
+      </div>`;
+      return page1 + page2 + page3;
+    }
+
+    function renderTa() {
+      const sel = document.getElementById('taSelect');
+      sel.innerHTML = state.tahunAjaranList.map(t => `<option value="${escapeHtml(t.id)}" ${t.id === state.tahunAjaranId ? 'selected' : ''}>${escapeHtml(t.namaDisplay || t.nama)}${t.isAktif ? ' (Aktif)' : ''}</option>`).join('') || '<option value="">-- belum ada --</option>';
+    }
+    async function loadTa() {
+      try {
+        const data = await api('tahunAjaran.list');
+        const items = (data.items || []).slice().sort((a, b) => (a.isAktif === b.isAktif) ? 0 : (a.isAktif ? -1 : 1));
+        state.tahunAjaranList = items.map(t => ({ id: t.id, nama: t.nama, namaDisplay: t.namaDisplay || (t.semester ? t.nama + ' - ' + t.semester : t.nama), isAktif: t.isAktif }));
+        const aktif = state.tahunAjaranList.find(t => t.isAktif) || state.tahunAjaranList[0];
+        state.tahunAjaranId = aktif ? aktif.id : '';
+        renderTa();
+      } catch (e) { /* ignore */ }
+    }
+
+    let _exportCancelled = false;
+
+    async function exportAll() {
+      if (!state.tahunAjaranId) { showNotice('Pilih tahun ajaran terlebih dahulu.', 'error'); return; }
+      const list = state.santriList.filter(s => !state.gender || s.jenisKelamin === state.gender);
+      if (!list.length) { showNotice('Tidak ada santri yang sesuai filter.', 'error'); return; }
+
+      _exportCancelled = false;
+      const progEl = document.getElementById('exportProgress');
+      const progText = document.getElementById('exportProgText');
+      const progBar = document.getElementById('exportProgBar');
+      progEl.style.display = 'flex';
+      progBar.style.width = '0%';
+
+      const sheets = [];
+      for (let i = 0; i < list.length; i++) {
+        if (_exportCancelled) {
+          progEl.style.display = 'none';
+          showNotice('Export dibatalkan.', 'error');
+          return;
+        }
+        const s = list[i];
+        progText.textContent = `Memuat ${i + 1}/${list.length}: ${s.name}`;
+        progBar.style.width = Math.round((i / list.length) * 100) + '%';
+        try {
+          const d = await api('raport.data', { santriId: s.id, tahunAjaranId: state.tahunAjaranId });
+          sheets.push(renderRaport(d));
+        } catch (e) {
+          sheets.push(`<div class="raport-page" style="display:flex;align-items:center;justify-content:center;min-height:80px;"><p style="color:#a55a52;font-weight:600;">${escapeHtml(s.name)}: ${escapeHtml(e.message)}</p></div>`);
+        }
+      }
+
+      progBar.style.width = '100%';
+      progText.textContent = 'Menyiapkan PDF...';
+
+      const container = document.getElementById('exportContainer');
+      container.innerHTML = `<div class="sheet">${sheets.join('')}</div>`;
+      document.body.classList.add('exporting-all');
+      progEl.style.display = 'none';
+
+      const cleanup = () => { document.body.classList.remove('exporting-all'); container.innerHTML = ''; window.removeEventListener('afterprint', cleanup); };
+      window.addEventListener('afterprint', cleanup);
+      window.print();
+    }
+
+    async function exportAllRekamJejak() {
+      const bulan = document.getElementById('bulanRjInput').value || new Date().toISOString().slice(0, 7);
+      const list = state.santriList.filter(s => !state.gender || s.jenisKelamin === state.gender);
+      if (!list.length) { showNotice('Tidak ada santri yang sesuai filter.', 'error'); return; }
+
+      _exportCancelled = false;
+      const progEl = document.getElementById('exportProgress');
+      const progText = document.getElementById('exportProgText');
+      const progBar = document.getElementById('exportProgBar');
+      progEl.style.display = 'flex';
+      progBar.style.width = '0%';
+
+      const sheets = [];
+      for (let i = 0; i < list.length; i++) {
+        if (_exportCancelled) {
+          progEl.style.display = 'none';
+          showNotice('Export dibatalkan.', 'error');
+          return;
+        }
+        const s = list[i];
+        progText.textContent = `Memuat ${i + 1}/${list.length}: ${s.name}`;
+        progBar.style.width = Math.round((i / list.length) * 100) + '%';
+        try {
+          const d = await api('rekamJejak.data', { santriId: s.id, bulan });
+          sheets.push(renderRekamJejak(d));
+        } catch (e) {
+          sheets.push(`<div class="raport-page" style="display:flex;align-items:center;justify-content:center;min-height:80px;"><p style="color:#a55a52;font-weight:600;">${escapeHtml(s.name)}: ${escapeHtml(e.message)}</p></div>`);
+        }
+      }
+
+      progBar.style.width = '100%';
+      progText.textContent = 'Menyiapkan PDF...';
+
+      const container = document.getElementById('exportContainer');
+      container.innerHTML = `<div class="sheet">${sheets.join('')}</div>`;
+      document.body.classList.add('exporting-all');
+      progEl.style.display = 'none';
+
+      const cleanup = () => { document.body.classList.remove('exporting-all'); container.innerHTML = ''; window.removeEventListener('afterprint', cleanup); };
+      window.addEventListener('afterprint', cleanup);
+      window.print();
+    }
+
+    async function viewRekamJejak(santriId) {
+      const bulan = document.getElementById('bulanRjInput').value || new Date().toISOString().slice(0, 7);
+      const sheet = document.getElementById('rekamJejakSheet');
+      sheet.innerHTML = '<div class="empty-state"><i class="fa-solid fa-spinner fa-spin"></i><p style="margin-top:8px;">Memuat rekam jejak...</p></div>';
+      document.getElementById('rekamJejakOverlay').showModal();
+      try {
+        const d = await api('rekamJejak.data', { santriId, bulan });
+        sheet.innerHTML = renderRekamJejak(d);
+      } catch (e) {
+        sheet.innerHTML = `<p style="color:var(--danger);font-weight:600;">${escapeHtml(e.message)}</p>`;
+      }
+    }
+
+    // SYNC: diduplikasi ke pages/perkembanganSantri/index.html — lihat komentar SYNC di dekat
+    // <dialog id="rekamJejakOverlay"> di file ini. Ubah di dua tempat kalau format sheet RJ berubah.
+    function renderRekamJejak(d) {
+      const bp = (d.bulan || '').split('-');
+      const bulanLabel = bp.length === 2 ? `${BULAN_ID[parseInt(bp[1], 10) - 1] || ''} ${bp[0]}` : (d.bulan || '');
+      const ident = `<div class="rp-ident">
+        <div class="row"><span class="k">Nama</span><span class="v">${escapeHtml(d.santri.name)}</span></div>
+        <div class="row"><span class="k">NIS</span><span class="v">${escapeHtml(d.santri.noInduk || '-')}</span></div>
+        <div class="row"><span class="k">Regu</span><span class="v">${escapeHtml(d.reguName || '-')}</span></div>
+        <div class="row"><span class="k">Halaqoh</span><span class="v">${escapeHtml(d.halaqohName || '-')}</span></div>
+        <div class="row"><span class="k">Musyrif/ah / Pembina</span><span class="v">${escapeHtml([...new Set([...(d.musyrifNames||[]), ...(d.pembinaNames||[])])].join(', ') || '-')}</span></div>
+      </div>`;
+      const perkRows = [...(d.perkembangan || [])];
+      while (perkRows.length < 20) perkRows.push(null); // minimal 10 baris × 2 kolom
+      const perk = '<div class="rj-perk">' + perkRows.map(p => p
+        ? `<div class="pe"><span class="d">${escapeHtml(p.tanggal)}</span> — ${escapeHtml(p.teks)}</div>`
+        : '<div class="pe"></div>'
+      ).join('') + '</div>';
+      const haf = d.hafalan && d.hafalan.length
+        ? `<table class="rp-tbl"><thead><tr><th>Tgl</th><th>Jenis</th><th>Detail</th><th class="num">Nilai</th></tr></thead><tbody>` +
+          d.hafalan.map(h => `<tr><td>${escapeHtml(h.tanggal)}</td><td>${escapeHtml(h.jenisLabel)}</td><td>${escapeHtml(h.detail)}</td><td class="num">${escapeHtml(h.nilai || '-')}</td></tr>`).join('') +
+          `</tbody><tfoot><tr><td colspan="2">Total</td><td colspan="2">Ziyadah: ${d.hafalanTotals.ziyadah} &nbsp;|&nbsp; Sabaqi: ${d.hafalanTotals.sabaqi} &nbsp;|&nbsp; Manzili: ${d.hafalanTotals.manzili} &nbsp;|&nbsp; Muroja'ah: ${d.hafalanTotals.murojaah || 0}</td></tr></tfoot></table>`
+        : '<p class="muted-note">Belum ada data hafalan bulan ini.</p>';
+      const ujian = d.ujian && d.ujian.length
+        ? `<table class="rp-tbl"><thead><tr><th>Tgl</th><th>Kelas</th><th class="num">Nilai</th><th>Catatan</th></tr></thead><tbody>` +
+          d.ujian.map(u => `<tr><td>${escapeHtml(u.tanggal)}</td><td>${escapeHtml(u.kelasName)}</td><td class="num">${escapeHtml(u.nilai)}</td><td>${escapeHtml(u.catatan || '-')}</td></tr>`).join('') +
+          `</tbody></table>`
+        : '<p class="muted-note">Belum ada data ujian bulan ini.</p>';
+      const nasehat = d.nasehat ? `<div class="rp-sec"><h2>Pesan &amp; Nasehat</h2><div class="rj-nasehat">${escapeHtml(d.nasehat)}</div></div>` : '';
+      return `<div class="raport-page">
+        <div class="rp-head"><h1>Rekam Jejak Santri</h1><p>Laporan Perkembangan Bulanan — ${escapeHtml(bulanLabel)}</p></div>
+        ${ident}
+        <div class="rp-sec"><h2>Perkembangan Santri</h2>${perk}</div>
+        <div class="rj-bottom">
+          <div class="rp-sec"><h2>Total Pencapaian Hafalan dalam Satu Bulan</h2>${haf}</div>
+          <div class="rp-sec"><h2>Ujian Kelas Siang Pekanan</h2>${ujian}</div>
+          ${nasehat}
+        </div>
+      </div>`;
+    }
+
+    window.viewRaport = viewRaport; window.viewRekamJejak = viewRekamJejak; window.goPage = goPage;
+    window.closeOverlay = closeOverlay; window.printOverlay = printOverlay;
+
+    const session = getStoredSession();
+    if (!session) { clearSession(); window.location.replace('/pages/login/'); }
+    else if (window.PSAccess && window.PSAccess.redirectIfForbidden(session, '/pages/raport&rekamJejak/')) { /* redirected */ }
+    else {
+      mountShell(session);
+      document.getElementById('bulanRjInput').value = new Date().toISOString().slice(0, 7);
+      document.getElementById('taSelect').addEventListener('change', function () { state.tahunAjaranId = this.value; });
+      document.getElementById('genderInput').addEventListener('change', function () { state.gender = this.value; applyFilter(); });
+      document.getElementById('searchInput').addEventListener('input', function () { state.search = this.value; applyFilter(); });
+      const exportAllBtn = document.getElementById('exportAllBtn');
+      const exportAllRjBtn = document.getElementById('exportAllRjBtn');
+      if (canExportRaportRekamJejak(session)) {
+        exportAllBtn.disabled = false;
+        exportAllBtn.title = '';
+        exportAllRjBtn.disabled = false;
+        exportAllRjBtn.title = '';
+        exportAllBtn.addEventListener('click', exportAll);
+        exportAllRjBtn.addEventListener('click', exportAllRekamJejak);
+      }
+      document.getElementById('exportCancelBtn').addEventListener('click', () => { _exportCancelled = true; });
+      window.addEventListener('load', async () => { await loadTa(); await loadSantri(); });
+    }
+    if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {}); }
+  </script>
+</body>
+</html>

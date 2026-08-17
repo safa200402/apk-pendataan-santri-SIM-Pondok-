@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#7f1d1d">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="../../shared-ui.css">
+  <script src="../../shared-ui.js"></script>
+  <title>Backup &amp; Restore</title>
+  <link rel="stylesheet" href="../../shared-shell.css">
+  <link rel="stylesheet" href="../../vendor/fontawesome/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700;800&display=swap');
+
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: 'Poppins', sans-serif; }
+
+    .panel { padding: 22px; }
+
+    /* Page header */
+    .page-header { display: flex; align-items: center; gap: 14px; margin-bottom: 6px; }
+    .page-header-icon {
+      width: 48px; height: 48px;
+      display: grid; place-items: center;
+      border-radius: 14px;
+      background: #7f1d1d;
+      font-size: 22px; color: #fff;
+      flex-shrink: 0;
+    }
+    .page-title  { margin: 0; font-size: 1.35rem; font-weight: 800; }
+    .page-subtitle { margin: 0; font-size: 0.82rem; opacity: 0.6; }
+
+    /* Action bar */
+    .action-bar { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+
+    /* Stat strip */
+    .stat-strip {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 18px;
+    }
+    .stat-box {
+      border-radius: 16px;
+      padding: 14px 16px;
+      background: rgba(0,0,0,0.04);
+      border: 1.5px solid rgba(0,0,0,0.07);
+    }
+    .stat-val { font-size: 1.6rem; font-weight: 800; line-height: 1; }
+    .stat-lbl { font-size: 0.72rem; font-weight: 700; opacity: 0.55; text-transform: uppercase; letter-spacing: 0.08em; margin-top: 4px; }
+    @media (max-width: 500px) {
+      .stat-strip { grid-template-columns: 1fr 1fr; }
+      .stat-strip .stat-box:last-child { grid-column: span 2; }
+      .stat-val { font-size: 1.25rem; }
+    }
+
+    /* Section group */
+    .section-group {
+      border-radius: 20px;
+      overflow: hidden;
+      border: 1.5px solid rgba(0,0,0,0.09);
+      margin-top: 20px;
+    }
+    .section-group-header {
+      padding: 10px 20px;
+      font-size: 0.7rem; font-weight: 800;
+      letter-spacing: 0.13em; text-transform: uppercase;
+      background: rgba(0,0,0,0.04);
+      border-bottom: 1.5px solid rgba(0,0,0,0.07);
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    }
+    .section-group-header-note {
+      font-weight: 400; opacity: 0.55;
+      font-size: 0.68rem; letter-spacing: 0; text-transform: none;
+    }
+
+    /* Backup rows */
+    .backup-row {
+      display: flex; align-items: center; gap: 14px;
+      padding: 14px 20px;
+      border-bottom: 1px solid rgba(0,0,0,0.06);
+    }
+    .backup-row:last-child { border-bottom: none; }
+    .backup-row-icon {
+      width: 40px; height: 40px;
+      border-radius: 12px;
+      background: rgba(127,29,29,0.08);
+      display: grid; place-items: center;
+      font-size: 18px; color: #7f1d1d;
+      flex-shrink: 0;
+    }
+    .backup-row-info { flex: 1; min-width: 0; }
+    .backup-row-name { font-size: 0.82rem; font-weight: 700; word-break: break-all; }
+    .backup-row-meta { font-size: 0.73rem; opacity: 0.55; margin-top: 3px; }
+    .backup-row-actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+    .backup-empty {
+      padding: 40px 20px;
+      text-align: center;
+      font-size: 0.85rem;
+      opacity: 0.45;
+    }
+    .backup-empty i { font-size: 2.2rem; display: block; margin-bottom: 12px; opacity: 0.5; }
+
+    /* Auto backup */
+    .auto-backup-wrap { padding: 18px 20px; display: flex; flex-wrap: wrap; align-items: center; gap: 20px; }
+    .switch-row { display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 0.85rem; font-weight: 600; }
+    .switch { position: relative; display: inline-block; width: 42px; height: 24px; flex-shrink: 0; }
+    .switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+    .switch-slider { position: absolute; inset: 0; background: rgba(0,0,0,0.15); border-radius: 999px; transition: background 0.15s; }
+    .switch-slider::before { content: ''; position: absolute; width: 18px; height: 18px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: transform 0.15s; }
+    .switch input:checked + .switch-slider { background: #7f1d1d; }
+    .switch input:checked + .switch-slider::before { transform: translateX(18px); }
+    .interval-row { display: flex; align-items: center; gap: 8px; font-size: 0.78rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.7; }
+    .interval-row select { padding: 8px 12px; border-radius: 10px; border: 1.5px solid rgba(0,0,0,0.12); font-family: 'Poppins', sans-serif; font-size: 0.8rem; font-weight: 700; text-transform: none; letter-spacing: normal; }
+    @media (max-width: 600px) {
+      .auto-backup-wrap { flex-direction: column; align-items: stretch; }
+      .auto-backup-wrap .btn { width: 100%; justify-content: center; }
+    }
+
+    /* Restore */
+    .restore-wrap { padding: 20px; }
+    .restore-warning {
+      display: flex; gap: 12px; align-items: flex-start;
+      padding: 14px 16px;
+      background: #fef3c7;
+      border: 1.5px solid #fbbf24;
+      border-radius: 14px;
+      font-size: 0.82rem; line-height: 1.55;
+      color: #92400e;
+      margin-bottom: 16px;
+    }
+    .restore-warning > i { font-size: 16px; flex-shrink: 0; margin-top: 2px; }
+
+    .restore-zone {
+      border: 2.5px dashed rgba(0,0,0,0.15);
+      border-radius: 16px;
+      padding: 36px 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+      background: rgba(0,0,0,0.015);
+      user-select: none;
+    }
+    .restore-zone:hover,
+    .restore-zone.drag-over {
+      border-color: #7f1d1d;
+      background: rgba(127,29,29,0.04);
+    }
+    .restore-zone > i { font-size: 2.4rem; opacity: 0.25; display: block; margin-bottom: 14px; }
+    .restore-zone-label { font-size: 0.9rem; font-weight: 700; margin: 0 0 6px; }
+    .restore-zone-sub   { font-size: 0.75rem; opacity: 0.5; margin: 0; }
+
+    .restore-progress {
+      display: flex; align-items: center; gap: 12px;
+      margin-top: 14px;
+      padding: 14px 16px;
+      border-radius: 14px;
+      background: rgba(0,0,0,0.03);
+      font-size: 0.85rem; font-weight: 600;
+    }
+    .restore-progress > i { font-size: 1.1rem; opacity: 0.6; flex-shrink: 0; }
+
+    .restore-denied {
+      display: flex; gap: 14px; align-items: flex-start;
+      padding: 22px 20px;
+      background: #f1f5f9;
+      border: 2px dashed #94a3b8;
+      border-radius: 16px;
+    }
+    .restore-denied > i { font-size: 26px; color: #475569; flex-shrink: 0; margin-top: 2px; }
+    .restore-denied-title { font-size: 0.95rem; font-weight: 800; color: #1e293b; margin: 0 0 4px; }
+    .restore-denied-desc { font-size: 0.82rem; line-height: 1.55; color: #475569; margin: 0; }
+    .restore-denied-desc strong { color: #1e293b; }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 10px 18px;
+      border-radius: 12px; border: 0;
+      font-family: 'Poppins', sans-serif;
+      font-size: 0.8rem; font-weight: 800;
+      text-transform: uppercase; letter-spacing: 0.07em;
+      cursor: pointer;
+      transition: transform 0.12s, opacity 0.12s;
+      white-space: nowrap;
+    }
+    .btn:hover   { transform: translateY(-1px); }
+    .btn:active  { transform: none; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+    .btn-primary { background: #7f1d1d; color: #fff; box-shadow: 0 6px 18px rgba(127,29,29,0.28); }
+    .btn-outline { background: transparent; color: inherit; border: 1.5px solid rgba(0,0,0,0.15); }
+    .btn-danger  { background: #dc2626; color: #fff; }
+    .btn-sm      { padding: 7px 13px; font-size: 0.73rem; border-radius: 10px; }
+
+    /* Access denied */
+    .access-denied {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 10px; padding: 56px 24px; text-align: center;
+    }
+    .access-denied > .icon { font-size: 2.8rem; }
+    .access-denied > .title { margin: 0; font-size: 1rem; font-weight: 800; color: #dc2626; }
+    .access-denied > .sub   { margin: 0; font-size: 0.82rem; opacity: 0.6; }
+
+    @media (max-width: 600px) {
+      .backup-row { flex-wrap: wrap; }
+      .backup-row-actions { width: 100%; justify-content: flex-end; }
+    }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-left">
+      <button class="drawer-toggle" id="navToggle" type="button" aria-label="Toggle sidebar">Menu</button>
+      <div class="header-brand">Pendataan Santri</div>
+      <div class="header-page">Backup &amp; Restore</div>
+    </div>
+    <div class="header-right">
+      <span class="header-chip" id="headerRole">Super Admin</span>
+    </div>
+  </header>
+  <div class="drawer-backdrop" id="navBackdrop"></div>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+
+  <main>
+    <div class="app-layout">
+      <section class="panel nav" id="nav"></section>
+      <div class="content-stack" id="mainContent">
+
+        <!-- Header + stats -->
+        <section class="panel">
+          <div class="page-header">
+            <div class="page-header-icon"><i class="fa-solid fa-box-archive"></i></div>
+            <div>
+              <h1 class="page-title">Backup &amp; Restore</h1>
+              <p class="page-subtitle">Backup mencakup database SQLite dan semua file yang diupload</p>
+            </div>
+          </div>
+
+          <div class="action-bar">
+            <button class="btn btn-primary" type="button" id="btnCreate">
+              <i class="fa-solid fa-box-archive"></i> Buat Backup Sekarang
+            </button>
+            <button class="btn btn-outline" type="button" id="btnRefresh">
+              <i class="fa-solid fa-rotate-right"></i> Muat Ulang
+            </button>
+          </div>
+
+          <div class="stat-strip">
+            <div class="stat-box">
+              <div class="stat-val" id="statCount">—</div>
+              <div class="stat-lbl">Total Backup</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-val" id="statSize">—</div>
+              <div class="stat-lbl">Total Ukuran</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-val" id="statLatest">—</div>
+              <div class="stat-lbl">Backup Terbaru</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Backup otomatis -->
+        <section class="panel" style="padding-top:0;padding-bottom:8px;">
+          <div class="section-group">
+            <div class="section-group-header">
+              <span>Backup Otomatis</span>
+              <span class="section-group-header-note" id="autoBackupStatusNote">Memuat…</span>
+            </div>
+            <div class="auto-backup-wrap">
+              <label class="switch-row">
+                <span class="switch">
+                  <input type="checkbox" id="autoBackupToggle">
+                  <span class="switch-slider"></span>
+                </span>
+                <span>Aktifkan backup otomatis</span>
+              </label>
+              <label class="interval-row">
+                Interval
+                <select id="autoBackupInterval">
+                  <option value="6">Tiap 6 jam</option>
+                  <option value="12">Tiap 12 jam</option>
+                  <option value="24">Tiap 24 jam</option>
+                  <option value="48">Tiap 48 jam</option>
+                </select>
+              </label>
+              <button class="btn btn-primary btn-sm" type="button" id="btnSaveAutoBackup">Simpan</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Daftar backup -->
+        <section class="panel" style="padding-top:0;padding-bottom:8px;">
+          <div class="section-group">
+            <div class="section-group-header">
+              <span>Daftar Backup</span>
+              <span class="section-group-header-note">Maks. 20 backup</span>
+            </div>
+            <div id="backupList">
+              <div class="backup-empty"><i class="fa-solid fa-spinner fa-spin"></i>Memuat daftar backup…</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Restore -->
+        <section class="panel" style="padding-top:0;padding-bottom:22px;">
+          <div class="section-group">
+            <div class="section-group-header">
+              <span>Restore dari Backup</span>
+            </div>
+            <div class="restore-wrap">
+              <div class="restore-warning">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                <div>
+                  <strong>Peringatan:</strong> Restore akan <strong>menimpa seluruh database dan file</strong> yang ada.
+                  Pastikan semua pengguna sudah logout sebelum melanjutkan.
+                  Data yang tidak ada di backup akan <strong>hilang permanen</strong>.
+                </div>
+              </div>
+              <div class="restore-denied" id="restoreDenied" hidden>
+                <i class="fa-solid fa-lock"></i>
+                <div>
+                  <p class="restore-denied-title">Restore tidak tersedia untuk akun ini</p>
+                  <p class="restore-denied-desc" id="restoreDeniedDesc">Hanya <strong>Super Admin</strong> dengan scope aktif <strong>Super Admin</strong> yang bisa melakukan restore data.</p>
+                </div>
+              </div>
+              <div class="restore-zone" id="restoreZone">
+                <i class="fa-solid fa-file-zipper"></i>
+                <p class="restore-zone-label">Klik atau seret file backup (.zip) ke sini</p>
+                <p class="restore-zone-sub">Format: backup-YYYY-MM-DDTHH-MM-SS.zip</p>
+              </div>
+              <input type="file" id="restoreFileInput" accept=".zip" hidden>
+              <div class="restore-progress" id="restoreProgress" style="display:none;">
+                <i class="fa-solid fa-spinner fa-spin"></i>
+                <span>Mengunggah dan memproses backup… mohon tunggu.</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </div>
+  </main>
+
+  <script src="../../shared-access.js"></script>
+  <script src="../../shared-nav.js"></script>
+  <script src="../../shared-shell.js"></script>
+  <script>
+    'use strict';
+    var API_BASE = window.location.origin + '/api';
+    var STORAGE  = { token: 'ps_token', session: 'ps_session', apiBase: 'ps_api_base' };
+    localStorage.setItem(STORAGE.apiBase, API_BASE);
+
+    function getToken()       { return localStorage.getItem(STORAGE.token)   || ''; }
+    function clearSession()   { localStorage.removeItem(STORAGE.token); localStorage.removeItem(STORAGE.session); }
+    function getStoredSession() {
+      try { return JSON.parse(localStorage.getItem(STORAGE.session) || 'null'); } catch(_){ return null; }
+    }
+
+    function showNotice(text, type) {
+      type = type || 'info';
+      var stack = document.getElementById('noticeStack');
+      var el = document.createElement('section');
+      el.className = 'notice show ' + type;
+      el.textContent = text;
+      el.addEventListener('click', function(){ el.remove(); });
+      stack.prepend(el);
+      try { if (!stack.matches(':popover-open')) stack.showPopover(); } catch(_){}
+      setTimeout(function(){
+        el.remove();
+        try { if (!stack.hasChildNodes()) stack.hidePopover(); } catch(_){}
+      }, type === 'error' ? 10000 : 5000);
+    }
+
+    function esc(s) {
+      return String(s == null ? '' : s)
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    async function api(action, payload, method) {
+      payload = payload || {};
+      method  = method  || 'GET';
+      var token  = getToken();
+      var scopeLabel = window.PSAccess && typeof window.PSAccess.getActiveRoleScopeLabel === 'function'
+        ? (window.PSAccess.getActiveRoleScopeLabel(getStoredSession()) || '')
+        : '';
+      var params = new URLSearchParams({ action: action, token: token, scopeLabel: scopeLabel });
+      Object.keys(payload).forEach(function(k){ params.set(k, String(payload[k])); });
+      var opts = method === 'GET' ? {} : { method: 'POST', body: params };
+      var url  = method === 'GET' ? API_BASE + '?' + params : API_BASE;
+      var r    = await fetch(url, opts);
+      var json = await r.json();
+      if (!json.ok) {
+        var e = new Error((json.error && json.error.message) || 'Gagal.');
+        e.code = (json.error && json.error.code) || r.status;
+        if (e.code === 401) { clearSession(); location.replace('/pages/login/'); }
+        throw e;
+      }
+      return json.data;
+    }
+
+    function fmtBytes(b) {
+      if (!b) return '0 B';
+      if (b < 1024)          return b + ' B';
+      if (b < 1024 * 1024)   return (b / 1024).toFixed(1) + ' KB';
+      return (b / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+
+    function fmtDate(iso) {
+      if (!iso) return '—';
+      var d = new Date(iso);
+      return d.toLocaleDateString('id-ID', { day:'2-digit', month:'short', year:'numeric' })
+           + ' ' + d.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' });
+    }
+
+    function fmtDateShort(iso) {
+      if (!iso) return '—';
+      var d = new Date(iso);
+      return d.toLocaleDateString('id-ID', { day:'2-digit', month:'short' });
+    }
+
+    function renderStats(items) {
+      var total = items.reduce(function(s, b){ return s + (b.size || 0); }, 0);
+      document.getElementById('statCount').textContent  = items.length;
+      document.getElementById('statSize').textContent   = fmtBytes(total);
+      document.getElementById('statLatest').textContent = items.length ? fmtDateShort(items[0].createdAt) : '—';
+    }
+
+    async function loadList() {
+      var el = document.getElementById('backupList');
+      el.innerHTML = '<div class="backup-empty"><i class="fa-solid fa-spinner fa-spin"></i>Memuat…</div>';
+      try {
+        var data  = await api('backup.list');
+        var items = (data && data.items) || [];
+        renderStats(items);
+        if (!items.length) {
+          el.innerHTML = '<div class="backup-empty"><i class="fa-solid fa-box-open"></i>Belum ada backup tersimpan.</div>';
+          return;
+        }
+        el.innerHTML = items.map(function(b) {
+          var fn = esc(b.filename);
+          return '<div class="backup-row">'
+            + '<div class="backup-row-icon"><i class="fa-solid fa-file-zipper"></i></div>'
+            + '<div class="backup-row-info">'
+            +   '<div class="backup-row-name">' + fn + '</div>'
+            +   '<div class="backup-row-meta">' + fmtDate(b.createdAt) + ' &nbsp;·&nbsp; ' + fmtBytes(b.size) + '</div>'
+            + '</div>'
+            + '<div class="backup-row-actions">'
+            +   '<button class="btn btn-outline btn-sm" type="button" onclick="doDownload(\'' + fn + '\')" title="Download"><i class="fa-solid fa-download"></i></button>'
+            +   '<button class="btn btn-danger btn-sm"  type="button" onclick="doDelete(\'' + fn + '\')"   title="Hapus"><i class="fa-solid fa-trash"></i></button>'
+            + '</div>'
+            + '</div>';
+        }).join('');
+      } catch(e) {
+        el.innerHTML = '<div class="backup-empty" style="opacity:1;color:#dc2626;"><i class="fa-solid fa-circle-exclamation" style="color:#dc2626;"></i>' + esc(e.message) + '</div>';
+      }
+    }
+
+    async function loadAutoBackupSettings() {
+      var note = document.getElementById('autoBackupStatusNote');
+      try {
+        var data = await api('backup.settings.get');
+        document.getElementById('autoBackupToggle').checked = !!data.enabled;
+        document.getElementById('autoBackupInterval').value = String(data.intervalHours);
+        if (!data.enabled) {
+          note.textContent = 'Nonaktif';
+        } else {
+          note.textContent = 'Aktif · Terakhir: ' + (data.lastAutoBackupAt ? fmtDate(data.lastAutoBackupAt) : '—')
+            + ' · Berikutnya: ~' + fmtDate(data.nextRunAt);
+        }
+      } catch(e) {
+        note.textContent = 'Gagal memuat status.';
+      }
+    }
+
+    async function doSaveAutoBackupSettings() {
+      var btn = document.getElementById('btnSaveAutoBackup');
+      btn.disabled = true;
+      try {
+        await api('backup.settings.save', {
+          enabled: document.getElementById('autoBackupToggle').checked,
+          intervalHours: document.getElementById('autoBackupInterval').value
+        }, 'POST');
+        showNotice('Pengaturan backup otomatis disimpan.');
+        await loadAutoBackupSettings();
+      } catch(e) {
+        showNotice(e.message || 'Gagal menyimpan pengaturan.', 'error');
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function doCreate() {
+      var btn = document.getElementById('btnCreate');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Membuat backup…';
+      try {
+        var data = await api('backup.create', {}, 'POST');
+        showNotice('Backup berhasil: ' + data.filename + ' (' + fmtBytes(data.size) + ')');
+        await loadList();
+      } catch(e) {
+        showNotice(e.message || 'Gagal membuat backup.', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-box-archive"></i> Buat Backup Sekarang';
+      }
+    }
+
+    function doDownload(filename) {
+      var token = getToken();
+      var a = document.createElement('a');
+      a.href     = '/api/backup/download?token=' + encodeURIComponent(token) + '&filename=' + encodeURIComponent(filename);
+      a.download = filename;
+      a.click();
+    }
+
+    async function doDelete(filename) {
+      if (!confirm('Hapus backup "' + filename + '"?\nTindakan ini tidak dapat dibatalkan.')) return;
+      try {
+        await api('backup.delete', { filename: filename }, 'POST');
+        showNotice('Backup dihapus.');
+        await loadList();
+      } catch(e) {
+        showNotice(e.message || 'Gagal menghapus backup.', 'error');
+      }
+    }
+
+    async function doRestore(file) {
+      if (!file) return;
+      var scopedSession = window.PSAccess && typeof window.PSAccess.getScopedSession === 'function' ? window.PSAccess.getScopedSession(getStoredSession()) : getStoredSession();
+      if (!scopedSession || !scopedSession.permissions || !scopedSession.permissions.canDelete) {
+        showNotice('Hanya Super Admin dengan scope aktif Super Admin yang bisa melakukan restore.', 'error'); return;
+      }
+      if (!file.name.endsWith('.zip')) { showNotice('File harus berformat .zip.', 'error'); return; }
+      if (!confirm(
+        'Restore dari "' + file.name + '"?\n\n'
+        + 'SEMUA DATA SAAT INI AKAN DIGANTI dengan data dari backup ini.\n'
+        + 'Pastikan semua pengguna sudah logout.\n\n'
+        + 'Lanjutkan?'
+      )) return;
+
+      document.getElementById('restoreProgress').style.display = 'flex';
+      try {
+        var token = getToken();
+        var scopeLabel = window.PSAccess && typeof window.PSAccess.getActiveRoleScopeLabel === 'function'
+          ? (window.PSAccess.getActiveRoleScopeLabel(getStoredSession()) || '')
+          : '';
+        var r = await fetch('/api/backup/restore?token=' + encodeURIComponent(token) + '&scopeLabel=' + encodeURIComponent(scopeLabel), {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/zip' },
+          body:    file
+        });
+        var json = await r.json();
+        if (!json.ok) throw new Error((json.error && json.error.message) || 'Restore gagal.');
+        document.getElementById('restoreProgress').style.display = 'none';
+        showNotice('Restore berhasil! Data telah dipulihkan dari backup.');
+        await loadList();
+      } catch(e) {
+        document.getElementById('restoreProgress').style.display = 'none';
+        showNotice(e.message || 'Restore gagal.', 'error');
+      }
+    }
+
+    var restoreZone  = document.getElementById('restoreZone');
+    var restoreInput = document.getElementById('restoreFileInput');
+    restoreZone.addEventListener('click',     function(){ restoreInput.click(); });
+    restoreZone.addEventListener('dragover',  function(e){ e.preventDefault(); restoreZone.classList.add('drag-over'); });
+    restoreZone.addEventListener('dragleave', function(){ restoreZone.classList.remove('drag-over'); });
+    restoreZone.addEventListener('drop', function(e){
+      e.preventDefault();
+      restoreZone.classList.remove('drag-over');
+      if (e.dataTransfer.files[0]) doRestore(e.dataTransfer.files[0]);
+    });
+    restoreInput.addEventListener('change', function(e){
+      if (e.target.files[0]) doRestore(e.target.files[0]);
+      e.target.value = '';
+    });
+
+    document.getElementById('btnCreate').addEventListener('click', doCreate);
+    document.getElementById('btnRefresh').addEventListener('click', loadList);
+    document.getElementById('btnSaveAutoBackup').addEventListener('click', doSaveAutoBackupSettings);
+
+    /* ── auth ── */
+    var session = getStoredSession();
+    if (!session) { clearSession(); location.replace('/pages/login/'); }
+    else if (window.PSAccess && window.PSAccess.redirectIfForbidden(session, 'backup.html')) { /* redirected */ }
+    else {
+      var currentPage = window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : 'backup.html';
+      if (window.PSShell) window.PSShell.mount({ currentPage: currentPage, session: session, getStoredSession: getStoredSession, storageKey: STORAGE.session });
+      loadList();
+      loadAutoBackupSettings();
+
+      var scopedSession = window.PSAccess && typeof window.PSAccess.getScopedSession === 'function' ? window.PSAccess.getScopedSession(session) : session;
+      var canRestore = !!(scopedSession && scopedSession.permissions && scopedSession.permissions.canDelete);
+      if (!canRestore) {
+        var activeRoleLabel = (scopedSession && scopedSession.permissions && scopedSession.permissions.label) || 'akun ini';
+        var lockMsg = 'Hanya Super Admin dengan scope aktif Super Admin yang bisa melakukan restore.';
+        document.getElementById('restoreDeniedDesc').innerHTML =
+          'Kamu login sebagai <strong>' + esc(activeRoleLabel) + '</strong>. ' +
+          'Hanya <strong>Super Admin</strong> dengan scope aktif <strong>Super Admin</strong> yang bisa melakukan restore data — kalau kamu Super Admin tapi sedang pakai scope lain, ganti dulu scope-nya ke Super Admin di menu profil.';
+        document.getElementById('restoreDenied').hidden = false;
+        var zone = document.getElementById('restoreZone');
+        zone.hidden = true;
+        zone.classList.add('ps-locked');
+        zone.style.pointerEvents = 'none';
+        zone.title = lockMsg;
+        document.getElementById('restoreFileInput').disabled = true;
+      }
+    }
+
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function(){});
+  </script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "name": "fingerprint-bridge",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Script lokal yang narik data scan dari alat fingerprint (kompatibel ZKTeco, port 4370) lalu kirim ke server pendataan-santri lewat action fingerprint.bridge.ingest.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "node-zklib": "^0.2.14"
+  }
+}

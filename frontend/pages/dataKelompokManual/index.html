@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#9e2f22">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="../../shared-ui.css">
+  <script src="../../shared-ui.js"></script>
+  <title>Data Kelompok (Manual)</title>
+  <link rel="stylesheet" href="../../shared-shell.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700&display=swap');
+    :root {
+      --paper: #f6efe0;
+      --ink: #4d4034;
+      --muted: #7b6a58;
+      --line: rgba(91, 73, 57, 0.15);
+      --accent: #b97650;
+      --success: #74846c;
+      --danger: #a55a52;
+      --shadow: 0 18px 45px rgba(87, 67, 51, 0.18);
+      --radius: 24px;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; }
+    body::before { content: ''; position: fixed; inset: 0; pointer-events: none; opacity: 0.15 !important; mix-blend-mode: multiply; }
+    body::after { content: ''; position: fixed; inset: 0; pointer-events: none; opacity: 0.23; }
+    .panel { padding: 22px; }
+    h1, h2, h3 { margin: 0 0 10px; text-transform: uppercase; }
+    p { margin: 0; line-height: 1.65; }
+    .nav a, button { font-weight: 800 !important; text-transform: uppercase; }
+    .toolbar, .meta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; align-items: center; }
+    button, input, select, textarea { font: inherit; }
+    button { padding: 12px 18px; font-weight: 700; cursor: pointer; }
+    .primary { box-shadow: 0 14px 28px rgba(185, 118, 80, 0.22); }
+    input, select, textarea { width: 100%; padding: 13px 14px; outline: none; }
+    label { display: grid; gap: 7px; font-size: 14px; font-weight: 600; }
+
+    .filters { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 16px; align-items: end; }
+    .filters label { min-width: 220px; flex: 1 1 220px; }
+    .section-hint { color: var(--muted); font-size: 13px; margin-top: 6px; }
+
+    .save-pill {
+      display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 700;
+      text-transform: none !important; padding: 7px 14px; border-radius: 999px; background: rgba(116, 132, 108, 0.14);
+      color: var(--success); white-space: nowrap;
+    }
+    .save-pill.saving { background: rgba(185, 118, 80, 0.16); color: var(--accent); }
+    .save-pill.error { background: rgba(165, 90, 82, 0.16); color: var(--danger); }
+
+    .locked-banner {
+      margin-top: 14px; padding: 12px 16px; border-radius: 14px; background: rgba(165, 90, 82, 0.12);
+      color: var(--danger); font-size: 13.5px; font-weight: 700; text-transform: none;
+    }
+
+    .tabs { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 4px; align-items: center; }
+    .tab-item { display: flex; align-items: center; gap: 2px; }
+    .tab-btn {
+      padding: 11px 20px; border: none; background: none; cursor: pointer; font: inherit;
+      font-size: 14px; font-weight: 800 !important; text-transform: uppercase; color: var(--muted);
+      border-bottom: 3px solid transparent; margin-bottom: -2px; transition: color .15s, border-color .15s;
+      box-shadow: none !important; border-radius: 0 !important;
+    }
+    .tab-btn:hover { color: var(--ink); }
+    .tab-item.active .tab-btn { color: var(--accent); border-bottom-color: var(--accent); }
+    .tab-mini-btn {
+      padding: 4px 8px !important; font-size: 12px !important; font-weight: 700 !important; text-transform: none !important;
+      background: none; border: none; color: var(--muted); cursor: pointer; box-shadow: none !important;
+    }
+    .tab-mini-btn:hover { color: var(--accent); }
+    .tab-mini-btn.tab-remove:hover { color: var(--danger); }
+    .tab-add {
+      padding: 9px 16px !important; font-size: 13px !important; border-radius: 999px !important; text-transform: none !important;
+      background: rgba(185, 118, 80, 0.12); color: var(--accent); border: 1px dashed var(--accent);
+    }
+
+    .grid-toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0; }
+    .grid-toolbar button { font-size: 12.5px; padding: 9px 14px; border-radius: 999px; text-transform: none !important; background: rgba(185, 118, 80, 0.12); color: var(--accent); border: 1px dashed var(--accent); }
+    .grid-toolbar button.danger-ghost { background: rgba(165, 90, 82, 0.1); color: var(--danger); border-color: var(--danger); }
+
+    .roster-wrap { max-height: 68vh; height: auto; margin-top: 6px; }
+    .roster-preview-table th, .roster-preview-table td { white-space: nowrap; vertical-align: top; }
+    .roster-preview-table tr.roster-pengampu-row td { background: rgba(238, 223, 201, 0.55); font-weight: 700; }
+    .roster-preview-table tr.roster-pengampu-row td:first-child { font-weight: 800; }
+    .roster-empty-row td { color: var(--muted); font-style: italic; padding: 16px !important; text-align: center; white-space: normal !important; }
+
+    .roster-preview-table .col-gender-ikhwan {
+      background: linear-gradient(180deg, rgba(210, 233, 255, 0.98) 0%, rgba(235, 245, 255, 0.98) 100%) !important;
+      color: #2c5c85 !important;
+    }
+    .roster-preview-table .col-gender-akhowat {
+      background: linear-gradient(180deg, rgba(255, 222, 232, 0.98) 0%, rgba(255, 239, 244, 0.98) 100%) !important;
+      color: #8a3b57 !important;
+    }
+    .roster-preview-table .col-gender-campur {
+      background: linear-gradient(135deg, rgba(212, 232, 255, 0.98) 0%, rgba(239, 244, 255, 0.98) 46%, rgba(255, 235, 241, 0.98) 54%, rgba(255, 222, 232, 0.98) 100%) !important;
+      color: var(--ink) !important;
+    }
+
+    .row-label-cell { display: flex; align-items: center; gap: 6px; font-weight: 800; white-space: nowrap; }
+    .row-del-btn {
+      padding: 2px 7px !important; font-size: 11px !important; font-weight: 700 !important; text-transform: none !important;
+      background: none; border: 1px solid var(--line); border-radius: 6px; color: var(--muted); cursor: pointer;
+    }
+    .row-del-btn:hover { color: var(--danger); border-color: var(--danger); }
+
+    .col-head-cell { min-width: 170px; }
+    .col-head-edit { display: flex; flex-direction: column; gap: 5px; text-transform: none; }
+    .col-name-input { padding: 7px 9px; font-size: 13px; font-weight: 700; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--ink); }
+    .col-name-input:focus { outline: none; border-color: var(--accent); }
+    .col-head-controls { display: flex; gap: 5px; align-items: center; }
+    .col-gender-select { padding: 5px 6px; font-size: 11px; font-weight: 600; border: 1px solid var(--line); border-radius: 7px; background: #fff; color: var(--ink); flex: 1; }
+    .col-remove-btn {
+      padding: 4px 8px !important; font-size: 12px !important; font-weight: 700 !important;
+      background: none; border: 1px solid var(--line); border-radius: 6px; color: var(--muted); cursor: pointer; flex-shrink: 0;
+    }
+    .col-remove-btn:hover { color: var(--danger); border-color: var(--danger); }
+    .col-add-th { min-width: 110px; }
+
+    .cell-input-manual {
+      padding: 8px 9px; font-size: 13px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--ink);
+      min-width: 140px;
+    }
+    .cell-input-manual:hover { border-color: var(--line); background: #fff; }
+    .cell-input-manual:focus { outline: none; border-color: var(--accent); background: #fff; box-shadow: 0 0 0 2px rgba(185,118,80,.12); }
+    .cell-view-text { color: var(--ink); }
+    .cell-view-text.empty { color: var(--muted); font-style: italic; }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-left">
+      <button class="drawer-toggle" id="navToggle" type="button" aria-label="Toggle sidebar">Menu</button>
+      <div class="header-brand">Pendataan Santri</div>
+      <div class="header-page">Data Kelompok (Manual)</div>
+    </div>
+    <div class="header-right">
+      <span class="header-chip" id="headerRole">Admin</span>
+    </div>
+  </header>
+  <div class="drawer-backdrop" id="navBackdrop"></div>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+  <main>
+    <div class="app-layout">
+      <section class="panel nav" id="nav"></section>
+      <div class="content-stack">
+        <section class="panel">
+          <h1 style="font-family:'Playfair Display',serif;font-size:1.9rem;">Data Kelompok (Manual)</h1>
+          <p style="color:var(--muted);font-size:14px;">Versi isi bebas dari "Data Kelompok" — nama tab, nama kelompok, pengampu, dan santri semua diketik manual (tidak terhubung ke data Halaqoh/Regu/Kelas asli). Terikat tahun ajaran.</p>
+        </section>
+
+        <section class="panel">
+          <div class="filters">
+            <label>
+              Tahun ajaran
+              <select id="filterTahunAjaran"></select>
+            </label>
+            <span class="save-pill" id="savePill">Tersimpan</span>
+          </div>
+          <div class="locked-banner" id="lockedBanner" style="display:none;">Tahun ajaran ini berstatus Close (terkunci) — data tidak dapat diubah.</div>
+
+          <div class="tabs" id="tabsBar" style="margin-top:18px;"></div>
+
+          <div class="grid-toolbar" id="gridToolbar"></div>
+
+          <p class="section-hint" id="subtitle"></p>
+          <div class="quick-import-table-wrap roster-wrap">
+            <table class="quick-import-table roster-preview-table" id="rosterTable">
+              <thead><tr id="rosterHeadRow"></tr></thead>
+              <tbody id="rosterBody"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <script src="../../shared-access.js"></script>
+  <script src="../../shared-nav.js"></script>
+  <script src="../../shared-shell.js"></script>
+  <script>
+    const API_BASE = window.location.origin + '/api';
+    const STORAGE = { apiBase: 'ps_api_base', token: 'ps_token', session: 'ps_session' };
+    localStorage.setItem(STORAGE.apiBase, API_BASE);
+
+    function getApiBase() { return localStorage.getItem(STORAGE.apiBase) || ''; }
+    function getToken() { return localStorage.getItem(STORAGE.token) || ''; }
+    function clearSession() { localStorage.removeItem(STORAGE.token); localStorage.removeItem(STORAGE.session); }
+    function getStoredSession() { try { return JSON.parse(localStorage.getItem(STORAGE.session) || 'null'); } catch (error) { return null; } }
+
+    function escapeHtml(value) {
+      return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function toParams(data) {
+      const params = new URLSearchParams();
+      Object.entries(data).forEach(([key, value]) => {
+        if (value === undefined || value === null) return;
+        params.append(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
+      });
+      return params;
+    }
+
+    const uiState = { currentNoticeId: '', noticeCounter: 0 };
+    function showNotice(text, type = 'info') {
+      const stack = document.getElementById('noticeStack');
+      if (!stack) return;
+      if (uiState.currentNoticeId) {
+        const old = document.querySelector(`[data-notice-id="${uiState.currentNoticeId}"]`);
+        if (old) old.remove();
+      }
+      const el = document.createElement('section');
+      el.className = `notice show ${type}`;
+      el.dataset.noticeId = `n-${Date.now()}-${uiState.noticeCounter += 1}`;
+      el.textContent = text;
+      el.addEventListener('click', () => el.remove());
+      window.setTimeout(() => el.remove(), type === 'error' ? 9000 : 5000);
+      stack.prepend(el);
+      uiState.currentNoticeId = el.dataset.noticeId;
+      if (stack.matches(':popover-open')) stack.hidePopover();
+      stack.showPopover();
+    }
+
+    function mountShell(session) {
+      return window.PSShell.mount({
+        currentPage: window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : '/pages/dataKelompokManual/',
+        session,
+        getStoredSession,
+        storageKey: STORAGE.session
+      });
+    }
+
+    async function api(action, payload = {}) {
+      const apiBase = getApiBase();
+      const token = getToken();
+      if (!apiBase || !token) {
+        clearSession();
+        window.location.replace('/pages/login/');
+        throw new Error('Sesi tidak ditemukan.');
+      }
+      const params = toParams({ action, token, ...payload });
+      const response = await fetch(`${apiBase}?${params.toString()}`);
+      const json = await response.json();
+      if (!json.ok) {
+        const error = new Error(json.error?.message ? `Server mengatakan: ${json.error.message}` : 'Permintaan gagal.');
+        error.code = json.error?.code || response.status || 500;
+        if (error.code === 401) { clearSession(); window.location.replace('/pages/login/'); }
+        throw error;
+      }
+      return json.data;
+    }
+
+    function genId(prefix) {
+      return prefix + '-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+    }
+
+    function genderColumnClass(gender) {
+      const normalized = String(gender || '').trim().toLowerCase();
+      if (normalized === 'ikhwan') return 'col-gender-ikhwan';
+      if (normalized === 'akhowat') return 'col-gender-akhowat';
+      if (normalized === 'campur') return 'col-gender-campur';
+      return '';
+    }
+
+    const state = { tahunAjaranId: '', tahunAjaranList: [], tabs: [], activeTabId: '', canEdit: false, locked: false };
+    let saveTimer = null;
+
+    function activeTab() {
+      return state.tabs.find(t => t.id === state.activeTabId) || state.tabs[0] || null;
+    }
+
+    function setSavePill(mode) {
+      const pill = document.getElementById('savePill');
+      if (!pill) return;
+      pill.classList.remove('saving', 'error');
+      if (mode === 'saving') { pill.classList.add('saving'); pill.textContent = 'Menyimpan...'; }
+      else if (mode === 'error') { pill.classList.add('error'); pill.textContent = 'Gagal menyimpan'; }
+      else { pill.textContent = 'Tersimpan'; }
+    }
+
+    function scheduleSave() {
+      if (!state.canEdit) return;
+      clearTimeout(saveTimer);
+      setSavePill('saving');
+      saveTimer = setTimeout(persist, 700);
+    }
+
+    async function persist() {
+      try {
+        await api('dataKelompokManual.save', { tahunAjaranId: state.tahunAjaranId, tabs: JSON.stringify(state.tabs) });
+        setSavePill('saved');
+      } catch (error) {
+        setSavePill('error');
+        showNotice(error.message || 'Gagal menyimpan data.', 'error');
+      }
+    }
+
+    /* ── mutasi struktur ── */
+    function addTab() {
+      const tab = { id: genId('tab'), name: 'Tab Baru', columns: [], pengampuRows: [], santriRows: [] };
+      state.tabs.push(tab);
+      state.activeTabId = tab.id;
+      renderAll();
+      scheduleSave();
+    }
+    function renameTab(tabId) {
+      const tab = state.tabs.find(t => t.id === tabId);
+      if (!tab) return;
+      const name = window.prompt('Nama tab:', tab.name);
+      if (name == null) return;
+      tab.name = name.trim() || tab.name;
+      renderAll();
+      scheduleSave();
+    }
+    function removeTab(tabId) {
+      if (state.tabs.length <= 1) return;
+      const tab = state.tabs.find(t => t.id === tabId);
+      if (!tab) return;
+      if (!window.confirm(`Hapus tab "${tab.name}" beserta seluruh isinya?`)) return;
+      state.tabs = state.tabs.filter(t => t.id !== tabId);
+      if (state.activeTabId === tabId) state.activeTabId = state.tabs[0].id;
+      renderAll();
+      scheduleSave();
+    }
+    function addColumn() {
+      const tab = activeTab();
+      if (!tab) return;
+      tab.columns.push({ id: genId('col'), name: '', gender: '' });
+      renderAll();
+      scheduleSave();
+    }
+    function removeColumn(colId) {
+      const tab = activeTab();
+      if (!tab) return;
+      const col = tab.columns.find(c => c.id === colId);
+      if (!window.confirm(`Hapus kolom "${(col && col.name) || 'Tanpa nama'}"?`)) return;
+      tab.columns = tab.columns.filter(c => c.id !== colId);
+      [...tab.pengampuRows, ...tab.santriRows].forEach(r => { delete r.cells[colId]; });
+      renderAll();
+      scheduleSave();
+    }
+    function addRow(rowType) {
+      const tab = activeTab();
+      if (!tab) return;
+      const key = rowType === 'pengampu' ? 'pengampuRows' : 'santriRows';
+      tab[key].push({ id: genId(rowType === 'pengampu' ? 'p' : 's'), cells: {} });
+      renderAll();
+      scheduleSave();
+    }
+    function removeRow(rowType, rowId) {
+      const tab = activeTab();
+      if (!tab) return;
+      const key = rowType === 'pengampu' ? 'pengampuRows' : 'santriRows';
+      if (!window.confirm('Hapus baris ini?')) return;
+      tab[key] = tab[key].filter(r => r.id !== rowId);
+      renderAll();
+      scheduleSave();
+    }
+
+    /* ── render ── */
+    function renderTabsBar() {
+      const bar = document.getElementById('tabsBar');
+      bar.innerHTML = state.tabs.map(t => `
+        <div class="tab-item ${t.id === state.activeTabId ? 'active' : ''}">
+          <button class="tab-btn" type="button" data-tab="${escapeHtml(t.id)}">${escapeHtml(t.name)}</button>
+          ${state.canEdit ? `<button class="tab-mini-btn tab-rename" type="button" data-tab="${escapeHtml(t.id)}" title="Ganti nama tab">&#9998;</button>` : ''}
+          ${state.canEdit && state.tabs.length > 1 ? `<button class="tab-mini-btn tab-remove" type="button" data-tab="${escapeHtml(t.id)}" title="Hapus tab">&times;</button>` : ''}
+        </div>
+      `).join('') + (state.canEdit ? `<button class="tab-add" id="addTabBtn" type="button">+ Tab</button>` : '');
+
+      bar.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', () => {
+        state.activeTabId = btn.dataset.tab;
+        renderAll();
+      }));
+      bar.querySelectorAll('.tab-rename').forEach(btn => btn.addEventListener('click', () => renameTab(btn.dataset.tab)));
+      bar.querySelectorAll('.tab-remove').forEach(btn => btn.addEventListener('click', () => removeTab(btn.dataset.tab)));
+      const addBtn = document.getElementById('addTabBtn');
+      if (addBtn) addBtn.addEventListener('click', addTab);
+    }
+
+    function renderGridToolbar() {
+      const toolbar = document.getElementById('gridToolbar');
+      if (!state.canEdit) { toolbar.innerHTML = ''; return; }
+      toolbar.innerHTML = `
+        <button type="button" id="addColBtn">+ Kolom (Kelompok)</button>
+        <button type="button" id="addPengampuBtn">+ Baris Pengampu</button>
+        <button type="button" id="addSantriBtn">+ Baris Santri</button>
+      `;
+      document.getElementById('addColBtn').addEventListener('click', addColumn);
+      document.getElementById('addPengampuBtn').addEventListener('click', () => addRow('pengampu'));
+      document.getElementById('addSantriBtn').addEventListener('click', () => addRow('santri'));
+    }
+
+    function renderTable() {
+      const tab = activeTab();
+      const headRow = document.getElementById('rosterHeadRow');
+      const body = document.getElementById('rosterBody');
+      const subtitle = document.getElementById('subtitle');
+      if (!tab) { headRow.innerHTML = ''; body.innerHTML = ''; subtitle.textContent = ''; return; }
+
+      subtitle.textContent = `${tab.columns.length} kelompok · ${tab.pengampuRows.length} baris pengampu · ${tab.santriRows.length} baris santri`;
+
+      if (!tab.columns.length) {
+        headRow.innerHTML = '<th>No</th>';
+        body.innerHTML = `<tr class="roster-empty-row"><td>${state.canEdit ? 'Belum ada kolom. Klik "+ Kolom (Kelompok)" untuk mulai mengisi.' : 'Belum ada data untuk tab ini.'}</td></tr>`;
+        return;
+      }
+
+      headRow.innerHTML = '<th>No</th>' + tab.columns.map(c => `
+        <th class="col-head-cell ${genderColumnClass(c.gender)}">
+          ${state.canEdit ? `
+            <div class="col-head-edit">
+              <input class="col-name-input" data-col="${escapeHtml(c.id)}" value="${escapeHtml(c.name)}" placeholder="Nama kelompok">
+              <div class="col-head-controls">
+                <select class="col-gender-select" data-col="${escapeHtml(c.id)}">
+                  <option value="" ${!c.gender ? 'selected' : ''}>Tidak ada</option>
+                  <option value="Ikhwan" ${c.gender === 'Ikhwan' ? 'selected' : ''}>Ikhwan</option>
+                  <option value="Akhowat" ${c.gender === 'Akhowat' ? 'selected' : ''}>Akhowat</option>
+                  <option value="Campur" ${c.gender === 'Campur' ? 'selected' : ''}>Campur</option>
+                </select>
+                <button class="col-remove-btn" type="button" data-col="${escapeHtml(c.id)}" title="Hapus kolom">&times;</button>
+              </div>
+            </div>
+          ` : escapeHtml(c.name || 'Tanpa nama')}
+        </th>
+      `).join('') + (state.canEdit ? '<th class="col-add-th"></th>' : '');
+
+      function buildRow(row, idx, rowType, labelPrefix, extraClass) {
+        const label = labelPrefix + (idx + 1);
+        const labelCell = state.canEdit
+          ? `<td><div class="row-label-cell">${escapeHtml(label)}<button class="row-del-btn" type="button" data-row-type="${rowType}" data-row-id="${escapeHtml(row.id)}" title="Hapus baris">&times;</button></div></td>`
+          : `<td>${escapeHtml(label)}</td>`;
+        const cells = tab.columns.map(c => {
+          const val = row.cells[c.id] || '';
+          if (state.canEdit) {
+            return `<td class="${genderColumnClass(c.gender)}"><input class="cell-input-manual" data-row-type="${rowType}" data-row-id="${escapeHtml(row.id)}" data-col="${escapeHtml(c.id)}" value="${escapeHtml(val)}"></td>`;
+          }
+          return `<td class="${genderColumnClass(c.gender)}"><span class="cell-view-text${val ? '' : ' empty'}">${val ? escapeHtml(val) : '—'}</span></td>`;
+        }).join('');
+        const trailing = state.canEdit ? '<td></td>' : '';
+        return `<tr class="${extraClass || ''}">${labelCell}${cells}${trailing}</tr>`;
+      }
+
+      const rows = [];
+      tab.pengampuRows.forEach((row, idx) => rows.push(buildRow(row, idx, 'pengampu', 'P', 'roster-pengampu-row')));
+      tab.santriRows.forEach((row, idx) => rows.push(buildRow(row, idx, 'santri', '', '')));
+
+      if (!rows.length) {
+        body.innerHTML = `<tr class="roster-empty-row"><td colspan="${tab.columns.length + (state.canEdit ? 2 : 1)}">${state.canEdit ? 'Belum ada baris. Tambahkan baris pengampu atau santri di atas.' : 'Belum ada data baris.'}</td></tr>`;
+      } else {
+        body.innerHTML = rows.join('');
+      }
+
+      if (state.canEdit) {
+        headRow.querySelectorAll('.col-name-input').forEach(inp => inp.addEventListener('input', () => {
+          const col = tab.columns.find(c => c.id === inp.dataset.col);
+          if (col) { col.name = inp.value; scheduleSave(); }
+        }));
+        headRow.querySelectorAll('.col-gender-select').forEach(sel => sel.addEventListener('change', () => {
+          const col = tab.columns.find(c => c.id === sel.dataset.col);
+          if (col) { col.gender = sel.value; renderTable(); scheduleSave(); }
+        }));
+        headRow.querySelectorAll('.col-remove-btn').forEach(btn => btn.addEventListener('click', () => removeColumn(btn.dataset.col)));
+        body.querySelectorAll('.cell-input-manual').forEach(inp => inp.addEventListener('input', () => {
+          const key = inp.dataset.rowType === 'pengampu' ? 'pengampuRows' : 'santriRows';
+          const row = tab[key].find(r => r.id === inp.dataset.rowId);
+          if (row) { row.cells[inp.dataset.col] = inp.value; scheduleSave(); }
+        }));
+        body.querySelectorAll('.row-del-btn').forEach(btn => btn.addEventListener('click', () => removeRow(btn.dataset.rowType, btn.dataset.rowId)));
+      }
+    }
+
+    function renderLockedBanner() {
+      const banner = document.getElementById('lockedBanner');
+      banner.style.display = (state.locked && state.canEdit) ? 'block' : 'none';
+    }
+
+    function renderAll() {
+      renderTabsBar();
+      renderGridToolbar();
+      renderTable();
+      renderLockedBanner();
+    }
+
+    function populateTahunAjaranSelect() {
+      const sel = document.getElementById('filterTahunAjaran');
+      sel.innerHTML = state.tahunAjaranList.map(ta => `<option value="${escapeHtml(ta.id)}">${escapeHtml(ta.namaDisplay || ta.nama)}${ta.isAktif ? ' (Aktif)' : ''}</option>`).join('');
+      sel.value = state.tahunAjaranId;
+    }
+
+    async function loadData(tahunAjaranId) {
+      document.getElementById('subtitle').textContent = 'Memuat...';
+      try {
+        const data = await api('dataKelompokManual.get', { tahunAjaranId: tahunAjaranId || '' });
+        state.tahunAjaranId = data.tahunAjaranId;
+        state.tahunAjaranList = data.tahunAjaranList || [];
+        state.tabs = data.tabs || [];
+        state.canEdit = !!data.canEdit;
+        state.locked = !!data.locked;
+        if (!state.tabs.some(t => t.id === state.activeTabId)) state.activeTabId = state.tabs[0] ? state.tabs[0].id : '';
+        populateTahunAjaranSelect();
+        setSavePill('saved');
+        renderAll();
+      } catch (error) {
+        document.getElementById('subtitle').textContent = error.message || 'Gagal memuat data.';
+        showNotice(error.message || 'Gagal memuat data.', 'error');
+      }
+    }
+
+    const currentPage = window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : '/pages/dataKelompokManual/';
+    const initialSession = getStoredSession();
+    if (!initialSession) {
+      clearSession();
+      window.location.replace('/pages/login/');
+    } else if (!(window.PSAccess && window.PSAccess.redirectIfForbidden(initialSession, currentPage))) {
+      mountShell(initialSession);
+      document.getElementById('filterTahunAjaran').addEventListener('change', (e) => loadData(e.target.value));
+      loadData('');
+    }
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
+    }
+  </script>
+</body>
+</html>

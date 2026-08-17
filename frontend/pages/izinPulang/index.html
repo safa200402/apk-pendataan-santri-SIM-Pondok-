@@ -1,0 +1,1332 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#9e2f22">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="../../shared-ui.css">
+  <script src="../../shared-ui.js"></script>
+  <title>Izin Pulang</title>
+  <link rel="stylesheet" href="../../shared-shell.css">
+  <link rel="stylesheet" href="../../vendor/fontawesome/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700&display=swap');
+    :root {
+      --paper: #f6efe0; --ink: #4d4034; --muted: #7b6a58;
+      --line: rgba(91, 73, 57, 0.15); --accent: #b97650;
+      --success: #74846c; --danger: #a55a52; --warning: #b58439;
+      --shadow: 0 18px 45px rgba(87, 67, 51, 0.18); --radius: 24px;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; }
+    body::before { content: ''; position: fixed; inset: 0; pointer-events: none; opacity: 0.15; mix-blend-mode: multiply; }
+    body::after { content: ''; position: fixed; inset: 0; pointer-events: none; opacity: 0.23; }
+    h1, h2, h3 { margin: 0 0 10px; text-transform: uppercase; }
+    p { margin: 0; line-height: 1.65; }
+    .nav a, button { font-weight: 800 !important; text-transform: uppercase; }
+    .panel { padding: 22px; }
+    .card { padding: 11px !important; }
+    .toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; justify-content: flex-end;}
+    .filters { display: grid; gap: 12px; margin-top: 16px; }
+    button, input, select, textarea { font: inherit; }
+    button { padding: 12px 18px; font-weight: 700; cursor: pointer; }
+    .primary { box-shadow: 0 14px 28px rgba(185, 118, 80, 0.22); }
+    input, select, textarea { width: 100%; padding: 13px 14px; outline: none; }
+    label { display: grid; gap: 7px; font-size: 14px; font-weight: 600; }
+    .list { display: grid; grid-template-columns: 1fr; gap: 14px; }
+    .pill { display: inline-flex; padding: 7px 11px; font-size: 12px; font-weight: 700; border-radius: 21px;}
+    .notice { display: none; padding: 14px 16px; line-height: 1.55; }
+    .notice.show { display: block; }
+    dialog { padding: 0; }
+    .dialog-body { padding: 22px; display: flex; flex-direction: column; gap: 14px; max-height: 90vh; overflow: auto; }
+    .paging-host { display: grid; gap: 8px; margin: 3px 0; justify-items: center; }
+    .paging { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; }
+    .page-center { display: grid; gap: 8px; justify-items: center; }
+    .page-numbers { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+    .page-numbers button { padding: 0 14px; }
+    .page-summary { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+    .field-grid { display: grid; gap: 12px; margin-top: 12px; }
+    .form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 600px) { .form-row-2 { grid-template-columns: 1fr; } .paging { grid-template-columns: 1fr; } }
+    .section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .dialog-body.dialog-body-split { padding: 0; overflow: hidden; }
+    .dialog-head { flex-shrink: 0; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 18px 22px 14px; background: #ebf6ff; border-bottom: 1px solid rgba(75, 44, 32, 0.15); }
+    .dialog-close { flex-shrink: 0; padding: 6px 12px; font-size: 16px; line-height: 1; border-radius: 10px; }
+    .dialog-scroll { flex: 1; min-height: 0; overflow: auto; padding: 14px 22px; }
+    .dialog-footer { flex-shrink: 0; margin: 0; padding: 14px 22px 18px; border-top: 1px solid rgba(75, 44, 32, 0.15); background: #ebf6ff; }
+    .tab-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 4px; }
+    .tab-btn { padding: 10px 16px; font-size: 12px; font-weight: 800 !important; letter-spacing: 0.08em; border-radius: 12px; }
+    .tab-btn.active { box-shadow: 0 14px 28px rgba(185, 118, 80, 0.22); }
+
+    .iz-card { padding: 16px 18px; border-radius: 18px; }
+    .iz-card.iz-terlambat { border: 4px solid #a55a52 !important; background: #ff9084 !important;}
+    .minimal-list-card.row-male            { background: #ddeeff; border-color: rgba(70,130,180,0.25); }
+    .minimal-list-card.row-female          { background: #ffe4f0; border-color: rgba(200,100,140,0.25); }
+    .minimal-list-card.row-male-inactive   { background: linear-gradient(135deg, #888 0%, #cce6ff 100%); border-color: rgba(70,130,180,0.25); }
+    .minimal-list-card.row-female-inactive { background: linear-gradient(135deg, #888 0%, #ffd6e8 100%); border-color: rgba(200,100,140,0.25); }
+    .minimal-list-card.row-male-frozen     { background: linear-gradient(135deg, #d0d0d0 0%, #cce6ff 100%); border-color: rgba(70,130,180,0.25); }
+    .minimal-list-card.row-female-frozen   { background: linear-gradient(135deg, #d0d0d0 0%, #ffd6e8 100%); border-color: rgba(200,100,140,0.25); }
+    .minimal-list-card.row-nogender-inactive { background: linear-gradient(135deg, #888 0%, rgba(255,248,230,0.96) 100%); }
+    .minimal-list-card.row-nogender-frozen   { background: linear-gradient(135deg, #d0d0d0 0%, rgba(255,248,230,0.96) 100%); }
+    .iz-card-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; cursor: pointer; user-select: none; }
+
+    .iz-header-left { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; flex-wrap: wrap; }
+    .iz-header-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .iz-chevron { font-size: 11px; color: var(--muted); transition: transform 0.2s; }
+    .iz-card.expanded .iz-chevron { transform: rotate(180deg); }
+    .iz-santri-name { font-size: 15px; font-weight: 800; text-transform: uppercase; }
+    .iz-santri-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .iz-body { display: none; margin-top: 10px; }
+    .iz-card.expanded .iz-body { display: block; }
+    .iz-detail { font-size: 13px; color: var(--muted); line-height: 1.55; margin-top: 6px; }
+    .iz-footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); }
+    .iz-terlambat-badge { display: inline-flex; align-items: center; gap: 5px; margin-top: 8px; padding: 6px 12px; background: rgba(165, 90, 82, 0.12); color: #8a3a30; border-radius: 10px; font-size: 12px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
+    .filters { display: grid; gap: 12px; margin-top: 16px; }
+    .pill-izin   { background: rgba(181, 132, 57, 0.14); color: #7a5a0a; }
+    .pill-kembali { background: rgba(116, 132, 108, 0.14); color: #3a5a30; }
+    .pill-terlambat { background: rgba(165, 90, 82, 0.14); color: #8a3a30; }
+    .pill-kembali-terlambat { background: rgba(229, 62, 62, 0.18); color: #d21f1f; }
+    .pill-dibatalkan { background: rgba(123, 106, 88, 0.16); color: #5b4a3a; }
+    .pill-santri-inactive { background: rgba(90, 90, 90, 0.18); color: #3d3d3d; }
+    .pill-santri-frozen   { background: rgba(70, 130, 180, 0.18); color: #2d5f86; }
+    .pill-santri-active   { background: rgba(74, 96, 64, 0.16); color: #3a5a30; }
+
+    .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 16px; }
+    .stat-card { padding: 14px 16px; border-radius: 16px; text-align: center; background: rgba(242, 222, 154, 0.96) !important;}
+    .stat-value { font-size: 28px; font-weight: 800; line-height: 1; }
+    .stat-label { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
+    .stat-izin .stat-value { color: #8a6a10; }
+    .stat-kembali .stat-value { color: #4a6040; }
+    .stat-terlambat .stat-value { color: #a55a52; }
+
+    .santri-search-wrap { position: relative; }
+    .santri-suggestions {     display: none !important; position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 20; max-height: 200px; overflow-y: auto; border-radius: 14px; display: none; padding: 6px; flex-direction: column; gap: 2px; }
+    .santri-suggestions.open { display: flex !important; }
+    .suggestion-item { padding: 9px 12px; cursor: pointer; font-size: 14px; border-radius: 10px; display: flex; flex-direction: column; gap: 2px; }
+    .suggestion-item:hover { background: rgba(91, 73, 57, 0.07); }
+    .suggestion-noinduk { font-size: 11px; color: var(--muted); }
+    .empty-state { padding: 36px 20px; text-align: center; color: var(--muted); font-size: 14px; }
+    .foto-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .foto-thumb-wrap { position: relative; width: 80px; height: 80px; border-radius: 10px; overflow: hidden; border: 2px solid var(--line); cursor: pointer; flex-shrink: 0; }
+    .foto-thumb-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .foto-thumb-del { position: absolute; top: 2px; right: 2px; width: 20px; height: 20px; border-radius: 50%; background: rgba(0,0,0,0.55); color: #fff; border: none; box-shadow: none; padding: 0; font-size: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+    .foto-upload-btn { width: 80px; height: 80px; border-radius: 10px; border: 2px dashed var(--line); background: transparent; box-shadow: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 11px; color: var(--muted); cursor: pointer; padding: 0; flex-shrink: 0; }
+    .foto-upload-btn i { font-size: 20px; }
+    .iz-hukuman { margin-top: 8px; padding: 8px 12px; background: rgba(165,90,82,0.09); border-radius: 10px; font-size: 12px; color: #7a3030; font-weight: 700; }
+
+    /* Dialog Kamera */
+    #izCamDialog { max-width: 520px; width: calc(100vw - 24px); }
+    #izCamVideo { width: 100%; border-radius: 14px; background: #111; display: block; max-height: 54vh; object-fit: cover; }
+    #izCamCanvas { display: none; }
+    .iz-cam-controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: center; margin-top: 14px; }
+    .edit-history-subtitle { font-weight: 600; margin: 0; }
+    .edit-history-list { display: grid; gap: 10px; }
+    .edit-history-entry { display: flex; align-items: flex-start; gap: 12px; padding: 10px 12px; background: rgba(91,73,57,0.05); border-radius: 8px; border: 1px solid rgba(91,73,57,0.12); }
+    .edit-history-order { min-width: 26px; height: 26px; border-radius: 50%; background: var(--accent, #c99a28); color: #fff; display: grid; place-items: center; font-size: 11px; font-weight: 700; flex-shrink: 0; }
+    .edit-history-info { display: grid; gap: 2px; }
+    .edit-history-name { font-weight: 700; font-size: 14px; }
+    .edit-history-jabatan { font-size: 12px; color: var(--muted); }
+    .edit-history-meta { font-size: 12px; color: var(--muted); }
+    .edit-history-empty { color: var(--muted); font-size: 13px; margin: 0; text-align: center; padding: 16px 0; }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-left">
+      <button class="drawer-toggle" id="navToggle" type="button" aria-label="Toggle sidebar">Menu</button>
+      <div class="header-brand">Pendataan Santri</div>
+      <div class="header-page">Izin Pulang</div>
+    </div>
+    <div class="header-right">
+      <span class="header-chip" id="headerRole">Admin</span>
+    </div>
+  </header>
+  <div class="drawer-backdrop" id="navBackdrop"></div>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+  <main>
+    <div class="app-layout">
+      <section class="panel nav" id="nav"></section>
+      <div class="content-stack">
+        <section class="notice info" id="notice"></section>
+
+        <section class="panel">
+          <div class="section-head">
+            <div>
+              <h2>Izin Pulang</h2>
+              <p style="color:var(--muted);font-size:13px;margin-top:4px;">Catat dan pantau santri yang sedang izin pulang.</p>
+            </div>
+          </div>
+          <div class="tab-bar" id="tabBar" style="margin-bottom:0; margin-top: 11px;">
+            <button class="primary tab-btn active" data-tab="rekap" type="button"><i class="fa-solid fa-list-ul"></i>&ensp;Rekap</button>
+            <button class="secondary tab-btn" data-tab="input" type="button"><i class="fa-solid fa-plus"></i>&ensp;Catat Izin</button>
+            <button class="secondary tab-btn" data-tab="santri" type="button"><i class="fa-solid fa-user-clock"></i>&ensp;Rekap Per Santri</button>
+          </div>
+          <div class="toolbar" style="margin-bottom:0;">
+            <div id="superAdminActions" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content: flex-end;">
+              <button class="primary" type="button" id="btnExportPdf"><i class="fa-solid fa-file-pdf"></i>&ensp;Export PDF</button>
+              <button class="primary" type="button" id="btnExportLaporan" style="background:var(--theme-gold);"><i class="fa-solid fa-file-lines"></i>&ensp;Export Laporan</button>
+              <button class="primary" type="button" id="btnExportExcel" style="background:var(--theme-gold);"><i class="fa-solid fa-file-excel"></i>&ensp;Export Excel</button>
+              <button class="primary" type="button" id="btnImportExcel" style="background:var(--theme-gold);"><i class="fa-solid fa-file-import"></i>&ensp;Import Excel</button>
+              <button class="primary" type="button" id="btnDeleteAll"><i class="fa-solid fa-trash"></i>&ensp;Hapus Semua</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- REKAP -->
+        <section class="panel" id="tabRekap">
+          <div class="stats-row">
+            <div class="stat-card stat-izin card"><div class="stat-value" id="statIzin">—</div><div class="stat-label">Sedang Izin</div></div>
+            <div class="stat-card stat-kembali card"><div class="stat-value" id="statKembali">—</div><div class="stat-label">Sudah Kembali</div></div>
+            <div class="stat-card stat-terlambat card"><div class="stat-value" id="statTerlambat">—</div><div class="stat-label">Terlambat Kembali dan Belum Kembali</div></div>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:12px;" id="periodBtns">
+            <button class="secondary active" type="button" data-period="semua" style="font-size:11px;padding:7px 13px;">Semua Waktu</button>
+            <button class="secondary" type="button" data-period="pekan" style="font-size:11px;padding:7px 13px;"><i class="fa-solid fa-calendar-week"></i>&ensp;Pekan Ini</button>
+            <button class="secondary" type="button" data-period="bulan" style="font-size:11px;padding:7px 13px;"><i class="fa-solid fa-calendar-days"></i>&ensp;Bulan Ini</button>
+          </div>
+          <div class="filters" id="filtersPanel">
+            <label>Tahun Ajaran
+              <select id="filterTahunAjaran"><option value="">Semua tahun ajaran</option></select>
+            </label>
+            <label>
+              Dari Tanggal
+              <input type="date" id="filterDariTanggal">
+            </label>
+            <label>
+              Sampai Tanggal
+              <input type="date" id="filterSampaiTanggal">
+            </label>
+            <label>
+              Status
+              <select id="filterStatus">
+                <option value="">Semua (kecuali Dihapus)</option>
+                <option value="izin">Sedang Izin</option>
+                <option value="sudah kembali">Sudah Kembali</option>
+                <option value="dihapus">Dihapus</option>
+              </select>
+            </label>
+            <label>
+              Urutkan
+              <select id="filterSort">
+                <option value="updated">Terbaru Diperbarui</option>
+                <option value="nama_az">Nama A–Z</option>
+                <option value="nama_za">Nama Z–A</option>
+                <option value="tanggal_desc">Tanggal Izin (Terbaru)</option>
+                <option value="tanggal_asc">Tanggal Izin (Terlama)</option>
+                <option value="rencana">Rencana Kembali</option>
+              </select>
+            </label>
+            <label>
+              Cari santri / keperluan
+              <input type="search" id="filterQ" placeholder="Ketik untuk mencari…">
+            </label>
+          </div>
+          <div class="paging-host" id="paginationTop" style="margin-top:16px;"></div>
+          <div class="list" id="rekapList" style="margin-top:16px;"></div>
+          <div class="paging-host" id="paginationBottom" style="margin-top:16px;"></div>
+        </section>
+
+        <!-- INPUT -->
+        <section class="panel" id="tabInput" hidden>
+          <h3>Catat Izin Pulang</h3>
+          <form id="inputForm" autocomplete="off">
+            <div class="filters">
+              <label>
+                Santri <span style="color:var(--danger)">*</span>
+                <div class="santri-search-wrap">
+                  <input type="text" id="inputSantriSearch" placeholder="Ketik nama atau no. induk santri…" autocomplete="off">
+                  <div class="santri-suggestions card" id="santriSuggestions"></div>
+                </div>
+                <input type="hidden" id="inputSantriId">
+                <div style="font-size:12px;color:var(--success);margin-top:2px;font-weight:700;" id="santriSelected"></div>
+              </label>
+              <div class="form-row-2">
+                <label>
+                  Tanggal Izin (Berangkat) <span style="color:var(--danger)">*</span>
+                  <div style="display:flex;gap:6px;">
+                    <input type="date" id="inputTanggalIzin" style="flex:2;">
+                    <input type="time" id="inputJamIzin" style="flex:1;">
+                  </div>
+                </label>
+                <label>
+                  Rencana Kembali
+                  <div style="display:flex;gap:6px;">
+                    <input type="date" id="inputTanggalKembali" style="flex:2;">
+                    <input type="time" id="inputJamKembali" style="flex:1;">
+                  </div>
+                </label>
+              </div>
+              <label>
+                Keperluan
+                <input type="text" id="inputKeperluan" placeholder="Contoh: Kondangan, Sakit keluarga, dll.">
+              </label>
+              <label>
+                Diizinkan Oleh
+                <input type="text" id="inputIzinOleh" placeholder="Nama pengurus / ustadz yang memberikan izin">
+              </label>
+              <label>
+                Catatan Tambahan
+                <textarea id="inputCatatan" rows="2" placeholder="Opsional" style="resize:vertical;"></textarea>
+              </label>
+              <label>Tahun Ajaran
+                <select id="inputTahunAjaran"><option value="">— Pilih tahun ajaran —</option></select>
+              </label>
+              <div>
+                <div style="font-size:14px;font-weight:600;margin-bottom:8px;">Foto Surat Izin <span style="font-weight:400;color:var(--muted);">(opsional)</span></div>
+                <div class="foto-grid" id="inputFotoGrid"></div>
+                <input type="file" id="inputFotoFile" accept="image/*" multiple style="display:none;">
+              </div>
+              <div class="toolbar">
+                <button class="primary" type="submit" id="btnSubmit"><i class="fa-solid fa-paper-plane"></i>&ensp;Catat Izin</button>
+                <button class="secondary" type="button" id="btnReset"><i class="fa-solid fa-rotate-left"></i>&ensp;Reset</button>
+              </div>
+            </div>
+          </form>
+        </section>
+
+        <!-- REKAP PER SANTRI -->
+        <section class="panel" id="tabSantriRekap" hidden>
+          <h3>Rekap Pulang Per Santri</h3>
+          <p style="color:var(--muted);font-size:13px;margin-top:4px;">Cari nama atau no. induk santri, lalu klik hasilnya untuk melihat jumlah izin dan total hari pulang.</p>
+          <div class="filters" style="margin-top:14px;">
+            <label>
+              Cari Santri
+              <div class="santri-search-wrap">
+                <input type="text" id="rekapSantriSearch" placeholder="Ketik nama atau no. induk santri…" autocomplete="off">
+                <div class="santri-suggestions card" id="rekapSantriSuggestions"></div>
+              </div>
+            </label>
+          </div>
+          <div id="rekapSantriResult" style="margin-top:18px;"></div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <!-- Dialog Edit -->
+  <dialog id="editDialog">
+    <form method="dialog" class="dialog-body dialog-body-split">
+      <div class="dialog-head">
+        <div>
+          <h3 style="margin-bottom:6px;">Edit Izin Pulang</h3>
+          <div id="editMeta" style="font-size:13px;color:var(--muted);"></div>
+        </div>
+        <button type="button" class="secondary dialog-close" id="btnEditDialogClose" aria-label="Tutup">&times;</button>
+      </div>
+      <div class="dialog-scroll">
+        <div>
+          <input type="hidden" id="editId">
+          <div class="field-grid">
+            <div class="form-row-2">
+              <label>Tanggal Izin (Berangkat) <span style="color:var(--danger)">*</span>
+                <div style="display:flex;gap:6px;">
+                  <input type="date" id="editTanggalIzin" style="flex:2;">
+                  <input type="time" id="editJamIzin" style="flex:1;">
+                </div>
+              </label>
+              <label>Rencana Kembali
+                <div style="display:flex;gap:6px;">
+                  <input type="date" id="editTanggalRencana" style="flex:2;">
+                  <input type="time" id="editJamRencana" style="flex:1;">
+                </div>
+              </label>
+            </div>
+            <div class="form-row-2">
+              <label>Tanggal Kembali Aktual
+                <div style="display:flex;gap:6px;">
+                  <input type="date" id="editTanggalAktual" placeholder="Kosongkan jika belum kembali" style="flex:2;">
+                  <input type="time" id="editJamAktual" style="flex:1;">
+                </div>
+              </label>
+              <label>Status
+                <select id="editStatus">
+                  <option value="Izin">Sedang Izin</option>
+                  <option value="Sudah Kembali">Sudah Kembali</option>
+                </select>
+              </label>
+            </div>
+            <label>Keperluan
+              <input type="text" id="editKeperluan" placeholder="Contoh: Kondangan, Sakit keluarga, dll.">
+            </label>
+            <label>Diizinkan Oleh
+              <input type="text" id="editIzinOleh" placeholder="Nama pengurus / ustadz yang memberikan izin">
+            </label>
+            <label>Catatan Tambahan
+              <textarea id="editCatatan" rows="2" placeholder="Opsional" style="resize:vertical;"></textarea>
+            </label>
+            <label>Hukuman Keterlambatan
+              <input type="text" id="editHukuman" placeholder="Opsional — isi jika santri terlambat kembali">
+            </label>
+            <div>
+              <div style="font-size:14px;font-weight:600;margin-bottom:8px;">Foto Surat Izin</div>
+              <div class="foto-grid" id="editFotoGrid"></div>
+              <input type="file" id="editFotoInput" accept="image/*" multiple style="display:none;">
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="toolbar dialog-footer">
+        <button class="primary" type="button" id="btnEditSubmit"><i class="fa-solid fa-floppy-disk"></i>&ensp;Simpan</button>
+        <button class="secondary" type="button" id="btnEditCancel">Batal</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Dialog Kembali -->
+  <dialog id="kembaliDialog">
+    <form method="dialog">
+      <div class="dialog-body">
+        <div>
+          <h3 style="margin-bottom:6px;">Tandai Sudah Kembali</h3>
+          <div id="kembaliMeta" style="font-size:13px;color:var(--muted);margin-bottom:14px;"></div>
+          <input type="hidden" id="kembaliId">
+          <div class="field-grid">
+            <div class="form-row-2">
+              <label>Tanggal Kembali Aktual
+                <input type="date" id="kembaliTanggal">
+              </label>
+              <label>Jam Kembali
+                <input type="time" id="kembaliJam">
+              </label>
+            </div>
+            <label>Catatan
+              <input type="text" id="kembaliCatatan" placeholder="Opsional">
+            </label>
+          </div>
+        </div>
+        <div class="toolbar">
+          <button class="primary" type="button" id="btnKembaliSubmit"><i class="fa-solid fa-house-return"></i>&ensp;Tandai Kembali</button>
+          <button class="secondary" type="button" id="btnKembaliCancel">Batal</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Dialog Kamera -->
+  <dialog id="izCamDialog">
+    <div class="dialog-body">
+      <div class="dialog-head">
+        <div>
+          <h3>Ambil Foto</h3>
+          <p style="font-size:13px;color:var(--muted);margin-top:4px;text-transform:none;">Arahkan kamera, lalu tekan Ambil Foto.</p>
+        </div>
+        <button type="button" class="secondary dialog-close" id="izBtnTutupKamera" aria-label="Tutup">&times;</button>
+      </div>
+      <video id="izCamVideo" autoplay playsinline muted></video>
+      <canvas id="izCamCanvas"></canvas>
+      <section class="notice" id="izCamError"></section>
+      <div class="iz-cam-controls">
+        <button type="button" class="secondary" id="izBtnSwitchCam" style="font-size:12px;padding:10px 16px;"><i class="fa-solid fa-camera-rotate" style="margin-right:6px;"></i>Balik Kamera</button>
+        <button type="button" class="primary" id="izBtnCapture"><i class="fa-solid fa-camera-retro" style="margin-right:6px;"></i>Ambil Foto</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Dialog Hapus Semua -->
+  <dialog id="deleteAllDialog">
+    <form method="dialog">
+      <div class="dialog-body">
+        <div>
+          <h3 style="margin-bottom:6px;color:#a55a52;">Hapus Semua Data Izin Pulang</h3>
+          <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">Semua data izin pulang dan foto surat izin akan dihapus <strong>permanen</strong>. Tindakan ini tidak bisa dibatalkan.</p>
+          <div class="field-grid">
+            <label>Untuk lanjut, ketik: <code>HAPUS SEMUA</code>
+              <input type="text" id="deleteAllInput" autocomplete="off" placeholder="Ketik HAPUS SEMUA">
+            </label>
+          </div>
+        </div>
+        <div class="toolbar">
+          <button class="primary" type="button" id="btnDeleteAllConfirm" disabled style="background:#a55a52;box-shadow:none;"><i class="fa-solid fa-trash"></i>&ensp;Hapus Permanen</button>
+          <button class="secondary" type="button" id="btnDeleteAllCancel">Batal</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="ps-floating-dialog" id="editHistoryDialog">
+    <div class="dialog-body duplicate-dialog-body ps-dialog-shell">
+      <div class="duplicate-dialog-head ps-dialog-header">
+        <div>
+          <h3>Riwayat Edit Izin Pulang</h3>
+          <p id="editHistorySubtitle" class="edit-history-subtitle"></p>
+        </div>
+      </div>
+      <div class="edit-history-list" id="editHistoryList"></div>
+      <div class="toolbar ps-dialog-footer">
+        <button class="secondary" id="closeEditHistoryDialog" type="button">Tutup</button>
+      </div>
+    </div>
+  </dialog>
+
+  <input type="file" id="importExcelInput" accept=".xlsx,.xls" style="display:none;">
+
+  <script src="../../shared-access.js"></script>
+  <script src="../../shared-nav.js"></script>
+  <script src="../../shared-shell.js"></script>
+  <script src="../../shared-excel.js"></script>
+  <script src="../../shared-export.js"></script>
+  <script>
+    const API_BASE = window.location.origin + '/api';
+    const STORAGE = { apiBase: 'ps_api_base', token: 'ps_token', session: 'ps_session' };
+    localStorage.setItem(STORAGE.apiBase, API_BASE);
+    const state = { items: [], refs: { santri: [], tahunAjaran: [] }, page: 1, pageSize: 10, total: 0, stats: { izin:0, kembali:0, terlambat:0 }, filters: { dariTanggal: '', sampaiTanggal: '', tahunAjaranId: '', status: '', q: '', sortBy: 'updated' }, expandedIds: new Set() };
+    let canManage = false;
+    let canDelete = false;
+    const uiState = { currentNoticeId: '', noticeCounter: 0, noticeShownAt: 0, pendingNotice: null };
+    function getToken() { return localStorage.getItem(STORAGE.token) || ''; }
+    function getStoredSession() { try { return JSON.parse(localStorage.getItem(STORAGE.session) || 'null'); } catch (_) { return null; } }
+    function toParams(d) { const p = new URLSearchParams(); Object.entries(d).forEach(([k,v]) => { if (v !== undefined && v !== null && v !== '') p.append(k, String(v)); }); return p; }
+    async function api(d) { const r = await fetch(API_BASE + '?' + toParams({ ...d, token: getToken() })); const j = await r.json(); if (!j.ok) throw new Error(j.error?.message || 'Error'); return j.data; }
+    async function apiPost(d) { const r = await fetch(API_BASE, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ...d, token: getToken() }) }); const j = await r.json(); if (!j.ok) throw new Error(j.error?.message || 'Error'); return j.data; }
+
+    function createNoticeEl(text, type) {
+      const el = document.createElement('section'); el.className = `notice show ${type||'info'}`; el.dataset.noticeId = `n-${Date.now()}`; el.textContent = text;
+      function dismiss() { if (!el.parentNode) return; el.classList.add('notice-dismissing'); window.setTimeout(() => { el.remove(); const s = document.getElementById('noticeStack'); if (s && !s.hasChildNodes() && s.matches(':popover-open')) s.hidePopover(); }, 220); }
+      el.addEventListener('click', dismiss); window.setTimeout(dismiss, type==='error' ? 10000 : 5000); return el;
+    }
+    function showNotice(text, type) {
+      if (uiState.pendingNotice) { clearTimeout(uiState.pendingNotice); uiState.pendingNotice = null; }
+      const elapsed = Date.now() - uiState.noticeShownAt;
+      if (elapsed < 2000 && uiState.currentNoticeId) { uiState.pendingNotice = window.setTimeout(() => { uiState.pendingNotice = null; showNotice(text, type); }, 2000 - elapsed); return; }
+      const el = createNoticeEl(text, type); const stack = document.getElementById('noticeStack');
+      stack.prepend(el); uiState.currentNoticeId = el.dataset.noticeId; uiState.noticeShownAt = Date.now();
+      if (stack.matches(':popover-open')) stack.hidePopover(); stack.showPopover();
+    }
+
+    function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+    function fmtDate(s) { if (!s) return '—'; const d = new Date(s); if (isNaN(d)) return s; return d.toLocaleDateString('id-ID', {day:'2-digit',month:'short',year:'numeric'}); }
+    function fmtDateJam(tanggal, jam) { const t = fmtDate(tanggal); return jam ? `${t}, ${jam}` : t; }
+    function todayIso() { return new Date().toISOString().slice(0,10); }
+    // Batas hari dihitung: jam 17:00. Dipakai untuk (1) hari keberangkatan dihitung/tidak
+    // di Total Hari Pulang, dan (2) status "terlambat kembali" saat tanggal kembali aktual sama dengan rencana.
+    const IZIN_PULANG_CUTOFF_JAM = '17:00';
+    function isAtOrAfterCutoff(jam) { return !!jam && jam >= IZIN_PULANG_CUTOFF_JAM; }
+    function addDaysIso(dateStr, days) {
+      const d = new Date(dateStr); if (isNaN(d)) return dateStr;
+      d.setUTCDate(d.getUTCDate() + days);
+      return d.toISOString().slice(0,10);
+    }
+    // Kalau pulang jam 17:00 ke atas, hari keberangkatan dianggap belum "pulang" (santri masih
+    // di pesantren sepanjang hari itu), jadi hari efektif dimulai keesokan harinya.
+    function izinEffectiveStartDate(item) {
+      if (!item.tanggalIzin) return item.tanggalIzin;
+      return isAtOrAfterCutoff(item.jamIzin) ? addDaysIso(item.tanggalIzin, 1) : item.tanggalIzin;
+    }
+    function isTerlambat(item) {
+      if ((item.status||'').toLowerCase() !== 'izin') return false;
+      if (!item.tanggalKembaliRencana) return false;
+      return item.tanggalKembaliRencana < todayIso();
+    }
+    function isKembaliTerlambat(item) {
+      if ((item.status||'').toLowerCase() !== 'sudah kembali') return false;
+      if (!item.tanggalKembaliRencana || !item.tanggalKembaliAktual) return false;
+      if (item.tanggalKembaliAktual > item.tanggalKembaliRencana) return true;
+      if (item.tanggalKembaliAktual === item.tanggalKembaliRencana) return isAtOrAfterCutoff(item.jamKembaliAktual);
+      return false;
+    }
+
+    async function loadRefs() {
+      try { const r = await api({ action:'references' }); state.refs.santri = r.santri || []; state.refs.tahunAjaran = r.tahunAjaran || []; } catch (_) {}
+      populateTahunAjaranSelects();
+    }
+    function populateTahunAjaranSelects() {
+      ['filterTahunAjaran','inputTahunAjaran'].forEach(id => {
+        const sel = document.getElementById(id); if (!sel) return;
+        const first = sel.options[0]; sel.innerHTML = ''; sel.appendChild(first);
+        state.refs.tahunAjaran.forEach(ta => { const o = document.createElement('option'); o.value = ta.id; o.textContent = (ta.namaDisplay || ta.nama || ta.id) + (ta.isAktif ? ' (aktif)' : ''); sel.appendChild(o); });
+        if (id === 'inputTahunAjaran') { const a = state.refs.tahunAjaran.find(t => t.isAktif); if (a) sel.value = a.id; }
+        if (id === 'filterTahunAjaran') { const a = state.refs.tahunAjaran.find(t => t.isAktif); if (a) { sel.value = a.id; state.filters.tahunAjaranId = a.id; } }
+      });
+    }
+
+    async function loadRekap() {
+      const f = state.filters;
+      try {
+        const d = await api({ action:'izin.pulang.list', page:state.page, pageSize:state.pageSize, dariTanggal:f.dariTanggal, sampaiTanggal:f.sampaiTanggal, tahunAjaranId:f.tahunAjaranId, status:f.status, q:f.q, sortBy:f.sortBy });
+        state.items = d.items || []; state.total = d.total || 0; state.stats = d.stats || { izin:0, kembali:0, terlambat:0 };
+        renderRekap(); renderPaging(); updateStats();
+      } catch (e) { showNotice(e.message,'error'); }
+    }
+    function updateStats() {
+      const stats = state.stats || { izin:0, kembali:0, terlambat:0 };
+      document.getElementById('statIzin').textContent = stats.izin;
+      document.getElementById('statKembali').textContent = stats.kembali;
+      document.getElementById('statTerlambat').textContent = stats.terlambat;
+    }
+    function renderRekap() {
+      const list = document.getElementById('rekapList');
+      if (!state.items.length) { list.innerHTML = '<div class="empty-state"><i class="fa-regular fa-folder-open" style="font-size:36px;margin-bottom:10px;display:block;"></i>Tidak ada data.</div>'; return; }
+      list.innerHTML = state.items.map(renderCard).join('');
+      list.querySelectorAll('.iz-card-header').forEach(h => h.addEventListener('click', () => {
+        const card = h.closest('.iz-card'); const id = card.dataset.id;
+        if (state.expandedIds.has(id)) { state.expandedIds.delete(id); card.classList.remove('expanded'); }
+        else { state.expandedIds.add(id); card.classList.add('expanded'); }
+      }));
+      list.querySelectorAll('.btn-kembali').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); openKembaliDialog(b.dataset.id); }));
+      list.querySelectorAll('.btn-edit-iz').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); openEditDialog(b.dataset.id); }));
+      list.querySelectorAll('.btn-history-iz').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); showEditHistory(b.dataset.id); }));
+      list.querySelectorAll('.btn-batalkan-iz').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); batalkanIzinItem(b.dataset.id); }));
+      list.querySelectorAll('.btn-pulihkan-iz').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); pulihkanIzinItem(b.dataset.id); }));
+      list.querySelectorAll('.btn-hapus-iz').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); openHapusIzinDialog(b.dataset.id); }));
+    }
+    function normGender(raw) {
+      const g = (raw||'').toLowerCase().trim();
+      if (['l','lk','laki-laki','laki','pria','male','ikhwan'].includes(g)) return 'male';
+      if (['p','pr','perempuan','wanita','female','akhwat'].includes(g)) return 'female';
+      return '';
+    }
+    function normStatus(raw) {
+      const s = (raw||'').toLowerCase().trim();
+      if (['inactive','nonaktif'].includes(s)) return 'inactive';
+      if (['dibekukan','frozen','beku'].includes(s)) return 'dibekukan';
+      return 'active';
+    }
+    function getCardRowClass(gender, statusKey) {
+      if (statusKey === 'inactive') {
+        if (gender === 'male') return 'row-male-inactive';
+        if (gender === 'female') return 'row-female-inactive';
+        return 'row-nogender-inactive';
+      }
+      if (statusKey === 'dibekukan') {
+        if (gender === 'male') return 'row-male-frozen';
+        if (gender === 'female') return 'row-female-frozen';
+        return 'row-nogender-frozen';
+      }
+      if (gender === 'male') return 'row-male';
+      if (gender === 'female') return 'row-female';
+      return '';
+    }
+    function renderCard(item) {
+      const statusLower = (item.status||'').toLowerCase();
+      const isIzin = statusLower === 'izin';
+      const isDibatalkan = !!item.isDeleted;
+      const terlambat = isTerlambat(item);
+      const kembaliTerlambat = isKembaliTerlambat(item);
+      const expanded = state.expandedIds.has(item.id);
+      const gender = normGender(item.santriGender);
+      const statusKey = normStatus(item.santriStatus);
+      const rowCls = getCardRowClass(gender, statusKey);
+      let pill;
+      if (kembaliTerlambat) pill = '<span class="pill pill-kembali-terlambat">Sudah Kembali, Tapi Terlambat</span>';
+      else if (!isIzin) pill = '<span class="pill pill-kembali">Sudah Kembali</span>';
+      else if (terlambat) pill = '<span class="pill pill-terlambat">Terlambat Kembali dan Belum Kembali</span>';
+      else pill = '<span class="pill pill-izin">Sedang Izin</span>';
+      const dibatalkanPill = isDibatalkan ? '<span class="pill pill-dibatalkan">Dihapus</span>' : '';
+      const santriStatusPill = statusKey === 'inactive' ? '<span class="pill pill-santri-inactive">Santri Nonaktif</span>'
+        : statusKey === 'dibekukan' ? '<span class="pill pill-santri-frozen">Santri Dibekukan</span>'
+        : '<span class="pill pill-santri-active">Santri Aktif</span>';
+      return `<article class="card iz-card minimal-list-card ${rowCls}${terlambat ? ' iz-terlambat' : ''}${expanded ? ' expanded' : ''}" data-id="${esc(item.id)}">
+        <div class="iz-card-header">
+          <div class="iz-header-left">
+            <div><div class="iz-santri-name">${esc(item.santriNama||'—')}</div><div class="iz-santri-meta">No. Induk: ${esc(item.santriNoInduk||'—')} &nbsp;·&nbsp; ${fmtDateJam(item.tanggalIzin, item.jamIzin)}</div></div>
+          </div>
+          <div class="iz-header-right">
+            ${pill}
+            ${dibatalkanPill}
+            ${santriStatusPill}
+            <i class="fa-solid fa-chevron-down iz-chevron"></i>
+          </div>
+        </div>
+        <div class="iz-body">
+          ${terlambat ? `<div class="iz-terlambat-badge"><i class="fa-solid fa-triangle-exclamation"></i>&ensp;Terlambat kembali &mdash; seharusnya ${fmtDate(item.tanggalKembaliRencana)}</div>` : ''}
+          ${item.keperluan ? `<div class="iz-detail"><i class="fa-solid fa-info-circle" style="font-size:11px;"></i>&nbsp;${esc(item.keperluan)}</div>` : ''}
+          ${item.izinOleh ? `<div class="iz-detail"><i class="fa-solid fa-user-check" style="font-size:11px;"></i>&nbsp;Izin dari: ${esc(item.izinOleh)}</div>` : ''}
+          ${item.tanggalKembaliRencana ? `<div class="iz-detail"><i class="fa-solid fa-calendar-check" style="font-size:11px;"></i>&nbsp;Rencana kembali: ${fmtDateJam(item.tanggalKembaliRencana, item.jamKembaliRencana)}</div>` : ''}
+          ${item.tanggalKembaliAktual ? `<div class="iz-detail" style="color:var(--success);"><i class="fa-solid fa-house-return" style="font-size:11px;"></i>&nbsp;Kembali aktual: ${fmtDateJam(item.tanggalKembaliAktual, item.jamKembaliAktual)}</div>` : ''}
+          ${item.catatan ? `<div class="iz-detail"><i class="fa-regular fa-comment" style="font-size:11px;"></i>&nbsp;${esc(item.catatan)}</div>` : ''}
+          ${item.hukumanKeterlambatan ? `<div class="iz-hukuman"><i class="fa-solid fa-gavel" style="margin-right:5px;"></i>Hukuman: ${esc(item.hukumanKeterlambatan)}</div>` : ''}
+          ${item.fotos && item.fotos.length ? `<div class="foto-grid">${item.fotos.map(f => `<div class="foto-thumb-wrap" onclick="window.open('/${f.path}','_blank')"><img src="/${f.path}" alt="${esc(f.name)}"></div>`).join('')}</div>` : ''}
+          <div class="iz-footer">
+            <span>Dicatat: ${esc(item.inputByNama||'—')}</span>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              ${isIzin ? `<button class="secondary btn-kembali${canManage ? '' : ' ps-locked'}" data-id="${esc(item.id)}" type="button" ${canManage ? '' : 'disabled title="Hanya Admin, Kesantrian, atau Super Admin yang bisa mengedit."'} style="font-size:11px;padding:7px 12px;"><i class="fa-solid fa-house-return"></i>&ensp;Tandai Kembali</button>` : ''}
+              ${!isDibatalkan ? `<button class="secondary btn-batalkan-iz${canManage ? '' : ' ps-locked'}" data-id="${esc(item.id)}" type="button" ${canManage ? '' : 'disabled title="Hanya Admin, Kesantrian, atau Super Admin yang bisa mengedit."'} style="font-size:11px;padding:7px 12px;"><i class="fa-solid fa-ban"></i>&ensp;Hapus</button>` : ''}
+              ${isDibatalkan ? `<button class="secondary btn-pulihkan-iz${canManage ? '' : ' ps-locked'}" data-id="${esc(item.id)}" type="button" ${canManage ? '' : 'disabled title="Hanya Admin, Kesantrian, atau Super Admin yang bisa mengedit."'} style="font-size:11px;padding:7px 12px;"><i class="fa-solid fa-rotate-left"></i>&ensp;Pulihkan</button>` : ''}
+              <button class="secondary btn-edit-iz${canManage ? '' : ' ps-locked'}" data-id="${esc(item.id)}" type="button" ${canManage ? '' : 'disabled title="Hanya Admin, Kesantrian, atau Super Admin yang bisa mengedit."'} style="font-size:11px;padding:7px 12px;"><i class="fa-solid fa-pen"></i>&ensp;Edit</button>
+              <button class="secondary btn-history-iz" data-id="${esc(item.id)}" type="button" style="font-size:11px;padding:7px 12px;" title="Riwayat pengedit"><i class="fa-solid fa-clock-rotate-left"></i>&ensp;Riwayat</button>
+              <button class="danger btn-hapus-iz${canDelete ? '' : ' ps-locked'}" data-id="${esc(item.id)}" type="button" ${canDelete ? '' : 'disabled title="Hanya Super Admin yang bisa menghapus."'} style="font-size:11px;padding:7px 12px;"><i class="fa-solid fa-trash"></i>&ensp;Hapus Permanen</button>
+            </div>
+          </div>
+        </div>
+      </article>`;
+    }
+    function buildPaginationList(page, totalPages) {
+      const max = 10;
+      if (totalPages <= max) return Array.from({ length: totalPages }, (_, i) => i + 1);
+      const mid = max - 2;
+      const pages = [1];
+      let start = Math.max(2, page - Math.floor(mid / 2));
+      let end = start + mid - 1;
+      if (end > totalPages - 1) { end = totalPages - 1; start = end - mid + 1; }
+      if (start > 2) pages.push('...');
+      for (let v = start; v <= end; v++) pages.push(v);
+      if (end < totalPages - 1) pages.push('...');
+      pages.push(totalPages);
+      return pages;
+    }
+    function renderPaging() {
+      const pg = state.page, total = state.total, totalPages = Math.ceil(total / state.pageSize) || 1;
+      state.totalPages = totalPages;
+      const markup = total ? `
+        <div class="paging">
+          <button class="secondary" type="button" data-page="${pg - 1}" ${pg <= 1 ? 'disabled' : ''}>Sebelumnya</button>
+          <div class="page-center">
+            <div class="page-numbers">
+              ${buildPaginationList(pg, totalPages).map(item =>
+                item === '...'
+                  ? '<span class="page-summary">...</span>'
+                  : `<button class="secondary page-btn ${item === pg ? 'active' : ''}" type="button" data-page="${item}">${item}</button>`
+              ).join('')}
+            </div>
+            <div class="page-summary">Halaman ${pg} dari ${totalPages} &nbsp;|&nbsp; Total ${total} data</div>
+          </div>
+          <button class="secondary" type="button" data-page="${pg + 1}" ${pg >= totalPages ? 'disabled' : ''}>Berikutnya</button>
+        </div>
+      ` : '';
+      window.PSUI.syncPaginationHosts({ markup, visibleCount: state.items.length, totalCount: total, topId: 'paginationTop', bottomId: 'paginationBottom' });
+    }
+
+    // Santri search
+    let searchTimeout = null;
+    document.getElementById('inputSantriSearch').addEventListener('input', e => { clearTimeout(searchTimeout); searchTimeout = setTimeout(() => filterSantri(e.target.value), 250); });
+    document.getElementById('inputSantriSearch').addEventListener('focus', e => { if (e.target.value.length >= 1) filterSantri(e.target.value); });
+    document.addEventListener('click', e => { if (!e.target.closest('.santri-search-wrap')) document.getElementById('santriSuggestions').classList.remove('open'); });
+    function filterSantri(q) {
+      const trim = (q||'').trim().toLowerCase(); const sug = document.getElementById('santriSuggestions');
+      if (!trim) { sug.classList.remove('open'); return; }
+      const m = state.refs.santri.filter(s => (s.name||'').toLowerCase().includes(trim) || (s.noInduk||'').toLowerCase().includes(trim)).slice(0,12);
+      if (!m.length) { sug.innerHTML = '<div class="suggestion-item" style="color:var(--muted);">Tidak ditemukan</div>'; sug.classList.add('open'); return; }
+      sug.innerHTML = m.map(s => `<div class="suggestion-item" data-id="${esc(s.id)}" data-name="${esc(s.name||'')}"><strong>${esc(s.name||s.id)}</strong><span class="suggestion-noinduk">No. Induk: ${esc(s.noInduk||'—')}</span></div>`).join('');
+      sug.classList.add('open');
+      sug.querySelectorAll('.suggestion-item[data-id]').forEach(el => el.addEventListener('click', () => {
+        document.getElementById('inputSantriId').value = el.dataset.id;
+        document.getElementById('inputSantriSearch').value = el.dataset.name;
+        document.getElementById('santriSelected').textContent = '✓ ' + el.dataset.name;
+        sug.classList.remove('open');
+      }));
+    }
+
+    // Rekap per santri
+    let rekapSantriSearchTimeout = null;
+    document.getElementById('rekapSantriSearch').addEventListener('input', e => { clearTimeout(rekapSantriSearchTimeout); rekapSantriSearchTimeout = setTimeout(() => filterRekapSantri(e.target.value), 250); });
+    document.getElementById('rekapSantriSearch').addEventListener('focus', e => { if (e.target.value.length >= 1) filterRekapSantri(e.target.value); });
+    document.addEventListener('click', e => { if (!e.target.closest('#rekapSantriSearch') && !e.target.closest('#rekapSantriSuggestions')) document.getElementById('rekapSantriSuggestions').classList.remove('open'); });
+    function filterRekapSantri(q) {
+      const trim = (q||'').trim().toLowerCase();
+      const sug = document.getElementById('rekapSantriSuggestions');
+      if (!trim) { sug.classList.remove('open'); return; }
+      const m = state.refs.santri.filter(s => (s.name||'').toLowerCase().includes(trim) || (s.noInduk||'').toLowerCase().includes(trim)).slice(0,12);
+      if (!m.length) { sug.innerHTML = '<div class="suggestion-item" style="color:var(--muted);">Tidak ditemukan</div>'; sug.classList.add('open'); return; }
+      sug.innerHTML = m.map(s => `<div class="suggestion-item" data-id="${esc(s.id)}" data-name="${esc(s.name||'')}"><strong>${esc(s.name||s.id)}</strong><span class="suggestion-noinduk">No. Induk: ${esc(s.noInduk||'—')}</span></div>`).join('');
+      sug.classList.add('open');
+      sug.querySelectorAll('.suggestion-item[data-id]').forEach(el => el.addEventListener('click', () => {
+        document.getElementById('rekapSantriSearch').value = el.dataset.name;
+        sug.classList.remove('open');
+        loadSantriRekap(el.dataset.id, el.dataset.name);
+      }));
+    }
+    // Lama izin per catatan: sampai kembali aktual, atau (kalau masih izin) sampai hari ini, dibulatkan minimal 1 hari.
+    // Hari keberangkatan dihitung dari izinEffectiveStartDate() -- lihat aturan batas jam 17:00 di atas.
+    function calcDurationDays(item) {
+      const start = izinEffectiveStartDate(item);
+      if (!start) return 0;
+      const ongoing = (item.status||'').toLowerCase() === 'izin';
+      const end = item.tanggalKembaliAktual || (ongoing ? todayIso() : item.tanggalKembaliRencana) || item.tanggalIzin;
+      const d1 = new Date(start), d2 = new Date(end);
+      if (isNaN(d1) || isNaN(d2)) return 0;
+      const diff = Math.round((d2 - d1) / 86400000) + 1;
+      return Math.max(diff, 1);
+    }
+    // Keterangan singkat kalau hari keberangkatan tidak dihitung karena pulang jam 17:00 ke atas.
+    function calcDurationNote(item) {
+      if (!isAtOrAfterCutoff(item.jamIzin)) return '';
+      return `Pulang pukul ${item.jamIzin} (setelah jam 17:00) sehingga tanggal keberangkatan tidak dihitung; hari pulang mulai dihitung ${fmtDate(izinEffectiveStartDate(item))}.`;
+    }
+    async function loadSantriRekap(santriId, santriName) {
+      const box = document.getElementById('rekapSantriResult');
+      box.innerHTML = '<div class="empty-state"><i class="fa-solid fa-spinner fa-spin" style="font-size:28px;margin-bottom:10px;display:block;"></i>Memuat data...</div>';
+      try {
+        const d = await api({ action:'izin.pulang.list', santriId, pageSize:200, sortBy:'tanggal_desc' });
+        renderSantriRekap(santriName, d.items || []);
+      } catch (e) {
+        box.innerHTML = `<div class="empty-state" style="color:var(--danger);">${esc(e.message)}</div>`;
+      }
+    }
+    function renderSantriRekap(santriName, items) {
+      const box = document.getElementById('rekapSantriResult');
+      if (!items.length) {
+        box.innerHTML = `<div class="empty-state"><i class="fa-regular fa-folder-open" style="font-size:36px;margin-bottom:10px;display:block;"></i>${esc(santriName)} belum pernah tercatat izin pulang.</div>`;
+        return;
+      }
+      const totalHari = items.reduce((sum, it) => sum + calcDurationDays(it), 0);
+      const sedangIzin = items.filter(it => (it.status||'').toLowerCase() === 'izin').length;
+      const totalTerlambat = items.filter(it => isTerlambat(it) || isKembaliTerlambat(it)).length;
+      const rows = items.map(it => {
+        const days = calcDurationDays(it);
+        const ongoing = (it.status||'').toLowerCase() === 'izin';
+        const terlambat = isTerlambat(it);
+        const kembaliTerlambat = isKembaliTerlambat(it);
+        let statusPill;
+        if (kembaliTerlambat) statusPill = '<span class="pill pill-kembali-terlambat">Sudah Kembali, Tapi Terlambat</span>';
+        else if (!ongoing) statusPill = '<span class="pill pill-kembali">Sudah Kembali</span>';
+        else if (terlambat) statusPill = '<span class="pill pill-terlambat">Terlambat Kembali dan Belum Kembali</span>';
+        else statusPill = '<span class="pill pill-izin">Sedang Izin</span>';
+        const note = calcDurationNote(it);
+        return `<div class="card" style="padding:12px 14px;display:flex;flex-direction:column;gap:8px;">
+          <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;">
+            <div>
+              <div style="font-weight:700;font-size:13.5px;">${fmtDateJam(it.tanggalIzin, it.jamIzin)} &rarr; ${ongoing ? '<span style="color:var(--warning);font-weight:800;">Masih izin</span>' : fmtDateJam(it.tanggalKembaliAktual, it.jamKembaliAktual)}</div>
+              ${it.keperluan ? `<div style="font-size:12px;color:var(--muted);margin-top:2px;">${esc(it.keperluan)}</div>` : ''}
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;justify-content:flex-end;">
+              ${statusPill}
+              <span class="pill" style="background:rgba(91,73,57,0.12);color:var(--ink);">${days} hari${ongoing ? ' (berjalan)' : ''}</span>
+            </div>
+          </div>
+          ${note ? `<div style="font-size:11.5px;color:var(--muted);"><i class="fa-solid fa-circle-info"></i>&nbsp;${esc(note)}</div>` : ''}
+        </div>`;
+      }).join('');
+      box.innerHTML = `
+        <div class="stats-row">
+          <div class="stat-card stat-izin card"><div class="stat-value">${items.length}</div><div class="stat-label">Total Kali Izin</div></div>
+          <div class="stat-card stat-kembali card"><div class="stat-value">${totalHari}</div><div class="stat-label">Total Hari Pulang</div></div>
+          <div class="stat-card stat-kembali card"><div class="stat-value">${sedangIzin}</div><div class="stat-label">Sedang Izin Sekarang</div></div>
+          <div class="stat-card stat-terlambat card"><div class="stat-value">${totalTerlambat}</div><div class="stat-label">Terlambat Kembali</div></div>
+        </div>
+        <h3 style="margin-top:18px;">${esc(santriName)}</h3>
+        <div class="list" style="margin-top:10px;gap:10px;">${rows}</div>
+      `;
+    }
+
+    // Input form foto pending
+    let inputPendingFotos = [];
+    function renderInputFotoGrid() {
+      const grid = document.getElementById('inputFotoGrid');
+      grid.innerHTML = inputPendingFotos.map((f, i) =>
+        `<div class="foto-thumb-wrap">
+          <img src="${f.preview}" alt="${esc(f.file.name)}">
+          <button class="foto-thumb-del btn-input-del-foto" data-idx="${i}" type="button"><i class="fa-solid fa-xmark"></i></button>
+        </div>`).join('') +
+        `<button class="foto-upload-btn" id="inputBtnCamera" type="button"><i class="fa-solid fa-camera"></i><span>Kamera</span></button>` +
+        `<button class="foto-upload-btn" id="inputBtnFile" type="button"><i class="fa-solid fa-image"></i><span>File</span></button>`;
+      grid.querySelectorAll('.btn-input-del-foto').forEach(b => b.addEventListener('click', () => {
+        const idx = Number(b.dataset.idx);
+        URL.revokeObjectURL(inputPendingFotos[idx].preview);
+        inputPendingFotos.splice(idx, 1);
+        renderInputFotoGrid();
+      }));
+      document.getElementById('inputBtnCamera').addEventListener('click', () => openIzCam('input'));
+      document.getElementById('inputBtnFile').addEventListener('click', () => document.getElementById('inputFotoFile').click());
+    }
+    function addInputFotos(files) {
+      Array.from(files).forEach(f => inputPendingFotos.push({ file: f, preview: URL.createObjectURL(f) }));
+      renderInputFotoGrid();
+    }
+    document.getElementById('inputFotoFile').addEventListener('change', function() { addInputFotos(this.files); this.value = ''; });
+
+    // Form submit
+    document.getElementById('inputForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      const santriId = document.getElementById('inputSantriId').value.trim();
+      if (!santriId) { showNotice('Pilih santri terlebih dahulu.','error'); return; }
+      const tanggalIzin = document.getElementById('inputTanggalIzin').value;
+      if (!tanggalIzin) { showNotice('Tanggal izin wajib diisi.','error'); return; }
+      const btn = document.getElementById('btnSubmit'); btn.disabled = true;
+      try {
+        const saved = await apiPost({ action:'izin.pulang.save', santri_id:santriId, tanggal_izin:tanggalIzin, jam_izin:document.getElementById('inputJamIzin').value, tanggal_kembali_rencana:document.getElementById('inputTanggalKembali').value, jam_kembali_rencana:document.getElementById('inputJamKembali').value, keperluan:document.getElementById('inputKeperluan').value.trim(), izin_oleh:document.getElementById('inputIzinOleh').value.trim(), catatan:document.getElementById('inputCatatan').value.trim(), tahun_ajaran_id:document.getElementById('inputTahunAjaran').value });
+        const newId = saved && saved.id;
+        if (newId && inputPendingFotos.length) {
+          for (const pf of inputPendingFotos) {
+            try {
+              const dataUrl = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(pf.file); });
+              await apiPost({ action:'izin.pulang.foto.upload', id:newId, dataUrl, name:pf.file.name });
+            } catch (fe) { showNotice('Gagal upload foto: ' + fe.message, 'error'); }
+          }
+        }
+        showNotice('Izin pulang berhasil dicatat.'); resetForm(); switchTab('rekap'); await loadRekap();
+      } catch (e) { showNotice(e.message,'error'); } finally { btn.disabled = false; }
+    });
+    document.getElementById('btnReset').addEventListener('click', resetForm);
+    function resetForm() {
+      document.getElementById('inputForm').reset();
+      document.getElementById('inputSantriId').value = '';
+      document.getElementById('santriSelected').textContent = '';
+      document.getElementById('inputTanggalIzin').value = todayIso();
+      document.getElementById('inputJamIzin').value = '';
+      document.getElementById('inputJamKembali').value = '';
+      const a = state.refs.tahunAjaran.find(t => t.isAktif); if (a) document.getElementById('inputTahunAjaran').value = a.id;
+      inputPendingFotos.forEach(pf => URL.revokeObjectURL(pf.preview));
+      inputPendingFotos = [];
+      renderInputFotoGrid();
+    }
+
+    // Kembali dialog
+    function openKembaliDialog(id) {
+      const item = state.items.find(i => i.id === id); if (!item) return;
+      document.getElementById('kembaliId').value = id;
+      document.getElementById('kembaliTanggal').value = todayIso();
+      document.getElementById('kembaliJam').value = '';
+      document.getElementById('kembaliCatatan').value = '';
+      document.getElementById('kembaliMeta').innerHTML = `<strong>${esc(item.santriNama)}</strong> &mdash; izin sejak ${fmtDate(item.tanggalIzin)}`;
+      document.getElementById('kembaliDialog').showModal();
+    }
+    document.getElementById('btnKembaliCancel').addEventListener('click', () => document.getElementById('kembaliDialog').close());
+    document.getElementById('btnKembaliSubmit').addEventListener('click', async () => {
+      const id = document.getElementById('kembaliId').value;
+      const tanggal = document.getElementById('kembaliTanggal').value;
+      if (!tanggal) { showNotice('Tanggal kembali wajib diisi.','error'); return; }
+      const btn = document.getElementById('btnKembaliSubmit'); btn.disabled = true;
+      try { await apiPost({ action:'izin.pulang.setStatus', id, status:'Sudah Kembali', tanggal_kembali_aktual:tanggal, jam_kembali_aktual:document.getElementById('kembaliJam').value, catatan:document.getElementById('kembaliCatatan').value.trim() }); document.getElementById('kembaliDialog').close(); showNotice('Santri ditandai sudah kembali.'); await loadRekap(); }
+      catch (e) { showNotice(e.message,'error'); } finally { btn.disabled = false; }
+    });
+
+    // Batalkan (tidak menghapus data secara permanen, hanya menandai flag "Dihapus" — status Izin/Sudah Kembali tetap tersimpan)
+    async function batalkanIzinItem(id) {
+      const item = state.items.find(i => i.id === id); if (!item) return;
+      if (!confirm(`Tandai catatan izin pulang "${item.santriNama}" sebagai Dihapus? Data tidak dihapus permanen dari sistem, hanya ditandai "Dihapus" (masih bisa dilihat lewat filter status, dan bisa dipulihkan lagi kalau perlu).`)) return;
+      try { await apiPost({ action:'izin.pulang.setDeleted', id, deleted:'1' }); showNotice('Data ditandai dihapus.'); await loadRekap(); }
+      catch (e) { showNotice(e.message,'error'); }
+    }
+
+    // Pulihkan (kembalikan data yang sebelumnya ditandai "Dihapus")
+    async function pulihkanIzinItem(id) {
+      const item = state.items.find(i => i.id === id); if (!item) return;
+      if (!confirm(`Pulihkan catatan izin pulang "${item.santriNama}"? Data akan muncul lagi sebagai data aktif.`)) return;
+      try { await apiPost({ action:'izin.pulang.setDeleted', id, deleted:'0' }); showNotice('Data berhasil dipulihkan.'); await loadRekap(); }
+      catch (e) { showNotice(e.message,'error'); }
+    }
+
+    // Hapus permanen (khusus Super Admin, wajib ketik HAPUS)
+    function openHapusIzinDialog(id) {
+      const item = state.items.find(i => i.id === id); if (!item) return;
+      let dlg = document.getElementById('hapusIzinDialog');
+      if (!dlg) { dlg = document.createElement('dialog'); dlg.id = 'hapusIzinDialog'; dlg.style.cssText = 'border:none;border-radius:16px;padding:0;max-width:480px;width:94vw;box-shadow:0 20px 60px rgba(0,0,0,0.3);color:var(--ink);'; document.body.appendChild(dlg); }
+      dlg.innerHTML = `<div style="padding:22px;display:grid;gap:12px;font-family:inherit;">
+        <h3 style="margin:0;color:var(--danger);">Hapus Data Izin Pulang</h3>
+        <div style="font-size:13.5px;line-height:1.6;">Data izin pulang <strong>${esc(item.santriNama)}</strong> (${fmtDate(item.tanggalIzin)}) akan dihapus permanen dan tidak bisa dikembalikan. Kalau hanya ingin menandai data ini sebagai dihapus tanpa menghilangkannya secara permanen, tutup dialog ini dan gunakan tombol "Hapus" (bukan "Hapus Permanen") pada kartu.</div>
+        <label style="display:grid;gap:6px;font-size:13px;font-weight:600;">Ketik <strong>HAPUS</strong> untuk mengonfirmasi:
+          <input type="text" id="hapusIzinWord" autocomplete="off" placeholder="HAPUS" style="padding:11px 13px;border-radius:12px;border:1.5px solid #ccc;font:inherit;text-transform:uppercase;letter-spacing:0.1em;">
+        </label>
+        <div style="display:flex;gap:10px;justify-content:flex-end;">
+          <button class="secondary" type="button" id="hapusIzinCancel">Batal</button>
+          <button class="danger" type="button" id="hapusIzinOk" disabled>Hapus permanen</button>
+        </div>
+      </div>`;
+      dlg.showModal();
+      const wordEl = dlg.querySelector('#hapusIzinWord');
+      const okBtn = dlg.querySelector('#hapusIzinOk');
+      wordEl.oninput = () => { okBtn.disabled = wordEl.value.trim().toUpperCase() !== 'HAPUS'; };
+      dlg.querySelector('#hapusIzinCancel').onclick = () => dlg.close();
+      okBtn.onclick = async () => {
+        if (wordEl.value.trim().toUpperCase() !== 'HAPUS') return;
+        dlg.close();
+        try { const res = await apiPost({ action:'izin.pulang.delete', id, confirm:'HAPUS' }); showNotice((res && res.message) || 'Data dihapus permanen.'); await loadRekap(); }
+        catch (e) { showNotice(e.message || 'Gagal menghapus.','error'); }
+      };
+    }
+
+    // Edit dialog
+    let editCurrentId = null;
+    function renderEditFotos(fotos) {
+      const grid = document.getElementById('editFotoGrid');
+      grid.innerHTML = (fotos || []).map((f, i) => `
+        <div class="foto-thumb-wrap" onclick="window.open('/${f.path}','_blank')">
+          <img src="/${f.path}" alt="${esc(f.name)}">
+          <button class="foto-thumb-del btn-del-foto" data-idx="${i}" type="button" onclick="event.stopPropagation()"><i class="fa-solid fa-xmark"></i></button>
+        </div>`).join('') +
+        `<button class="foto-upload-btn" type="button" id="btnFotoCamera"><i class="fa-solid fa-camera"></i><span>Kamera</span></button>` +
+        `<button class="foto-upload-btn" type="button" id="btnFotoFile"><i class="fa-solid fa-image"></i><span>File</span></button>`;
+      grid.querySelectorAll('.btn-del-foto').forEach(b => b.addEventListener('click', async () => {
+        if (!confirm('Hapus foto ini?')) return;
+        b.disabled = true;
+        try {
+          const res = await apiPost({ action:'izin.pulang.foto.delete', id:editCurrentId, fotoIndex:Number(b.dataset.idx) });
+          const item = state.items.find(i => i.id === editCurrentId); if (item) item.fotos = res.fotos;
+          renderEditFotos(res.fotos);
+        } catch (e) { showNotice(e.message,'error'); b.disabled = false; }
+      }));
+      document.getElementById('btnFotoCamera').addEventListener('click', () => openIzCam('edit'));
+      document.getElementById('btnFotoFile').addEventListener('click', () => document.getElementById('editFotoInput').click());
+    }
+    function openEditDialog(id) {
+      const item = state.items.find(i => i.id === id); if (!item) return;
+      editCurrentId = id;
+      document.getElementById('editId').value = id;
+      document.getElementById('editMeta').innerHTML = `<strong>${esc(item.santriNama)}</strong> &mdash; No. Induk: ${esc(item.santriNoInduk||'—')}`;
+      document.getElementById('editTanggalIzin').value = item.tanggalIzin || '';
+      document.getElementById('editJamIzin').value = item.jamIzin || '';
+      document.getElementById('editTanggalRencana').value = item.tanggalKembaliRencana || '';
+      document.getElementById('editJamRencana').value = item.jamKembaliRencana || '';
+      document.getElementById('editTanggalAktual').value = item.tanggalKembaliAktual || '';
+      document.getElementById('editJamAktual').value = item.jamKembaliAktual || '';
+      document.getElementById('editStatus').value = (item.status||'').toLowerCase() === 'sudah kembali' ? 'Sudah Kembali' : 'Izin';
+      document.getElementById('editKeperluan').value = item.keperluan || '';
+      document.getElementById('editIzinOleh').value = item.izinOleh || '';
+      document.getElementById('editCatatan').value = item.catatan || '';
+      document.getElementById('editHukuman').value = item.hukumanKeterlambatan || '';
+      renderEditFotos(item.fotos || []);
+      document.getElementById('editFotoInput').value = '';
+      document.getElementById('editDialog').showModal();
+    }
+    async function uploadFotoFiles(input) {
+      const files = Array.from(input.files); if (!files.length || !editCurrentId) return;
+      input.disabled = true;
+      for (const file of files) {
+        try {
+          const dataUrl = await new Promise((resolve, reject) => { const r = new FileReader(); r.onload = () => resolve(r.result); r.onerror = reject; r.readAsDataURL(file); });
+          const res = await apiPost({ action:'izin.pulang.foto.upload', id:editCurrentId, dataUrl, name:file.name });
+          const item = state.items.find(i => i.id === editCurrentId); if (item) item.fotos = res.fotos;
+          renderEditFotos(res.fotos);
+        } catch (e) { showNotice(e.message,'error'); }
+      }
+      input.disabled = false; input.value = '';
+    }
+    document.getElementById('editFotoInput').addEventListener('change', function() { uploadFotoFiles(this); });
+    document.getElementById('btnEditCancel').addEventListener('click', () => document.getElementById('editDialog').close());
+    document.getElementById('btnEditDialogClose').addEventListener('click', () => document.getElementById('editDialog').close());
+    document.getElementById('closeEditHistoryDialog').addEventListener('click', () => document.getElementById('editHistoryDialog').close());
+    document.getElementById('btnEditSubmit').addEventListener('click', async () => {
+      const id = document.getElementById('editId').value;
+      const tanggalIzin = document.getElementById('editTanggalIzin').value;
+      if (!tanggalIzin) { showNotice('Tanggal izin wajib diisi.','error'); return; }
+      const btn = document.getElementById('btnEditSubmit'); btn.disabled = true;
+      try {
+        await apiPost({ action:'izin.pulang.update', id, tanggal_izin:tanggalIzin, jam_izin:document.getElementById('editJamIzin').value, tanggal_kembali_rencana:document.getElementById('editTanggalRencana').value, jam_kembali_rencana:document.getElementById('editJamRencana').value, tanggal_kembali_aktual:document.getElementById('editTanggalAktual').value, jam_kembali_aktual:document.getElementById('editJamAktual').value, status:document.getElementById('editStatus').value, keperluan:document.getElementById('editKeperluan').value.trim(), izin_oleh:document.getElementById('editIzinOleh').value.trim(), catatan:document.getElementById('editCatatan').value.trim(), hukuman_keterlambatan:document.getElementById('editHukuman').value.trim() });
+        document.getElementById('editDialog').close(); showNotice('Data izin pulang diperbarui.'); await loadRekap();
+      } catch (e) { showNotice(e.message,'error'); } finally { btn.disabled = false; }
+    });
+
+    function showEditHistory(id) {
+      const item = state.items.find(i => i.id === id); if (!item) return;
+      const subtitle = `${esc(item.santriNama || '—')} — ${esc(item.keperluan || '—')} (${esc(item.tanggalIzin || '—')})`;
+      document.getElementById('editHistorySubtitle').innerHTML = subtitle;
+      const history = (() => { try { return JSON.parse(item.editHistory || '[]'); } catch (_) { return []; } })();
+      const formatDate = iso => { if (!iso) return '-'; const d = new Date(iso); return isNaN(d) ? iso : d.toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }); };
+      const actionLabel = a => a === 'create' ? 'Dibuat' : 'Diedit';
+      const rows = history.map((entry, i) => `
+        <div class="edit-history-entry">
+          <div class="edit-history-order">#${i + 1}</div>
+          <div class="edit-history-info">
+            <div class="edit-history-name">${esc(entry.name || '-')}</div>
+            ${entry.jabatan ? `<div class="edit-history-jabatan">${esc(entry.jabatan)}</div>` : ''}
+            <div class="edit-history-meta">${actionLabel(entry.action)} &bull; ${esc(formatDate(entry.at))}</div>
+          </div>
+        </div>
+      `).join('');
+      document.getElementById('editHistoryList').innerHTML = rows || '<p class="edit-history-empty">Belum ada riwayat pengedit tersimpan.</p>';
+      document.getElementById('editHistoryDialog').showModal();
+    }
+
+    // Tabs
+    function switchTab(t) {
+      const tabs = {rekap:'tabRekap', input:'tabInput', santri:'tabSantriRekap'};
+      Object.entries(tabs).forEach(([k,id]) => { const el = document.getElementById(id); if (el) el.hidden = k !== t; });
+      document.querySelectorAll('.tab-btn').forEach(b => { const a = b.dataset.tab === t; b.classList.toggle('primary',a); b.classList.toggle('secondary',!a); b.classList.toggle('active',a); });
+    }
+    document.getElementById('tabBar').addEventListener('click', e => { const b = e.target.closest('.tab-btn'); if (b) switchTab(b.dataset.tab); });
+
+    // Filters
+    let ft = null;
+    ['filterTahunAjaran','filterStatus','filterSort'].forEach(id => document.getElementById(id).addEventListener('change', () => { state.page=1; applyFilters(); }));
+    ['filterDariTanggal','filterSampaiTanggal'].forEach(id => document.getElementById(id).addEventListener('change', () => { setActivePeriod(''); state.page=1; applyFilters(); }));
+    document.getElementById('filterQ').addEventListener('input', () => { clearTimeout(ft); ft = setTimeout(() => { state.page=1; applyFilters(); }, 350); });
+    function applyFilters() { state.filters.dariTanggal = document.getElementById('filterDariTanggal').value; state.filters.sampaiTanggal = document.getElementById('filterSampaiTanggal').value; state.filters.tahunAjaranId = document.getElementById('filterTahunAjaran').value; state.filters.status = document.getElementById('filterStatus').value; state.filters.q = document.getElementById('filterQ').value; state.filters.sortBy = document.getElementById('filterSort').value; loadRekap(); }
+
+    document.addEventListener('click', event => {
+      const page = event.target.getAttribute('data-page');
+      if (!page) return;
+      const nextPage = Number(page);
+      if (!nextPage || nextPage < 1 || nextPage > state.totalPages || nextPage === state.page) return;
+      state.page = nextPage;
+      loadRekap();
+    });
+
+    /* ── Periode Shortcuts ── */
+    function getWeekRange() {
+      const now = new Date(); const day = now.getDay(); const diffMon = (day === 0 ? -6 : 1 - day);
+      const mon = new Date(now); mon.setDate(now.getDate() + diffMon);
+      const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+      return { dari: mon.toISOString().slice(0,10), sampai: sun.toISOString().slice(0,10) };
+    }
+    function getMonthRange() {
+      const now = new Date();
+      const dari = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0,10);
+      const sampai = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0,10);
+      return { dari, sampai };
+    }
+    function setActivePeriod(period) {
+      document.querySelectorAll('#periodBtns [data-period]').forEach(b => b.classList.toggle('active', b.dataset.period === period));
+    }
+    document.querySelectorAll('#periodBtns [data-period]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const p = btn.dataset.period;
+        setActivePeriod(p);
+        if (p === 'pekan') { const r = getWeekRange(); document.getElementById('filterDariTanggal').value = r.dari; document.getElementById('filterSampaiTanggal').value = r.sampai; }
+        else if (p === 'bulan') { const r = getMonthRange(); document.getElementById('filterDariTanggal').value = r.dari; document.getElementById('filterSampaiTanggal').value = r.sampai; }
+        else { document.getElementById('filterDariTanggal').value = ''; document.getElementById('filterSampaiTanggal').value = ''; }
+        state.page = 1; applyFilters();
+      });
+    });
+
+    /* ── Export PDF ── */
+    function getPeriodLabel() {
+      const dari = document.getElementById('filterDariTanggal').value;
+      const sampai = document.getElementById('filterSampaiTanggal').value;
+      if (!dari && !sampai) return 'Semua Waktu';
+      if (dari && sampai) return fmtDate(dari) + ' s/d ' + fmtDate(sampai);
+      if (dari) return 'Mulai ' + fmtDate(dari);
+      return 'S/d ' + fmtDate(sampai);
+    }
+    function exportPdf() {
+      if (!state.items.length) { showNotice('Tidak ada data untuk diekspor.', 'error'); return; }
+      if (!window.PSExport) { showNotice('Library export belum siap.', 'error'); return; }
+      const periodLabel = getPeriodLabel();
+      const columns = [
+        { label: 'No',              width: 24  },
+        { label: 'Nama Santri',     width: 108 },
+        { label: 'No. Induk',       width: 58  },
+        { label: 'Tgl Izin',        width: 58  },
+        { label: 'Jam Izin',        width: 40  },
+        { label: 'Rencana Kembali', width: 62  },
+        { label: 'Jam Rencana',     width: 40  },
+        { label: 'Kembali Aktual',  width: 62  },
+        { label: 'Jam Aktual',      width: 40  },
+        { label: 'Status',          width: 55  },
+        { label: 'Keperluan',       width: 96  },
+        { label: 'Izin Oleh',       width: 80  },
+        { label: 'Catatan',         width: 80  },
+        { label: 'Dicatat Oleh',    width: 79  },
+      ];
+      const rows = state.items.map((item, i) => [
+        String(i + 1),
+        item.santriNama   || '—',
+        item.santriNoInduk|| '—',
+        fmtDate(item.tanggalIzin),
+        item.jamIzin || '—',
+        fmtDate(item.tanggalKembaliRencana),
+        item.jamKembaliRencana || '—',
+        fmtDate(item.tanggalKembaliAktual),
+        item.jamKembaliAktual || '—',
+        item.status       || '—',
+        item.keperluan    || '—',
+        item.izinOleh     || '—',
+        item.catatan      || '—',
+        item.inputByNama  || '—',
+      ]);
+      try {
+        const blob = window.PSExport.buildTablePdfBlob({
+          title: 'Rekap Izin Pulang',
+          subtitle: 'Periode: ' + periodLabel + '  |  Total: ' + state.items.length + ' data',
+          columns,
+          rows,
+          exportedAt: new Date().toISOString(),
+        });
+        const ts = new Date().toISOString().slice(0, 10);
+        window.PSExport.downloadBlobFile(blob, 'izin-pulang-' + ts + '.pdf');
+        showNotice('PDF berhasil diunduh.', 'success');
+      } catch (e) {
+        showNotice('Gagal membuat PDF: ' + (e.message || e), 'error');
+      }
+    }
+    document.getElementById('btnExportPdf').addEventListener('click', exportPdf);
+
+    /* ── Export Laporan (Excel berformat, bukan dump untuk import) ── */
+    async function fetchAllFilteredIzinItems() {
+      const f = state.filters;
+      const pageSize = 200;
+      let page = 1, all = [], total = Infinity;
+      while (all.length < total && page <= 25) {
+        const d = await api({ action:'izin.pulang.list', page, pageSize, dariTanggal:f.dariTanggal, sampaiTanggal:f.sampaiTanggal, tahunAjaranId:f.tahunAjaranId, status:f.status, q:f.q, sortBy:f.sortBy });
+        all = all.concat(d.items || []);
+        total = d.total || 0;
+        page += 1;
+        if (!d.items || !d.items.length) break;
+      }
+      return all;
+    }
+    async function exportLaporan() {
+      if (!window.PSExcel) { showNotice('Library export belum siap.', 'error'); return; }
+      const btn = document.getElementById('btnExportLaporan'); btn.disabled = true;
+      try {
+        const items = await fetchAllFilteredIzinItems();
+        if (!items.length) { showNotice('Tidak ada data untuk diekspor.', 'error'); return; }
+        const periodLabel = getPeriodLabel();
+        const columns = [
+          { label: 'No',              width: 24  },
+          { label: 'Nama Santri',     width: 108 },
+          { label: 'No. Induk',       width: 58  },
+          { label: 'Tgl Izin',        width: 58  },
+          { label: 'Jam Izin',        width: 40  },
+          { label: 'Rencana Kembali', width: 62  },
+          { label: 'Jam Rencana',     width: 40  },
+          { label: 'Kembali Aktual',  width: 62  },
+          { label: 'Jam Aktual',      width: 40  },
+          { label: 'Status',          width: 55  },
+          { label: 'Keperluan',       width: 96  },
+          { label: 'Izin Oleh',       width: 80  },
+          { label: 'Catatan',         width: 80  },
+          { label: 'Dicatat Oleh',    width: 79  },
+        ];
+        const rows = items.map((item, i) => [
+          i + 1,
+          item.santriNama   || '—',
+          item.santriNoInduk|| '—',
+          fmtDate(item.tanggalIzin),
+          item.jamIzin || '—',
+          fmtDate(item.tanggalKembaliRencana),
+          item.jamKembaliRencana || '—',
+          fmtDate(item.tanggalKembaliAktual),
+          item.jamKembaliAktual || '—',
+          item.status       || '—',
+          item.keperluan    || '—',
+          item.izinOleh     || '—',
+          item.catatan      || '—',
+          item.inputByNama  || '—',
+        ]);
+        const ts = new Date().toISOString().slice(0, 10);
+        await window.PSExcel.buildReportWorkbookAndDownload({
+          title: 'Rekap Izin Pulang',
+          subtitle: 'Periode: ' + periodLabel + '  |  Total: ' + items.length + ' data',
+          columns, rows,
+          fileName: 'laporan-izin-pulang-' + ts + '.xlsx',
+          sheetName: 'Izin Pulang',
+        });
+        showNotice('Laporan Excel berhasil diunduh.', 'success');
+      } catch (e) {
+        showNotice('Gagal membuat laporan: ' + (e.message || e), 'error');
+      } finally { btn.disabled = false; }
+    }
+    document.getElementById('btnExportLaporan').addEventListener('click', exportLaporan);
+
+    // Super admin actions
+    const DATASET_KEY = 'izinPulang';
+    async function apiExcel(action, payload, method) {
+      if (!method || method === 'GET') return api({ action, ...payload });
+      return apiPost({ action, ...payload });
+    }
+    document.getElementById('deleteAllInput').addEventListener('input', function() {
+      document.getElementById('btnDeleteAllConfirm').disabled = this.value.trim() !== 'HAPUS SEMUA';
+    });
+    document.getElementById('btnDeleteAllCancel').addEventListener('click', () => { document.getElementById('deleteAllDialog').close(); document.getElementById('deleteAllInput').value = ''; document.getElementById('btnDeleteAllConfirm').disabled = true; });
+    document.getElementById('btnDeleteAll').addEventListener('click', () => { document.getElementById('deleteAllInput').value = ''; document.getElementById('btnDeleteAllConfirm').disabled = true; document.getElementById('deleteAllDialog').showModal(); });
+    document.getElementById('btnDeleteAllConfirm').addEventListener('click', async () => {
+      const btn = document.getElementById('btnDeleteAllConfirm'); btn.disabled = true;
+      try {
+        const res = await apiPost({ action:'izin.pulang.deleteAll' });
+        document.getElementById('deleteAllDialog').close();
+        showNotice(res.message || 'Semua data dihapus.'); await loadRekap();
+      } catch (e) { showNotice(e.message,'error'); btn.disabled = false; }
+    });
+    document.getElementById('btnExportExcel').addEventListener('click', async () => {
+      try { await window.PSExcel.exportDatasets(apiExcel, [DATASET_KEY], 'export-izin-pulang.xlsx'); }
+      catch (e) { showNotice(e.message || 'Gagal export.','error'); }
+    });
+    document.getElementById('btnImportExcel').addEventListener('click', () => document.getElementById('importExcelInput').click());
+    document.getElementById('importExcelInput').addEventListener('change', async function() {
+      const file = this.files && this.files[0]; this.value = ''; if (!file) return;
+      showNotice('Memproses import...','info');
+      try {
+        await window.PSExcel.importDataset(apiExcel, DATASET_KEY, file, { onProgress(done, total) { showNotice(`Import ${done}/${total}...`,'info'); } });
+        showNotice('Import selesai.'); await loadRekap();
+      } catch (e) { showNotice(e.message || 'Gagal import.','error'); }
+    });
+
+    // Kamera WebRTC
+    let _izCamContext = 'input';
+    let _izCamStream = null;
+    let _izCamFacing = 'environment';
+
+    function startIzCam() {
+      stopIzCam();
+      const errEl = document.getElementById('izCamError');
+      errEl.className = 'notice'; errEl.textContent = ''; errEl.style.display = 'none';
+      navigator.mediaDevices.getUserMedia({
+        video: { facingMode: _izCamFacing, width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: false
+      }).then(function(stream) {
+        _izCamStream = stream;
+        document.getElementById('izCamVideo').srcObject = stream;
+      }).catch(function(e) {
+        const msg = e.name === 'NotAllowedError' ? 'Izin kamera ditolak.'
+          : e.name === 'NotFoundError' ? 'Kamera tidak ditemukan.'
+          : 'Gagal mengakses kamera: ' + e.message;
+        errEl.className = 'notice error'; errEl.textContent = msg; errEl.style.display = '';
+      });
+    }
+
+    function stopIzCam() {
+      if (_izCamStream) { _izCamStream.getTracks().forEach(t => t.stop()); _izCamStream = null; }
+      const v = document.getElementById('izCamVideo'); if (v) v.srcObject = null;
+    }
+
+    function captureIzPhoto() {
+      const video = document.getElementById('izCamVideo');
+      const canvas = document.getElementById('izCamCanvas');
+      if (!video.videoWidth) {
+        const errEl = document.getElementById('izCamError');
+        errEl.className = 'notice error'; errEl.textContent = 'Kamera belum siap.'; errEl.style.display = '';
+        return;
+      }
+      canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      if (_izCamFacing === 'user') { ctx.translate(canvas.width, 0); ctx.scale(-1, 1); }
+      ctx.drawImage(video, 0, 0);
+      canvas.toBlob(function(blob) {
+        stopIzCam();
+        document.getElementById('izCamDialog').close();
+        const fileName = 'foto-izin-' + Date.now() + '.jpg';
+        if (_izCamContext === 'input') {
+          inputPendingFotos.push({ file: new File([blob], fileName, { type: 'image/jpeg' }), preview: URL.createObjectURL(blob) });
+          renderInputFotoGrid();
+        } else {
+          const reader = new FileReader();
+          reader.onload = async function(e) {
+            try {
+              const res = await apiPost({ action: 'izin.pulang.foto.upload', id: editCurrentId, dataUrl: e.target.result, name: fileName });
+              const item = state.items.find(i => i.id === editCurrentId); if (item) item.fotos = res.fotos;
+              renderEditFotos(res.fotos);
+            } catch (err) { showNotice(err.message, 'error'); }
+          };
+          reader.readAsDataURL(blob);
+        }
+      }, 'image/jpeg', 0.9);
+    }
+
+    function openIzCam(context) {
+      _izCamContext = context;
+      _izCamFacing = 'environment';
+      document.getElementById('izCamDialog').showModal();
+      startIzCam();
+    }
+
+    document.getElementById('izBtnTutupKamera').addEventListener('click', () => { stopIzCam(); document.getElementById('izCamDialog').close(); });
+    document.getElementById('izBtnSwitchCam').addEventListener('click', () => { _izCamFacing = _izCamFacing === 'environment' ? 'user' : 'environment'; startIzCam(); });
+    document.getElementById('izBtnCapture').addEventListener('click', captureIzPhoto);
+    document.getElementById('izCamDialog').addEventListener('close', stopIzCam);
+
+    window.addEventListener('DOMContentLoaded', async () => {
+      if (window.PSAccess && window.PSAccess.redirectIfForbidden(getStoredSession(), 'izinPulang.html')) return;
+      if (window.PSShell) window.PSShell.mount({ currentPage: window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : '/pages/izinPulang/', session: getStoredSession(), getStoredSession, storageKey: STORAGE.session });
+      document.getElementById('inputTanggalIzin').value = todayIso();
+      renderInputFotoGrid();
+      const session = getStoredSession();
+      const scopedSession = (window.PSAccess && window.PSAccess.getScopedSession) ? window.PSAccess.getScopedSession(session) : session;
+      const perms = scopedSession && scopedSession.permissions;
+      canManage = !!(perms && (perms.isSuperAdmin || perms.canAccessIzinPulang));
+      canDelete = !!(perms && perms.isSuperAdmin);
+      const lockReasonEdit = 'Hanya Admin, Kesantrian, atau Super Admin yang bisa menggunakan fitur ini.';
+      const lockReasonDelete = 'Hanya Super Admin yang bisa menggunakan fitur ini.';
+      window.PSUI.applyPermissionLock(document.getElementById('btnSubmit'), canManage, lockReasonEdit);
+      window.PSUI.applyPermissionLock(document.getElementById('btnExportPdf'), canManage, lockReasonEdit);
+      window.PSUI.applyPermissionLock(document.getElementById('btnExportLaporan'), canManage, lockReasonEdit);
+      window.PSUI.applyPermissionLock(document.getElementById('btnExportExcel'), canDelete, lockReasonDelete);
+      window.PSUI.applyPermissionLock(document.getElementById('btnImportExcel'), canDelete, lockReasonDelete);
+      window.PSUI.applyPermissionLock(document.getElementById('btnDeleteAll'), canDelete, lockReasonDelete);
+      await loadRefs(); await loadRekap();
+    });
+  </script>
+</body>
+</html>

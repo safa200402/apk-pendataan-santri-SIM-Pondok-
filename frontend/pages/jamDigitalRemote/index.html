@@ -1,0 +1,1942 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#9e2f22">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="../../shared-ui.css">
+  <script src="../../shared-ui.js"></script>
+  <title>Remote Jam Digital</title>
+  <link rel="stylesheet" href="../../shared-shell.css">
+  <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
+  <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700&display=swap');
+    :root {
+      --paper: #f6efe0;
+      --ink: #4d4034;
+      --muted: #7b6a58;
+      --line: rgba(91, 73, 57, 0.15);
+      --accent: #b97650;
+      --success: #74846c;
+      --danger: #a55a52;
+      --warning: #b58439;
+      --shadow: 0 18px 45px rgba(87, 67, 51, 0.18);
+      --radius: 24px;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; }
+    body::before { content: ''; position: fixed; inset: 0; pointer-events: none; opacity: 0.26; }
+    .panel { padding: 22px; }
+    h1, h2, h3 { margin: 0 0 10px; text-transform: uppercase; }
+    p { margin: 0; line-height: 1.65; }
+    button, input, select, textarea { font: inherit; }
+    button { font-weight: 800 !important; text-transform: uppercase; cursor: pointer; }
+    label { display: grid; gap: 7px; font-size: 14px; font-weight: 600; }
+    input, select, textarea { width: 100%; padding: 13px 14px; outline: none; }
+    .section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+    }
+    .panel.collapsible > .section-head { cursor: pointer; user-select: none; margin-bottom: 0; }
+    .panel.collapsible > .section-head::after { content: '▲'; font-size: 11px; opacity: .5; flex-shrink: 0; transition: transform .2s; }
+    .panel.collapsible.collapsed > .section-head::after { transform: rotate(180deg); }
+    .panel.collapsible.collapsed > .section-head { margin-bottom: 0; }
+    .panel-body { margin-top: 18px; }
+    .panel.collapsible.collapsed > .panel-body { display: none; }
+    .section-head-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .field-grid { display: grid; gap: 14px; }
+    .field-row { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: end; }
+    .field-row-3 { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: end; }
+    .notice { display: none; padding: 14px 16px; line-height: 1.55; }
+    .notice.show { display: block; }
+    .live-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em;
+    }
+    .live-dot {
+      width: 9px; height: 9px; border-radius: 50%; background: var(--success);
+      animation: livePulse 1.4s ease-in-out infinite;
+    }
+    @keyframes livePulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+    .viewer-link-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      padding: 14px 16px;
+      margin-bottom: 16px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .viewer-link-bar a {
+      color: var(--accent);
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+    .color-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+    .color-row-label {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: var(--muted);
+    }
+    .color-chip {
+      width: 32px; height: 32px;
+      border-radius: 10px;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: border-color .15s, transform .1s;
+      flex-shrink: 0;
+    }
+    .color-chip:hover { transform: scale(1.12); }
+    .color-chip.sel { border-color: var(--ink); }
+    #annColorPicker {
+      width: 36px; height: 32px; padding: 2px;
+      border-radius: 8px; border: 1px solid var(--line); cursor: pointer;
+    }
+    .quick-btns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+    .state-box {
+      font-size: 14px;
+      line-height: 1.9;
+    }
+    .state-box b { font-weight: 800; }
+    .state-row { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+    .state-val { color: var(--ink); font-weight: 600; }
+    .state-val.active { color: var(--danger); font-weight: 800; }
+    .state-val.warn { color: var(--warning); font-weight: 800; }
+    .state-val.muted { color: var(--muted); font-style: italic; font-weight: 400; }
+    @media (max-width: 680px) {
+      .field-row, .field-row-3 { grid-template-columns: 1fr; }
+    }
+    /* ── Video ── */
+    .vid-list { display: grid; gap: 10px; margin-top: 14px; }
+    .vid-card {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: start;
+      padding: 14px 16px;
+      border-radius: 14px;
+    }
+    .vid-info { display: grid; gap: 4px; }
+    .vid-name { font-weight: 800; font-size: 14px; }
+    .vid-meta { font-size: 12px; color: var(--muted); font-weight: 600; }
+    .vid-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .vid-progress { display: none; margin-top: 10px; }
+    .vid-progress.show { display: block; }
+    progress { width: 100%; height: 8px; border-radius: 4px; accent-color: var(--accent); }
+    /* Dialog modal */
+    .dialog-backdrop {
+      display: none; position: fixed; inset: 0; z-index: 200;
+      background: rgba(0,0,0,.55); align-items: center; justify-content: center; padding: 16px;
+    }
+    .dialog-backdrop.open { display: flex; }
+    .dialog-box {
+      background: var(--paper); border-radius: var(--radius); box-shadow: var(--shadow);
+      padding: 24px; width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto;
+      display: grid; gap: 16px;
+    }
+    .dialog-head { display: flex; align-items: center; justify-content: space-between; }
+    .dialog-head h3 { margin: 0; }
+    .dialog-close { background: none; border: none; font-size: 22px; cursor: pointer; line-height: 1; padding: 4px 8px; font-weight: 900; color: var(--muted); }
+    .dialog-close:hover { color: var(--ink); }
+    .dur-row { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: center; }
+    dialog.slide-dialog { border: none; border-radius: var(--radius); box-shadow: var(--shadow); background: var(--paper); padding: 24px; max-width: 680px; width: calc(100% - 32px); }
+    dialog.slide-dialog::backdrop { background: rgba(0,0,0,0.45); backdrop-filter: blur(2px); }
+    .dur-opts { display: flex; flex-direction: column; gap: 8px; }
+    .dur-opts label { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 14px; cursor: pointer; }
+    .dur-opts input[type=radio] { accent-color: var(--accent); width: 16px; height: 16px; flex-shrink: 0; }
+    .dur-mins-row { display: flex; align-items: center; gap: 8px; margin-top: 4px; margin-left: 24px; }
+    .dur-mins-row input { width: 80px; }
+    .empty-state { color: var(--muted); font-size: 13px; font-style: italic; padding: 10px 0; }
+    /* Quill override */
+    .ql-toolbar { border-radius: 12px 12px 0 0; border-color: var(--line) !important; background: rgba(0,0,0,.04); }
+    .ql-container { border-radius: 0 0 12px 12px; border-color: var(--line) !important; min-height: 140px; font-size: 15px; }
+    .ql-editor { min-height: 120px; }
+    /* Slide card */
+    .slide-card { display:grid; grid-template-columns:1fr auto; gap:10px; align-items:start; padding:14px 16px; border-radius:14px; }
+    .slide-info { display:grid; gap:4px; }
+    .slide-title { font-weight:800; font-size:14px; }
+    .slide-meta  { font-size:12px; color:var(--muted); font-weight:600; }
+    .slide-actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .slide-list { display:grid; gap:10px; margin-top:14px; }
+    /* upload progress reuse */
+    .up-progress { display:none; margin-top:10px; }
+    .up-progress.show { display:block; }
+    .sleep-item { display:grid; grid-template-columns:1fr 1fr auto; gap:10px; align-items:end; }
+    .sleep-item label { display:grid; gap:5px; font-size:13px; font-weight:600; }
+    .sleep-item input[type="time"] { width:100%; padding:10px 12px; }
+    .sleep-item .btn-del { padding:10px 14px; white-space:nowrap; }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-left">
+      <button class="drawer-toggle" id="navToggle" type="button" aria-label="Toggle sidebar">Menu</button>
+      <div class="header-brand">Pendataan Santri</div>
+      <div class="header-page">Remote Jam Digital</div>
+    </div>
+    <div class="header-right">
+      <span class="header-chip" id="headerRole">Admin</span>
+    </div>
+  </header>
+  <div class="drawer-backdrop" id="navBackdrop"></div>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+  <main>
+    <div class="app-layout">
+      <section class="panel nav" id="nav"></section>
+      <div class="content-stack">
+
+        <!-- Viewer link bar -->
+        <section class="panel notice info show viewer-link-bar">
+          <span>Viewer Jam Digital &rarr;
+            <a href="/jam-digital/" target="_blank">/jam-digital/</a>
+          </span>
+          <span id="liveBadge" class="live-badge" style="display:none">
+            <span class="live-dot"></span> Terhubung
+          </span>
+        </section>
+
+        <!-- Master Volume -->
+        <section class="panel" style="background:linear-gradient(135deg,#1a1a2e 0%,#16213e 100%);border:1.5px solid #4f46e5;border-radius:14px">
+          <div class="section-head" style="margin-bottom:10px">
+            <h2 style="color:#a5b4fc">🔊 Kontrol Volume Master</h2>
+            <span class="badge" id="mvBadge" style="background:#4f46e5;color:#fff">100%</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+            <button id="btnMute" onclick="toggleMasterMute()" style="min-width:110px;padding:10px 18px;border-radius:10px;border:none;font-size:15px;font-weight:700;cursor:pointer;background:#4f46e5;color:#fff;transition:background .2s">
+              &#128266; Aktif
+            </button>
+            <div style="flex:1;min-width:180px">
+              <input type="range" id="masterVolumeSlider" min="0" max="100" value="100"
+                style="width:100%;accent-color:#818cf8;height:6px;cursor:pointer"
+                oninput="onMasterVolumeInput(this.value)"
+                onchange="sendMasterVolume()">
+            </div>
+            <span id="mvLabel" style="color:#a5b4fc;font-weight:700;font-size:16px;min-width:42px;text-align:right">100%</span>
+          </div>
+          <div id="stMasterVol" style="margin-top:8px;font-size:12px;min-height:18px;color:#818cf8"></div>
+        </section>
+
+        <!-- Running Text -->
+        <section class="panel">
+          <div class="section-head">
+            <h2>Running Text</h2>
+          </div>
+          <div class="field-grid">
+            <div class="field-row-3">
+              <label>
+                Teks berjalan
+                <input type="text" id="inputRT" placeholder="Kosongkan untuk pakai teks default config…" />
+              </label>
+              <button class="primary" id="btnSetRT">Kirim</button>
+              <button class="secondary" id="btnClearRT">Reset</button>
+            </div>
+          </div>
+          <div class="notice info" id="stRT"></div>
+        </section>
+
+        <!-- Pengumuman -->
+        <section class="panel">
+          <div class="section-head">
+            <h2>Pengumuman</h2>
+            <div class="section-head-actions">
+              <button class="primary" id="btnShowAnn">Tampilkan</button>
+              <button class="danger" id="btnHideAnn">Sembunyikan</button>
+            </div>
+          </div>
+          <div class="field-grid">
+            <label>
+              Teks pengumuman (overlay layar penuh, kosongkan untuk menonaktifkan)
+              <textarea id="inputAnn" rows="3" placeholder="Contoh:&#10;WAKTU SHALAT JUMAT&#10;PUKUL 12:00"></textarea>
+            </label>
+          </div>
+          <div class="color-row">
+            <span class="color-row-label">Warna latar:</span>
+            <div class="color-chip sel" style="background:rgba(0,0,0,0.88)"     data-color="rgba(0,0,0,0.88)"     title="Hitam"></div>
+            <div class="color-chip"     style="background:rgba(3,44,84,0.92)"   data-color="rgba(3,44,84,0.92)"   title="Biru Tua"></div>
+            <div class="color-chip"     style="background:rgba(5,72,30,0.92)"   data-color="rgba(5,72,30,0.92)"   title="Hijau Tua"></div>
+            <div class="color-chip"     style="background:rgba(80,25,10,0.92)"  data-color="rgba(80,25,10,0.92)"  title="Coklat"></div>
+            <div class="color-chip"     style="background:rgba(58,14,110,0.92)" data-color="rgba(58,14,110,0.92)" title="Ungu"></div>
+            <input type="color" id="annColorPicker" value="#000000" title="Pilih warna lain" />
+          </div>
+          <input type="hidden" id="annColor" value="rgba(0,0,0,0.88)" />
+          <div class="quick-btns" id="quickAnnBtns">
+            <button class="secondary" data-quick-ann="WAKTU SHALAT">Waktu Shalat</button>
+            <button class="secondary" data-quick-ann="SHALAT JUMAT&#10;PUKUL 12:00">Shalat Jumat</button>
+            <button class="secondary" data-quick-ann="HARAP TENANG">Harap Tenang</button>
+            <button class="secondary" data-quick-ann="MAJELIS SEDANG&#10;BERLANGSUNG">Majelis</button>
+          </div>
+          <!-- Rekaman suara pengumuman -->
+          <div style="margin-top:14px;padding:14px 16px;background:rgba(0,0,0,.04);border-radius:14px;border:1px solid var(--line)">
+            <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:10px">Rekaman Suara (Opsional)</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+              <button class="secondary" id="btnStartRecord" style="padding:8px 14px;font-size:13px">&#127908; Mulai Rekam</button>
+              <button class="danger" id="btnStopRecord" style="display:none;padding:8px 14px;font-size:13px">&#9632; Berhenti</button>
+              <label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;margin:0">
+                Putar:
+                <select id="annRepeat" style="width:auto;padding:7px 10px">
+                  <option value="1">1 kali</option>
+                  <option value="2">2 kali</option>
+                  <option value="3">3 kali</option>
+                  <option value="0">Loop</option>
+                </select>
+              </label>
+            </div>
+            <div id="recordingStatus" style="font-size:12px;color:var(--muted);margin-top:8px;min-height:16px"></div>
+            <audio id="recordPreview" style="display:none;width:100%;margin-top:10px;border-radius:8px" controls></audio>
+            <button id="btnClearRecording" class="secondary" style="display:none;margin-top:8px;font-size:12px;padding:6px 12px">Hapus Rekaman</button>
+          </div>
+          <div class="notice info" id="stAnn"></div>
+        </section>
+
+        <!-- Status -->
+        <section class="panel">
+          <div class="section-head">
+            <h2>Status Bawah Jam</h2>
+          </div>
+          <div class="field-grid">
+            <div class="field-row-3">
+              <label>
+                Teks keterangan (kosongkan = otomatis berdasarkan jadwal)
+                <input type="text" id="inputStat" placeholder="Contoh: Kajian Rutin Ba'da Maghrib" />
+              </label>
+              <button class="primary" id="btnSetStat">Kirim</button>
+              <button class="secondary" id="btnClearStat">Reset</button>
+            </div>
+          </div>
+          <div class="notice info" id="stStat"></div>
+        </section>
+
+        <!-- Test Time -->
+        <section class="panel">
+          <div class="section-head">
+            <h2>Mode Cek Waktu</h2>
+          </div>
+          <p style="color:var(--muted);margin-bottom:16px">Set jam palsu di viewer untuk mengecek tampilan adzan / iqomah. Hanya untuk keperluan pengujian.</p>
+          <div class="field-grid">
+            <div class="field-row-3">
+              <label>
+                Waktu (HH:MM)
+                <input type="time" id="inputTT" />
+              </label>
+              <button class="warning" id="btnSetTT">Set</button>
+              <button class="secondary" id="btnClearTT">Clear</button>
+            </div>
+          </div>
+          <div class="notice info" id="stTT"></div>
+        </section>
+
+        <!-- Geolocation Sholat -->
+        <section class="panel">
+          <div class="section-head">
+            <h2>Lokasi Waktu Sholat</h2>
+            <div class="section-head-actions">
+              <button class="secondary" id="btnGeoDetect">Deteksi Otomatis</button>
+            </div>
+          </div>
+          <p style="color:var(--muted);margin-bottom:16px;font-size:13px">
+            Set koordinat lokasi untuk menghitung jadwal sholat yang akurat di viewer. Klik "Deteksi Otomatis" untuk menggunakan lokasi perangkat ini.
+          </p>
+          <div class="field-grid">
+            <label>
+              Nama Lokasi (tampil di viewer)
+              <input type="text" id="geoLocationText" placeholder="Contoh: Pesantren ..., KOTA ..., JALAN ..." />
+            </label>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <label>
+                Latitude
+                <input type="number" id="geoLat" step="any" placeholder="-7.7956" />
+              </label>
+              <label>
+                Longitude
+                <input type="number" id="geoLng" step="any" placeholder="110.3695" />
+              </label>
+            </div>
+            <label>
+              Zona Waktu
+              <select id="geoTimezone">
+                <option value="Asia/Jakarta">WIB — Asia/Jakarta</option>
+                <option value="Asia/Makassar">WITA — Asia/Makassar</option>
+                <option value="Asia/Jayapura">WIT — Asia/Jayapura</option>
+              </select>
+            </label>
+            <div style="display:flex;gap:10px;flex-wrap:wrap">
+              <button class="primary" id="btnGeoSend" style="flex:1">Kirim ke Viewer</button>
+              <button class="secondary" id="btnGeoReset">Reset Default</button>
+            </div>
+          </div>
+          <div class="notice info" id="stGeo"></div>
+        </section>
+
+        <!-- API Jadwal Sholat -->
+        <section class="panel">
+          <div class="section-head">
+            <h2>Sumber Jadwal Sholat</h2>
+          </div>
+          <p style="color:var(--muted);margin-bottom:16px;font-size:13px">
+            Pilih metode pengambilan jadwal sholat di viewer.<br>
+            <b>API A</b> — Aladhan (metode KEMENAG, berdasarkan koordinat)<br>
+            <b>API B</b> — myQur'an (berdasarkan kota/kabupaten Indonesia)
+          </p>
+          <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:16px">
+            <label style="display:flex;align-items:center;gap:8px;font-weight:700;cursor:pointer">
+              <input type="radio" name="prayerApiMode" value="aladhan" id="apiModeAladhan" checked style="accent-color:var(--accent);width:16px;height:16px" />
+              API A — Aladhan KEMENAG
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;font-weight:700;cursor:pointer">
+              <input type="radio" name="prayerApiMode" value="myquran" id="apiModeMyQuran" style="accent-color:var(--accent);width:16px;height:16px" />
+              API B — myQur'an
+            </label>
+          </div>
+          <div id="myquranFields" style="display:none">
+            <div class="field-grid">
+              <label>
+                Cari Kota / Kabupaten
+                <div class="field-row">
+                  <input type="text" id="myquranSearch" placeholder="Contoh: Jakarta, Yogyakarta, Surabaya…" />
+                  <button class="secondary" id="btnMyQuranSearch">Cari</button>
+                </div>
+              </label>
+              <div id="myquranResults" style="display:none">
+                <label>
+                  Pilih Kota
+                  <select id="myquranCitySelect" size="5" style="height:auto;border-radius:12px;min-height:60px"></select>
+                </label>
+              </div>
+              <div id="myquranCurrentCity" style="font-size:13px;color:var(--muted);font-style:italic;min-height:18px"></div>
+            </div>
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">
+            <button class="primary" id="btnSetPrayerApi" style="flex:1">Terapkan</button>
+          </div>
+          <div class="notice info" id="stPrayerApi"></div>
+        </section>
+
+        <!-- Identitas Masjid -->
+        <section class="panel">
+          <div class="section-head"><h2>Identitas Masjid</h2></div>
+          <div class="field-grid">
+            <div class="field-row-3">
+              <label>
+                Nama Masjid (tampil di viewer)
+                <input type="text" id="inputNamaMasjid" placeholder="Contoh: MASJID AL-IKHLAS" />
+              </label>
+              <button class="primary" id="btnSetNamaMasjid">Simpan</button>
+            </div>
+          </div>
+          <div class="notice info" id="stNamaMasjid"></div>
+        </section>
+
+        <!-- Logo Masjid -->
+        <section class="panel">
+          <div class="section-head"><h2>Logo Masjid</h2></div>
+          <div style="display:flex;gap:16px;align-items:flex-start;margin-bottom:14px">
+            <div style="flex:0 0 auto;width:80px;height:80px;border-radius:10px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;overflow:hidden">
+              <img id="logoPreview" src="/jam-digital/logo/logo_deffault.png" alt="Logo" style="max-width:100%;max-height:100%;object-fit:contain">
+            </div>
+            <p style="color:var(--muted);font-size:13px;margin:0">Logo aktif yang tampil di viewer. Upload PNG/JPG/WebP untuk mengganti.</p>
+          </div>
+          <div class="field-grid">
+            <label>File Logo<input type="file" id="logoFile" accept="image/png,image/jpeg,image/webp,image/gif" /></label>
+          </div>
+          <div style="margin-top:10px;display:flex;gap:10px">
+            <button class="primary" id="btnUploadLogo" style="flex:1">Upload Logo</button>
+            <button class="secondary" id="btnResetLogo" style="flex:1;color:#c0392b">↩ Reset ke Default</button>
+          </div>
+          <div class="up-progress" id="logoProgress"><div style="font-size:13px;font-weight:700;margin-bottom:6px" id="logoPLabel">Mengupload…</div><progress id="logoPBar" value="0" max="100" style="width:100%;height:8px;border-radius:4px;accent-color:var(--accent)"></progress></div>
+          <div class="notice info" id="stLogo"></div>
+        </section>
+
+        <!-- Suara / Audio -->
+        <section class="panel">
+          <div class="section-head"><h2>File Suara Adzan/Iqomah</h2></div>
+          <p style="color:var(--muted);margin-bottom:14px;font-size:13px">
+            Jika tidak ada file audio yang diupload, viewer menggunakan <b>suara beep bawaan otomatis</b> (nada sintetis). Upload file di bawah untuk mengganti ke suara adzan/alarm kustom.
+          </p>
+          <div class="field-grid">
+            <label>Jenis Suara
+              <select id="audioKind">
+                <option value="alarm">Alarm / Adzan (default)</option>
+                <option value="adzan">Adzan</option>
+                <option value="iqomah">Iqomah</option>
+                <option value="all">Semua (reset saja)</option>
+              </select>
+            </label>
+            <label>File Audio<input type="file" id="audioFile" accept="audio/mpeg,audio/wav,audio/ogg,audio/mp3,.mp3,.wav,.ogg" /></label>
+          </div>
+          <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap">
+            <button class="primary" id="btnUploadAudio" style="flex:1">Upload Audio</button>
+            <button class="secondary" id="btnTestSound" style="flex:1">🔊 Tes Suara di Viewer</button>
+            <button class="secondary" id="btnResetAudio" style="flex:1;color:#c0392b">↩ Reset ke Default</button>
+          </div>
+          <div class="up-progress" id="audioProgress"><div style="font-size:13px;font-weight:700;margin-bottom:6px" id="audioPLabel">Mengupload…</div><progress id="audioPBar" value="0" max="100" style="width:100%;height:8px;border-radius:4px;accent-color:var(--accent)"></progress></div>
+          <div class="notice info" id="stAudio"></div>
+        </section>
+
+        <!-- Adzan, Iqomah & Tidak Diganggu -->
+        <section class="panel">
+          <div class="section-head">
+            <h2>Adzan, Iqomah &amp; Tidak Diganggu</h2>
+          </div>
+          <p style="color:var(--muted);margin-bottom:16px;font-size:13px">
+            Atur bunyi dan periode di mana jam digital tidak boleh diinterupsi (pengumuman/video ditunda hingga sholat selesai).
+          </p>
+
+          <!-- Do Not Disturb toggle + pre-adzan -->
+          <div class="field-grid">
+            <label style="display:flex;align-items:center;gap:10px;font-weight:700;cursor:pointer">
+              <input type="checkbox" id="dndEnabled" style="accent-color:var(--accent);width:17px;height:17px" checked />
+              Aktifkan Mode Tidak Diganggu
+            </label>
+            <label>
+              Menit sebelum adzan mulai lock (0 = mulai tepat waktu adzan)
+              <input type="number" id="preAdzanMins" min="0" max="30" value="5" style="max-width:120px" />
+            </label>
+          </div>
+
+          <!-- Iqomah minutes per waktu sholat -->
+          <div style="margin-top:16px;font-size:14px;font-weight:700;margin-bottom:8px">Menit Iqomah per Waktu Sholat</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px">
+            <label>Subuh<input type="number" id="iqSubuh"   min="0" max="60" value="20" /></label>
+            <label>Dzuhur<input type="number" id="iqDzuhur"  min="0" max="60" value="10" /></label>
+            <label>Ashar<input type="number" id="iqAshar"   min="0" max="60" value="10" /></label>
+            <label>Maghrib<input type="number" id="iqMaghrib" min="0" max="60" value="10" /></label>
+            <label>Isya<input type="number" id="iqIsya"    min="0" max="60" value="10" /></label>
+          </div>
+
+          <!-- Durasi layar sholat setelah iqomah -->
+          <div style="margin-top:16px;font-size:14px;font-weight:700;margin-bottom:8px">Durasi Layar Sholat Setelah Iqomah</div>
+          <div>
+            <label>
+              Berapa menit layar sholat tampil setelah iqomah
+              <input type="number" id="blackScreenMins" min="0" max="120" value="15" style="max-width:120px" />
+            </label>
+          </div>
+
+          <!-- Sound repeat -->
+          <div style="margin-top:16px;font-size:14px;font-weight:700;margin-bottom:8px">Bunyi Suara</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <label>
+              Berapa kali bunyi saat Adzan
+              <select id="adzanRepeat">
+                <option value="1">1 kali</option>
+                <option value="2">2 kali</option>
+                <option value="3">3 kali</option>
+              </select>
+            </label>
+            <label>
+              Berapa kali bunyi saat Iqomah
+              <select id="iqomahRepeat">
+                <option value="1">1 kali</option>
+                <option value="2">2 kali</option>
+                <option value="3">3 kali</option>
+              </select>
+            </label>
+          </div>
+
+          <div style="margin-top:14px">
+            <button class="primary" id="btnSetAdzan" style="width:100%">Terapkan Pengaturan Adzan &amp; Iqomah</button>
+          </div>
+          <div class="notice info" id="stAdzan"></div>
+        </section>
+
+        <!-- Audio & Video -->
+        <section class="panel">
+          <div class="section-head">
+            <h2>Audio &amp; Video</h2>
+            <div class="section-head-actions">
+              <button class="primary" id="btnOpenVideoDialog">+ Upload Media</button>
+              <button class="danger" id="btnVideoStop">Matikan Media</button>
+            </div>
+          </div>
+          <p style="color:var(--muted);margin-bottom:10px;font-size:13px">
+            Upload video atau audio untuk diputar di viewer. Video tampil fullscreen; audio tampil sebagai overlay kecil di bawah layar. Atur jadwal, durasi, dan pengulangan.
+          </p>
+          <!-- Form tambah video YouTube -->
+          <div style="background:rgba(255,0,0,.06);border:1px solid rgba(255,80,80,.18);border-radius:10px;padding:14px 16px;margin-bottom:12px">
+            <div style="font-weight:700;font-size:13px;margin-bottom:10px;display:flex;align-items:center;gap:8px">
+              <span style="background:#ff0000;color:#fff;font-size:11px;font-weight:900;padding:2px 7px;border-radius:4px">YT</span>
+              Tambah Video YouTube
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+              <input type="text" id="ytUrl" placeholder="https://youtube.com/watch?v=... atau https://youtu.be/..." style="flex:2;min-width:200px" />
+              <input type="text" id="ytName" placeholder="Nama tampilan (opsional)" style="flex:1;min-width:140px" />
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+              <label style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;white-space:nowrap">
+                Jadwal <input type="time" id="ytSchedule" style="width:100px;font-size:12px" />
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;white-space:nowrap">
+                Durasi <input type="number" id="ytDurMins" value="5" min="1" max="180" style="width:60px;font-size:12px" /> mnt
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;white-space:nowrap">
+                Mulai dari <input type="number" id="ytStartSec" value="0" min="0" max="86400" style="width:65px;font-size:12px" /> dtk
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600">
+                <select id="ytRepeat" style="font-size:12px">
+                  <option value="once">Sekali</option>
+                  <option value="daily">Setiap hari</option>
+                </select>
+              </label>
+              <button class="primary" id="btnAddYoutube" style="white-space:nowrap;margin-left:auto">+ Tambah</button>
+            </div>
+          </div>
+          <div class="vid-list" id="vidList">
+            <div class="empty-state">Belum ada video. Klik Upload Video untuk menambahkan.</div>
+          </div>
+          <div class="vid-progress" id="vidProgress">
+            <div style="font-size:13px;font-weight:700;margin-bottom:6px" id="vidProgressLabel">Mengupload…</div>
+            <progress id="vidProgressBar" value="0" max="100"></progress>
+          </div>
+          <div class="notice info" id="stVideo"></div>
+        </section>
+
+        <!-- Dialog Upload Media -->
+        <div class="dialog-backdrop" id="videoDialog">
+          <div class="dialog-box">
+            <div class="dialog-head">
+              <h3 id="dialogVideoTitle">Upload Media</h3>
+              <button class="dialog-close" id="btnCloseVideoDialog">&#x2715;</button>
+            </div>
+            <label>
+              File Video / Audio
+              <input type="file" id="dialogVideoFile" accept="video/*,audio/*,.mp3,.wav,.ogg,.m4a,.aac,.flac,.webm" />
+            </label>
+            <label>
+              Nama Tampilan
+              <input type="text" id="dialogVideoName" placeholder="Contoh: Kajian Ba'da Subuh" maxlength="80" />
+            </label>
+            <label>
+              Jadwal Putar (kosongkan = manual saja)
+              <input type="time" id="dialogVideoSchedule" />
+            </label>
+            <label>
+              Mulai dari (detik, 0 = dari awal)
+              <input type="number" id="dialogVideoStartSec" value="0" min="0" max="86400" placeholder="0" />
+            </label>
+            <div>
+              <div style="font-size:14px;font-weight:700;margin-bottom:10px">Durasi Putar</div>
+              <div class="dur-opts">
+                <label><input type="radio" name="durMode" value="full" checked /> Sampai selesai (putar penuh)</label>
+                <label><input type="radio" name="durMode" value="minutes" /> Batas waktu:</label>
+                <div class="dur-mins-row">
+                  <input type="number" id="dialogVideoDurMins" min="1" max="180" value="5" />
+                  <span style="font-size:13px;font-weight:700">menit</span>
+                </div>
+                <label><input type="radio" name="durMode" value="loop" /> Loop (terus berulang)</label>
+              </div>
+            </div>
+            <div>
+              <div style="font-size:14px;font-weight:700;margin-bottom:10px">Ulangi</div>
+              <div class="dur-opts">
+                <label><input type="radio" name="repeatMode" value="once" checked /> Sekali saja</label>
+                <label><input type="radio" name="repeatMode" value="daily" /> Setiap hari (otomatis)</label>
+              </div>
+            </div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:4px">
+              <button class="primary" id="btnDialogUpload" style="flex:1">Upload &amp; Simpan</button>
+              <button class="secondary" id="btnDialogCancel">Batal</button>
+            </div>
+            <div class="notice info" id="stDialogVideo"></div>
+          </div>
+        </div>
+
+        <!-- Teks Slide (ganti Konten) -->
+        <section class="panel">
+          <div class="section-head">
+            <h2>Teks Slide (Ganti Konten)</h2>
+            <div class="section-head-actions">
+              <button class="primary" id="btnNewSlide">+ Tambah Slide</button>
+              <button class="danger" id="btnClearSlides">Hapus Semua</button>
+            </div>
+          </div>
+          <p style="color:var(--muted);margin-bottom:4px;font-size:13px">
+            Teks-teks ini tampil bergiliran di panel kiri viewer (menggantikan konten). Edit menggunakan Quill editor. Durasi: berapa menit slide ini tampil sebelum beralih ke slide berikutnya.
+          </p>
+          <div class="slide-list" id="slideList"><div class="empty-state">Belum ada slide. Klik "Tambah Slide".</div></div>
+          <div class="notice info" id="stSlides"></div>
+        </section>
+
+        <!-- Dialog Slide Editor -->
+        <dialog id="slideDialog" class="slide-dialog">
+          <div class="dialog-head">
+            <h3 id="slideDialogTitle">Tambah Slide</h3>
+            <button class="dialog-close" id="btnCloseSlideDialog">&#x2715;</button>
+          </div>
+          <label>Judul / Label (opsional)<input type="text" id="slideTitle" placeholder="Contoh: Motivasi Pagi" maxlength="80" /></label>
+          <div>
+            <div style="font-size:14px;font-weight:700;margin-bottom:8px">Konten Teks</div>
+            <div id="slideQuillEditor" style="min-height:160px"></div>
+          </div>
+          <label style="max-width:200px">
+            Durasi tampil (menit)
+            <input type="number" id="slideDuration" min="1" max="1440" step="1" value="60" />
+          </label>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">
+            <button class="primary" id="btnSaveSlide" style="flex:1">Simpan Slide</button>
+            <button class="secondary" id="btnCancelSlide">Batal</button>
+          </div>
+          <div class="notice info" id="stSlideDialog"></div>
+        </dialog>
+
+        <!-- Waktu Senyap -->
+        <section class="panel">
+          <div class="section-head">
+            <h2>Waktu Senyap</h2>
+            <div class="section-head-actions">
+              <button class="primary" id="btnAddSleep">+ Tambah Waktu</button>
+            </div>
+          </div>
+          <p style="color:var(--muted);margin-bottom:16px;font-size:13px">
+            Di rentang waktu ini viewer menampilkan overlay gelap (layar senyap). Bisa lebih dari satu item. Kosongkan semua item untuk menonaktifkan.
+          </p>
+          <div id="sleepList" style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px"></div>
+          <button class="primary" id="btnApplySleep" style="width:100%">Terapkan ke Viewer</button>
+          <div class="notice info" id="stSleep"></div>
+        </section>
+
+        <!-- Reset All -->
+        <section class="panel">
+          <div class="section-head">
+            <h2>Reset Semua</h2>
+          </div>
+          <p style="color:var(--muted);margin-bottom:16px">Hapus semua override remote — running text, pengumuman, status, dan test time dikembalikan ke kondisi default.</p>
+          <button class="danger" id="btnResetAll" style="padding:14px 28px">Reset Semua ke Default</button>
+          <div class="notice info" id="stReset"></div>
+        </section>
+
+        <!-- State display -->
+        <section class="panel">
+          <div class="section-head">
+            <h2>State Viewer Saat Ini</h2>
+          </div>
+          <div style="margin-bottom:12px;font-size:14px;font-weight:700" id="viewerIndicator">○ Tidak ada viewer</div>
+          <div class="state-box" id="stateBox">Memuat…</div>
+        </section>
+
+      </div><!-- /.content-stack -->
+    </div><!-- /.app-layout -->
+  </main>
+
+  <script src="../../shared-access.js"></script>
+  <script src="../../shared-nav.js"></script>
+  <script src="../../shared-shell.js"></script>
+  <script>
+  (function () {
+    var STORAGE    = { session: 'ps_session', apiBase: 'ps_api_base', token: 'ps_token' };
+    var JAM_API    = '/api/jam-digital';
+    var selectedColor = 'rgba(0,0,0,0.88)';
+
+    /* ── Session helpers ── */
+    function getStoredSession() {
+      try { return JSON.parse(localStorage.getItem(STORAGE.session) || 'null'); } catch (_) { return null; }
+    }
+    function getToken() { return localStorage.getItem(STORAGE.token) || ''; }
+    function clearSession() {
+      localStorage.removeItem(STORAGE.token);
+      localStorage.removeItem(STORAGE.session);
+    }
+
+    /* ── Auth guard ── */
+    var session = getStoredSession();
+    if (!session || !session.token) {
+      clearSession();
+      location.replace('/pages/login/');
+    } else if (window.PSAccess && window.PSAccess.redirectIfForbidden(session, 'jamDigitalRemote.html')) {
+      // redirected
+    }
+
+    /* ── Shell ── */
+    function mountShell(s) {
+      return window.PSShell && window.PSShell.mount({
+        currentPage: window.PSAccess ? window.PSAccess.cleanFileName(location.pathname) : 'jamDigitalRemote.html',
+        session: s,
+        getStoredSession: getStoredSession,
+        storageKey: STORAGE.session
+      });
+    }
+    mountShell(session);
+
+    /* ── Mudir: kunci tombol mutasi (hanya lihat, tidak bisa mengubah pengaturan jam digital) ── */
+    (function () {
+      var scoped = window.PSAccess && typeof window.PSAccess.getScopedSession === 'function' ? window.PSAccess.getScopedSession(session) : session;
+      var canManage = !!(scoped && scoped.permissions && scoped.permissions.canAccessJamDigital);
+      if (canManage) return;
+      var lockMsg = 'Mudir hanya bisa melihat pengaturan jam digital, tidak bisa mengubah.';
+      ['btnSetNamaMasjid', 'btnAddYoutube', 'btnDialogUpload', 'btnNewSlide', 'btnClearSlides', 'btnSaveSlide', 'btnAddSleep', 'btnClearRecording'].forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el && window.PSUI) window.PSUI.applyPermissionLock(el, false, lockMsg);
+      });
+    })();
+
+    /* ── Color chips ── */
+    var chips = document.querySelectorAll('.color-chip');
+    chips.forEach(function (chip) {
+      chip.addEventListener('click', function () {
+        chips.forEach(function (c) { c.classList.remove('sel'); });
+        chip.classList.add('sel');
+        selectedColor = chip.dataset.color;
+        document.getElementById('annColor').value = selectedColor;
+      });
+    });
+    document.getElementById('annColorPicker').addEventListener('input', function () {
+      chips.forEach(function (c) { c.classList.remove('sel'); });
+      var hex = this.value;
+      var r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+      selectedColor = 'rgba(' + r + ',' + g + ',' + b + ',0.92)';
+      document.getElementById('annColor').value = selectedColor;
+    });
+
+    /* ── Quick ann buttons ── */
+    document.querySelectorAll('[data-quick-ann]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var text = btn.getAttribute('data-quick-ann').replace(/&#10;/g, '\n');
+        document.getElementById('inputAnn').value = text;
+        sendCmd({ announcement: text, announcementColor: selectedColor }, 'stAnn');
+      });
+    });
+
+    /* ── Button bindings ── */
+    on('btnSetRT',    function () { sendCmd({ runningText: g('inputRT') }, 'stRT'); });
+    on('btnClearRT',  function () { s('inputRT',''); sendCmd({ runningText: '' }, 'stRT'); });
+    on('btnShowAnn', function () {
+      var t = g('inputAnn');
+      if (!t.trim()) { flash('stAnn', 'Teks pengumuman tidak boleh kosong.', 'danger'); return; }
+      var repeat = parseInt((document.getElementById('annRepeat') || {}).value || '1', 10);
+      if (_recordedBlob) {
+        flash('stAnn', 'Mengupload rekaman suara...', 'info');
+        var ext = _recordedBlob.type.includes('ogg') ? '.ogg' : '.webm';
+        var params = new URLSearchParams({ token: getToken(), filename: 'ann' + ext });
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', JAM_API + '/upload-announcement-audio?' + params.toString());
+        xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+        xhr.onload = function () {
+          try {
+            var res = JSON.parse(xhr.responseText);
+            if (res.ok && res.data && res.data.url) {
+              sendCmd({ announcement: t, announcementColor: selectedColor, announcementAudio: { url: res.data.url, repeat: repeat } }, 'stAnn');
+            } else {
+              flash('stAnn', 'Gagal upload rekaman, mengirim tanpa suara.', 'danger');
+              sendCmd({ announcement: t, announcementColor: selectedColor, announcementAudio: null }, 'stAnn');
+            }
+          } catch (_) {
+            sendCmd({ announcement: t, announcementColor: selectedColor, announcementAudio: null }, 'stAnn');
+          }
+        };
+        xhr.onerror = function () { sendCmd({ announcement: t, announcementColor: selectedColor, announcementAudio: null }, 'stAnn'); };
+        xhr.send(_recordedBlob);
+      } else {
+        sendCmd({ announcement: t, announcementColor: selectedColor, announcementAudio: null }, 'stAnn');
+      }
+    });
+    on('btnHideAnn', function () { s('inputAnn', ''); sendCmd({ announcement: '', announcementColor: selectedColor, announcementAudio: null }, 'stAnn'); });
+    on('btnSetStat',  function () { sendCmd({ customStatus: g('inputStat') }, 'stStat'); });
+    on('btnClearStat',function () { s('inputStat',''); sendCmd({ customStatus: '' }, 'stStat'); });
+    on('btnSetTT',    function () {
+      var t = g('inputTT');
+      if (!t) { flash('stTT', 'Pilih waktu terlebih dahulu.', 'danger'); return; }
+      sendCmd({ testTime: t }, 'stTT');
+    });
+    on('btnClearTT',  function () { s('inputTT',''); sendCmd({ testTime: null }, 'stTT'); });
+    on('btnResetAll', function () {
+      s('inputRT',''); s('inputAnn',''); s('inputStat',''); s('inputTT','');
+      sendCmd({ runningText:'', announcement:'', announcementAudio:null, customStatus:'', testTime:null,
+                doNotDisturbEnabled:true, preAdzanLockMinutes:5,
+                adzanSoundRepeat:1, iqomahSoundRepeat:1 }, 'stReset', 'Semua override berhasil direset.');
+    });
+
+    function on(id, fn) { var el = document.getElementById(id); if (el) el.addEventListener('click', fn); }
+    function g(id)      { var el = document.getElementById(id); return el ? el.value : ''; }
+    function s(id, v)   { var el = document.getElementById(id); if (el) el.value = v; }
+
+    /* ── API ── */
+    function sendCmd(cmd, statusId, successMsg) {
+      cmd.token = getToken();
+      fetch(JAM_API + '/command', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(cmd)
+      })
+      .then(function (r) { return r.json(); })
+      .then(function (res) {
+        if (res.ok) {
+          flash(statusId, successMsg || 'Berhasil dikirim ke viewer.', 'success');
+          renderState(res.data);
+        } else {
+          flash(statusId, (res.error && res.error.message) || 'Gagal mengirim perintah.', 'danger');
+        }
+      })
+      .catch(function (e) { flash(statusId, 'Error: ' + e.message, 'danger'); });
+    }
+
+    /* ── Master Volume ── */
+    var _mvMuted = false;
+    var _mvVolume = 1;
+    var _mvSendTimer = null;
+
+    window.onMasterVolumeInput = function(val) {
+      var pct = parseInt(val, 10);
+      var volLabel = document.getElementById('mvLabel');
+      var mvBadge  = document.getElementById('mvBadge');
+      if (volLabel) volLabel.textContent = pct + '%';
+      if (mvBadge)  mvBadge.textContent  = pct + '%';
+      _mvVolume = pct / 100;
+      updateMuteButton(false);
+    };
+
+    window.sendMasterVolume = function() {
+      clearTimeout(_mvSendTimer);
+      _mvSendTimer = setTimeout(function () {
+        sendCmd({ masterVolume: _mvVolume, masterMuted: _mvMuted }, 'stMasterVol', 'Volume berhasil diatur.');
+      }, 300);
+    };
+
+    window.toggleMasterMute = function() {
+      _mvMuted = !_mvMuted;
+      updateMuteButton(_mvMuted);
+      sendCmd({ masterMuted: _mvMuted }, 'stMasterVol', _mvMuted ? 'Suara dimatikan.' : 'Suara dinyalakan.');
+    };
+
+    function updateMuteButton(muted) {
+      _mvMuted = muted;
+      var btn = document.getElementById('btnMute');
+      if (!btn) return;
+      if (muted) {
+        btn.innerHTML = '&#128264; Bisu';
+        btn.style.background = '#dc2626';
+      } else {
+        btn.innerHTML = '&#128266; Aktif';
+        btn.style.background = '#4f46e5';
+      }
+    }
+
+    function syncMasterVolumeUI(st) {
+      if (!st) return;
+      var vol = typeof st.masterVolume === 'number' ? st.masterVolume : 1;
+      var muted = !!st.masterMuted;
+      _mvVolume = vol;
+      _mvMuted  = muted;
+      var pct = Math.round(vol * 100);
+      var slider  = document.getElementById('masterVolumeSlider');
+      var volLabel = document.getElementById('mvLabel');
+      var mvBadge  = document.getElementById('mvBadge');
+      if (slider)   slider.value          = pct;
+      if (volLabel) volLabel.textContent  = pct + '%';
+      if (mvBadge)  mvBadge.textContent   = (muted ? '&#128264; Bisu' : pct + '%');
+      updateMuteButton(muted);
+    }
+
+    function loadState() {
+      fetch(JAM_API + '/state', { cache: 'no-store' })
+        .then(function (r) { return r.json(); })
+        .then(function (res) { if (res.ok) { renderState(res.data); syncForm(res.data); } })
+        .catch(function () {});
+    }
+
+    function syncForm(st) {
+      if (!st) return;
+      if (st.namaMasjid !== undefined) s('inputNamaMasjid', st.namaMasjid);
+      if (Array.isArray(st.sleepSchedule)) renderSleepList(st.sleepSchedule);
+      if (st.runningText)  s('inputRT',   st.runningText);
+      if (st.announcement) s('inputAnn',  st.announcement);
+      if (st.customStatus) s('inputStat', st.customStatus);
+      if (st.testTime)     s('inputTT',   st.testTime);
+      if (st.geoLocation) {
+        s('geoLat',          st.geoLocation.lat  !== undefined ? st.geoLocation.lat  : '');
+        s('geoLng',          st.geoLocation.lng  !== undefined ? st.geoLocation.lng  : '');
+        s('geoLocationText', st.geoLocation.locationText || '');
+        var tzSel = document.getElementById('geoTimezone');
+        if (tzSel && st.geoLocation.timezone) tzSel.value = st.geoLocation.timezone;
+      }
+      // Sync DND settings
+      var dndChk = document.getElementById('dndEnabled');
+      if (dndChk) dndChk.checked = st.doNotDisturbEnabled !== false;
+      if (st.preAdzanLockMinutes !== undefined) s('preAdzanMins', st.preAdzanLockMinutes);
+      if (st.adzanSoundRepeat)  s('adzanRepeat',  st.adzanSoundRepeat);
+      if (st.iqomahSoundRepeat) s('iqomahRepeat', st.iqomahSoundRepeat);
+      if (typeof st.blackScreenAfterIqomahMinutes === 'number') s('blackScreenMins', st.blackScreenAfterIqomahMinutes);
+      if (st.iqomahMinutes && typeof st.iqomahMinutes === 'object') {
+        if (st.iqomahMinutes.subuh   !== undefined) s('iqSubuh',   st.iqomahMinutes.subuh);
+        if (st.iqomahMinutes.dzuhur  !== undefined) s('iqDzuhur',  st.iqomahMinutes.dzuhur);
+        if (st.iqomahMinutes.ashar   !== undefined) s('iqAshar',   st.iqomahMinutes.ashar);
+        if (st.iqomahMinutes.maghrib !== undefined) s('iqMaghrib', st.iqomahMinutes.maghrib);
+        if (st.iqomahMinutes.isya    !== undefined) s('iqIsya',    st.iqomahMinutes.isya);
+      }
+      // Sync prayer API radios
+      var activeApi = st.prayerApi || 'aladhan';
+      document.querySelectorAll('input[name="prayerApiMode"]').forEach(function(r) {
+        r.checked = r.value === activeApi;
+      });
+      var mqFields = document.getElementById('myquranFields');
+      if (mqFields) mqFields.style.display = activeApi === 'myquran' ? '' : 'none';
+      var mqCurrentCity = document.getElementById('myquranCurrentCity');
+      if (mqCurrentCity) {
+        if (activeApi === 'myquran' && st.myquranCityId) {
+          mqCurrentCity.textContent = 'Kota aktif: ' + (st.myquranCityName || st.myquranCityId) + ' (ID: ' + st.myquranCityId + ')';
+        } else {
+          mqCurrentCity.textContent = '';
+        }
+      }
+    }
+
+    function renderState(st) {
+      if (!st) return;
+      var box = document.getElementById('stateBox');
+      if (!box) return;
+      function row(label, val, cls) {
+        var display = val
+          ? '<span class="state-val ' + (cls||'') + '">' + esc(val) + '</span>'
+          : '<span class="state-val muted">—</span>';
+        return '<div class="state-row"><b>' + label + ':</b> ' + display + '</div>';
+      }
+      var updated = st.updatedAt
+        ? '<span class="state-val">' + new Date(st.updatedAt).toLocaleString('id-ID') + '</span>'
+        : '<span class="state-val muted">—</span>';
+      var geoVal = st.geoLocation
+        ? (st.geoLocation.lat + ', ' + st.geoLocation.lng + (st.geoLocation.locationText ? ' (' + st.geoLocation.locationText + ')' : ''))
+        : '';
+      var prayerApiVal = st.prayerApi === 'myquran'
+        ? 'myQur\'an' + (st.myquranCityName ? ' — ' + st.myquranCityName : '') + (st.myquranCityId ? ' (ID: ' + st.myquranCityId + ')' : '')
+        : 'Aladhan KEMENAG';
+      var dndVal = st.doNotDisturbEnabled !== false
+        ? 'Aktif (pre-adzan ' + (st.preAdzanLockMinutes || 0) + ' mnt, adzan ' + (st.adzanSoundRepeat || 1) + 'x, iqomah ' + (st.iqomahSoundRepeat || 1) + 'x)'
+        : 'Nonaktif';
+      var sleepVal = (Array.isArray(st.sleepSchedule) && st.sleepSchedule.length)
+        ? st.sleepSchedule.map(function(i){ return i.start + ' – ' + i.end; }).join(', ')
+        : 'Default config HTML';
+      var logoVal = (st.logoFile && st.logoVersion) ? (st.logoFile + ' (v' + st.logoVersion + ')') : (st.logoFile || '');
+      var audioVal = st.audioFiles ? Object.entries(st.audioFiles).map(function(e){return e[0]+': '+e[1];}).join(', ') : '';
+      // Update logo preview
+      var previewEl = document.getElementById('logoPreview');
+      if (previewEl && st.logoFile) {
+        var lf = st.logoFile.trim();
+        var logoSrc = lf ? (lf.startsWith('/') ? lf : ('/jam-digital/' + lf)) : '/icons/icon.png';
+        previewEl.src = logoSrc + '?v=' + (st.logoVersion || 0);
+      }
+      box.innerHTML =
+        row('Nama masjid', st.namaMasjid, 'active') +
+        row('Running text', st.runningText) +
+        row('Pengumuman', st.announcement, 'active') +
+        row('Status', st.customStatus) +
+        row('Test time', st.testTime, 'warn') +
+        row('Lokasi sholat', geoVal, 'active') +
+        row('API jadwal sholat', prayerApiVal, st.prayerApi === 'myquran' ? 'active' : '') +
+        row('Tidak diganggu', dndVal, st.doNotDisturbEnabled !== false ? 'active' : '') +
+        row('Waktu senyap', sleepVal, (Array.isArray(st.sleepSchedule) && st.sleepSchedule.length) ? 'active' : '') +
+        row('Logo', logoVal) +
+        row('Audio', audioVal) +
+        '<div class="state-row"><b>Diperbarui:</b> ' + updated + '</div>';
+      syncMasterVolumeUI(st);
+    }
+
+    function esc(str) {
+      return String(str || '')
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+        .replace(/"/g,'&quot;').replace(/\n/g,' / ');
+    }
+
+    function flash(id, msg, type) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      el.textContent = msg;
+      el.className = 'notice ' + (type || 'info') + ' show';
+      clearTimeout(el._t);
+      el._t = setTimeout(function () { el.classList.remove('show'); }, 4500);
+    }
+
+    /* ── Identitas Masjid ── */
+    document.getElementById('btnSetNamaMasjid').addEventListener('click', function () {
+      var nama = g('inputNamaMasjid').trim();
+      sendCmd({ namaMasjid: nama }, 'stNamaMasjid', 'Nama masjid berhasil disimpan.');
+    });
+
+    /* ── Waktu Senyap ── */
+    function renderSleepList(schedule) {
+      var list = document.getElementById('sleepList');
+      if (!list) return;
+      list.innerHTML = '';
+      if (!schedule || schedule.length === 0) {
+        list.innerHTML = '<div style="color:var(--muted);font-size:13px">Belum ada item. Klik "+ Tambah Waktu" untuk menambahkan.</div>';
+        return;
+      }
+      schedule.forEach(function (item, idx) {
+        var row = document.createElement('div');
+        row.className = 'sleep-item';
+        row.innerHTML =
+          '<label>Mulai<input type="time" class="sleep-start" value="' + (item.start || '') + '" /></label>' +
+          '<label>Selesai<input type="time" class="sleep-end" value="' + (item.end || '') + '" /></label>' +
+          '<button class="danger btn-del" data-idx="' + idx + '">Hapus</button>';
+        list.appendChild(row);
+      });
+      list.querySelectorAll('.btn-del').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var items = collectSleepItems();
+          items.splice(parseInt(btn.dataset.idx), 1);
+          renderSleepList(items);
+        });
+      });
+    }
+
+    function collectSleepItems() {
+      var items = [];
+      document.querySelectorAll('#sleepList .sleep-item').forEach(function (row) {
+        var start = row.querySelector('.sleep-start').value;
+        var end   = row.querySelector('.sleep-end').value;
+        if (start && end) items.push({ start: start, end: end });
+      });
+      return items;
+    }
+
+    document.getElementById('btnAddSleep').addEventListener('click', function () {
+      var items = collectSleepItems();
+      items.push({ start: '21:00', end: '04:00' });
+      renderSleepList(items);
+    });
+
+    document.getElementById('btnApplySleep').addEventListener('click', function () {
+      var items = collectSleepItems();
+      sendCmd({ sleepSchedule: items }, 'stSleep',
+        items.length ? 'Waktu senyap diterapkan (' + items.length + ' item).' : 'Waktu senyap dihapus. Viewer kembali ke default.');
+    });
+
+    /* ── Geolocation ── */
+    document.getElementById('btnGeoDetect').addEventListener('click', function () {
+      if (!navigator.geolocation) {
+        flash('stGeo', 'Browser tidak mendukung geolokasi.', 'danger');
+        return;
+      }
+      flash('stGeo', 'Mendeteksi lokasi perangkat...', 'info');
+      navigator.geolocation.getCurrentPosition(
+        function (pos) {
+          s('geoLat', pos.coords.latitude.toFixed(6));
+          s('geoLng', pos.coords.longitude.toFixed(6));
+          try {
+            var tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            var tzSel = document.getElementById('geoTimezone');
+            if (tzSel) {
+              for (var i = 0; i < tzSel.options.length; i++) {
+                if (tzSel.options[i].value === tz) { tzSel.value = tz; break; }
+              }
+            }
+          } catch (_) {}
+          flash('stGeo', 'Lokasi terdeteksi: ' + pos.coords.latitude.toFixed(5) + ', ' + pos.coords.longitude.toFixed(5) + '. Klik "Kirim ke Viewer" untuk menerapkan.', 'success');
+        },
+        function (err) {
+          flash('stGeo', 'Gagal deteksi: ' + (err.message || 'Izin lokasi ditolak.'), 'danger');
+        },
+        { timeout: 15000, enableHighAccuracy: true, maximumAge: 0 }
+      );
+    });
+
+    document.getElementById('btnGeoSend').addEventListener('click', function () {
+      var lat = parseFloat(g('geoLat'));
+      var lng = parseFloat(g('geoLng'));
+      if (!isFinite(lat) || !isFinite(lng)) {
+        flash('stGeo', 'Latitude dan Longitude harus diisi dengan angka yang valid.', 'danger');
+        return;
+      }
+      var tzSel = document.getElementById('geoTimezone');
+      var tz = tzSel ? tzSel.value : 'Asia/Jakarta';
+      sendCmd({
+        geoLocation: {
+          lat: lat,
+          lng: lng,
+          timezone: tz,
+          locationText: g('geoLocationText')
+        }
+      }, 'stGeo', 'Lokasi berhasil dikirim. Jadwal sholat di viewer diperbarui.');
+    });
+
+    document.getElementById('btnGeoReset').addEventListener('click', function () {
+      s('geoLat', '');
+      s('geoLng', '');
+      s('geoLocationText', '');
+      sendCmd({ geoLocation: null }, 'stGeo', 'Override lokasi dihapus. Viewer kembali ke lokasi default setelah refresh.');
+    });
+
+    /* ── Adzan / Iqomah / DND section ── */
+    on('btnSetAdzan', function () {
+      var dndEnabled = !!(document.getElementById('dndEnabled') || {}).checked;
+      var preAdzanMins = Math.max(0, parseInt(g('preAdzanMins'), 10) || 0);
+      var adzanRepeat = Math.max(1, parseInt(g('adzanRepeat'), 10) || 1);
+      var iqomahRepeat = Math.max(1, parseInt(g('iqomahRepeat'), 10) || 1);
+      var iqomahMinutes = {
+        subuh:   Math.max(0, parseInt(g('iqSubuh'),   10) || 20),
+        dzuhur:  Math.max(0, parseInt(g('iqDzuhur'),  10) || 10),
+        ashar:   Math.max(0, parseInt(g('iqAshar'),   10) || 10),
+        maghrib: Math.max(0, parseInt(g('iqMaghrib'), 10) || 10),
+        isya:    Math.max(0, parseInt(g('iqIsya'),    10) || 10)
+      };
+      var blackScreenMins = Math.max(0, parseInt(g('blackScreenMins'), 10) || 15);
+      sendCmd({
+        doNotDisturbEnabled: dndEnabled,
+        preAdzanLockMinutes: preAdzanMins,
+        adzanSoundRepeat: adzanRepeat,
+        iqomahSoundRepeat: iqomahRepeat,
+        iqomahMinutes: iqomahMinutes,
+        blackScreenAfterIqomahMinutes: blackScreenMins
+      }, 'stAdzan', 'Pengaturan adzan & iqomah berhasil dikirim ke viewer.');
+    });
+
+    /* ── Prayer API section ── */
+    document.querySelectorAll('input[name="prayerApiMode"]').forEach(function(r) {
+      r.addEventListener('change', function() {
+        var fields = document.getElementById('myquranFields');
+        if (fields) fields.style.display = r.value === 'myquran' ? '' : 'none';
+      });
+    });
+
+    document.getElementById('btnMyQuranSearch').addEventListener('click', function() {
+      var q = (document.getElementById('myquranSearch') || {}).value || '';
+      q = q.trim();
+      if (!q) { flash('stPrayerApi', 'Masukkan nama kota.', 'danger'); return; }
+      flash('stPrayerApi', 'Mencari kota "' + q + '"...', 'info');
+      fetch('https://api.myquran.com/v2/sholat/kota/cari/' + encodeURIComponent(q), { cache: 'no-store' })
+        .then(function(r) { return r.json(); })
+        .then(function(json) {
+          if (!json.status || !Array.isArray(json.data) || !json.data.length) {
+            flash('stPrayerApi', 'Kota tidak ditemukan. Coba kata kunci lain.', 'danger');
+            var res = document.getElementById('myquranResults');
+            if (res) res.style.display = 'none';
+            return;
+          }
+          var sel = document.getElementById('myquranCitySelect');
+          if (sel) {
+            sel.innerHTML = json.data.map(function(c) {
+              return '<option value="' + escHtml(c.id) + '">' + escHtml(c.lokasi) + ' — ' + escHtml(c.daerah) + '</option>';
+            }).join('');
+          }
+          var res = document.getElementById('myquranResults');
+          if (res) res.style.display = '';
+          flash('stPrayerApi', json.data.length + ' kota ditemukan.', 'success');
+        })
+        .catch(function(e) { flash('stPrayerApi', 'Gagal mencari kota: ' + e.message, 'danger'); });
+    });
+
+    document.getElementById('btnSetPrayerApi').addEventListener('click', function() {
+      var checked = document.querySelector('input[name="prayerApiMode"]:checked');
+      if (!checked) return;
+      var api = checked.value;
+      if (api === 'myquran') {
+        var sel = document.getElementById('myquranCitySelect');
+        var cityId = sel ? sel.value : '';
+        if (!cityId) { flash('stPrayerApi', 'Cari dan pilih kota terlebih dahulu.', 'danger'); return; }
+        var opt = sel.options[sel.selectedIndex];
+        var cityName = opt ? opt.text : cityId;
+        sendCmd({ prayerApi: 'myquran', myquranCityId: cityId, myquranCityName: cityName }, 'stPrayerApi',
+          'API myQur\'an diterapkan untuk ' + cityName + '.');
+      } else {
+        sendCmd({ prayerApi: 'aladhan', myquranCityId: '', myquranCityName: '' }, 'stPrayerApi',
+          'API Aladhan KEMENAG diterapkan.');
+      }
+    });
+
+    /* ── SSE ── */
+    function connectSse() {
+      if (typeof EventSource === 'undefined') return;
+      var badge = document.getElementById('liveBadge');
+      var src = new EventSource(JAM_API + '/events');
+      src.onopen = function () { if (badge) badge.style.display = ''; };
+      src.onmessage = function (e) {
+        try { renderState(JSON.parse(e.data)); } catch (_) {}
+      };
+      src.onerror = function () {
+        if (badge) badge.style.display = 'none';
+        src.close();
+        setTimeout(connectSse, 8000);
+      };
+    }
+
+    loadState();
+    connectSse();
+
+    /* ── Polling jumlah viewer aktif ── */
+    function updateViewerCount() {
+      fetch(JAM_API + '/viewer-count', { cache: 'no-store' })
+        .then(function (r) { return r.json(); })
+        .then(function (res) {
+          if (!res.ok) return;
+          var count = res.activeViewers || 0;
+          var el = document.getElementById('viewerIndicator');
+          if (el) {
+            el.textContent = count > 0 ? '● ' + count + ' viewer aktif' : '○ Tidak ada viewer';
+            el.style.color = count > 0 ? '#22c55e' : '#94a3b8';
+          }
+        }).catch(function () {});
+    }
+    updateViewerCount();
+    setInterval(updateViewerCount, 30000);
+
+    /* ════════════════════════════════════════════════════════════════
+       REKAMAN SUARA PENGUMUMAN
+    ════════════════════════════════════════════════════════════════ */
+    var _mediaRecorder = null;
+    var _recordedChunks = [];
+    var _recordedBlob = null;
+
+    document.getElementById('btnStartRecord').addEventListener('click', function () {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        document.getElementById('recordingStatus').textContent = 'Browser tidak mendukung perekaman mikrofon.';
+        return;
+      }
+      navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
+        _recordedChunks = [];
+        _recordedBlob = null;
+        var preview = document.getElementById('recordPreview');
+        var clearBtn = document.getElementById('btnClearRecording');
+        if (preview) { preview.style.display = 'none'; preview.src = ''; }
+        if (clearBtn) clearBtn.style.display = 'none';
+        var mimeType = (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported('audio/webm')) ? 'audio/webm' : 'audio/ogg';
+        _mediaRecorder = new MediaRecorder(stream, { mimeType: mimeType });
+        _mediaRecorder.ondataavailable = function (e) { if (e.data && e.data.size > 0) _recordedChunks.push(e.data); };
+        _mediaRecorder.onstop = function () {
+          stream.getTracks().forEach(function (t) { t.stop(); });
+          _recordedBlob = new Blob(_recordedChunks, { type: mimeType });
+          var url = URL.createObjectURL(_recordedBlob);
+          if (preview) { preview.src = url; preview.style.display = ''; }
+          if (clearBtn) clearBtn.style.display = '';
+          document.getElementById('recordingStatus').textContent = 'Rekaman siap. Klik "Tampilkan" untuk mengirim bersama pengumuman.';
+        };
+        _mediaRecorder.start();
+        document.getElementById('btnStartRecord').style.display = 'none';
+        document.getElementById('btnStopRecord').style.display = '';
+        document.getElementById('recordingStatus').textContent = '🔴 Merekam... Klik Berhenti jika selesai.';
+      }).catch(function (e) {
+        document.getElementById('recordingStatus').textContent = 'Gagal akses mikrofon: ' + (e.message || e);
+      });
+    });
+
+    document.getElementById('btnStopRecord').addEventListener('click', function () {
+      if (_mediaRecorder && _mediaRecorder.state !== 'inactive') _mediaRecorder.stop();
+      document.getElementById('btnStartRecord').style.display = '';
+      document.getElementById('btnStopRecord').style.display = 'none';
+    });
+
+    document.getElementById('btnClearRecording').addEventListener('click', function () {
+      _recordedBlob = null;
+      _recordedChunks = [];
+      var preview = document.getElementById('recordPreview');
+      if (preview) { preview.style.display = 'none'; preview.src = ''; }
+      this.style.display = 'none';
+      document.getElementById('recordingStatus').textContent = '';
+    });
+
+    /* ── Collapsible panels ── */
+    (function () {
+      var STORAGE_KEY = 'jamDigRemote_collapsed';
+      var collapsed = {};
+      try { collapsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch (_) {}
+
+      document.querySelectorAll('section.panel').forEach(function (panel, idx) {
+        var head = panel.querySelector(':scope > .section-head');
+        if (!head) return;
+        var h2 = head.querySelector('h2');
+        if (!h2) return;
+        if (h2.textContent.trim() === 'State Viewer Saat Ini') return;
+
+        // Wrap semua konten setelah section-head ke dalam .panel-body
+        var body = document.createElement('div');
+        body.className = 'panel-body';
+        var children = Array.from(panel.children);
+        children.forEach(function (child) {
+          if (child !== head) body.appendChild(child);
+        });
+        panel.appendChild(body);
+
+        panel.classList.add('collapsible');
+        var key = 'p' + idx;
+        // Default collapsed; simpan true jika user sudah expand
+        if (!collapsed[key]) panel.classList.add('collapsed');
+
+        head.addEventListener('click', function (e) {
+          // Jangan collapse jika klik pada tombol/input di dalam section-head
+          if (e.target.closest('button, input, select, a')) return;
+          panel.classList.toggle('collapsed');
+          // Simpan true = sudah di-expand oleh user; false/absent = tetap collapsed
+          collapsed[key] = !panel.classList.contains('collapsed');
+          try { localStorage.setItem(STORAGE_KEY, JSON.stringify(collapsed)); } catch (_) {}
+        });
+      });
+    })();
+
+    /* ════════════════════════════════════════════════════════════════
+       VIDEO SECTION
+    ════════════════════════════════════════════════════════════════ */
+
+    /* ── Dialog open / close ── */
+    var dialogVideoEditId = null; // null = upload baru, string = edit existing
+
+    function openVideoDialog(editVideo) {
+      dialogVideoEditId = editVideo ? editVideo.id : null;
+      var title = document.getElementById('dialogVideoTitle');
+      var fileInput = document.getElementById('dialogVideoFile');
+      var btnUpload = document.getElementById('btnDialogUpload');
+      var isYtEdit = editVideo && editVideo.type === 'youtube';
+      if (title) title.textContent = isYtEdit ? 'Edit Video YouTube' : (editVideo ? 'Edit Pengaturan Video' : 'Upload Video');
+      if (fileInput) fileInput.style.display = editVideo ? 'none' : '';
+      if (btnUpload) btnUpload.textContent = editVideo ? 'Simpan Pengaturan' : 'Upload & Simpan';
+      if (editVideo) {
+        s('dialogVideoName', editVideo.displayName || '');
+        s('dialogVideoSchedule', editVideo.schedule || '');
+        s('dialogVideoStartSec', editVideo.startSeconds || 0);
+        var radios = document.querySelectorAll('input[name="durMode"]');
+        radios.forEach(function (r) { r.checked = r.value === (editVideo.durationMode || 'full'); });
+        s('dialogVideoDurMins', editVideo.durationMinutes || 5);
+        var repeatRadios = document.querySelectorAll('input[name="repeatMode"]');
+        repeatRadios.forEach(function (r) { r.checked = r.value === (editVideo.repeat || 'once'); });
+      } else {
+        s('dialogVideoName', '');
+        s('dialogVideoSchedule', '');
+        s('dialogVideoStartSec', 0);
+        document.querySelectorAll('input[name="durMode"]').forEach(function (r) { r.checked = r.value === 'full'; });
+        s('dialogVideoDurMins', 5);
+        document.querySelectorAll('input[name="repeatMode"]').forEach(function (r) { r.checked = r.value === 'once'; });
+        if (fileInput) fileInput.value = '';
+      }
+      var diag = document.getElementById('videoDialog');
+      if (diag) diag.classList.add('open');
+    }
+
+    function closeVideoDialog() {
+      var diag = document.getElementById('videoDialog');
+      if (diag) diag.classList.remove('open');
+      dialogVideoEditId = null;
+    }
+
+    document.getElementById('btnOpenVideoDialog').addEventListener('click', function () { openVideoDialog(null); });
+    document.getElementById('btnCloseVideoDialog').addEventListener('click', closeVideoDialog);
+    document.getElementById('btnDialogCancel').addEventListener('click', closeVideoDialog);
+    document.getElementById('videoDialog').addEventListener('click', function (e) {
+      if (e.target === this) closeVideoDialog();
+    });
+
+    /* ── Baca nilai dialog ── */
+    function getDialogValues() {
+      var durMode = 'full';
+      document.querySelectorAll('input[name="durMode"]').forEach(function (r) { if (r.checked) durMode = r.value; });
+      var repeat = 'once';
+      document.querySelectorAll('input[name="repeatMode"]').forEach(function (r) { if (r.checked) repeat = r.value; });
+      return {
+        displayName: g('dialogVideoName'),
+        schedule: g('dialogVideoSchedule') || null,
+        startSeconds: Math.max(0, parseInt(g('dialogVideoStartSec'), 10) || 0),
+        durationMode: durMode,
+        durationMinutes: Math.max(1, parseInt(g('dialogVideoDurMins'), 10) || 5),
+        repeat: repeat
+      };
+    }
+
+    /* ── Upload video baru ── */
+    document.getElementById('btnDialogUpload').addEventListener('click', function () {
+      if (dialogVideoEditId) {
+        // Edit mode: kirim update settings saja
+        var vals = getDialogValues();
+        sendCmd({
+          videoUpdate: Object.assign({ id: dialogVideoEditId }, vals)
+        }, 'stVideo', 'Pengaturan video berhasil disimpan.');
+        closeVideoDialog();
+        return;
+      }
+      // Upload mode
+      var fileInput = document.getElementById('dialogVideoFile');
+      var file = fileInput && fileInput.files[0];
+      if (!file) { flash('stDialogVideo', 'Pilih file video terlebih dahulu.', 'danger'); return; }
+      var vals = getDialogValues();
+      var displayName = vals.displayName || file.name.replace(/\.[^.]+$/, '');
+      var params = new URLSearchParams({
+        token: getToken(),
+        name: file.name,
+        displayName: displayName,
+        schedule: vals.schedule || '',
+        startSeconds: vals.startSeconds || 0,
+        durationMode: vals.durationMode,
+        durationMinutes: vals.durationMinutes,
+        repeat: vals.repeat
+      });
+      var prog = document.getElementById('vidProgress');
+      var progBar = document.getElementById('vidProgressBar');
+      var progLabel = document.getElementById('vidProgressLabel');
+      if (prog) prog.classList.add('show');
+      if (progLabel) progLabel.textContent = 'Mengupload: 0%';
+      closeVideoDialog();
+      var xhr = new XMLHttpRequest();
+      xhr.open('POST', JAM_API + '/upload-video?' + params.toString());
+      xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+      xhr.upload.onprogress = function (e) {
+        if (e.lengthComputable) {
+          var pct = Math.round(e.loaded / e.total * 100);
+          if (progBar) progBar.value = pct;
+          if (progLabel) progLabel.textContent = 'Mengupload: ' + pct + '%';
+        }
+      };
+      xhr.onload = function () {
+        if (prog) prog.classList.remove('show');
+        try {
+          var res = JSON.parse(xhr.responseText);
+          if (res.ok) {
+            flash('stVideo', 'Video berhasil diupload.', 'success');
+            if (res.data && res.data.state) { renderState(res.data.state); renderVideoList(res.data.state.videoLibrary || []); }
+          } else {
+            flash('stVideo', (res.error && res.error.message) || 'Gagal upload.', 'danger');
+          }
+        } catch (_) { flash('stVideo', 'Respons tidak valid dari server.', 'danger'); }
+      };
+      xhr.onerror = function () {
+        if (prog) prog.classList.remove('show');
+        flash('stVideo', 'Upload gagal. Periksa koneksi.', 'danger');
+      };
+      xhr.send(file);
+    });
+
+    /* ── Render daftar video ── */
+    function durModeLabel(v) {
+      if (v.durationMode === 'loop') return 'Loop';
+      if (v.durationMode === 'minutes') return v.durationMinutes + ' menit';
+      return 'Sampai selesai';
+    }
+
+    function renderVideoList(lib) {
+      var list = document.getElementById('vidList');
+      if (!list) return;
+      if (!lib || !lib.length) {
+        list.innerHTML = '<div class="empty-state">Belum ada media. Klik Upload Media atau tambah video YouTube.</div>';
+        return;
+      }
+      list.innerHTML = lib.map(function (v) {
+        var schedLabel = v.schedule ? ('Jadwal: ' + v.schedule) : 'Manual saja';
+        var repeatLabel = v.repeat === 'daily' ? 'Setiap hari' : 'Sekali';
+        var startLabel = (v.startSeconds > 0) ? (' &bull; Mulai: ' + v.startSeconds + 'dtk') : '';
+        var isYt = v.type === 'youtube';
+        var typeLabel = isYt
+          ? '<span style="background:#ff0000;color:#fff;font-size:10px;font-weight:900;padding:1px 5px;border-radius:3px;vertical-align:middle">YT</span>'
+          : (v.mediaType === 'audio' ? '🎵' : '🎬');
+        var nameStr = escHtml(v.displayName || v.filename || v.youtubeId || '');
+        var editBtn = '<button class="secondary" data-vid-edit="' + v.id + '" style="padding:8px 14px;font-size:12px">Edit</button>';
+        return '<div class="vid-card card">' +
+          '<div class="vid-info">' +
+            '<div class="vid-name">' + typeLabel + ' ' + nameStr + '</div>' +
+            '<div class="vid-meta">' + escHtml(schedLabel) + ' &bull; ' + escHtml(durModeLabel(v)) + ' &bull; ' + escHtml(repeatLabel) + startLabel + '</div>' +
+          '</div>' +
+          '<div class="vid-actions">' +
+            '<button class="primary" data-vid-play="' + v.id + '" style="padding:8px 14px;font-size:12px">Putar</button>' +
+            editBtn +
+            '<button class="danger" data-vid-del="' + v.id + '" style="padding:8px 14px;font-size:12px">Hapus</button>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+
+      // Bind tombol
+      list.querySelectorAll('[data-vid-play]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var vid = (lib || []).find(function (v) { return v.id === btn.dataset.vidPlay; });
+          if (!vid) return;
+          sendCmd({ videoCommand: { action: 'play', video: vid } }, 'stVideo', 'Video "' + (vid.displayName || vid.filename) + '" diputar di viewer.');
+        });
+      });
+      list.querySelectorAll('[data-vid-edit]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var vid = (lib || []).find(function (v) { return v.id === btn.dataset.vidEdit; });
+          if (vid) openVideoDialog(vid);
+        });
+      });
+      list.querySelectorAll('[data-vid-del]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var vid = (lib || []).find(function (v) { return v.id === btn.dataset.vidDel; });
+          if (!vid) return;
+          var delMsg = vid.type === 'youtube'
+            ? 'Hapus "' + (vid.displayName || vid.youtubeId) + '" dari daftar?'
+            : 'Hapus video "' + (vid.displayName || vid.filename) + '"? File akan dihapus dari server.';
+          if (!confirm(delMsg)) return;
+          sendCmd({ videoDelete: vid.id }, 'stVideo', 'Video berhasil dihapus.');
+        });
+      });
+    }
+
+    /* ── Stop video ── */
+    document.getElementById('btnVideoStop').addEventListener('click', function () {
+      sendCmd({ videoCommand: { action: 'stop' } }, 'stVideo', 'Video dihentikan di viewer.');
+    });
+
+    /* ── Tambah YouTube ── */
+    document.getElementById('btnAddYoutube').addEventListener('click', function () {
+      var url = (document.getElementById('ytUrl').value || '').trim();
+      var name = (document.getElementById('ytName').value || '').trim();
+      var schedule = (document.getElementById('ytSchedule').value || '').trim() || null;
+      var durMins = Math.max(1, parseInt(document.getElementById('ytDurMins').value) || 5);
+      var startSec = Math.max(0, parseInt(document.getElementById('ytStartSec').value) || 0);
+      var repeat = document.getElementById('ytRepeat').value || 'once';
+      if (!url) { flash('stVideo', 'Masukkan URL YouTube terlebih dahulu.', 'danger'); return; }
+      fetch(JAM_API + '/add-youtube', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: getToken(), url: url, displayName: name, schedule: schedule, durationMinutes: durMins, startSeconds: startSec, repeat: repeat })
+      })
+      .then(function (r) { return r.json(); })
+      .then(function (res) {
+        if (res.ok) {
+          flash('stVideo', 'Video YouTube berhasil ditambahkan.', 'success');
+          document.getElementById('ytUrl').value = '';
+          document.getElementById('ytName').value = '';
+          document.getElementById('ytStartSec').value = '0';
+          if (res.data && res.data.state) { renderState(res.data.state); renderVideoList(res.data.state.videoLibrary || []); }
+        } else {
+          flash('stVideo', (res.error && res.error.message) || 'Gagal menambahkan.', 'danger');
+        }
+      })
+      .catch(function (e) { flash('stVideo', 'Error: ' + e.message, 'danger'); });
+    });
+
+    /* ── Patch renderState & syncForm untuk video ── */
+    var _origRenderState = renderState;
+    renderState = function (st) {
+      _origRenderState(st);
+      if (st && st.videoLibrary !== undefined) renderVideoList(st.videoLibrary || []);
+    };
+    var _origSyncForm = syncForm;
+    syncForm = function (st) {
+      _origSyncForm(st);
+      if (st && st.videoLibrary !== undefined) renderVideoList(st.videoLibrary || []);
+    };
+
+    function escHtml(str) {
+      return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    /* ════════════════════════════════════════════════════════════════
+       LOGO UPLOAD
+    ════════════════════════════════════════════════════════════════ */
+    document.getElementById('btnUploadLogo').addEventListener('click', function () {
+      var fileInput = document.getElementById('logoFile');
+      var file = fileInput && fileInput.files[0];
+      if (!file) { flash('stLogo', 'Pilih file gambar terlebih dahulu.', 'danger'); return; }
+      var prog = document.getElementById('logoProgress');
+      var progBar = document.getElementById('logoPBar');
+      var progLabel = document.getElementById('logoPLabel');
+      if (prog) prog.classList.add('show');
+      if (progLabel) progLabel.textContent = 'Mengupload: 0%';
+      var params = new URLSearchParams({ token: getToken(), filename: file.name });
+      var xhr = new XMLHttpRequest();
+      xhr.open('POST', JAM_API + '/upload-logo?' + params.toString());
+      xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+      xhr.upload.onprogress = function (e) {
+        if (e.lengthComputable) {
+          var pct = Math.round(e.loaded / e.total * 100);
+          if (progBar) progBar.value = pct;
+          if (progLabel) progLabel.textContent = 'Mengupload: ' + pct + '%';
+        }
+      };
+      xhr.onload = function () {
+        if (prog) prog.classList.remove('show');
+        try {
+          var res = JSON.parse(xhr.responseText);
+          if (res.ok) {
+            flash('stLogo', 'Logo berhasil diupload dan diterapkan ke viewer.', 'success');
+            if (res.data) renderState(res.data);
+          } else {
+            flash('stLogo', (res.error && res.error.message) || 'Gagal upload logo.', 'danger');
+          }
+        } catch (_) { flash('stLogo', 'Respons tidak valid dari server.', 'danger'); }
+      };
+      xhr.onerror = function () {
+        if (prog) prog.classList.remove('show');
+        flash('stLogo', 'Upload gagal. Periksa koneksi.', 'danger');
+      };
+      xhr.send(file);
+    });
+
+    document.getElementById('btnResetLogo').addEventListener('click', function () {
+      if (!confirm('Reset logo ke default (icon.png)?')) return;
+      fetch(JAM_API + '/reset-logo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: getToken() })
+      }).then(function (r) { return r.json(); }).then(function (res) {
+        if (res.ok) {
+          flash('stLogo', 'Logo berhasil direset ke default.', 'success');
+          if (res.data) renderState(res.data);
+        } else {
+          flash('stLogo', (res.error && res.error.message) || 'Gagal reset logo.', 'danger');
+        }
+      }).catch(function () { flash('stLogo', 'Gagal menghubungi server.', 'danger'); });
+    });
+
+    /* ════════════════════════════════════════════════════════════════
+       AUDIO UPLOAD + TES SUARA
+    ════════════════════════════════════════════════════════════════ */
+    document.getElementById('btnUploadAudio').addEventListener('click', function () {
+      var fileInput = document.getElementById('audioFile');
+      var file = fileInput && fileInput.files[0];
+      if (!file) { flash('stAudio', 'Pilih file audio terlebih dahulu.', 'danger'); return; }
+      var prog = document.getElementById('audioProgress');
+      var progBar = document.getElementById('audioPBar');
+      var progLabel = document.getElementById('audioPLabel');
+      if (prog) prog.classList.add('show');
+      if (progLabel) progLabel.textContent = 'Mengupload: 0%';
+      var kind = (document.getElementById('audioKind') || {}).value || 'alarm';
+      var params = new URLSearchParams({ token: getToken(), filename: file.name, kind: kind });
+      var xhr = new XMLHttpRequest();
+      xhr.open('POST', JAM_API + '/upload-audio?' + params.toString());
+      xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+      xhr.upload.onprogress = function (e) {
+        if (e.lengthComputable) {
+          var pct = Math.round(e.loaded / e.total * 100);
+          if (progBar) progBar.value = pct;
+          if (progLabel) progLabel.textContent = 'Mengupload: ' + pct + '%';
+        }
+      };
+      xhr.onload = function () {
+        if (prog) prog.classList.remove('show');
+        try {
+          var res = JSON.parse(xhr.responseText);
+          if (res.ok) {
+            flash('stAudio', 'Audio berhasil diupload dan siap digunakan di viewer.', 'success');
+            if (res.data) renderState(res.data);
+          } else {
+            flash('stAudio', (res.error && res.error.message) || 'Gagal upload audio.', 'danger');
+          }
+        } catch (_) { flash('stAudio', 'Respons tidak valid dari server.', 'danger'); }
+      };
+      xhr.onerror = function () {
+        if (prog) prog.classList.remove('show');
+        flash('stAudio', 'Upload gagal. Periksa koneksi.', 'danger');
+      };
+      xhr.send(file);
+    });
+
+    document.getElementById('btnTestSound').addEventListener('click', function () {
+      var kind = (document.getElementById('audioKind') || {}).value || 'alarm';
+      if (kind === 'all') kind = 'alarm';
+      sendCmd({ testSound: true, testSoundKind: kind }, 'stAudio', 'Perintah tes suara "' + kind + '" dikirim ke viewer.');
+    });
+
+    document.getElementById('btnResetAudio').addEventListener('click', function () {
+      var kind = (document.getElementById('audioKind') || {}).value || 'alarm';
+      var label = kind === 'all' ? 'semua suara' : 'suara "' + kind + '"';
+      if (!confirm('Reset ' + label + ' ke suara beep bawaan (default)?')) return;
+      fetch(JAM_API + '/reset-audio', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: getToken(), kind: kind })
+      }).then(function (r) { return r.json(); }).then(function (res) {
+        if (res.ok) {
+          flash('stAudio', 'Audio berhasil direset ke default (beep bawaan).', 'success');
+          if (res.data) renderState(res.data);
+        } else {
+          flash('stAudio', (res.error && res.error.message) || 'Gagal reset audio.', 'danger');
+        }
+      }).catch(function () { flash('stAudio', 'Gagal menghubungi server.', 'danger'); });
+    });
+
+    /* ════════════════════════════════════════════════════════════════
+       TEXT SLIDES CRUD
+    ════════════════════════════════════════════════════════════════ */
+    var _slides = [];       // local copy
+    var _slideEditId = null;
+    var _quill = null;
+
+    function initQuill() {
+      if (_quill) return;
+      _quill = new Quill('#slideQuillEditor', {
+        theme: 'snow',
+        modules: {
+          toolbar: [
+            [{ header: [1, 2, 3, 4, false] }],
+            [{ font: [] }, { size: ['small', false, 'large', 'huge'] }],
+            ['bold', 'italic', 'underline', 'strike'],
+            [{ color: [] }, { background: [] }],
+            [{ script: 'sub' }, { script: 'super' }],
+            [{ list: 'ordered' }, { list: 'bullet' }, { indent: '-1' }, { indent: '+1' }],
+            [{ align: [] }, { direction: 'rtl' }],
+            ['blockquote', 'code-block', 'link', 'image', 'video'],
+            ['clean']
+          ]
+        }
+      });
+    }
+
+    function openSlideDialog(slide) {
+      initQuill();
+      _slideEditId = slide ? slide.id : null;
+      document.getElementById('slideDialogTitle').textContent = slide ? 'Edit Slide' : 'Tambah Slide';
+      document.getElementById('slideTitle').value    = slide ? (slide.title || '') : '';
+      document.getElementById('slideDuration').value = slide ? Math.round((slide.durationHours || 1) * 60) : 60;
+      _quill.root.innerHTML = slide ? (slide.html || '') : '';
+      var stEl = document.getElementById('stSlideDialog');
+      if (stEl) { stEl.className = 'notice info'; stEl.textContent = ''; }
+      document.getElementById('slideDialog').showModal();
+      setTimeout(function () { document.getElementById('slideTitle').focus(); }, 100);
+    }
+
+    function closeSlideDialog() {
+      document.getElementById('slideDialog').close();
+      _slideEditId = null;
+    }
+
+    function makeSlideId() {
+      return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    }
+
+    function saveSlides() {
+      sendCmd({ textSlides: _slides }, 'stSlides', 'Slides berhasil disimpan ke viewer.');
+    }
+
+    function renderSlideList() {
+      var list = document.getElementById('slideList');
+      if (!list) return;
+      if (!_slides.length) {
+        list.innerHTML = '<div class="empty-state">Belum ada slide. Klik "Tambah Slide".</div>';
+        return;
+      }
+      list.innerHTML = _slides.map(function (sl, i) {
+        var active = sl.active !== false;
+        var preview = sl.html
+          ? sl.html.replace(/<[^>]+>/g,'').slice(0, 80) + (sl.html.length > 80 ? '…' : '')
+          : '(kosong)';
+        var badge = active
+          ? '<span style="font-size:11px;font-weight:700;color:#22c55e;background:rgba(34,197,94,.12);padding:2px 8px;border-radius:20px">Aktif</span>'
+          : '<span style="font-size:11px;font-weight:700;color:#94a3b8;background:rgba(148,163,184,.12);padding:2px 8px;border-radius:20px">Nonaktif</span>';
+        return '<div class="slide-card card" style="opacity:' + (active ? '1' : '0.5') + '">' +
+          '<div class="slide-info">' +
+            '<div class="slide-title" style="display:flex;align-items:center;gap:8px">' + escHtml(sl.title || ('Slide ' + (i+1))) + badge + '</div>' +
+            '<div class="slide-meta">' + escHtml(preview) + '</div>' +
+            '<div class="slide-meta">' + Math.round((sl.durationHours || 1) * 60) + ' menit</div>' +
+          '</div>' +
+          '<div class="slide-actions">' +
+            '<button class="secondary" data-sl-toggle="' + i + '" style="padding:8px 12px;font-size:12px" title="' + (active ? 'Nonaktifkan' : 'Aktifkan') + '">' + (active ? '⏸' : '▶') + '</button>' +
+            '<button class="secondary" data-sl-up="' + i + '" style="padding:8px 10px;font-size:12px" title="Naik">&#8593;</button>' +
+            '<button class="secondary" data-sl-dn="' + i + '" style="padding:8px 10px;font-size:12px" title="Turun">&#8595;</button>' +
+            '<button class="primary"   data-sl-edit="' + i + '" style="padding:8px 14px;font-size:12px">Edit</button>' +
+            '<button class="danger"    data-sl-del="' + i + '" style="padding:8px 14px;font-size:12px">Hapus</button>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+
+      list.querySelectorAll('[data-sl-toggle]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var i = parseInt(btn.dataset.slToggle, 10);
+          _slides[i].active = _slides[i].active === false ? true : false;
+          renderSlideList();
+          saveSlides();
+        });
+      });
+      list.querySelectorAll('[data-sl-up]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var i = parseInt(btn.dataset.slUp, 10);
+          if (i <= 0) return;
+          var tmp = _slides[i-1]; _slides[i-1] = _slides[i]; _slides[i] = tmp;
+          renderSlideList();
+          saveSlides();
+        });
+      });
+      list.querySelectorAll('[data-sl-dn]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var i = parseInt(btn.dataset.slDn, 10);
+          if (i >= _slides.length-1) return;
+          var tmp = _slides[i+1]; _slides[i+1] = _slides[i]; _slides[i] = tmp;
+          renderSlideList();
+          saveSlides();
+        });
+      });
+      list.querySelectorAll('[data-sl-edit]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var i = parseInt(btn.dataset.slEdit, 10);
+          openSlideDialog(_slides[i]);
+        });
+      });
+      list.querySelectorAll('[data-sl-del]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var i = parseInt(btn.dataset.slDel, 10);
+          var sl = _slides[i];
+          if (!confirm('Hapus slide "' + (sl.title || ('Slide ' + (i+1))) + '"?')) return;
+          _slides.splice(i, 1);
+          renderSlideList();
+          saveSlides();
+        });
+      });
+    }
+
+    document.getElementById('btnNewSlide').addEventListener('click', function () { openSlideDialog(null); });
+    document.getElementById('btnCloseSlideDialog').addEventListener('click', closeSlideDialog);
+    document.getElementById('btnCancelSlide').addEventListener('click', closeSlideDialog);
+
+    document.getElementById('btnSaveSlide').addEventListener('click', function () {
+      var title    = document.getElementById('slideTitle').value.trim();
+      var html     = _quill ? _quill.root.innerHTML.trim() : '';
+      var durationMins = Math.max(1, parseInt(document.getElementById('slideDuration').value) || 60);
+      var duration = durationMins / 60; // simpan sebagai jam agar viewer tetap kompatibel
+      if (!html || html === '<p><br></p>') {
+        flash('stSlideDialog', 'Konten slide tidak boleh kosong.', 'danger');
+        return;
+      }
+      if (_slideEditId) {
+        var idx = _slides.findIndex(function (s) { return s.id === _slideEditId; });
+        if (idx !== -1) {
+          _slides[idx] = { id: _slideEditId, title: title, html: html, durationHours: duration };
+        }
+      } else {
+        _slides.push({ id: makeSlideId(), title: title, html: html, durationHours: duration });
+      }
+      renderSlideList();
+      saveSlides();
+      closeSlideDialog();
+    });
+
+    document.getElementById('btnClearSlides').addEventListener('click', function () {
+      if (!_slides.length) return;
+      if (!confirm('Hapus semua ' + _slides.length + ' slide?')) return;
+      _slides = [];
+      renderSlideList();
+      saveSlides();
+    });
+
+    /* ── Patch renderState & syncForm untuk slides ── */
+    var _origRenderState2 = renderState;
+    renderState = function (st) {
+      _origRenderState2(st);
+      if (!st) return;
+      var box = document.getElementById('stateBox');
+      if (box && st.textSlides !== undefined) {
+        var n = (st.textSlides || []).length;
+        var extra = '<div class="state-row"><b>Teks Slide:</b> <span class="state-val' + (n ? ' active' : ' muted') + '">' +
+          (n ? n + ' slide aktif' : 'tidak ada (tampil konten)') + '</span></div>';
+        box.innerHTML += extra;
+      }
+    };
+    var _origSyncForm2 = syncForm;
+    syncForm = function (st) {
+      _origSyncForm2(st);
+      if (st && Array.isArray(st.textSlides)) {
+        _slides = st.textSlides.map(function (s) {
+          return { id: s.id || makeSlideId(), title: s.title || '', html: s.html || '', durationHours: s.durationHours || 1 };
+        });
+        renderSlideList();
+      }
+    };
+
+  })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,801 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#9e2f22">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="../../shared-ui.css">
+  <script src="../../shared-ui.js"></script>
+  <title>Koordinat Absensi</title>
+  <link rel="stylesheet" href="../../shared-shell.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700&display=swap');
+    :root {
+      --paper: #f6efe0;
+      --ink: #4d4034;
+      --muted: #7b6a58;
+      --line: rgba(91, 73, 57, 0.15);
+      --accent: #b97650;
+      --success: #74846c;
+      --danger: #a55a52;
+      --warning: #b58439;
+      --shadow: 0 18px 45px rgba(87, 67, 51, 0.18);
+      --radius: 24px;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; }
+    body::before { content: ''; position: fixed; inset: 0; pointer-events: none; opacity: 0.15; mix-blend-mode: multiply; }
+    h1, h2, h3 { margin: 0 0 10px; text-transform: uppercase; }
+    p { margin: 0; line-height: 1.65; }
+    .nav a, button { font-weight: 800 !important; text-transform: uppercase; }
+    .panel { padding: 22px; }
+    button { padding: 12px 18px; cursor: pointer; }
+    .primary { box-shadow: 0 14px 28px rgba(185, 118, 80, 0.22); }
+    input, select, textarea { width: 100%; padding: 13px 14px; outline: none; font: inherit; }
+    label { display: grid; gap: 7px; font-size: 14px; font-weight: 600; }
+
+    .section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .filters { display: grid; gap: 12px; margin-top: 16px; }
+    .toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+    .list { display: grid; gap: 14px; }
+    .field-grid { display: grid; gap: 12px; }
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 480px) { .field-row { grid-template-columns: 1fr; } }
+
+    .notice { display: none; padding: 14px 16px; line-height: 1.55; }
+    .notice.show { display: block; }
+
+    .paging-host { display: grid; gap: 8px; margin: 3px 0; }
+    .paging { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; }
+    .page-center { display: grid; gap: 8px; justify-items: center; }
+    .page-numbers { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+    .page-summary { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+    @media (max-width: 960px) { .paging { grid-template-columns: 1fr; } }
+
+    /* Tabs */
+    .tabs { display: flex; gap: 0; margin-bottom: 22px; justify-content: center;}
+    .tab-btn { padding: 12px 20px; font-size: 13px; font-weight: 800 !important; text-transform: uppercase; letter-spacing: .05em; border: none; background: none; cursor: pointer; color: var(--muted); border-bottom: 3px solid transparent; margin-bottom: -2px; transition: color 0.15s, border-color 0.15s; }
+    .tab-btn:hover { color: var(--ink); }
+    .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* Cards */
+    .minimal-list-card { padding: 0; display: grid; gap: 0; }
+    .ka-card-head { display: flex; align-items: center; gap: 12px; justify-content: space-between; padding: 14px 16px; }
+    .ka-card-main { flex: 1; min-width: 0; display: grid; gap: 5px; }
+    .ka-card-title { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .ka-card-title strong { font-size: 15px; font-family: 'Poppins', sans-serif; font-weight: 700; }
+    .ka-card-hint { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
+    .ka-card-body { padding: 12px 16px 16px; border-top: 1px solid var(--line); display: grid; gap: 12px; }
+    .ka-card-meta { display: flex; flex-wrap: wrap; gap: 8px; }
+    .ka-card-summary { display: grid; gap: 6px; font-size: 13px; line-height: 1.6; }
+    .ka-card-summary p { margin: 0; }
+    .ka-card-summary strong { color: var(--ink); min-width: 80px; display: inline-block; }
+    .ka-card-actions { display: flex; gap: 8px; flex-wrap: wrap; flex-shrink: 0; }
+    .ka-card-actions button { font-size: 12px; padding: 8px 14px; white-space: nowrap; }
+    .ka-maps-link { font-size: 13px; font-weight: 700; color: var(--accent); text-decoration: none; }
+    .ka-maps-link:hover { font-weight: 500; }
+    .minimal-list-card-body {
+      padding: 7px 15px;
+    } 
+
+    .pill { display: inline-flex; padding: 5px 10px; font-size: 11px; font-weight: 700; border-radius: 999px; }
+    .pill-lokasi { background: rgba(185,118,80,0.15); color: var(--accent); }
+    .pill-hari { background: rgba(116,132,108,0.16); color: var(--success); }
+    .coord-mono { font-family: monospace; font-size: 12px; background: rgba(0,0,0,0.05); padding: 3px 8px; border-radius: 6px; }
+    .danger { background: var(--danger); color: #fff; }
+
+    /* Hari checkboxes */
+    .hari-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+    .hari-check { display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px; font-weight: 600; padding: 8px 12px; border-radius: 999px; border: 1.5px solid var(--line); transition: background .12s; user-select: none; }
+    .hari-check input[type=checkbox] { width: 16px; height: 16px; margin: 0; cursor: pointer; accent-color: var(--accent); }
+    .hari-check:has(input:checked) { background: rgba(185,118,80,0.14); border-color: var(--accent); color: var(--accent); }
+
+    /* Dialog */
+    dialog { padding: 0; }
+    .dialog-body { padding: 22px; display: flex; gap: 14px; max-height: 92vh; overflow: auto; flex-direction: column; }
+    .dialog-head { position: sticky; top: 0; z-index: 2; margin: 0 -22px; padding: 18px 22px 14px; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+    .dialog-close { width: 46px; min-width: 46px; min-height: 46px; padding: 0; border-radius: 999px !important; font-size: 24px; line-height: 1; }
+    .dialog-footer { display: flex; flex-wrap: wrap; gap: 10px; padding-top: 4px; }
+
+    .geo-preview-box { font-size: 13px; line-height: 1.5; }
+
+    details { border: 1px dashed rgba(111, 87, 69, 0.18); border-radius: 18px; padding: 12px 14px; background: rgba(255,251,243,0.72); }
+    summary { cursor: pointer; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-left">
+      <button class="drawer-toggle" id="navToggle" type="button" aria-label="Toggle sidebar">Menu</button>
+      <div class="header-brand">Pendataan Santri</div>
+      <div class="header-page">Koordinat Absensi</div>
+    </div>
+    <div class="header-right">
+      <span class="header-chip" id="headerRole">Admin</span>
+    </div>
+  </header>
+  <div class="drawer-backdrop" id="navBackdrop"></div>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+
+  <main>
+    <div class="app-layout">
+      <section class="panel nav" id="nav"></section>
+      <div class="content-stack">
+        <section class="notice info" id="notice"></section>
+        <section class="panel">
+          <div class="section-head">
+            <div>
+              <h2>Koordinat Absensi</h2>
+              <p style="color:var(--muted);font-size:13px;margin-top:6px;">Buat master lokasi terlebih dahulu, lalu atur aturan absensi per pengurus. Lokasi &amp; radius bersifat wajib (syarat keras), sedangkan hari &amp; jam hanya menjadi <strong>acuan</strong> — absensi di luar jam/hari tetap diterima namun ditandai sebagai peringatan.</p>
+            </div>
+          </div>
+
+          <div class="tabs" style="margin-top:18px;">
+            <button class="tab-btn active" type="button" data-tab="lokasi" style="margin-right:8px;">&#x1F4CD; Master Lokasi</button>
+            <button class="tab-btn" type="button" data-tab="aturan">&#x1F4CB; Aturan Absensi</button>
+          </div>
+
+          <!-- TAB: Master Lokasi -->
+          <div class="tab-panel active" id="tabLokasi">
+            <div class="toolbar">
+              <button type="button" class="primary" id="btnTambahLokasi">+ Tambah Lokasi</button>
+            </div>
+            <div class="filters">
+              <label>
+                Cari nama lokasi
+                <input type="search" id="searchLokasi" placeholder="Mis. Kantor, Masjid...">
+              </label>
+            </div>
+            <section class="notice" id="emptyLokasi" style="margin-top:14px;"></section>
+            <div class="paging-host" id="lokasiPaginationTop" style="margin-top:16px;"></div>
+            <div class="list" id="lokasiList" style="margin-top:10px;"></div>
+            <div class="paging-host" id="lokasiPaginationBottom" style="margin-top:10px;"></div>
+          </div>
+
+          <!-- TAB: Aturan Absensi -->
+          <div class="tab-panel" id="tabAturan">
+            <div class="toolbar">
+              <button type="button" class="primary" id="btnTambahAturan">+ Tambah Aturan</button>
+            </div>
+            <div class="filters">
+              <label>
+                Cari nama pengurus
+                <input type="search" id="searchAturan" placeholder="Mis. Ahmad...">
+              </label>
+            </div>
+            <section class="notice" id="emptyAturan" style="margin-top:14px;"></section>
+            <div class="paging-host" id="aturanPaginationTop" style="margin-top:16px;"></div>
+            <div class="list" id="aturanList" style="margin-top:10px;"></div>
+            <div class="paging-host" id="aturanPaginationBottom" style="margin-top:10px;"></div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <!-- Dialog Master Lokasi -->
+  <dialog class="ps-floating-dialog" id="lokasiDialog">
+    <div class="dialog-body">
+      <div class="dialog-head">
+        <div>
+          <h3 id="lokasiDialogTitle">Tambah Lokasi</h3>
+          <p style="font-size:13px;color:var(--muted);margin-top:4px;text-transform:none;">Tambahkan tempat dengan nama dan koordinat GPS.</p>
+        </div>
+        <button type="button" class="secondary dialog-close" id="btnLokasiClose" aria-label="Tutup">&times;</button>
+      </div>
+      <div class="field-grid">
+        <label>
+          Nama Lokasi
+          <input type="text" id="lokasiNama" placeholder="Mis. Kantor Pesantren, Masjid Utama...">
+        </label>
+        <div>
+          <div style="font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;">Koordinat GPS</div>
+          <div class="field-row">
+            <label>
+              Latitude
+              <input type="number" id="lokasiLat" step="any" placeholder="-6.123456">
+            </label>
+            <label>
+              Longitude
+              <input type="number" id="lokasiLng" step="any" placeholder="106.123456">
+            </label>
+          </div>
+          <div style="margin-top:10px;">
+            <button type="button" class="secondary" id="btnLokasiGetGeo">&#x1F4CD; Gunakan Lokasi Saya</button>
+          </div>
+          <div class="notice geo-preview-box" id="lokasiGeoPreview" style="margin-top:8px;"></div>
+        </div>
+        <label>
+          Keterangan <span style="font-weight:400;font-size:12px;text-transform:none;">(opsional)</span>
+          <textarea id="lokasiKeterangan" rows="2" placeholder="Catatan tambahan..."></textarea>
+        </label>
+      </div>
+      <section class="notice" id="lokasiDialogError"></section>
+      <div class="dialog-footer">
+        <button type="button" class="primary" id="btnLokasiSimpan">Simpan</button>
+        <button type="button" class="secondary" id="btnLokasiCancel">Batal</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Dialog Aturan Absensi -->
+  <dialog class="ps-floating-dialog" id="aturanDialog">
+    <div class="dialog-body">
+      <div class="dialog-head">
+        <div>
+          <h3 id="aturanDialogTitle">Tambah Aturan Absensi</h3>
+          <p style="font-size:13px;color:var(--muted);margin-top:4px;text-transform:none;">Lokasi &amp; radius wajib dipenuhi. Hari &amp; jam hanya acuan — absensi di luar jam/hari tetap diterima dengan peringatan.</p>
+        </div>
+        <button type="button" class="secondary dialog-close" id="btnAturanClose" aria-label="Tutup">&times;</button>
+      </div>
+      <div class="field-grid">
+        <label>
+          Pengurus
+          <select id="aturanPengurus">
+            <option value="">-- Pilih pengurus --</option>
+          </select>
+        </label>
+        <label>
+          Lokasi Absensi
+          <select id="aturanLokasi">
+            <option value="">-- Pilih lokasi --</option>
+          </select>
+        </label>
+        <label>
+          Radius Maksimum (meter)
+          <input type="number" id="aturanRadius" value="20" min="1" max="1000">
+          <span style="font-size:12px;font-weight:400;color:var(--muted);text-transform:none;">Batas jarak dari titik lokasi agar absensi diterima (default: 20 m)</span>
+        </label>
+        <div>
+          <div style="font-size:14px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;">Hari Acuan Absensi</div>
+          <div class="hari-grid">
+            <label class="hari-check"><input type="checkbox" name="hari" value="senin"> Senin</label>
+            <label class="hari-check"><input type="checkbox" name="hari" value="selasa"> Selasa</label>
+            <label class="hari-check"><input type="checkbox" name="hari" value="rabu"> Rabu</label>
+            <label class="hari-check"><input type="checkbox" name="hari" value="kamis"> Kamis</label>
+            <label class="hari-check"><input type="checkbox" name="hari" value="jumat"> Jumat</label>
+            <label class="hari-check"><input type="checkbox" name="hari" value="sabtu"> Sabtu</label>
+            <label class="hari-check"><input type="checkbox" name="hari" value="ahad"> Ahad</label>
+          </div>
+          <p style="font-size:12px;color:var(--muted);margin-top:8px;font-style:italic;text-transform:none;">Kosongkan jika tidak ada hari acuan. Absensi di luar hari ini tetap diterima, hanya diberi peringatan di rekap.</p>
+        </div>
+        <div>
+          <div style="font-size:14px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;">Jam Acuan Absensi</div>
+          <label>
+            Jam Masuk (acuan)
+            <input type="time" id="aturanJamMasuk">
+            <span style="font-size:12px;font-weight:400;color:var(--muted);text-transform:none;">Kosongkan jika tidak ada jam acuan</span>
+          </label>
+          <div class="field-row" style="margin-top:12px;">
+            <label>
+              Boleh absen sejak (menit sebelum)
+              <input type="number" id="aturanTolSebelum" min="0" max="720" value="10">
+              <span style="font-size:12px;font-weight:400;color:var(--muted);text-transform:none;">Mis. 10 = boleh absen mulai 10 menit sebelum jam masuk</span>
+            </label>
+            <label>
+              Batas terlambat (menit sesudah)
+              <input type="number" id="aturanTolTerlambat" min="0" max="720" value="10">
+              <span style="font-size:12px;font-weight:400;color:var(--muted);text-transform:none;">Mis. 10 = lewat 10 menit dari jam masuk ditandai "terlambat"</span>
+            </label>
+          </div>
+          <p style="font-size:12px;color:var(--muted);margin-top:8px;font-style:italic;text-transform:none;">Tidak ada yang memblokir — di luar jendela waktu absensi tetap diterima, hanya diberi peringatan.</p>
+        </div>
+        <label>
+          Keterangan <span style="font-weight:400;font-size:12px;text-transform:none;">(opsional)</span>
+          <textarea id="aturanKeterangan" rows="2" placeholder="Catatan tambahan..."></textarea>
+        </label>
+      </div>
+      <section class="notice" id="aturanDialogError"></section>
+      <div class="dialog-footer">
+        <button type="button" class="primary" id="btnAturanSimpan">Simpan</button>
+        <button type="button" class="secondary" id="btnAturanCancel">Batal</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Dialog Hapus -->
+  <dialog class="ps-floating-dialog" id="hapusDialog">
+    <div class="dialog-body">
+      <div>
+        <h3>Hapus Data?</h3>
+        <p id="hapusDesc" style="font-size:13px;color:var(--muted);margin-top:6px;text-transform:none;">Data ini akan dihapus permanen.</p>
+      </div>
+      <section class="notice" id="hapusError"></section>
+      <div class="dialog-footer">
+        <button type="button" class="danger" id="btnHapusOk">Hapus</button>
+        <button type="button" class="secondary" id="btnHapusBatal">Batal</button>
+      </div>
+    </div>
+  </dialog>
+
+  <script src="../../shared-access.js"></script>
+  <script src="../../shared-nav.js"></script>
+  <script src="../../shared-shell.js"></script>
+  <script>
+    const API_BASE = window.location.origin + '/api';
+    const STORAGE = { apiBase: 'ps_api_base', token: 'ps_token', session: 'ps_session' };
+    localStorage.setItem(STORAGE.apiBase, API_BASE);
+
+    const HARI_LABEL = { senin: 'Senin', selasa: 'Selasa', rabu: 'Rabu', kamis: 'Kamis', jumat: 'Jumat', sabtu: 'Sabtu', ahad: 'Ahad' };
+
+    const state = {
+      lokasi: [], aturan: [], pengurus: [],
+      lokasiQ: '', aturanQ: '',
+      lokasiPage: 1, lokasiPageSize: 20, lokasiTotal: 0, lokasiTotalPages: 1,
+      aturanPage: 1, aturanPageSize: 20, aturanTotal: 0, aturanTotalPages: 1,
+      editingLokasiId: null, editingAturanId: null,
+      deletingId: null, deletingType: null
+    };
+    const uiState = { currentNoticeId: '', noticeCounter: 0, noticeShownAt: 0, pendingNotice: null };
+
+    function getToken() { return localStorage.getItem(STORAGE.token) || ''; }
+    function getStoredSession() { try { return JSON.parse(localStorage.getItem(STORAGE.session) || 'null'); } catch (_) { return null; } }
+    function getScopedSession() {
+      return window.PSAccess && typeof window.PSAccess.getScopedSession === 'function'
+        ? window.PSAccess.getScopedSession(getStoredSession()) : getStoredSession();
+    }
+
+    function canManageRecords() {
+      const session = getScopedSession();
+      return !!(session && session.permissions && session.permissions.canManageKoordinatAbsensi);
+    }
+
+    function toParams(data) {
+      const p = new URLSearchParams();
+      Object.entries(data).forEach(function ([k, v]) { if (v !== undefined && v !== null && v !== '') p.append(k, String(v)); });
+      return p;
+    }
+    async function api(data) {
+      const res = await fetch(API_BASE + '?' + toParams({ ...data, token: getToken() }));
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error?.message || 'Error');
+      return json.data;
+    }
+    async function apiPost(data) {
+      const res = await fetch(API_BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...data, token: getToken() }) });
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error?.message || 'Error');
+      return json.data;
+    }
+
+    function createNoticeEl(text, type) {
+      const el = document.createElement('section');
+      el.className = 'notice show ' + (type || 'info');
+      el.dataset.noticeId = 'n-' + Date.now() + '-' + (uiState.noticeCounter += 1);
+      el.textContent = text;
+      function dismiss() {
+        if (!el.parentNode) return;
+        el.classList.add('notice-dismissing');
+        window.setTimeout(function () {
+          el.remove();
+          const s = document.getElementById('noticeStack');
+          if (s && !s.hasChildNodes() && s.matches(':popover-open')) s.hidePopover();
+        }, 220);
+      }
+      el.addEventListener('click', dismiss);
+      window.setTimeout(dismiss, type === 'error' ? 10000 : 6000);
+      return el;
+    }
+    function showNotice(text, type) {
+      if (uiState.pendingNotice) { clearTimeout(uiState.pendingNotice); uiState.pendingNotice = null; }
+      const elapsed = Date.now() - uiState.noticeShownAt;
+      if (elapsed < 2000 && uiState.currentNoticeId) {
+        uiState.pendingNotice = window.setTimeout(function () { uiState.pendingNotice = null; showNotice(text, type); }, 2000 - elapsed);
+        return;
+      }
+      const el = createNoticeEl(text, type);
+      const stack = document.getElementById('noticeStack');
+      stack.prepend(el);
+      uiState.currentNoticeId = el.dataset.noticeId;
+      uiState.noticeShownAt = Date.now();
+      if (stack.matches(':popover-open')) stack.hidePopover();
+      stack.showPopover();
+    }
+
+    function esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
+    function setNotice(id, msg, type) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.textContent = msg;
+      el.className = 'notice show ' + (type || 'info');
+    }
+    function clearNotice(id) {
+      const el = document.getElementById(id);
+      if (el) { el.textContent = ''; el.className = 'notice'; }
+    }
+
+    // ── Pagination ─────────────────────────────────────────────────────────────
+    function renderPaging(currentPage, totalPages) {
+      const start = Math.max(1, Math.min(currentPage - 4, totalPages - 9));
+      const end = Math.min(totalPages, start + 9);
+      let html = '';
+      for (let p = start; p <= end; p++) {
+        html += '<button ' + (p === currentPage ? 'class="active" ' : '') + 'data-page="' + p + '">' + p + '</button>';
+      }
+      return html;
+    }
+
+    function pagingMarkup(page, totalPages, total) {
+      if (!total) return '';
+      return '<div class="paging">' +
+        '<div class="page-center"><div class="page-numbers">' +
+        renderPaging(page, totalPages) +
+        '</div><div class="page-summary">Hal. ' + page + ' / ' + totalPages + ' &mdash; ' + total + ' data</div></div>' +
+        '</div>';
+    }
+
+    // ── Master Lokasi ──────────────────────────────────────────────────────────
+    function getLokasiFiltered() {
+      const q = state.lokasiQ.toLowerCase();
+      return state.lokasi.filter(function (l) { return !q || (l.namaLokasi + ' ' + l.keterangan).toLowerCase().includes(q); });
+    }
+
+    function renderLokasiList() {
+      const filtered = getLokasiFiltered();
+      state.lokasiTotal = filtered.length;
+      state.lokasiTotalPages = Math.max(1, Math.ceil(state.lokasiTotal / state.lokasiPageSize));
+      if (state.lokasiPage > state.lokasiTotalPages) state.lokasiPage = state.lokasiTotalPages;
+      const start = (state.lokasiPage - 1) * state.lokasiPageSize;
+      const pageItems = filtered.slice(start, start + state.lokasiPageSize);
+      if (!filtered.length) {
+        document.getElementById('lokasiList').innerHTML = '';
+        setNotice('emptyLokasi', state.lokasiQ ? 'Tidak ada lokasi yang sesuai.' : 'Belum ada master lokasi. Tambahkan lokasi terlebih dahulu.', 'info');
+      } else {
+        clearNotice('emptyLokasi');
+        document.getElementById('lokasiList').innerHTML = pageItems.map(renderLokasiCard).join('');
+      }
+      const mu = pagingMarkup(state.lokasiPage, state.lokasiTotalPages, state.lokasiTotal);
+      window.PSUI.syncPaginationHosts({ markup: mu, visibleCount: pageItems.length, totalCount: state.lokasiTotal, minimumCount: 0, topId: 'lokasiPaginationTop', bottomId: 'lokasiPaginationBottom' });
+    }
+
+    function renderLokasiCard(l) {
+      const koordinat = l.lat != null && l.lng != null ? (Number(l.lat).toFixed(6) + ', ' + Number(l.lng).toFixed(6)) : '—';
+      const mapUrl = l.lat != null && l.lng != null ? 'https://www.google.com/maps?q=' + l.lat + ',' + l.lng : null;
+      return '<div class="card minimal-list-card">' +
+        '<div class="ka-card-head">' +
+          '<div class="ka-card-main">' +
+            '<div class="ka-card-title"><strong>' + esc(l.namaLokasi) + '</strong><span class="pill pill-lokasi">&#x1F4CD; Lokasi</span></div>' +
+            '<span class="ka-card-hint"><span class="coord-mono">' + esc(koordinat) + '</span>' + (l.keterangan ? ' &nbsp;·&nbsp; ' + esc(l.keterangan) : '') + '</span>' +
+          '</div>' +
+          '<div class="ka-card-actions"><button type="button" class="secondary" data-lokasi-edit="' + esc(l.id) + '">Edit</button>' + (canManageRecords() ? '<button type="button" class="danger" data-lokasi-delete="' + esc(l.id) + '">Hapus</button>' : '') + '</div>' +
+        '</div>' +
+        (mapUrl ? '<div class="ka-card-body"><a class="ka-maps-link" href="' + esc(mapUrl) + '" target="_blank" rel="noopener">Lihat di Google Maps &nearr;</a></div>' : '') +
+        '</div>';
+    }
+
+    async function loadLokasi() {
+      try {
+        const data = await api({ action: 'lokasi.absensi.list' });
+        state.lokasi = data.items || [];
+        state.lokasiPage = 1;
+        renderLokasiList();
+        syncLokasiSelect();
+      } catch (e) { showNotice('Gagal memuat lokasi: ' + e.message, 'error'); }
+    }
+
+    function syncLokasiSelect() {
+      const sel = document.getElementById('aturanLokasi');
+      const cur = sel.value;
+      sel.innerHTML = '<option value="">-- Pilih lokasi --</option>';
+      state.lokasi.forEach(function (l) {
+        const opt = document.createElement('option');
+        opt.value = l.id;
+        opt.textContent = l.namaLokasi + (l.lat != null ? ' (' + Number(l.lat).toFixed(4) + ', ' + Number(l.lng).toFixed(4) + ')' : '');
+        sel.appendChild(opt);
+      });
+      if (cur) sel.value = cur;
+    }
+
+    function openLokasiDialog(item) {
+      state.editingLokasiId = item ? item.id : null;
+      document.getElementById('lokasiDialogTitle').textContent = item ? 'Edit Lokasi' : 'Tambah Lokasi';
+      document.getElementById('lokasiNama').value = item ? (item.namaLokasi || '') : '';
+      document.getElementById('lokasiLat').value = item && item.lat != null ? item.lat : '';
+      document.getElementById('lokasiLng').value = item && item.lng != null ? item.lng : '';
+      document.getElementById('lokasiKeterangan').value = item ? (item.keterangan || '') : '';
+      clearNotice('lokasiDialogError');
+      clearNotice('lokasiGeoPreview');
+      document.getElementById('lokasiDialog').showModal();
+    }
+
+    function closeLokasiDialog() { document.getElementById('lokasiDialog').close(); state.editingLokasiId = null; }
+
+    async function saveLokasiDialog() {
+      const nama = document.getElementById('lokasiNama').value.trim();
+      const lat = document.getElementById('lokasiLat').value.trim();
+      const lng = document.getElementById('lokasiLng').value.trim();
+      if (!nama) { setNotice('lokasiDialogError', 'Nama lokasi wajib diisi.', 'error'); return; }
+      if (!lat || !lng || isNaN(parseFloat(lat)) || isNaN(parseFloat(lng))) { setNotice('lokasiDialogError', 'Koordinat (lat & lng) wajib diisi dengan benar.', 'error'); return; }
+      const payload = { action: 'lokasi.absensi.save', namaLokasi: nama, lat: parseFloat(lat), lng: parseFloat(lng), keterangan: document.getElementById('lokasiKeterangan').value.trim() };
+      if (state.editingLokasiId) payload.id = state.editingLokasiId;
+      const btn = document.getElementById('btnLokasiSimpan');
+      btn.disabled = true; btn.textContent = 'Menyimpan...';
+      clearNotice('lokasiDialogError');
+      try {
+        await apiPost(payload);
+        closeLokasiDialog();
+        showNotice(state.editingLokasiId ? 'Lokasi diperbarui.' : 'Lokasi ditambahkan.', 'success');
+        await loadLokasi();
+      } catch (e) {
+        setNotice('lokasiDialogError', e.message || 'Gagal menyimpan.', 'error');
+      } finally { btn.disabled = false; btn.textContent = 'Simpan'; }
+    }
+
+    function getMyLocationFor(latId, lngId, previewId, errorId) {
+      if (!navigator.geolocation) { setNotice(errorId, 'Browser tidak mendukung geolokasi.', 'error'); return; }
+      const btn = document.getElementById('btnLokasiGetGeo');
+      btn.disabled = true; btn.textContent = 'Mendapatkan lokasi...';
+      clearNotice(previewId);
+      navigator.geolocation.getCurrentPosition(function (pos) {
+        btn.disabled = false; btn.textContent = '\u{1F4CD} Gunakan Lokasi Saya';
+        document.getElementById(latId).value = pos.coords.latitude.toFixed(8);
+        document.getElementById(lngId).value = pos.coords.longitude.toFixed(8);
+        setNotice(previewId, '✅ ' + pos.coords.latitude.toFixed(6) + ', ' + pos.coords.longitude.toFixed(6) + ' (±' + Math.round(pos.coords.accuracy) + ' m)', 'success');
+      }, function (err) {
+        btn.disabled = false; btn.textContent = '\u{1F4CD} Gunakan Lokasi Saya';
+        const msg = err.code === 1 ? 'Izin lokasi ditolak.' : err.code === 2 ? 'Lokasi tidak tersedia.' : 'Timeout.';
+        setNotice(errorId, '⚠️ ' + msg + ' Masukkan koordinat manual.', 'error');
+      }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
+    }
+
+    // ── Aturan Absensi ─────────────────────────────────────────────────────────
+    function getAturanFiltered() {
+      const q = state.aturanQ.toLowerCase();
+      return state.aturan.filter(function (a) { return !q || (a.pengurusNama + ' ' + a.namaLokasi).toLowerCase().includes(q); });
+    }
+
+    function renderAturanList() {
+      const filtered = getAturanFiltered();
+      state.aturanTotal = filtered.length;
+      state.aturanTotalPages = Math.max(1, Math.ceil(state.aturanTotal / state.aturanPageSize));
+      if (state.aturanPage > state.aturanTotalPages) state.aturanPage = state.aturanTotalPages;
+      const start = (state.aturanPage - 1) * state.aturanPageSize;
+      const pageItems = filtered.slice(start, start + state.aturanPageSize);
+      if (!filtered.length) {
+        document.getElementById('aturanList').innerHTML = '';
+        setNotice('emptyAturan', state.aturanQ ? 'Tidak ada aturan yang sesuai.' : 'Belum ada aturan absensi. Klik "+ Tambah Aturan".', 'info');
+      } else {
+        clearNotice('emptyAturan');
+        document.getElementById('aturanList').innerHTML = pageItems.map(renderAturanCard).join('');
+      }
+      const mu = pagingMarkup(state.aturanPage, state.aturanTotalPages, state.aturanTotal);
+      window.PSUI.syncPaginationHosts({ markup: mu, visibleCount: pageItems.length, totalCount: state.aturanTotal, minimumCount: 0, topId: 'aturanPaginationTop', bottomId: 'aturanPaginationBottom' });
+    }
+
+    function renderAturanCard(a) {
+      const hariList = (a.hariWajib || '').split(',').filter(Boolean).map(function (h) { return HARI_LABEL[h] || h; });
+      const hariText = hariList.length ? hariList.join(', ') : 'Setiap hari';
+      const jamText = a.jamMasuk
+        ? (a.jamMasuk + ' (buka -' + (a.toleransiSebelumMenit || 0) + 'm, batas +' + (a.toleransiTerlambatMenit || 0) + 'm)')
+        : 'Bebas';
+      const koordinat = a.lat != null && a.lng != null ? (Number(a.lat).toFixed(5) + ', ' + Number(a.lng).toFixed(5)) : '—';
+      const mapUrl = a.lat != null && a.lng != null ? 'https://www.google.com/maps?q=' + a.lat + ',' + a.lng : null;
+      const pengurusItem = state.pengurus.find(function (p) { return String(p.id) === String(a.idPengurus); });
+      const jabatan = pengurusItem && pengurusItem.jabatanDisplay ? pengurusItem.jabatanDisplay : '';
+      return '<div class="card minimal-list-card">' +
+        '<div class="ka-card-head">' +
+          '<div class="ka-card-main">' +
+            '<div class="ka-card-title"><strong>' + esc(a.pengurusNama || '—') + '</strong>' + (jabatan ? '<span class="pill pill-hari">' + esc(jabatan) + '</span>' : '') + '</div>' +
+            '<span class="ka-card-hint">&#x1F4CD; ' + esc(a.namaLokasi || 'Lokasi') + ' &nbsp;·&nbsp; Radius ' + esc(String(a.radiusMeter || 20)) + ' m</span>' +
+          '</div>' +
+          '<div class="ka-card-actions"><button type="button" class="secondary" data-aturan-edit="' + esc(a.id) + '">Edit</button>' + (canManageRecords() ? '<button type="button" class="danger" data-aturan-delete="' + esc(a.id) + '">Hapus</button>' : '') + '</div>' +
+        '</div>' +
+        '<div class="ka-card-body">' +
+          '<div class="ka-card-meta">' +
+            '<span class="pill pill-hari">&#x1F4C5; ' + esc(hariText) + '</span>' +
+            '<span class="pill pill-lokasi">&#x23F0; ' + jamText + '</span>' +
+          '</div>' +
+          '<div class="ka-card-summary">' +
+            '<p><strong>Koordinat</strong> <span class="coord-mono">' + esc(koordinat) + '</span></p>' +
+            (a.keterangan ? '<p><strong>Catatan</strong> ' + esc(a.keterangan) + '</p>' : '') +
+          '</div>' +
+          (mapUrl ? '<a class="ka-maps-link" href="' + esc(mapUrl) + '" target="_blank" rel="noopener">Lihat di Google Maps &nearr;</a>' : '') +
+        '</div>' +
+        '</div>';
+    }
+
+    async function loadAturan() {
+      try {
+        const data = await api({ action: 'koordinat.absensi.list' });
+        state.aturan = data.items || [];
+        state.aturanPage = 1;
+        renderAturanList();
+      } catch (e) { showNotice('Gagal memuat aturan: ' + e.message, 'error'); }
+    }
+
+    async function loadPengurus() {
+      try {
+        const data = await api({ action: 'pengurus.dropdown' });
+        state.pengurus = data.items || [];
+        const sel = document.getElementById('aturanPengurus');
+        sel.innerHTML = '<option value="">-- Pilih pengurus --</option>';
+        state.pengurus.forEach(function (p) {
+          const opt = document.createElement('option');
+          opt.value = p.id;
+          opt.textContent = p.name + (p.jabatanDisplay ? ' — ' + p.jabatanDisplay : '');
+          sel.appendChild(opt);
+        });
+      } catch (_) {}
+    }
+
+    function getCheckedHari() {
+      return Array.from(document.querySelectorAll('input[name="hari"]:checked')).map(function (cb) { return cb.value; }).join(',');
+    }
+
+    function setCheckedHari(hariStr) {
+      document.querySelectorAll('input[name="hari"]').forEach(function (cb) { cb.checked = false; });
+      if (!hariStr) return;
+      hariStr.split(',').forEach(function (h) {
+        const cb = document.querySelector('input[name="hari"][value="' + h.trim() + '"]');
+        if (cb) cb.checked = true;
+      });
+    }
+
+    function openAturanDialog(item) {
+      state.editingAturanId = item ? item.id : null;
+      document.getElementById('aturanDialogTitle').textContent = item ? 'Edit Aturan Absensi' : 'Tambah Aturan Absensi';
+      document.getElementById('aturanPengurus').value = item ? (item.idPengurus || '') : '';
+      document.getElementById('aturanLokasi').value = item ? (item.idLokasi || '') : '';
+      document.getElementById('aturanRadius').value = item ? (item.radiusMeter || 20) : 20;
+      setCheckedHari(item ? (item.hariWajib || '') : '');
+      document.getElementById('aturanJamMasuk').value = item ? (item.jamMasuk || '') : '';
+      document.getElementById('aturanTolSebelum').value = item && item.toleransiSebelumMenit != null ? item.toleransiSebelumMenit : 10;
+      document.getElementById('aturanTolTerlambat').value = item && item.toleransiTerlambatMenit != null ? item.toleransiTerlambatMenit : 10;
+      document.getElementById('aturanKeterangan').value = item ? (item.keterangan || '') : '';
+      clearNotice('aturanDialogError');
+      document.getElementById('aturanDialog').showModal();
+    }
+
+    function closeAturanDialog() { document.getElementById('aturanDialog').close(); state.editingAturanId = null; }
+
+    async function saveAturanDialog() {
+      const idPengurus = document.getElementById('aturanPengurus').value;
+      const idLokasi = document.getElementById('aturanLokasi').value;
+      const radius = document.getElementById('aturanRadius').value.trim();
+      if (!idPengurus) { setNotice('aturanDialogError', 'Pilih pengurus terlebih dahulu.', 'error'); return; }
+      if (!idLokasi) { setNotice('aturanDialogError', 'Pilih lokasi absensi terlebih dahulu.', 'error'); return; }
+      if (!radius || isNaN(parseInt(radius, 10)) || parseInt(radius, 10) < 1) { setNotice('aturanDialogError', 'Radius harus angka minimal 1.', 'error'); return; }
+      const payload = {
+        action: 'koordinat.absensi.save',
+        idPengurus: idPengurus,
+        idLokasi: idLokasi,
+        radiusMeter: parseInt(radius, 10),
+        hariWajib: getCheckedHari(),
+        jamMasuk: document.getElementById('aturanJamMasuk').value,
+        toleransiSebelumMenit: parseInt(document.getElementById('aturanTolSebelum').value, 10) || 0,
+        toleransiTerlambatMenit: parseInt(document.getElementById('aturanTolTerlambat').value, 10) || 0,
+        keterangan: document.getElementById('aturanKeterangan').value.trim()
+      };
+      if (state.editingAturanId) payload.id = state.editingAturanId;
+      const btn = document.getElementById('btnAturanSimpan');
+      btn.disabled = true; btn.textContent = 'Menyimpan...';
+      clearNotice('aturanDialogError');
+      try {
+        await apiPost(payload);
+        closeAturanDialog();
+        showNotice(state.editingAturanId ? 'Aturan diperbarui.' : 'Aturan absensi ditambahkan.', 'success');
+        await loadAturan();
+      } catch (e) {
+        setNotice('aturanDialogError', e.message || 'Gagal menyimpan.', 'error');
+      } finally { btn.disabled = false; btn.textContent = 'Simpan'; }
+    }
+
+    // ── Hapus ─────────────────────────────────────────────────────────────────
+    function openHapus(id, type) {
+      state.deletingId = id;
+      state.deletingType = type;
+      if (type === 'lokasi') {
+        const item = state.lokasi.find(function (l) { return l.id === id; });
+        document.getElementById('hapusDesc').textContent = item ? ('"' + item.namaLokasi + '" akan dihapus permanen dari master lokasi.') : 'Lokasi ini akan dihapus permanen.';
+      } else {
+        const item = state.aturan.find(function (a) { return a.id === id; });
+        document.getElementById('hapusDesc').textContent = item ? ('Aturan absensi untuk "' + (item.pengurusNama || '—') + '" akan dihapus permanen.') : 'Aturan ini akan dihapus permanen.';
+      }
+      clearNotice('hapusError');
+      document.getElementById('hapusDialog').showModal();
+    }
+
+    async function hapus() {
+      if (!state.deletingId) return;
+      const btn = document.getElementById('btnHapusOk');
+      btn.disabled = true; btn.textContent = 'Menghapus...';
+      const action = state.deletingType === 'lokasi' ? 'lokasi.absensi.delete' : 'koordinat.absensi.delete';
+      try {
+        await apiPost({ action: action, id: state.deletingId });
+        document.getElementById('hapusDialog').close();
+        showNotice('Data dihapus.', 'success');
+        if (state.deletingType === 'lokasi') await loadLokasi();
+        else await loadAturan();
+        state.deletingId = null; state.deletingType = null;
+      } catch (e) {
+        setNotice('hapusError', e.message || 'Gagal menghapus.', 'error');
+      } finally { btn.disabled = false; btn.textContent = 'Hapus'; }
+    }
+
+    // ── Tabs ──────────────────────────────────────────────────────────────────
+    document.querySelectorAll('.tab-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        document.querySelectorAll('.tab-btn').forEach(function (b) { b.classList.remove('active'); });
+        document.querySelectorAll('.tab-panel').forEach(function (p) { p.classList.remove('active'); });
+        btn.classList.add('active');
+        const id = 'tab' + btn.dataset.tab.charAt(0).toUpperCase() + btn.dataset.tab.slice(1);
+        const panel = document.getElementById(id);
+        if (panel) panel.classList.add('active');
+      });
+    });
+
+    // ── Events ────────────────────────────────────────────────────────────────
+    document.getElementById('btnTambahLokasi').addEventListener('click', function () { openLokasiDialog(null); });
+    document.getElementById('searchLokasi').addEventListener('input', function () { state.lokasiQ = this.value; state.lokasiPage = 1; renderLokasiList(); });
+    document.getElementById('btnLokasiSimpan').addEventListener('click', saveLokasiDialog);
+    document.getElementById('btnLokasiCancel').addEventListener('click', closeLokasiDialog);
+    document.getElementById('btnLokasiClose').addEventListener('click', closeLokasiDialog);
+    document.getElementById('btnLokasiGetGeo').addEventListener('click', function () { getMyLocationFor('lokasiLat', 'lokasiLng', 'lokasiGeoPreview', 'lokasiDialogError'); });
+
+    document.getElementById('lokasiList').addEventListener('click', function (e) {
+      const edit = e.target.closest('[data-lokasi-edit]');
+      const del = e.target.closest('[data-lokasi-delete]');
+      if (edit) { const item = state.lokasi.find(function (l) { return l.id === edit.dataset.lokasiEdit; }); if (item) openLokasiDialog(item); }
+      else if (del) openHapus(del.dataset.lokasiDelete, 'lokasi');
+    });
+    ['lokasiPaginationTop', 'lokasiPaginationBottom'].forEach(function (id) {
+      document.getElementById(id).addEventListener('click', function (e) {
+        const btn = e.target.closest('[data-page]');
+        if (!btn || btn.disabled) return;
+        const p = parseInt(btn.dataset.page, 10);
+        if (isNaN(p) || p < 1 || p > state.lokasiTotalPages) return;
+        state.lokasiPage = p; renderLokasiList(); window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+    });
+
+    document.getElementById('btnTambahAturan').addEventListener('click', function () { openAturanDialog(null); });
+    document.getElementById('searchAturan').addEventListener('input', function () { state.aturanQ = this.value; state.aturanPage = 1; renderAturanList(); });
+    document.getElementById('btnAturanSimpan').addEventListener('click', saveAturanDialog);
+    document.getElementById('btnAturanCancel').addEventListener('click', closeAturanDialog);
+    document.getElementById('btnAturanClose').addEventListener('click', closeAturanDialog);
+
+    document.getElementById('aturanList').addEventListener('click', function (e) {
+      const edit = e.target.closest('[data-aturan-edit]');
+      const del = e.target.closest('[data-aturan-delete]');
+      if (edit) { const item = state.aturan.find(function (a) { return a.id === edit.dataset.aturanEdit; }); if (item) openAturanDialog(item); }
+      else if (del) openHapus(del.dataset.aturanDelete, 'aturan');
+    });
+    ['aturanPaginationTop', 'aturanPaginationBottom'].forEach(function (id) {
+      document.getElementById(id).addEventListener('click', function (e) {
+        const btn = e.target.closest('[data-page]');
+        if (!btn || btn.disabled) return;
+        const p = parseInt(btn.dataset.page, 10);
+        if (isNaN(p) || p < 1 || p > state.aturanTotalPages) return;
+        state.aturanPage = p; renderAturanList(); window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+    });
+
+    document.getElementById('btnHapusOk').addEventListener('click', hapus);
+    document.getElementById('btnHapusBatal').addEventListener('click', function () { document.getElementById('hapusDialog').close(); state.deletingId = null; state.deletingType = null; });
+
+    // ── Init ──────────────────────────────────────────────────────────────────
+    window.addEventListener('DOMContentLoaded', async function () {
+      if (window.PSAccess && window.PSAccess.redirectIfForbidden(getStoredSession(), 'koordinatAbsensi.html')) return;
+      if (window.PSShell) {
+        window.PSShell.mount({
+          currentPage: window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : '/pages/koordinatAbsensi/',
+          session: getStoredSession(), getStoredSession: getStoredSession, storageKey: STORAGE.session
+        });
+      }
+      const canManage = canManageRecords();
+      const lockMsg = 'Mudir hanya bisa melihat data koordinat/aturan absensi, tidak bisa mengubah data.';
+      window.PSUI.applyPermissionLock(document.getElementById('btnTambahLokasi'), canManage, lockMsg);
+      window.PSUI.applyPermissionLock(document.getElementById('btnLokasiSimpan'), canManage, lockMsg);
+      window.PSUI.applyPermissionLock(document.getElementById('btnTambahAturan'), canManage, lockMsg);
+      window.PSUI.applyPermissionLock(document.getElementById('btnAturanSimpan'), canManage, lockMsg);
+      await Promise.all([loadLokasi(), loadAturan(), loadPengurus()]);
+    });
+  </script>
+</body>
+</html>

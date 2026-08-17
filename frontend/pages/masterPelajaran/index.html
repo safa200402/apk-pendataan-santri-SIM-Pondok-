@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#9e2f22">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="../../shared-ui.css">
+  <script src="../../shared-ui.js"></script>
+  <title>Master Pelajaran</title>
+  <link rel="stylesheet" href="../../shared-shell.css">
+  <link rel="stylesheet" href="../../vendor/fontawesome/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700&display=swap');
+    :root {
+      --paper: #f6efe0; --ink: #4d4034; --muted: #7b6a58;
+      --line: rgba(91,73,57,0.15); --accent: #b97650;
+      --success: #74846c; --danger: #a55a52; --warning: #b58439;
+      --shadow: 0 18px 45px rgba(87,67,51,0.18); --radius: 24px;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; }
+    body::before { content:''; position:fixed; inset:0; pointer-events:none; opacity:0.15; mix-blend-mode:multiply; }
+    body::after  { content:''; position:fixed; inset:0; pointer-events:none; opacity:0.23; }
+    h1,h2,h3 { margin:0 0 10px; text-transform:uppercase; }
+    p { margin:0; line-height:1.65; }
+    .nav a, button { font-weight:800 !important; text-transform:uppercase; }
+    .panel { padding:22px; }
+    .toolbar { display:flex; flex-wrap:wrap; gap:10px; margin-top:16px; }
+    .filters { display:grid; gap:12px; margin-top:16px; }
+    button, input, select, textarea { font:inherit; }
+    button { padding:12px 18px; font-weight:700; cursor:pointer; }
+    .primary { box-shadow:0 14px 28px rgba(185,118,80,0.22); }
+    input, select, textarea { width:100%; padding:13px 14px; outline:none; }
+    label { display:grid; gap:7px; font-size:14px; font-weight:600; }
+    .list { display:grid; gap:14px; margin-top:16px; }
+    .pill { display:inline-flex; padding:5px 10px; font-size:12px; font-weight:700; border-radius:21px; }
+    .notice { display:none; padding:14px 16px; line-height:1.55; }
+    .notice.show { display:block; }
+    dialog { padding:0; }
+    .dialog-body { padding:21px !important; display:flex; flex-direction:column; gap:14px; max-height:90vh; overflow:auto; }
+    .section-head { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+    .field-grid { display:grid; gap:12px; margin-top:12px; }
+    .form-row-2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    @media(max-width:600px) { .form-row-2 { grid-template-columns:1fr; } }
+
+    /* ── Pelajaran card ── */
+    .pel-card { border-radius:18px; overflow:hidden; background: rgba(242, 222, 154, 0.96) !important;}
+    .pel-header {
+      display:flex; align-items:center; gap:12px;
+      padding:14px 16px; cursor:pointer; user-select:none;
+    }
+    .pel-icon {
+      width:42px; height:42px; border-radius:12px;
+      background:rgba(91,73,57,0.1); display:flex; align-items:center;
+      justify-content:center; font-size:20px; flex-shrink:0;
+    }
+    .pel-info { flex:1; min-width:0; }
+    .pel-nama { font-size:15px; font-weight:800; text-transform:uppercase; }
+    .pel-meta { font-size:12px; color:var(--muted); margin-top:3px; }
+    .pel-badges { display:flex; gap:6px; flex-shrink:0; flex-wrap:wrap; align-items:center; }
+    .pel-chevron { font-size:11px; color:var(--muted); transition:transform .2s; margin-left:4px; }
+    .pel-card.expanded .pel-chevron { transform:rotate(180deg); }
+
+    .pel-body { display:none; border-top:1px solid var(--line); padding:14px 16px; }
+    .pel-card.expanded .pel-body { display:block; }
+
+    .pel-desc { font-size:13px; color:var(--muted); line-height:1.6; margin-bottom:12px; }
+
+    .pel-actions { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+    .btn-sm { padding:7px 12px !important; font-size:12px !important; }
+
+    /* ── Level list ── */
+    .level-list { display:grid; gap:8px; }
+    .level-row {
+      display:flex; align-items:flex-start; gap:10px;
+      padding:10px 12px; border-radius:12px;
+      background:rgba(91,73,57,0.04); border:1px solid var(--line);
+    }
+    .level-order {
+      min-width:26px; height:26px; border-radius:50%;
+      background:var(--accent); color:#fff;
+      display:grid; place-items:center; font-size:11px; font-weight:700; flex-shrink:0; margin-top:2px;
+    }
+    .level-info { flex:1; min-width:0; }
+    .level-nama { font-size:14px; font-weight:700; }
+    .level-prasyarat { font-size:12px; color:var(--muted); margin-top:4px; }
+    .level-actions { display:flex; gap:6px; align-items:center; flex-shrink:0; flex-wrap:wrap; }
+
+    .pill-aktif    { background:rgba(116,132,108,0.15); color:#3a6040; }
+    .pill-nonaktif { background:rgba(165,90,82,0.12); color:#a55a52; }
+
+    /* ── Dialogs ── */
+    .duplicate-dialog-head { position:sticky; top:0; z-index:2; margin:0 -22px; padding:18px 22px 14px; display:grid; gap:10px; }
+    .duplicate-dialog-title { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+    .duplicate-close { width:46px; min-width:46px; min-height:46px; padding:0; border-radius:999px !important; font-size:24px; line-height:1; }
+    .ps-dialog-footer { position:sticky; bottom:0; margin:0 -22px -22px; padding:14px 22px; }
+    .duplicate-dialog-body { gap:16px; padding-top:0; }
+
+    /* ── Confirm danger dialog ── */
+    .danger-dialog { width:min(480px,calc(100vw - 20px)); }
+    .danger-dialog-head { display:grid; gap:8px; }
+    .danger-msg { font-size:14px; line-height:1.6; }
+
+    .paging-host { display:grid; gap:8px; margin:3px 0; }
+    .paging { display:grid; grid-template-columns:auto 1fr auto; gap:12px; align-items:center; }
+    .page-center { display:grid; gap:8px; justify-items:center; }
+    .page-numbers { display:flex; flex-wrap:wrap; justify-content:center; gap:8px; }
+    .page-summary { font-size:12px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; }
+    @media(max-width:600px) { .paging { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-left">
+      <button class="drawer-toggle" id="navToggle" type="button" aria-label="Toggle sidebar">Menu</button>
+      <div class="header-brand">Pendataan Santri</div>
+      <div class="header-page">Master Pelajaran</div>
+    </div>
+    <div class="header-right">
+      <span class="header-chip" id="headerRole"></span>
+    </div>
+  </header>
+  <div class="drawer-backdrop" id="navBackdrop"></div>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+  <main>
+    <div class="app-layout">
+      <section class="panel nav" id="nav"></section>
+      <div class="content-stack">
+        <section class="notice info" id="notice"></section>
+        <section class="panel">
+          <div class="section-head">
+            <h2>Daftar Pelajaran</h2>
+          </div>
+          <div class="filters">
+            <label>
+              Cari nama pelajaran / buku
+              <input type="search" id="searchInput" placeholder="Mis. Nahwu, Shorof...">
+            </label>
+            <label>
+              Status
+              <select id="statusFilter">
+                <option value="aktif">Aktif</option>
+                <option value="">Semua</option>
+                <option value="nonaktif">Nonaktif</option>
+              </select>
+            </label>
+            <label>
+              Jumlah per halaman
+              <select id="pageSizeSelect">
+                <option value="10">10</option>
+                <option value="25" selected>25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </label>
+          </div>
+          <div class="toolbar">
+            <button class="primary" id="addPelajaranBtn" type="button">+ Tambah Pelajaran</button>
+            <button class="secondary" id="refreshBtn" type="button">Muat Ulang</button>
+          </div>
+          <div class="paging-host" id="paginationTop"></div>
+          <div class="list" id="pelajaranList">
+            <p style="color:var(--muted);text-align:center;padding:20px 0">Memuat data...</p>
+          </div>
+          <div class="paging-host" id="paginationBottom"></div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <!-- Dialog: Edit Pelajaran -->
+  <dialog class="ps-floating-dialog" id="pelDialog">
+    <form class="dialog-body duplicate-dialog-body ps-dialog-shell" id="pelForm" method="dialog">
+      <div class="duplicate-dialog-head ps-dialog-header">
+        <div class="duplicate-dialog-title">
+          <h3 id="pelDialogTitle">Tambah Pelajaran</h3>
+          <button class="secondary duplicate-close" type="button" id="closePelDialog">&times;</button>
+        </div>
+      </div>
+      <input type="hidden" id="pelId">
+      <div class="field-grid">
+        <label>Nama Pelajaran <input type="text" id="pelNama" placeholder="Mis. Nahwu Wadhih" required></label>
+        <label>Nama Buku <input type="text" id="pelBuku" placeholder="Mis. An-Nahwu al-Wadhih Jilid 1"></label>
+        <label>Deskripsi / Catatan <textarea id="pelDeskripsi" rows="3" placeholder="Keterangan tambahan..."></textarea></label>
+        <label>Status
+          <select id="pelStatus">
+            <option value="aktif">Aktif</option>
+            <option value="nonaktif">Nonaktif</option>
+          </select>
+        </label>
+        <div id="pelPrasyaratWrap">
+          <div style="font-size:14px;font-weight:600;margin-bottom:6px">Prasyarat Pelajaran (jika tidak ada level)</div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:8px">Hanya berlaku jika pelajaran ini <strong>tidak memiliki level</strong>. Jika ada level, prasyarat diatur per level.</div>
+          <div id="pelPrasyaratList" style="display:grid;gap:8px;margin-bottom:8px"></div>
+          <button type="button" class="secondary btn-sm" id="addPelPrasyaratBtn">+ Tambah Prasyarat</button>
+        </div>
+      </div>
+      <div class="toolbar ps-dialog-footer">
+        <button class="primary" type="submit" id="pelSaveBtn">Simpan</button>
+        <button class="secondary" type="button" id="closePelDialog2">Batal</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Dialog: Edit Level -->
+  <dialog class="ps-floating-dialog" id="levelDialog">
+    <form class="dialog-body duplicate-dialog-body ps-dialog-shell" id="levelForm" method="dialog">
+      <div class="duplicate-dialog-head ps-dialog-header">
+        <div class="duplicate-dialog-title">
+          <h3 id="levelDialogTitle">Tambah Level</h3>
+          <button class="secondary duplicate-close" type="button" id="closeLevelDialog">&times;</button>
+        </div>
+      </div>
+      <input type="hidden" id="levelId">
+      <input type="hidden" id="levelPelajaranId">
+      <div class="field-grid">
+        <label>Nama Level <input type="text" id="levelNama" placeholder="Mis. Level 1 – Dasar" required></label>
+        <div>
+          <div style="font-size:14px;font-weight:600;margin-bottom:8px">Prasyarat (opsional)</div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:8px">Pelajaran + level yang harus selesai sebelum level ini. Hanya sebagai informasi, tidak memblokir input.</div>
+          <div id="prasyaratList" style="display:grid;gap:8px;margin-bottom:8px"></div>
+          <button type="button" class="secondary btn-sm" id="addPrasyaratBtn">+ Tambah Prasyarat</button>
+        </div>
+      </div>
+      <div class="toolbar ps-dialog-footer">
+        <button class="primary" type="submit" id="levelSaveBtn">Simpan</button>
+        <button class="secondary" type="button" id="closeLevelDialog2">Batal</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Dialog: Confirm Hapus Pelajaran -->
+  <dialog class="ps-floating-dialog danger-dialog" id="confirmHapusPelDialog">
+    <div class="dialog-body duplicate-dialog-body ps-dialog-shell">
+      <div class="duplicate-dialog-head ps-dialog-header danger-dialog-head">
+        <div>
+          <h3>Hapus Pelajaran</h3>
+          <p class="danger-msg" id="confirmHapusPelMsg"></p>
+        </div>
+      </div>
+      <div class="toolbar ps-dialog-footer">
+        <button class="danger" type="button" id="confirmHapusPelOk">Hapus</button>
+        <button class="secondary" type="button" id="confirmHapusPelBatal">Batal</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Dialog: Confirm Hapus Level -->
+  <dialog class="ps-floating-dialog danger-dialog" id="confirmHapusLevelDialog">
+    <div class="dialog-body duplicate-dialog-body ps-dialog-shell">
+      <div class="duplicate-dialog-head ps-dialog-header danger-dialog-head">
+        <h3>Hapus Level</h3>
+        <p class="danger-msg" id="confirmHapusLevelMsg"></p>
+      </div>
+      <div class="toolbar ps-dialog-footer">
+        <button class="danger" type="button" id="confirmHapusLevelOk">Hapus</button>
+        <button class="secondary" type="button" id="confirmHapusLevelBatal">Batal</button>
+      </div>
+    </div>
+  </dialog>
+
+  <script src="../../shared-access.js"></script>
+  <script src="../../shared-nav.js"></script>
+  <script src="../../shared-shell.js"></script>
+  <script>
+    'use strict';
+    var STORAGE = { token: 'ps_token', session: 'ps_session' };
+    function getStoredSession() { try { return JSON.parse(localStorage.getItem(STORAGE.session) || 'null'); } catch (_) { return null; } }
+    function clearSession() { localStorage.removeItem(STORAGE.session); localStorage.removeItem(STORAGE.token); }
+    function mountShell(session) { return window.PSShell.mount({ currentPage: window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : 'masterPelajaran.html', session: session, getStoredSession: getStoredSession, storageKey: STORAGE.session }); }
+
+    var _session = null;
+    var _pelajaranRows = [];      // halaman saat ini
+    var _allPelajaranRows = [];   // semua hasil filter
+    var _levelMap = {};
+    var _allPelajaran = [];
+    var _hapusPelId = null;
+    var _hapusLevelId = null;
+    var _prasyaratItems = [];
+    var _pelPrasyaratItems = [];
+    var _page = 1;
+    var _pageSize = 25;
+    var _total = 0;
+    var _totalPages = 1;
+
+    function api(action, payload, cb) {
+      var s = getStoredSession();
+      var method = (action.endsWith('.list') || action.endsWith('.detail')) ? 'GET' : 'POST';
+      var url = '/api?action=' + encodeURIComponent(action) + '&token=' + encodeURIComponent((s && s.token) || '');
+      if (method === 'GET' && payload) {
+        Object.keys(payload).forEach(function(k) { url += '&' + encodeURIComponent(k) + '=' + encodeURIComponent(payload[k] || ''); });
+      }
+      var opts = { method: method, credentials: 'include' };
+      if (method === 'POST') {
+        opts.headers = { 'Content-Type': 'application/json' };
+        opts.body = JSON.stringify(Object.assign({ token: (s && s.token) || '' }, payload));
+      }
+      fetch(url, opts).then(function(r) { return r.json(); }).then(cb).catch(function(e) { cb({ ok: false, error: e.message }); });
+    }
+
+    function showToast(msg, type) { if (window.showNotice) showNotice(msg, type || 'info'); }
+
+    function canManagePelajaranScoped() {
+      return !!(_session && _session.permissions && _session.permissions.canManagePelajaran);
+    }
+
+    // ── Pagination helpers ──────────────────────────────────────────────────────
+    function buildPaginationList(page, totalPages) {
+      var maxNumbers = 10;
+      if (totalPages <= maxNumbers) {
+        var pages = []; for (var i = 1; i <= totalPages; i++) pages.push(i); return pages;
+      }
+      var middleSlots = maxNumbers - 2;
+      var pages = [1];
+      var start = Math.max(2, page - Math.floor(middleSlots / 2));
+      var end = start + middleSlots - 1;
+      if (end > totalPages - 1) { end = totalPages - 1; start = end - middleSlots + 1; }
+      if (start > 2) pages.push('...');
+      for (var v = start; v <= end; v++) pages.push(v);
+      if (end < totalPages - 1) pages.push('...');
+      pages.push(totalPages);
+      return pages;
+    }
+
+    function renderPagination() {
+      var markup = _total ? (
+        '<div class="paging">' +
+          '<button class="secondary" type="button" data-page="' + (_page - 1) + '"' + (_page <= 1 ? ' disabled' : '') + '>Sebelumnya</button>' +
+          '<div class="page-center">' +
+            '<div class="page-numbers">' +
+              buildPaginationList(_page, _totalPages).map(function(item) {
+                return item === '...'
+                  ? '<span class="page-summary">...</span>'
+                  : '<button class="secondary page-btn' + (item === _page ? ' active' : '') + '" type="button" data-page="' + item + '">' + item + '</button>';
+              }).join('') +
+            '</div>' +
+            '<div class="page-summary">Halaman ' + _page + ' dari ' + _totalPages + ' | total ' + _total + ' pelajaran</div>' +
+          '</div>' +
+          '<button class="secondary" type="button" data-page="' + (_page + 1) + '"' + (_page >= _totalPages ? ' disabled' : '') + '>Berikutnya</button>' +
+        '</div>'
+      ) : '';
+      window.PSUI.syncPaginationHosts({ markup: markup, visibleCount: _pelajaranRows.length, totalCount: _total, topId: 'paginationTop', bottomId: 'paginationBottom' });
+    }
+
+    // ── Render ─────────────────────────────────────────────────────────────────
+    function loadPelajaran() {
+      var search = document.getElementById('searchInput').value.trim().toLowerCase();
+      var status = document.getElementById('statusFilter').value;
+      api('pelajaran.list', { status: status }, function(res) {
+        if (!res.ok) { showToast(res.error || 'Gagal memuat data', 'error'); return; }
+        _allPelajaranRows = res.data.items.filter(function(r) {
+          if (!search) return true;
+          return (r.nama || '').toLowerCase().includes(search) || (r.nama_buku || '').toLowerCase().includes(search);
+        });
+        _total = _allPelajaranRows.length;
+        _totalPages = Math.max(1, Math.ceil(_total / _pageSize));
+        if (_page > _totalPages) _page = _totalPages;
+        var start = (_page - 1) * _pageSize;
+        _pelajaranRows = _allPelajaranRows.slice(start, start + _pageSize);
+        renderPelajaranList();
+        renderPagination();
+      });
+    }
+
+    function renderPelajaranList() {
+      var el = document.getElementById('pelajaranList');
+      if (!_pelajaranRows.length) {
+        el.innerHTML = '<p style="color:var(--muted);text-align:center;padding:20px 0">Belum ada pelajaran.</p>';
+        renderPagination();
+        return;
+      }
+      var isSuperAdmin = _session && _session.permissions && _session.permissions.isSuperAdmin;
+      el.innerHTML = _pelajaranRows.map(function(r) {
+        var statusPill = r.status === 'nonaktif'
+          ? '<span class="pill pill-nonaktif">Nonaktif</span>'
+          : '<span class="pill pill-aktif">Aktif</span>';
+        var noLevelPill = r.levelCount === 0 ? '<span class="pill" style="background:rgba(91,73,57,0.08);color:var(--muted)">Tanpa level</span>' : '';
+        var levelCountText = r.levelCount > 0 ? r.levelCount + ' level' : 'Tanpa level';
+        var prasyaratInfo = '';
+        if (r.levelCount === 0 && r.prasyarat && r.prasyarat.length) {
+          prasyaratInfo = '<div style="font-size:12px;color:var(--muted);margin-top:6px;margin-bottom:10px">Prasyarat: ' +
+            r.prasyarat.map(function(pr) { return escHtml(pr.pelajaran_nama || pr.pelajaran_id) + (pr.level_nama ? ' – ' + escHtml(pr.level_nama) : ''); }).join(', ') +
+          '</div>';
+        }
+        return '<div class="card pel-card" id="pel-' + r.id + '">' +
+          '<div class="pel-header" onclick="togglePel(\'' + r.id + '\')">' +
+            '<div class="pel-icon"><i class="fa-solid fa-book-open"></i></div>' +
+            '<div class="pel-info">' +
+              '<div class="pel-nama">' + escHtml(r.nama) + '</div>' +
+              '<div class="pel-meta">' + (r.nama_buku ? escHtml(r.nama_buku) + ' · ' : '') + levelCountText + '</div>' +
+            '</div>' +
+            '<div class="pel-badges">' + noLevelPill + statusPill + '<span class="pel-chevron"><i class="fa-solid fa-chevron-down"></i></span></div>' +
+          '</div>' +
+          '<div class="pel-body">' +
+            (r.deskripsi ? '<p class="pel-desc">' + escHtml(r.deskripsi) + '</p>' : '') +
+            prasyaratInfo +
+            '<div class="pel-actions">' +
+              '<button class="secondary btn-sm" onclick="editPelajaran(\'' + r.id + '\')"><i class="fa-solid fa-pen"></i> Edit</button>' +
+              '<button class="secondary btn-sm" onclick="openAddLevel(\'' + r.id + '\')"><i class="fa-solid fa-plus"></i> Tambah Level</button>' +
+              (isSuperAdmin ? '<button class="danger btn-sm" onclick="showConfirmHapusPel(\'' + r.id + '\')"><i class="fa-solid fa-trash"></i> Hapus</button>' : '') +
+            '</div>' +
+            '<div class="level-list" id="levels-' + r.id + '"><p style="color:var(--muted);font-size:13px">Klik untuk memuat level...</p></div>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+    }
+
+    function escHtml(s) {
+      return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function togglePel(id) {
+      var card = document.getElementById('pel-' + id);
+      if (!card) return;
+      var wasExpanded = card.classList.contains('expanded');
+      card.classList.toggle('expanded');
+      if (!wasExpanded) loadLevels(id);
+    }
+
+    function loadLevels(pelajaranId) {
+      var el = document.getElementById('levels-' + pelajaranId);
+      if (!el) return;
+      el.innerHTML = '<p style="color:var(--muted);font-size:13px">Memuat level...</p>';
+      api('pelajaran.level.list', { pelajaran_id: pelajaranId }, function(res) {
+        if (!res.ok) { el.innerHTML = '<p style="color:var(--danger);font-size:13px">Gagal memuat level.</p>'; return; }
+        _levelMap[pelajaranId] = res.data.levels;
+        if (res.data.allPelajaran) _allPelajaran = res.data.allPelajaran;
+        renderLevelList(pelajaranId);
+      });
+    }
+
+    function renderLevelList(pelajaranId) {
+      var el = document.getElementById('levels-' + pelajaranId);
+      if (!el) return;
+      var levels = _levelMap[pelajaranId] || [];
+      if (!levels.length) { el.innerHTML = '<p style="color:var(--muted);font-size:13px;padding:8px 0">Belum ada level.</p>'; return; }
+      el.innerHTML = levels.map(function(l, idx) {
+        var prasyaratText = '';
+        if (l.prasyarat && l.prasyarat.length) {
+          prasyaratText = '<div class="level-prasyarat">Prasyarat: ' +
+            l.prasyarat.map(function(pr) { return escHtml(pr.pelajaran_nama || pr.pelajaran_id) + ' – ' + escHtml(pr.level_nama || pr.level_id); }).join(', ') + '</div>';
+        }
+        var canManage = canManagePelajaranScoped();
+        return '<div class="level-row">' +
+          '<div class="level-order">' + (idx + 1) + '</div>' +
+          '<div class="level-info">' +
+            '<div class="level-nama">' + escHtml(l.nama_level) + '</div>' +
+            prasyaratText +
+          '</div>' +
+          '<div class="level-actions">' +
+            (idx > 0 ? '<button class="secondary btn-sm"' + (canManage ? '' : ' disabled aria-disabled="true" title="Mudir hanya bisa melihat data pelajaran, tidak bisa mengubah urutan."') + ' onclick="reorderLevel(\'' + pelajaranId + '\',\'' + l.id + '\',\'up\')"><i class="fa-solid fa-arrow-up"></i></button>' : '') +
+            (idx < levels.length - 1 ? '<button class="secondary btn-sm"' + (canManage ? '' : ' disabled aria-disabled="true" title="Mudir hanya bisa melihat data pelajaran, tidak bisa mengubah urutan."') + ' onclick="reorderLevel(\'' + pelajaranId + '\',\'' + l.id + '\',\'down\')"><i class="fa-solid fa-arrow-down"></i></button>' : '') +
+            '<button class="secondary btn-sm" onclick="editLevel(\'' + pelajaranId + '\',\'' + l.id + '\')"><i class="fa-solid fa-pen"></i></button>' +
+            (canManage ? '<button class="danger btn-sm" onclick="showConfirmHapusLevel(\'' + pelajaranId + '\',\'' + l.id + '\',\'' + escHtml(l.nama_level) + '\')"><i class="fa-solid fa-trash"></i></button>' : '') +
+          '</div>' +
+        '</div>';
+      }).join('');
+    }
+
+    // ── Pelajaran form ──────────────────────────────────────────────────────────
+    function openAddPelajaran() {
+      document.getElementById('pelId').value = '';
+      document.getElementById('pelNama').value = '';
+      document.getElementById('pelBuku').value = '';
+      document.getElementById('pelDeskripsi').value = '';
+      document.getElementById('pelStatus').value = 'aktif';
+      document.getElementById('pelDialogTitle').textContent = 'Tambah Pelajaran';
+      _pelPrasyaratItems = [];
+      renderPelPrasyaratForm();
+      window.PSUI.applyPermissionLock(document.getElementById('pelSaveBtn'), canManagePelajaranScoped(), 'Mudir hanya bisa melihat data pelajaran, tidak bisa menyimpan perubahan.');
+      ensureAllPelajaranLoaded(function() { document.getElementById('pelDialog').showModal(); });
+    }
+
+    function editPelajaran(id) {
+      var r = _pelajaranRows.find(function(p) { return p.id === id; });
+      if (!r) return;
+      document.getElementById('pelId').value = r.id;
+      document.getElementById('pelNama').value = r.nama || '';
+      document.getElementById('pelBuku').value = r.nama_buku || '';
+      document.getElementById('pelDeskripsi').value = r.deskripsi || '';
+      document.getElementById('pelStatus').value = r.status || 'aktif';
+      document.getElementById('pelDialogTitle').textContent = 'Edit Pelajaran';
+      _pelPrasyaratItems = (r.prasyarat || []).map(function(pr) { return { pelajaran_id: pr.pelajaran_id || '', level_id: pr.level_id || '' }; });
+      renderPelPrasyaratForm();
+      window.PSUI.applyPermissionLock(document.getElementById('pelSaveBtn'), canManagePelajaranScoped(), 'Mudir hanya bisa melihat data pelajaran, tidak bisa menyimpan perubahan.');
+      ensureAllPelajaranLoaded(function() { document.getElementById('pelDialog').showModal(); });
+    }
+
+    function ensureAllPelajaranLoaded(cb) {
+      if (_allPelajaran.length) { cb(); return; }
+      api('pelajaran.list', { status: '' }, function(res) {
+        if (res.ok) _allPelajaran = res.data.items || [];
+        cb();
+      });
+    }
+
+    function renderPelPrasyaratForm() {
+      var el = document.getElementById('pelPrasyaratList');
+      if (!_pelPrasyaratItems.length) { el.innerHTML = ''; return; }
+      el.innerHTML = _pelPrasyaratItems.map(function(item, idx) {
+        var pelOptions = _allPelajaran.map(function(p) {
+          return '<option value="' + escHtml(p.id) + '"' + (p.id === item.pelajaran_id ? ' selected' : '') + '>' + escHtml(p.nama) + '</option>';
+        }).join('');
+        return '<div style="display:grid;gap:6px;padding:10px;background:rgba(91,73,57,0.05);border-radius:10px;border:1px solid var(--line)">' +
+          '<div class="form-row-2">' +
+            '<label>Pelajaran <select class="ppr-pel-sel" data-idx="' + idx + '" onchange="onPelPrasyaratPelChange(' + idx + ',this.value)"><option value="">-- pilih --</option>' + pelOptions + '</select></label>' +
+            '<label>Level (opsional) <select class="ppr-lvl-sel" data-idx="' + idx + '" id="ppr-lvl-' + idx + '"><option value="">-- tanpa level --</option></select></label>' +
+          '</div>' +
+          '<button type="button" class="danger btn-sm" style="align-self:end;width:auto" onclick="removePelPrasyarat(' + idx + ')"><i class="fa-solid fa-xmark"></i> Hapus</button>' +
+        '</div>';
+      }).join('');
+      _pelPrasyaratItems.forEach(function(item, idx) {
+        if (item.pelajaran_id) onPelPrasyaratPelChange(idx, item.pelajaran_id, item.level_id);
+      });
+    }
+
+    function onPelPrasyaratPelChange(idx, pelajaranId, preselectLevelId) {
+      if (_pelPrasyaratItems[idx]) _pelPrasyaratItems[idx].pelajaran_id = pelajaranId;
+      var sel = document.getElementById('ppr-lvl-' + idx);
+      if (!sel) return;
+      if (!pelajaranId) { sel.innerHTML = '<option value="">-- tanpa level --</option>'; return; }
+      api('pelajaran.level.list', { pelajaran_id: pelajaranId }, function(res) {
+        if (!res.ok || !res.data.levels.length) { sel.innerHTML = '<option value="">-- tidak ada level --</option>'; return; }
+        sel.innerHTML = '<option value="">-- tanpa level --</option>' + res.data.levels.map(function(l) {
+          return '<option value="' + escHtml(l.id) + '"' + (l.id === (preselectLevelId || (_pelPrasyaratItems[idx] && _pelPrasyaratItems[idx].level_id)) ? ' selected' : '') + '>' + escHtml(l.nama_level) + '</option>';
+        }).join('');
+      });
+    }
+
+    function addPelPrasyarat() {
+      _pelPrasyaratItems.push({ pelajaran_id: '', level_id: '' });
+      renderPelPrasyaratForm();
+    }
+
+    function removePelPrasyarat(idx) {
+      _pelPrasyaratItems.splice(idx, 1);
+      renderPelPrasyaratForm();
+    }
+
+    document.getElementById('pelForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      // Collect prasyarat dari DOM
+      var pelPrasyarat = [];
+      document.querySelectorAll('#pelPrasyaratList .ppr-pel-sel').forEach(function(sel) {
+        var idx = parseInt(sel.getAttribute('data-idx'));
+        var pelId = sel.value;
+        var lvlSel = document.getElementById('ppr-lvl-' + idx);
+        var lvlId = lvlSel ? lvlSel.value : '';
+        if (pelId) {
+          var pelNama = _allPelajaran.find(function(p) { return p.id === pelId; });
+          var lvlNama = '';
+          if (lvlId && lvlSel) { var opt = lvlSel.options[lvlSel.selectedIndex]; lvlNama = opt ? opt.textContent : ''; }
+          pelPrasyarat.push({ pelajaran_id: pelId, pelajaran_nama: pelNama ? pelNama.nama : pelId, level_id: lvlId, level_nama: lvlNama });
+        }
+      });
+      var id = document.getElementById('pelId').value.trim();
+      var payload = { id: id, nama: document.getElementById('pelNama').value.trim(), nama_buku: document.getElementById('pelBuku').value.trim(), deskripsi: document.getElementById('pelDeskripsi').value.trim(), status: document.getElementById('pelStatus').value, prasyarat: JSON.stringify(pelPrasyarat) };
+      document.getElementById('pelSaveBtn').disabled = true;
+      api('pelajaran.save', payload, function(res) {
+        document.getElementById('pelSaveBtn').disabled = false;
+        if (!res.ok) { showToast(res.error || 'Gagal menyimpan', 'error'); return; }
+        document.getElementById('pelDialog').close();
+        showToast('Pelajaran berhasil disimpan', 'success');
+        loadPelajaran();
+      });
+    });
+
+    // ── Level form ──────────────────────────────────────────────────────────────
+    function openAddLevel(pelajaranId) {
+      document.getElementById('levelId').value = '';
+      document.getElementById('levelPelajaranId').value = pelajaranId;
+      document.getElementById('levelNama').value = '';
+      document.getElementById('levelDialogTitle').textContent = 'Tambah Level';
+      _prasyaratItems = [];
+      renderPrasyaratForm();
+      window.PSUI.applyPermissionLock(document.getElementById('levelSaveBtn'), canManagePelajaranScoped(), 'Mudir hanya bisa melihat data pelajaran, tidak bisa menyimpan perubahan.');
+      if (!_allPelajaran.length) {
+        api('pelajaran.level.list', { pelajaran_id: pelajaranId }, function(res) {
+          if (res.ok && res.data.allPelajaran) _allPelajaran = res.data.allPelajaran;
+          document.getElementById('levelDialog').showModal();
+        });
+      } else {
+        document.getElementById('levelDialog').showModal();
+      }
+    }
+
+    function editLevel(pelajaranId, levelId) {
+      var levels = _levelMap[pelajaranId] || [];
+      var l = levels.find(function(x) { return x.id === levelId; });
+      if (!l) return;
+      document.getElementById('levelId').value = l.id;
+      document.getElementById('levelPelajaranId').value = pelajaranId;
+      document.getElementById('levelNama').value = l.nama_level || '';
+      document.getElementById('levelDialogTitle').textContent = 'Edit Level';
+      _prasyaratItems = (l.prasyarat || []).map(function(pr) { return { pelajaran_id: pr.pelajaran_id || '', level_id: pr.level_id || '' }; });
+      renderPrasyaratForm();
+      window.PSUI.applyPermissionLock(document.getElementById('levelSaveBtn'), canManagePelajaranScoped(), 'Mudir hanya bisa melihat data pelajaran, tidak bisa menyimpan perubahan.');
+      document.getElementById('levelDialog').showModal();
+    }
+
+    function renderPrasyaratForm() {
+      var el = document.getElementById('prasyaratList');
+      if (!_prasyaratItems.length) { el.innerHTML = ''; return; }
+      el.innerHTML = _prasyaratItems.map(function(item, idx) {
+        var pelOptions = _allPelajaran.map(function(p) {
+          return '<option value="' + escHtml(p.id) + '"' + (p.id === item.pelajaran_id ? ' selected' : '') + '>' + escHtml(p.nama) + '</option>';
+        }).join('');
+        return '<div style="display:grid;gap:6px;padding:10px;background:rgba(91,73,57,0.05);border-radius:10px;border:1px solid var(--line)">' +
+          '<div class="form-row-2">' +
+            '<label>Pelajaran <select class="pr-pel-sel" data-idx="' + idx + '" onchange="onPrasyaratPelChange(' + idx + ',this.value)"><option value="">-- pilih --</option>' + pelOptions + '</select></label>' +
+            '<label>Level <select class="pr-lvl-sel" data-idx="' + idx + '" id="pr-lvl-' + idx + '"><option value="">-- pilih --</option></select></label>' +
+          '</div>' +
+          '<button type="button" class="danger btn-sm" style="align-self:end;width:auto" onclick="removePrasyarat(' + idx + ')"><i class="fa-solid fa-xmark"></i> Hapus</button>' +
+        '</div>';
+      }).join('');
+      // Populate level dropdowns for pre-selected pelajaran
+      _prasyaratItems.forEach(function(item, idx) {
+        if (item.pelajaran_id) onPrasyaratPelChange(idx, item.pelajaran_id, item.level_id);
+      });
+    }
+
+    function onPrasyaratPelChange(idx, pelajaranId, preselectLevelId) {
+      if (_prasyaratItems[idx]) _prasyaratItems[idx].pelajaran_id = pelajaranId;
+      var sel = document.getElementById('pr-lvl-' + idx);
+      if (!sel) return;
+      if (!pelajaranId) { sel.innerHTML = '<option value="">-- pilih --</option>'; return; }
+      api('pelajaran.level.list', { pelajaran_id: pelajaranId }, function(res) {
+        if (!res.ok) return;
+        var levels = res.data.levels || [];
+        sel.innerHTML = '<option value="">-- pilih level --</option>' + levels.map(function(l) {
+          return '<option value="' + escHtml(l.id) + '"' + (l.id === (preselectLevelId || (_prasyaratItems[idx] && _prasyaratItems[idx].level_id)) ? ' selected' : '') + '>' + escHtml(l.nama_level) + '</option>';
+        }).join('');
+      });
+    }
+
+    function addPrasyarat() {
+      _prasyaratItems.push({ pelajaran_id: '', level_id: '' });
+      renderPrasyaratForm();
+    }
+
+    function removePrasyarat(idx) {
+      _prasyaratItems.splice(idx, 1);
+      renderPrasyaratForm();
+    }
+
+    document.getElementById('levelForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      // Collect prasyarat from DOM
+      var prasyarat = [];
+      var rows = document.querySelectorAll('#prasyaratList .pr-pel-sel');
+      rows.forEach(function(sel) {
+        var idx = parseInt(sel.getAttribute('data-idx'));
+        var pelId = sel.value;
+        var lvlSel = document.getElementById('pr-lvl-' + idx);
+        var lvlId = lvlSel ? lvlSel.value : '';
+        if (pelId && lvlId) {
+          var pelNama = _allPelajaran.find(function(p) { return p.id === pelId; });
+          prasyarat.push({ pelajaran_id: pelId, pelajaran_nama: pelNama ? pelNama.nama : pelId, level_id: lvlId });
+        }
+      });
+      var pelajaranId = document.getElementById('levelPelajaranId').value;
+      var payload = {
+        id: document.getElementById('levelId').value.trim(),
+        pelajaran_id: pelajaranId,
+        nama_level: document.getElementById('levelNama').value.trim(),
+        prasyarat: JSON.stringify(prasyarat)
+      };
+      document.getElementById('levelSaveBtn').disabled = true;
+      api('pelajaran.level.save', payload, function(res) {
+        document.getElementById('levelSaveBtn').disabled = false;
+        if (!res.ok) { showToast(res.error || 'Gagal menyimpan level', 'error'); return; }
+        document.getElementById('levelDialog').close();
+        showToast('Level berhasil disimpan', 'success');
+        loadLevels(pelajaranId);
+        // update level count in row
+        var pelRow = _pelajaranRows.find(function(p) { return p.id === pelajaranId; });
+        if (pelRow) { loadPelajaran(); }
+      });
+    });
+
+    // ── Reorder level ──────────────────────────────────────────────────────────
+    function reorderLevel(pelajaranId, levelId, dir) {
+      api('pelajaran.level.reorder', { id: levelId, dir: dir }, function(res) {
+        if (!res.ok) { showToast(res.error || 'Gagal mengubah urutan', 'error'); return; }
+        loadLevels(pelajaranId);
+      });
+    }
+
+    // ── Hapus Pelajaran ────────────────────────────────────────────────────────
+    function showConfirmHapusPel(id) {
+      var r = _pelajaranRows.find(function(p) { return p.id === id; });
+      _hapusPelId = id;
+      document.getElementById('confirmHapusPelMsg').textContent = 'Hapus pelajaran "' + (r ? r.nama : id) + '" beserta semua levelnya? Tindakan ini tidak dapat dibatalkan.';
+      document.getElementById('confirmHapusPelDialog').showModal();
+    }
+
+    document.getElementById('confirmHapusPelOk').addEventListener('click', function() {
+      if (!_hapusPelId) return;
+      api('pelajaran.delete', { id: _hapusPelId }, function(res) {
+        document.getElementById('confirmHapusPelDialog').close();
+        if (!res.ok) { showToast(res.error || 'Gagal menghapus', 'error'); return; }
+        showToast('Pelajaran dihapus', 'success');
+        _hapusPelId = null;
+        loadPelajaran();
+      });
+    });
+
+    // ── Hapus Level ────────────────────────────────────────────────────────────
+    function showConfirmHapusLevel(pelajaranId, levelId, namaLevel) {
+      _hapusLevelId = { pelajaranId: pelajaranId, levelId: levelId };
+      document.getElementById('confirmHapusLevelMsg').textContent = 'Hapus level "' + namaLevel + '"? Tindakan ini tidak dapat dibatalkan.';
+      document.getElementById('confirmHapusLevelDialog').showModal();
+    }
+
+    document.getElementById('confirmHapusLevelOk').addEventListener('click', function() {
+      if (!_hapusLevelId) return;
+      var pelajaranId = _hapusLevelId.pelajaranId;
+      api('pelajaran.level.delete', { id: _hapusLevelId.levelId }, function(res) {
+        document.getElementById('confirmHapusLevelDialog').close();
+        if (!res.ok) { showToast(res.error || 'Gagal menghapus level', 'error'); return; }
+        showToast('Level dihapus', 'success');
+        _hapusLevelId = null;
+        loadLevels(pelajaranId);
+        loadPelajaran();
+      });
+    });
+
+    // ── Init & event binding ───────────────────────────────────────────────────
+    document.getElementById('closePelDialog').addEventListener('click', function() { document.getElementById('pelDialog').close(); });
+    document.getElementById('closePelDialog2').addEventListener('click', function() { document.getElementById('pelDialog').close(); });
+    document.getElementById('closeLevelDialog').addEventListener('click', function() { document.getElementById('levelDialog').close(); });
+    document.getElementById('closeLevelDialog2').addEventListener('click', function() { document.getElementById('levelDialog').close(); });
+    document.getElementById('confirmHapusPelBatal').addEventListener('click', function() { document.getElementById('confirmHapusPelDialog').close(); });
+    document.getElementById('confirmHapusLevelBatal').addEventListener('click', function() { document.getElementById('confirmHapusLevelDialog').close(); });
+    document.getElementById('addPelajaranBtn').addEventListener('click', openAddPelajaran);
+    document.getElementById('addPrasyaratBtn').addEventListener('click', addPrasyarat);
+    document.getElementById('addPelPrasyaratBtn').addEventListener('click', addPelPrasyarat);
+    document.getElementById('refreshBtn').addEventListener('click', function() { _page = 1; loadPelajaran(); });
+    document.getElementById('searchInput').addEventListener('input', function() { _page = 1; loadPelajaran(); });
+    document.getElementById('statusFilter').addEventListener('change', function() { _page = 1; loadPelajaran(); });
+    document.getElementById('pageSizeSelect').addEventListener('change', function() { _pageSize = parseInt(this.value) || 25; _page = 1; loadPelajaran(); });
+    document.addEventListener('click', function(e) {
+      var btn = e.target.closest('[data-page]');
+      if (!btn) return;
+      var next = parseInt(btn.getAttribute('data-page'));
+      if (!next || next < 1 || next > _totalPages || next === _page) return;
+      _page = next;
+      loadPelajaran();
+    });
+
+    var _initSession = getStoredSession();
+    if (!_initSession) { clearSession(); window.location.replace('/pages/login/'); }
+    else if (window.PSAccess && window.PSAccess.redirectIfForbidden(_initSession, 'masterPelajaran.html')) { /* redirected */ }
+    else {
+      _session = window.PSAccess ? window.PSAccess.getScopedSession(_initSession) : _initSession;
+      var _p = _session && _session.permissions;
+      if (_p && _p.isSuperAdmin) document.querySelectorAll('[data-super-only]').forEach(function(el) { el.style.display = ''; });
+      window.PSUI.applyPermissionLock(document.getElementById('addPelajaranBtn'), canManagePelajaranScoped(), 'Mudir hanya bisa melihat data pelajaran, tidak bisa menambah pelajaran.');
+      mountShell(_initSession);
+      loadPelajaran();
+    }
+  </script>
+</body>
+</html>

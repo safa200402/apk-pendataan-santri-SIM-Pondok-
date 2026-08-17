@@ -1,0 +1,689 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#9e2f22">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+    <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="stylesheet" href="../../shared-ui.css">
+    <script src="../../shared-ui.js"></script>
+  <title>Dashboard Admin</title>
+  <link rel="stylesheet" href="../../shared-shell.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700&display=swap');
+
+    :root {
+      --paper: #f6efe0;
+      --paper-2: #efe3cd;
+      --ink: #4d4034;
+      --muted: #7b6a58;
+      --line: rgba(91, 73, 57, 0.15);
+      --accent: #b97650;
+      --accent-soft: #d8b18a;
+      --success: #74846c;
+      --danger: #a55a52;
+      --warning: #b58439;
+      --shadow: 0 18px 45px rgba(87, 67, 51, 0.18);
+      --radius: 24px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.28;
+    }
+
+    .panel {
+      position: relative;
+      padding: 22px;
+    }
+
+    .hero {
+      overflow: hidden;
+      margin-bottom: 15px;
+    }
+
+    .hero::after {
+      content: '';
+      position: absolute;
+      right: -28px;
+      top: -28px;
+      width: 180px;
+      height: 180px;
+    }
+
+    h1, h2, h3 {
+      margin: 0 0 10px;
+      letter-spacing: 0.02em;
+    }
+
+    p {
+      margin: 0;
+      line-height: 1.65;
+    }
+
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 16px;
+      justify-content: flex-end;
+    }
+
+    .nav {
+      display: grid;
+      gap: 10px;
+    }
+
+    .nav a, .nav button, .chip-button {
+      padding: 12px 14px;
+      text-align: left;
+      font: inherit;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .metric-card, .issue-card, .spotlight-card {
+      padding: 16px;
+      background: rgba(255, 248, 230, 0.96) !important;
+      justify-content: space-between;
+      border-radius: 25px;
+      border-width: 3px;
+      border-style: solid;
+      border-color: #4b2c20;
+      border-radius: 24px;
+      box-shadow: 9px 9px 0 #4b2c20;
+    }
+
+    .metric-number {
+      margin-top: 6px;
+      font-family: 'Poppins', sans-serif;
+      font-size: 34px;
+      line-height: 1;
+    }
+
+    .badge-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 11px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .high { background: rgba(165, 90, 82, 0.13); color: var(--danger); }
+
+    .medium { background: rgba(181, 132, 57, 0.14); color: var(--warning); }
+
+    .low { background: rgba(116, 132, 108, 0.14); color: var(--success); }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin-top: 16px;
+    }
+
+    button.action,
+    a.action {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px 18px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: none;
+    }
+
+    button.ghost {
+      padding: 12px 18px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .notice {
+      display: none;
+      padding: 14px 16px;
+      line-height: 1.55;
+    }
+
+    .notice.show { display: block; }
+
+    dialog {
+      width: min(580px, calc(100vw - 20px));
+      padding: 0;
+    }
+
+    .dialog-body {
+      padding: 22px;
+      display: grid;
+      gap: 14px;
+    }
+
+    label {
+      display: grid;
+      gap: 7px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    input {
+      width: 100%;
+      padding: 13px 14px;
+      font: inherit;
+      outline: none;
+    }
+
+    .dialog-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    body::before {
+      opacity: 0.15 !important;
+      mix-blend-mode: multiply;
+    }
+
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.23;
+    }
+
+    h1, h2, h3 {
+      text-transform: uppercase;
+    }
+
+    .nav a, .chip-button {
+      font-weight: 800 !important;
+      text-transform: uppercase;
+    }
+
+    .action, .primary, .secondary, .ghost, .danger, button {
+      font-weight: 900 !important;
+      text-transform: uppercase;
+    }
+
+    .high {
+      background: rgba(158, 47, 34, 0.14) !important;
+      color: #9e2f22 !important;
+    }
+
+    .medium {
+      background: rgba(216, 161, 63, 0.2) !important;
+      color: #7d540e !important;
+    }
+
+    .low {
+      background: rgba(80, 111, 78, 0.18) !important;
+      color: #506f4e !important;
+    }
+
+    .summary-list, .issue-list, .group-list, .list {
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    }
+
+    @media (max-width: 960px) {
+      .summary-list, .issue-list, .group-list, .list {
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      }
+    }
+
+    @media (max-width: 480px) {
+      .summary-list, .issue-list, .group-list, .list {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-left">
+      <button class="drawer-toggle" id="navToggle" type="button" aria-label="Toggle sidebar">Menu</button>
+      <div class="header-brand">Pendataan Santri</div>
+      <div class="header-page">Dashboard Admin</div>
+    </div>
+    <div class="header-right">
+      <span class="header-chip" id="headerRole">Admin</span>
+    </div>
+  </header>
+  <div class="drawer-backdrop" id="navBackdrop"></div>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+  <main>
+    <section class="panel hero">
+      <h1 id="welcome">Memuat dashboard...</h1>
+      <p id="heroText">Memeriksa sesi pengurus dan menarik ringkasan audit pendataan.</p>
+      <div class="toolbar">
+        <button class="action" id="refreshButton" type="button">Muat ulang dashboard</button>
+        <button class="action" id="exportAllButton" type="button" hidden disabled data-super-admin="true">Download semua data</button>
+        <button class="action" id="importAllButton" type="button" hidden disabled data-super-admin="true">Import semua data</button>
+        <button class="action" id="deleteAllButton" type="button" hidden disabled data-super-admin="true">Hapus semua data</button>
+      </div>
+      <input id="importAllInput" type="file" accept=".xlsx,.xls" hidden>
+    </section>
+
+    <dialog class="ps-floating-dialog" id="deleteConfirmDialog">
+      <div class="dialog-body duplicate-dialog-body ps-dialog-shell">
+        <div class="duplicate-dialog-head ps-dialog-header">
+          <div>
+            <h3 style="margin:0;">Hapus Semua Data</h3>
+          </div>
+        </div>
+        <p>Akun admin utama dan jabatan sistem akan tetap dipertahankan. Tindakan ini tidak dapat dibatalkan.</p>
+        <label>
+          Untuk lanjut, ketik: <strong>HAPUS SEMUA</strong>
+          <input id="deleteConfirmInput" type="text" autocomplete="off" placeholder="Ketik di sini...">
+        </label>
+        <div class="toolbar ps-dialog-footer dialog-actions">
+          <button class="action danger" id="deleteConfirmSubmit" type="button">Konfirmasi</button>
+          <button class="action" id="deleteConfirmCancel" type="button">Batal</button>
+        </div>
+      </div>
+    </dialog>
+    <div class="app-layout">
+      <section class="panel nav" id="nav"></section>
+      <div class="content-stack">
+        <section class="notice info" id="notice"></section>
+        <section class="panel">
+          <h2>Ringkasan utama</h2>
+          <div class="summary-list layout-grid" id="summaryList"></div>
+        </section>
+        <section class="panel">
+          <h2>Masalah prioritas</h2>
+          <p>Masalah terbesar langsung ditautkan ke halaman tindak lanjut.</p>
+          <div class="issue-list" id="issueList"></div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <script src="../../shared-access.js"></script>
+  <script src="../../shared-nav.js"></script>
+  <script src="../../shared-shell.js"></script>
+  <script src="../../shared-excel.js"></script>
+  <script>
+    const API_BASE = window.location.origin + '/api';
+    const STORAGE = {
+      apiBase: 'ps_api_base',
+      token: 'ps_token',
+      session: 'ps_session'
+    };
+    localStorage.setItem(STORAGE.apiBase, API_BASE);
+
+    let currentSession = null;
+    const uiState = {
+      currentNoticeId: '',
+      noticeCounter: 0,
+      noticeShownAt: 0,
+      pendingNotice: null,
+      desktopSidebar: null
+    };
+
+    function getApiBase() {
+      return localStorage.getItem(STORAGE.apiBase) || '';
+    }
+
+    function getToken() {
+      return localStorage.getItem(STORAGE.token) || '';
+    }
+
+    function clearSession() {
+      localStorage.removeItem(STORAGE.token);
+      localStorage.removeItem(STORAGE.session);
+    }
+
+    function getStoredSession() {
+      try {
+        return JSON.parse(localStorage.getItem(STORAGE.session) || 'null');
+      } catch (error) {
+        return null;
+      }
+    }
+
+    function hasSuperAdminAccess(session) {
+      const scoped = window.PSAccess && typeof window.PSAccess.getScopedSession === 'function'
+        ? window.PSAccess.getScopedSession(session)
+        : session;
+      return !!(scoped && scoped.permissions && (
+        scoped.permissions.isSuperAdmin ||
+        scoped.permissions.canImportData ||
+        scoped.permissions.canExportData ||
+        scoped.permissions.canExportAll
+      ));
+    }
+
+    function syncAdminActions() {
+      const allowed = hasSuperAdminAccess(currentSession || getStoredSession());
+      document.getElementById('exportAllButton').hidden = !allowed;
+      document.getElementById('importAllButton').hidden = !allowed;
+      document.getElementById('deleteAllButton').hidden = !allowed;
+      document.getElementById('exportAllButton').disabled = !allowed;
+      document.getElementById('importAllButton').disabled = !allowed;
+      document.getElementById('deleteAllButton').disabled = !allowed;
+    }
+
+    function updateHeaderMeta(session) {
+      window.PSShell.syncIdentity({
+        currentPage: window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : '/pages/dashboard/',
+        session: session || getStoredSession(),
+        getStoredSession,
+        storageKey: STORAGE.session
+      });
+    }
+
+    function toParams(data) {
+      const params = new URLSearchParams();
+      Object.entries(data).forEach(([key, value]) => {
+        if (value === undefined || value === null) return;
+        params.append(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
+      });
+      return params;
+    }
+
+    function createNoticeElement(text, type = 'info') {
+      const element = document.createElement('section');
+      element.className = `notice show ${type}`;
+      element.dataset.noticeId = `notice-${Date.now()}-${uiState.noticeCounter += 1}`;
+      element.textContent = text;
+      function dismiss() {
+        if (!element.parentNode) return;
+        element.classList.add('notice-dismissing');
+        window.setTimeout(() => {
+          element.remove();
+          const stack = document.getElementById('noticeStack');
+          if (stack && !stack.hasChildNodes() && stack.matches(':popover-open')) stack.hidePopover();
+        }, 220);
+      }
+      element.addEventListener('click', dismiss);
+      window.setTimeout(dismiss, type === 'error' ? 10000 : 6000);
+      return element;
+    }
+
+    function removeNoticeById(id) {
+      const element = document.querySelector(`[data-notice-id="${id}"]`);
+      if (element) element.remove();
+      if (uiState.currentNoticeId === id) uiState.currentNoticeId = '';
+      const stack = document.getElementById('noticeStack');
+      if (stack && !stack.hasChildNodes() && stack.matches(':popover-open')) stack.hidePopover();
+    }
+
+    function showNotice(text, type = 'info') {
+      if (uiState.pendingNotice) { clearTimeout(uiState.pendingNotice); uiState.pendingNotice = null; }
+      const elapsed = Date.now() - uiState.noticeShownAt;
+      if (elapsed < 2000 && uiState.currentNoticeId) {
+        uiState.pendingNotice = window.setTimeout(() => { uiState.pendingNotice = null; showNotice(text, type); }, 2000 - elapsed);
+        return uiState.currentNoticeId;
+      }
+      clearNotice();
+      const element = createNoticeElement(text, type);
+      const stack = document.getElementById('noticeStack');
+      stack.prepend(element);
+      uiState.currentNoticeId = element.dataset.noticeId;
+      uiState.noticeShownAt = Date.now();
+      if (stack.matches(':popover-open')) stack.hidePopover();
+      stack.showPopover();
+      return uiState.currentNoticeId;
+    }
+
+    function clearNotice() {
+      if (uiState.pendingNotice) { clearTimeout(uiState.pendingNotice); uiState.pendingNotice = null; }
+      if (!uiState.currentNoticeId) return;
+      removeNoticeById(uiState.currentNoticeId);
+    }
+
+    function flashNotice(text, type = 'info', timeout = 2800) {
+      const element = createNoticeElement(text, type);
+      const stack = document.getElementById('noticeStack');
+      stack.prepend(element);
+      const id = element.dataset.noticeId;
+      if (stack.matches(':popover-open')) stack.hidePopover();
+      stack.showPopover();
+      window.setTimeout(() => removeNoticeById(id), timeout);
+      return id;
+    }
+
+    function mountShell(session) {
+      return window.PSShell.mount({
+        currentPage: window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : '/pages/dashboard/',
+        session,
+        getStoredSession,
+        storageKey: STORAGE.session
+      });
+    }
+
+    async function api(action, payload = {}, method = 'GET') {
+      const apiBase = getApiBase();
+      const token = getToken();
+      if (!apiBase || !token) {
+        clearSession();
+        window.location.replace('/pages/login/');
+        throw new Error('Sesi tidak ditemukan.');
+      }
+
+      if (method === 'GET') {
+        const params = toParams({ action, token, ...payload });
+        const response = await fetch(`${apiBase}?${params.toString()}`);
+        const json = await response.json();
+        if (!json.ok) {
+          const error = new Error(json.error?.message ? `Server mengatakan: ${json.error.message}` : 'Permintaan gagal.');
+          error.code = json.error?.code || response.status || 500;
+          if (error.code === 401) {
+            clearSession();
+            window.location.replace('/pages/login/');
+          }
+          throw error;
+        }
+        return json.data;
+      }
+
+      const response = await fetch(apiBase, {
+        method,
+        body: toParams({ action, token, ...payload })
+      });
+      const json = await response.json();
+      if (!json.ok) {
+        const error = new Error(json.error?.message ? `Server mengatakan: ${json.error.message}` : 'Permintaan gagal.');
+        error.code = json.error?.code || response.status || 500;
+        if (error.code === 401) {
+          clearSession();
+          window.location.replace('/pages/login/');
+        }
+        throw error;
+      }
+      return json.data;
+    }
+
+    async function ensureSession() {
+      const data = await api('session');
+      currentSession = data.session;
+      localStorage.setItem(STORAGE.session, JSON.stringify(currentSession));
+      if (currentSession.role !== 'pengurus') {
+        throw new Error('Halaman ini hanya untuk token pengurus aktif.');
+      }
+      if (window.PSAccess && window.PSAccess.redirectIfForbidden(currentSession, '/pages/dashboard/')) {
+        return false;
+      }
+      updateHeaderMeta(currentSession);
+      if (window.PSShell && typeof window.PSShell.syncPortalBrand === 'function') {
+        window.PSShell.syncPortalBrand();
+      }
+      syncAdminActions();
+      document.getElementById('welcome').textContent = `Dashboard ${currentSession.name}`;
+      document.getElementById('heroText').textContent = `Role aktif: ${currentSession.role}. Token sesi diverifikasi langsung ke backend.`;
+      return true;
+    }
+
+    function buildSummaryCards(summary) {
+      return [
+        ['Santri', summary.santri.total, `Aktif ${summary.santri.active} dari ${summary.santri.total}`],
+        ['Pengurus', summary.pengurus.total, `Aktif ${summary.pengurus.active} dari ${summary.pengurus.total}`],
+        ['Halaqoh', summary.halaqoh.total, `Aktif ${summary.halaqoh.active} dari ${summary.halaqoh.total}`],
+        ['Kelas Siang', summary.kelasSiang.total, `Aktif ${summary.kelasSiang.active} dari ${summary.kelasSiang.total}`],
+        ['Regu', summary.regu.total, `Aktif ${summary.regu.active} dari ${summary.regu.total}`],
+        ['Nilai UP', summary.nilaiUp.total, `Aktif ${summary.nilaiUp.active} dari ${summary.nilaiUp.total}`],
+        ['Absensi Halaqoh', summary.absensiHalaqoh.total, `Aktif ${summary.absensiHalaqoh.active} dari ${summary.absensiHalaqoh.total}`],
+        ['Absensi Kelas', summary.absensiKelas.total, `Aktif ${summary.absensiKelas.active} dari ${summary.absensiKelas.total}`],
+        ['Absensi Guru', summary.absensiGuru.total, `Aktif ${summary.absensiGuru.active} dari ${summary.absensiGuru.total}`],
+        ['Content', summary.content.total, `Published ${summary.content.active} dari ${summary.content.total}`],
+        ['Santri Aktif', summary.coverage.activeSantri, `Punya halaqoh ${summary.coverage.punyaHalaqoh}, punya 3 kelas ${summary.coverage.punyaTigaKelas}, punya regu ${summary.coverage.punyaRegu}`]
+      ];
+    }
+
+    function renderSummary(summary) {
+      const target = document.getElementById('summaryList');
+      target.innerHTML = buildSummaryCards(summary).map(([title, value, helper]) => {
+        return `
+          <article class="metric-card">
+            <h3>${title}</h3>
+            <p>${helper}</p>
+            <div class="metric-number">${value}</div>
+          </article>
+        `;
+      }).join('');
+    }
+
+    function issueLink(group) {
+      if (group.key.includes('halaqoh')) return '/pages/editHalaqoh/';
+      if (group.key.includes('kelas')) return '/pages/editKelas/';
+      if (group.key.includes('classes')) return '/pages/editKelas/';
+      if (group.key.includes('regu')) return '/pages/editRegu/';
+      if (group.key.includes('pengurus')) return '/pages/editPengurus/';
+      if (group.key.includes('jabatan')) return '/pages/masterJabatan/';
+      return '/pages/daftarSantri/';
+    }
+
+    function renderIssues(issues) {
+      const target = document.getElementById('issueList');
+      if (!issues.length) {
+        target.innerHTML = `<article class="issue-card"><h3>Tidak ada masalah prioritas</h3><p>Audit utama bersih. Tetap cek halaman audit untuk detail penuh.</p></article>`;
+        return;
+      }
+      target.innerHTML = issues.map(group => `
+        <article class="issue-card">
+          <h3>${group.title}</h3>
+          <p>${group.shortText}</p>
+          <div class="badge-row">
+            <span class="badge ${group.severity}">${group.severity.toUpperCase()}</span>
+            <span class="badge low">${group.count} item</span>
+          </div>
+          <div class="row">
+            <a class="chip-button" href="${issueLink(group)}">Tindak lanjuti</a>
+          </div>
+        </article>
+      `).join('');
+    }
+
+    function toPlainText(html) {
+      const holder = document.createElement('div');
+      holder.innerHTML = html || '';
+      return (holder.textContent || holder.innerText || '').trim();
+    }
+
+    async function loadDashboard() {
+      clearNotice();
+      showNotice('Mengambil ringkasan dashboard...', 'info');
+      try {
+        const ready = await ensureSession();
+        if (!ready) return;
+        const dashboardData = await api('dashboard');
+        renderSummary(dashboardData.summary);
+        renderIssues(dashboardData.issues);
+        clearNotice();
+      } catch (error) {
+        showNotice(error.message || 'Gagal memuat dashboard.', 'error');
+      }
+    }
+
+    async function handleImportAllFile(event) {
+      const file = event.target.files && event.target.files[0];
+      event.target.value = '';
+      if (!file) return;
+      if (!hasSuperAdminAccess(currentSession || getStoredSession())) {
+        showNotice('Import semua data hanya untuk Super Admin.', 'error');
+        return;
+      }
+      try {
+        showNotice('Mengimpor workbook semua data...', 'info');
+        await window.PSExcel.importWorkbook(api, file, {
+          onProgress(progress) {
+            showNotice(`Import ${progress.completed}/${progress.total} baris...`, 'info');
+          }
+        });
+        await loadDashboard();
+      } catch (error) {
+        showNotice(error.message || 'Gagal import semua data.', 'error');
+      }
+    }
+
+    function handleDeleteAllData() {
+      if (!hasSuperAdminAccess(currentSession || getStoredSession())) {
+        showNotice('Hapus semua data hanya untuk Super Admin.', 'error');
+        return;
+      }
+      const dialog = document.getElementById('deleteConfirmDialog');
+      document.getElementById('deleteConfirmInput').value = '';
+      dialog.showModal();
+    }
+
+    async function executeDeleteAllData() {
+      const input = document.getElementById('deleteConfirmInput').value.trim();
+      if (input !== 'HAPUS SEMUA') {
+        showNotice('Ketik "HAPUS SEMUA" dengan benar untuk melanjutkan.', 'error');
+        return;
+      }
+      document.getElementById('deleteConfirmDialog').close();
+      try {
+        showNotice('Menghapus seluruh data operasional...', 'info');
+        await api('system.deleteAllData', {}, 'POST');
+        await loadDashboard();
+      } catch (error) {
+        showNotice(error.message || 'Gagal menghapus semua data.', 'error');
+      }
+    }
+
+    mountShell();
+    document.getElementById('refreshButton').addEventListener('click', loadDashboard);
+    document.getElementById('exportAllButton').addEventListener('click', async () => {
+      try {
+        await window.PSExcel.exportDatasets(api, ['all'], 'export-semua-data.xlsx');
+      } catch (error) {
+        showNotice(error.message || 'Gagal download semua data.', 'error');
+      }
+    });
+    document.getElementById('importAllButton').addEventListener('click', () => document.getElementById('importAllInput').click());
+    document.getElementById('importAllInput').addEventListener('change', handleImportAllFile);
+    document.getElementById('deleteAllButton').addEventListener('click', handleDeleteAllData);
+    document.getElementById('deleteConfirmSubmit').addEventListener('click', executeDeleteAllData);
+    document.getElementById('deleteConfirmCancel').addEventListener('click', () => document.getElementById('deleteConfirmDialog').close());
+    window.addEventListener('load', loadDashboard);
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
+    }
+  </script>
+</body>
+</html>

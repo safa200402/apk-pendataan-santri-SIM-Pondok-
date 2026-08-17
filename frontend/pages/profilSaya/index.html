@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#9e2f22">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="../../shared-ui.css">
+  <script src="../../shared-ui.js"></script>
+  <title>Profil Saya</title>
+  <link rel="stylesheet" href="../../shared-shell.css">
+  <style>
+    .center-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: calc(100vh - 56px);
+      text-align: center;
+      padding: 32px;
+      gap: 10px;
+    }
+
+    .label-kamu {
+      font-size: 16px;
+      color: var(--muted, #7b6a58);
+      letter-spacing: 0.05em;
+    }
+
+    .user-name {
+      font-size: 38px;
+      font-weight: 700;
+      color: var(--ink, #4d4034);
+      line-height: 1.2;
+    }
+
+    .user-role {
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--accent, #b97650);
+    }
+  </style>
+</head>
+<body>
+  <main id="pageRoot">
+    <div id="noticeStack" popover></div>
+    <div class="app-layout">
+      <section class="shell-sidebar" id="nav"></section>
+      <div class="content-stack">
+        <div class="center-wrap">
+          <span class="label-kamu">Kamu adalah</span>
+          <div class="user-name" id="userName">...</div>
+          <div class="user-role" id="userRole">...</div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- shared-nav.js SENGAJA tidak dimasukkan → sidebar tidak menampilkan link -->
+  <script src="../../shared-access.js"></script>
+  <script src="../../shared-shell.js"></script>
+  <script>
+    const STORAGE = {
+      apiBase: 'ps_api_base',
+      token:   'ps_token',
+      session: 'ps_session'
+    };
+
+    function getStoredSession() {
+      try { return JSON.parse(localStorage.getItem(STORAGE.session) || 'null'); }
+      catch (e) { return null; }
+    }
+
+    function clearSession() {
+      localStorage.removeItem(STORAGE.token);
+      localStorage.removeItem(STORAGE.session);
+    }
+
+    const session = getStoredSession();
+    if (!session || !session.token) {
+      clearSession();
+      window.location.replace('/pages/login/');
+    }
+
+    // Nama dari session
+    const name = (session && session.name) ? session.name : 'Pengguna';
+
+    // Jabatan/role: coba permissions.label dulu, lalu primaryJabatanLabel, lalu role mentah
+    const role = (session && session.permissions && session.permissions.label)
+      || (session && session.primaryJabatanLabel)
+      || (session && session.role === 'santri' ? 'Santri' : 'Pengurus');
+
+    document.getElementById('userName').textContent = name;
+    document.getElementById('userRole').textContent = role;
+
+    // Mount shell: header + sidebar tanpa link (karena PSNav tidak ada)
+    if (window.PSShell) {
+      window.PSShell.mount({
+        currentPage: '/pages/profilSaya/',
+        session,
+        getStoredSession,
+        storageKey: STORAGE.session
+      });
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,52 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Logout</title>
+</head>
+<body>
+  <div id="pageRoot">
+    <p>Mengalihkan ke halaman login...</p>
+  </div>
+  <div id="dialogRoot"></div>
+  <script src="../../shared-access.js"></script>
+  <script>
+    const API_BASE = window.location.origin + '/api';
+    const STORAGE = { token: 'ps_token', session: 'ps_session' };
+
+    function getStoredSession() {
+      try { return JSON.parse(localStorage.getItem(STORAGE.session) || 'null'); } catch (e) { return null; }
+    }
+
+    function clearSession() {
+      localStorage.removeItem(STORAGE.token);
+      localStorage.removeItem(STORAGE.session);
+    }
+
+    function toParams(data) {
+      const params = new URLSearchParams();
+      Object.entries(data).forEach(([key, value]) => {
+        if (value === undefined || value === null) return;
+        params.append(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
+      });
+      return params;
+    }
+
+    (async function logoutAndRedirect() {
+      const session = getStoredSession();
+      const target = window.PSAccess && typeof window.PSAccess.resolveLoginPage === 'function'
+        ? window.PSAccess.resolveLoginPage(session)
+        : (session && session.role === 'santri' ? '/pages/loginSantri/' : '/pages/login/');
+      try {
+        const token = localStorage.getItem(STORAGE.token) || '';
+        if (token) {
+          await fetch(API_BASE, { method: 'POST', body: toParams({ action: 'logout', token }) }).catch(() => {});
+        }
+      } catch (e) {}
+      clearSession();
+      window.setTimeout(() => { window.location.replace(target); }, 250);
+    }());
+  </script>
+</body>
+</html>

@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#9e2f22">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="../../shared-ui.css">
+  <script src="../../shared-ui.js"></script>
+  <title>Bank Soal</title>
+  <link rel="stylesheet" href="../../shared-shell.css">
+  <link rel="stylesheet" href="../../vendor/fontawesome/css/all.min.css">
+  <link rel="stylesheet" href="../../vendor/quill/quill.snow.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700&display=swap');
+    :root {
+      --paper: #f6efe0; --ink: #4d4034; --muted: #7b6a58;
+      --line: rgba(91,73,57,0.15); --accent: #b97650;
+      --success: #74846c; --danger: #a55a52; --warning: #b58439;
+      --shadow: 0 18px 45px rgba(87,67,51,0.18); --radius: 24px;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; }
+    body::before { content:''; position:fixed; inset:0; pointer-events:none; opacity:0.15; mix-blend-mode:multiply; }
+    body::after  { content:''; position:fixed; inset:0; pointer-events:none; opacity:0.23; }
+    h1,h2,h3 { margin:0 0 10px; text-transform:uppercase; }
+    p { margin:0; line-height:1.65; }
+    .nav a, button { font-weight:800 !important; text-transform:uppercase; }
+    .panel { padding:22px; }
+    .card  { padding:11px !important; }
+    .toolbar { display:flex; flex-wrap:wrap; gap:10px; margin-top:16px; }
+    .filters { display:grid; gap:12px; margin-top:16px; }
+    button, input, select, textarea { font:inherit; }
+    button { padding:12px 18px; font-weight:700; cursor:pointer; }
+    .primary { box-shadow:0 14px 28px rgba(185,118,80,0.22); }
+    input, select, textarea { width:100%; padding:13px 14px; outline:none; }
+    label { display:grid; gap:7px; font-size:14px; font-weight:600; }
+    .list { display:grid; grid-template-columns:1fr; gap:14px; margin-top:16px; }
+    .pill { display:inline-flex; padding:7px 11px; font-size:12px; font-weight:700; border-radius:21px; }
+    .notice { display:none; padding:14px 16px; line-height:1.55; }
+    .notice.show { display:block; }
+    dialog { padding:0; }
+    .dialog-body { padding:22px; display:flex; flex-direction:column; gap:14px; max-height:90vh; overflow:auto; }
+    .section-head { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+    .field-grid { display:grid; gap:12px; margin-top:12px; }
+    .form-row-2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    @media(max-width:600px) { .form-row-2 { grid-template-columns:1fr; } }
+
+    /* ── Pill warna ── */
+    .pill-pdf   { background:rgba(200,60,60,.1);  color:#b83030; }
+    .pill-docx  { background:rgba(30,100,200,.1); color:#1e64c8; }
+    .pill-doc   { background:rgba(30,100,200,.1); color:#1e64c8; }
+    .pill-xlsx  { background:rgba(30,140,80,.1);  color:#1a7040; }
+    .pill-xls   { background:rgba(30,140,80,.1);  color:#1a7040; }
+    .pill-quill { background:rgba(80,160,80,.1);  color:#3a8a3a; }
+    .pill-milik { background:rgba(185,118,80,.15);color:#7a4a10; }
+
+    /* ── Card Soal ── */
+    .soal-card { padding:16px 18px; border-radius:18px; }
+    .soal-card-header {
+      display:flex; align-items:center; justify-content:space-between;
+      gap:10px; flex-wrap:wrap; cursor:pointer; user-select:none;
+    }
+    .soal-header-left { display:flex; align-items:center; gap:12px; flex:1; min-width:0; }
+    .soal-icon {
+      font-size:22px; flex-shrink:0; width:44px; height:44px;
+      display:flex; align-items:center; justify-content:center;
+      border-radius:12px; background:rgba(91,73,57,.08);
+    }
+    .soal-name { font-size:15px; font-weight:800; text-transform:uppercase; line-height:1.2; }
+    .soal-meta { font-size:12px; color:var(--muted); margin-top:3px; }
+    .soal-header-right { display:flex; align-items:center; gap:8px; flex-shrink:0; flex-wrap:wrap; }
+    .soal-chevron { font-size:11px; color:var(--muted); transition:transform .2s; margin-left:4px; }
+    .soal-card.expanded .soal-chevron { transform:rotate(180deg); }
+    .soal-body { display:none; margin-top:12px; padding-top:12px; 
+      /* border-top:1px solid var(--line);  */
+    }
+    .soal-card.expanded .soal-body { display:block; }
+    .soal-deskripsi { font-size:13px; color:var(--muted); line-height:1.6; margin-bottom:12px; }
+    .soal-footer {
+      display:flex; align-items:center; justify-content:space-between;
+      gap:10px; flex-wrap:wrap; padding-top:10px; border-top:1px solid var(--line);
+    }
+    .soal-footer-meta { font-size:11px; color:var(--muted); }
+    .soal-footer-actions { display:flex; gap:8px; flex-wrap:wrap; }
+    .soal-btn { padding:8px 14px !important; font-size:12px !important; }
+
+    /* ── Upload zone ── */
+    .upload-zone {
+      border:2px dashed var(--line); border-radius:12px; padding:22px;
+      text-align:center; cursor:pointer; transition:border-color .15s, background .15s;
+      position:relative; margin-top:4px;
+    }
+    .upload-zone:hover, .upload-zone.drag-over { border-color:var(--accent); background:rgba(185,118,80,.04); }
+    .upload-zone i { font-size:26px; color:var(--accent); margin-bottom:8px; display:block; }
+    .upload-zone p { font-size:13px; color:var(--muted); margin:0; }
+    .upload-zone input[type="file"] { position:absolute; inset:0; opacity:0; cursor:pointer; }
+    .upload-file-info { font-size:12px; color:var(--success); font-weight:700; margin-top:6px; }
+    .upload-progress { height:4px; background:var(--line); border-radius:2px; overflow:hidden; display:none; margin-top:8px; }
+    .upload-progress-bar { height:100%; background:var(--accent); width:0%; transition:width .3s; }
+
+    /* ── Radio group ── */
+    .radio-group { display:flex; gap:10px; flex-wrap:wrap; margin-top:4px; }
+    .radio-label {
+      display:flex; align-items:center; gap:7px; cursor:pointer; font-size:13px;
+      font-weight:600 !important; text-transform:none !important;
+      padding:9px 14px; border:1.5px solid var(--line); border-radius:10px;
+    }
+    .radio-label:has(input:checked) { border-color:var(--accent); background:rgba(185,118,80,.08); }
+    .radio-label input { accent-color:var(--accent); width:auto; padding:0; }
+
+    /* ── Quill ── */
+    .quill-editor-wrap { border:1px solid var(--line); border-radius:10px; overflow:hidden; margin-top:4px; }
+    #quillEditor { min-height:220px; font-family:'Poppins',sans-serif; font-size:14px; }
+    .ql-toolbar { border:none !important; border-bottom:1px solid var(--line) !important; }
+    .ql-container { border:none !important; }
+
+    /* ── Empty state ── */
+    .empty-state { padding:40px 20px; text-align:center; color:var(--muted); font-size:14px; }
+    .empty-state i { font-size:44px; margin-bottom:14px; opacity:.3; display:block; }
+
+    /* ── Dialog Quill view ── */
+    #quillViewDialog { max-width:700px; width:calc(100vw - 24px); }
+    .quill-view-header { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:16px 20px; border-bottom:1px solid var(--line); }
+    .quill-view-header h3 { margin:0; font-size:15px; }
+    .quill-view-header button { padding:6px 12px; }
+    .quill-view-body { padding:20px; max-height:65vh; overflow-y:auto; }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-left">
+      <button class="drawer-toggle" id="navToggle" type="button" aria-label="Toggle sidebar">Menu</button>
+      <div class="header-brand">Pendataan Santri</div>
+      <div class="header-page">Bank Soal</div>
+    </div>
+    <div class="header-right">
+      <span class="header-chip" id="headerRole">-</span>
+    </div>
+  </header>
+  <div class="drawer-backdrop" id="navBackdrop"></div>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+
+  <main>
+    <div class="app-layout">
+      <section class="panel nav" id="nav"></section>
+      <div class="content-stack">
+        <section class="notice info" id="notice"></section>
+
+        <section class="panel">
+          <div class="section-head">
+            <div>
+              <h2>Bank Soal</h2>
+              <p style="color:var(--muted);font-size:13px;margin-top:4px;" id="soalSubtitle">Memuat soal...</p>
+            </div>
+          </div>
+
+          <div class="toolbar">
+            <button class="primary" id="btnTambahSoal" type="button" style="display:none;">
+              <i class="fa-solid fa-plus"></i>&ensp;Tambah Soal
+            </button>
+            <button class="secondary" id="btnRefresh" type="button">
+              <i class="fa-solid fa-rotate-right"></i>&ensp;Muat Ulang
+            </button>
+          </div>
+
+          <div class="filters" id="filtersPanel">
+            <label>
+              Cari judul, pelajaran, keterangan
+              <input type="search" id="searchSoal" placeholder="Ketik untuk mencari...">
+            </label>
+            <label>
+              Mata Pelajaran
+              <select id="filterPelajaran">
+                <option value="">Semua Pelajaran</option>
+              </select>
+            </label>
+            <label>
+              Jenis Soal
+              <select id="filterJenis">
+                <option value="">Semua Jenis</option>
+              </select>
+            </label>
+            <label>
+              Tingkat
+              <select id="filterTingkat">
+                <option value="">Semua Tingkat</option>
+              </select>
+            </label>
+            <label>
+              Tahun Ajaran
+              <select id="filterTahunAjaran">
+                <option value="">Semua Tahun Ajaran</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="list" id="soalList">
+            <div class="empty-state">
+              <i class="fa-solid fa-spinner fa-spin"></i>
+              <p>Memuat data soal...</p>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <!-- ══ Dialog Tambah/Edit Soal ══════════════════════════════════════════════ -->
+  <dialog id="soalDialog">
+    <div class="dialog-body">
+      <button class="secondary ps-dialog-close-floating" type="button">&times;</button>
+      <h3 id="soalDialogTitle" style="margin:0 0 4px;">Tambah Soal</h3>
+      <input type="hidden" id="soalId">
+
+      <div class="field-grid" style="margin-top:0;">
+        <label>Judul Soal <span style="color:var(--danger)">*</span>
+          <input type="text" id="soalJudul" placeholder="Misal: UTS Bahasa Arab Kelas 3">
+        </label>
+        <div class="form-row-2">
+          <label>Mata Pelajaran
+            <input type="text" id="soalPelajaran" placeholder="Misal: Bahasa Arab" list="dlPelajaran" autocomplete="off">
+            <datalist id="dlPelajaran"></datalist>
+          </label>
+          <label>Jenis Soal <span style="color:var(--danger)">*</span>
+            <input type="text" id="soalJenis" placeholder="Misal: UTS, UAS, Latihan" list="dlJenis" autocomplete="off">
+            <datalist id="dlJenis"></datalist>
+          </label>
+        </div>
+        <div class="form-row-2">
+          <label>Tingkat
+            <input type="text" id="soalTingkat" placeholder="Misal: Kelas 1, I'dadi" list="dlTingkat" autocomplete="off">
+            <datalist id="dlTingkat"></datalist>
+          </label>
+          <label>Tahun Ajaran
+            <select id="soalTahunAjaran">
+              <option value="">-- Pilih Tahun Ajaran --</option>
+            </select>
+          </label>
+        </div>
+        <label>Deskripsi / Keterangan
+          <textarea id="soalDeskripsi" rows="2" placeholder="Opsional" style="resize:vertical;"></textarea>
+        </label>
+      </div>
+
+      <div>
+        <label style="margin-bottom:6px;">Format Soal</label>
+        <div class="radio-group" id="fileTypeGroup">
+          <label class="radio-label"><input type="radio" name="soalFileType" value="pdf" checked> PDF</label>
+          <label class="radio-label"><input type="radio" name="soalFileType" value="docx"> Word (DOCX)</label>
+          <label class="radio-label"><input type="radio" name="soalFileType" value="xlsx"> Excel (XLSX)</label>
+          <label class="radio-label"><input type="radio" name="soalFileType" value="quill"> Tulis di sini</label>
+        </div>
+      </div>
+
+      <!-- Upload zone -->
+      <div id="uploadZoneWrap">
+        <label style="margin-bottom:4px;">File Soal</label>
+        <div id="existingFileInfo" style="font-size:12px;color:var(--muted);margin-bottom:4px;"></div>
+        <div class="upload-zone" id="uploadZone">
+          <i class="fa-solid fa-file-arrow-up"></i>
+          <p>Klik atau seret file ke sini</p>
+          <p id="uploadFileName" class="upload-file-info"></p>
+          <input type="file" id="fileInput" accept=".pdf,.doc,.docx,.xls,.xlsx">
+        </div>
+        <div class="upload-progress" id="uploadProgress">
+          <div class="upload-progress-bar" id="uploadProgressBar"></div>
+        </div>
+      </div>
+
+      <!-- Quill editor -->
+      <div id="quillWrap" style="display:none;">
+        <label style="margin-bottom:4px;">Konten Soal</label>
+        <div class="quill-editor-wrap">
+          <div id="quillEditor"></div>
+        </div>
+      </div>
+
+      <div class="toolbar" style="justify-content:flex-end;margin-top:8px;">
+        <button class="secondary" id="btnCancelSoal" type="button">Batal</button>
+        <button class="primary" id="btnSaveSoal" type="button">
+          <i class="fa-solid fa-floppy-disk"></i>&ensp;Simpan
+        </button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- ══ Dialog Baca Konten Quill ═════════════════════════════════════════════ -->
+  <dialog id="quillViewDialog">
+    <div class="quill-view-header">
+      <h3 id="quillViewTitle"></h3>
+      <button class="secondary" id="btnQuillViewClose" type="button" style="padding:6px 14px;font-size:13px;">Tutup &times;</button>
+    </div>
+    <div class="quill-view-body ql-editor" id="quillViewBody" style="min-height:80px;"></div>
+  </dialog>
+
+  <!-- ══ Dialog Riwayat Edit ══════════════════════════════════════════════════ -->
+  <dialog class="ps-floating-dialog" id="editHistoryDialog">
+    <div class="dialog-body ps-dialog-shell" style="min-width:280px;">
+      <div class="ps-dialog-header">
+        <div>
+          <h3>Riwayat Edit</h3>
+          <p id="editHistorySubtitle" style="font-size:13px;color:var(--muted);text-transform:none;"></p>
+        </div>
+      </div>
+      <div id="editHistoryList" style="display:grid;gap:8px;margin-top:4px;"></div>
+      <div class="toolbar ps-dialog-footer" style="margin-top:12px;">
+        <button class="secondary" id="closeEditHistoryDialog" type="button">Tutup</button>
+      </div>
+    </div>
+  </dialog>
+
+  <script src="../../shared-access.js"></script>
+  <script src="../../shared-nav.js"></script>
+  <script src="../../shared-shell.js"></script>
+  <script src="../../vendor/quill/quill.js"></script>
+  <script>
+    var STORAGE = window.PS_STORAGE || { session: 'ps_session' };
+    function getStoredSession() {
+      try { return JSON.parse(localStorage.getItem(STORAGE.session) || 'null'); } catch (_) { return null; }
+    }
+    function getToken() { var s = getStoredSession(); return (s && s.token) || ''; }
+
+    var state = { items: [], pelajaranList: [], jenisList: [], tingkatList: [], editingId: null };
+    var canUpload = false, canManage = false, myId = '';
+    var _quill = null, _pendingFile = null;
+
+    async function api(action, payload) {
+      var s = getStoredSession();
+      var body = Object.assign({ action: action, token: s && s.token }, payload);
+      var r = await fetch('/api', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+      var json = await r.json();
+      if (!json.ok) throw new Error((json.error && json.error.message) || 'Gagal.');
+      return json.data;
+    }
+
+    function esc(s) {
+      return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function showNotice(text, type) {
+      var stack = document.getElementById('noticeStack');
+      if (!stack) return;
+      var el = document.createElement('section');
+      el.className = 'notice show ' + (type||'info');
+      el.textContent = text;
+      stack.prepend(el);
+      if (stack.matches(':popover-open')) stack.hidePopover();
+      stack.showPopover();
+      setTimeout(function() {
+        el.classList.add('notice-dismissing');
+        setTimeout(function() {
+          el.remove();
+          if (!stack.hasChildNodes() && stack.matches(':popover-open')) stack.hidePopover();
+        }, 220);
+      }, type === 'error' ? 8000 : 4000);
+    }
+
+    /* ── Helpers ── */
+    function iconFor(ft) {
+      if (ft === 'pdf')  return 'fa-solid fa-file-pdf';
+      if (ft === 'docx' || ft === 'doc') return 'fa-solid fa-file-word';
+      if (ft === 'xlsx' || ft === 'xls') return 'fa-solid fa-file-excel';
+      if (ft === 'quill') return 'fa-solid fa-pen-nib';
+      return 'fa-solid fa-file';
+    }
+
+    function fmtDate(s) {
+      if (!s) return '—';
+      var d = new Date(s);
+      return isNaN(d) ? s : d.toLocaleDateString('id-ID', { day:'numeric', month:'short', year:'numeric' });
+    }
+
+    function fmtSize(b) {
+      b = Number(b); if (!b) return '';
+      if (b >= 1024*1024) return (b/1024/1024).toFixed(1) + ' MB';
+      if (b >= 1024) return (b/1024).toFixed(0) + ' KB';
+      return b + ' B';
+    }
+
+    function pillFor(ft) {
+      var cls = { pdf:'pill-pdf', docx:'pill-docx', doc:'pill-doc', xlsx:'pill-xlsx', xls:'pill-xls', quill:'pill-quill' };
+      return '<span class="pill ' + (cls[ft]||'') + '">' + esc((ft||'?').toUpperCase()) + '</span>';
+    }
+
+    /* ── Load tahunAjaran ── */
+    async function loadTahunAjaran() {
+      try {
+        var data = await api('tahunAjaran.list', {});
+        var items = data.items || [];
+        var optF = '<option value="">Semua Tahun Ajaran</option>';
+        var optD = '<option value="">-- Pilih Tahun Ajaran --</option>';
+        items.forEach(function(ta) {
+          var v = esc(ta.id), l = esc(ta.namaDisplay || ta.nama || ta.id);
+          optF += '<option value="' + v + '">' + l + '</option>';
+          optD += '<option value="' + v + '" data-label="' + l + '">' + l + '</option>';
+        });
+        document.getElementById('filterTahunAjaran').innerHTML = optF;
+        document.getElementById('soalTahunAjaran').innerHTML = optD;
+      } catch (_) {}
+    }
+
+    /* ── Load soal ── */
+    async function loadSoal() {
+      document.getElementById('soalSubtitle').textContent = 'Memuat soal...';
+      document.getElementById('soalList').innerHTML = '<div class="empty-state"><i class="fa-solid fa-spinner fa-spin"></i><p>Memuat...</p></div>';
+      try {
+        var data = await api('banksoal.list', {});
+        state.items = data.items || [];
+        state.pelajaranList = data.pelajaranList || [];
+        state.jenisList     = data.jenisList     || [];
+        state.tingkatList   = data.tingkatList   || [];
+        populateFilters();
+        populateDatalist();
+        applyFilters();
+      } catch(e) {
+        document.getElementById('soalSubtitle').textContent = '';
+        document.getElementById('soalList').innerHTML = '<div class="empty-state"><i class="fa-solid fa-triangle-exclamation"></i><p>' + esc(e.message) + '</p></div>';
+      }
+    }
+
+    function populateFilters() {
+      function refill(id, list, allLabel) {
+        var el = document.getElementById(id), cur = el.value;
+        el.innerHTML = '<option value="">' + allLabel + '</option>' +
+          list.map(function(v) { return '<option value="' + esc(v) + '"' + (v === cur ? ' selected' : '') + '>' + esc(v) + '</option>'; }).join('');
+      }
+      refill('filterPelajaran', state.pelajaranList, 'Semua Pelajaran');
+      refill('filterJenis',     state.jenisList,     'Semua Jenis');
+      refill('filterTingkat',   state.tingkatList,   'Semua Tingkat');
+    }
+
+    function populateDatalist() {
+      document.getElementById('dlPelajaran').innerHTML = state.pelajaranList.map(function(v) { return '<option value="' + esc(v) + '">'; }).join('');
+      document.getElementById('dlJenis').innerHTML     = state.jenisList.map(function(v) { return '<option value="' + esc(v) + '">'; }).join('');
+      document.getElementById('dlTingkat').innerHTML   = state.tingkatList.map(function(v) { return '<option value="' + esc(v) + '">'; }).join('');
+    }
+
+    /* ── Filter & render ── */
+    function applyFilters() {
+      var q   = (document.getElementById('searchSoal').value || '').toLowerCase();
+      var pel = document.getElementById('filterPelajaran').value;
+      var jen = document.getElementById('filterJenis').value;
+      var tin = document.getElementById('filterTingkat').value;
+      var tah = document.getElementById('filterTahunAjaran').value;
+
+      var items = state.items.filter(function(s) {
+        if (pel && (s.pelajaran||'') !== pel) return false;
+        if (jen && (s.jenis||'')     !== jen) return false;
+        if (tin && (s.tingkat||'')   !== tin) return false;
+        if (tah && (s.tahunAjaranId||'') !== tah) return false;
+        if (q) {
+          var hay = [s.judul, s.pelajaran, s.jenis, s.tingkat, s.tahunAjaranLabel, s.deskripsi, s.uploadedByNama].join(' ').toLowerCase();
+          if (hay.indexOf(q) === -1) return false;
+        }
+        return true;
+      });
+
+      document.getElementById('soalSubtitle').textContent = items.length + ' soal ditemukan';
+      renderList(items);
+    }
+
+    var _expandedIds = new Set();
+
+    function renderList(items) {
+      var el = document.getElementById('soalList');
+      if (!items.length) {
+        el.innerHTML = '<div class="empty-state"><i class="fa-solid fa-file-circle-question"></i><p>Belum ada soal yang sesuai filter.</p></div>';
+        return;
+      }
+      el.innerHTML = items.map(function(s) {
+        var isOwn   = String(s.uploadedBy||'') === String(myId);
+        var canEdit = canManage || (canUpload && isOwn);
+        var meta    = [s.pelajaran, s.jenis, s.tingkat, s.tahunAjaranLabel].filter(Boolean).join(' · ');
+        var expanded = _expandedIds.has(s.id);
+        return '<div class="card soal-card minimal-list-card' + (expanded ? ' expanded' : '') + '" data-id="' + esc(s.id) + '">' +
+          '<div class="soal-card-header" data-toggle="' + esc(s.id) + '">' +
+            '<div class="soal-header-left">' +
+              '<div class="soal-icon"><i class="' + iconFor(s.fileType) + '"></i></div>' +
+              '<div>' +
+                '<div class="soal-name">' + esc(s.judul) + '</div>' +
+                (meta ? '<div class="soal-meta">' + esc(meta) + '</div>' : '') +
+              '</div>' +
+            '</div>' +
+            '<div class="soal-header-right">' +
+              (s.fileType ? pillFor(s.fileType) : '') +
+              (isOwn ? '<span class="pill pill-milik">Milik Saya</span>' : '') +
+              '<i class="fa-solid fa-chevron-down soal-chevron"></i>' +
+            '</div>' +
+          '</div>' +
+          '<div class="soal-body">' +
+            (s.deskripsi ? '<div class="soal-deskripsi">' + esc(s.deskripsi) + '</div>' : '') +
+            '<div class="soal-footer">' +
+              '<div class="soal-footer-meta">Oleh <strong>' + esc(s.uploadedByNama||'—') + '</strong> &bull; ' + fmtDate(s.createdAt) + (s.fileSize ? ' &bull; ' + fmtSize(s.fileSize) : '') + '</div>' +
+              '<div class="soal-footer-actions">' +
+                (s.hasQuill ? '<button class="secondary soal-btn" data-quill="' + esc(s.id) + '" type="button"><i class="fa-solid fa-book-open"></i>&ensp;Baca</button>' : '') +
+                (s.hasFile  ? '<button class="secondary soal-btn" data-open="' + esc(s.id) + '" type="button"><i class="fa-solid fa-eye"></i>&ensp;Lihat</button>' : '') +
+                (s.hasFile  ? '<button class="secondary soal-btn" data-dl="' + esc(s.id) + '" type="button"><i class="fa-solid fa-download"></i>&ensp;Unduh</button>' : '') +
+                '<button class="secondary soal-btn" ' + (canEdit ? 'data-edit="' + esc(s.id) + '"' : 'disabled title="Hanya pemilik atau admin yang dapat mengedit"') + ' type="button" style="' + (!canEdit ? 'opacity:.35;cursor:not-allowed;' : '') + '"><i class="fa-solid fa-pen"></i>&ensp;Edit</button>' +
+                '<button class="secondary soal-btn" data-history="' + esc(s.id) + '" type="button"><i class="fa-solid fa-clock-rotate-left"></i>&ensp;Riwayat</button>' +
+                '<button class="danger soal-btn" ' + (canEdit ? 'data-del="' + esc(s.id) + '" data-judul="' + esc(s.judul) + '"' : 'disabled title="Hanya pemilik atau admin yang dapat menghapus"') + ' type="button" style="' + (!canEdit ? 'opacity:.35;cursor:not-allowed;' : '') + '"><i class="fa-solid fa-trash"></i></button>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+
+      /* ── Event listeners ── */
+      el.querySelectorAll('[data-toggle]').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+          if (e.target.closest('button[data-open],button[data-dl],button[data-edit],button[data-del],button[data-quill],button[data-history]')) return;
+          var id = this.dataset.toggle;
+          var card = el.querySelector('.soal-card[data-id="' + id + '"]');
+          if (!card) return;
+          if (_expandedIds.has(id)) { _expandedIds.delete(id); card.classList.remove('expanded'); }
+          else { _expandedIds.add(id); card.classList.add('expanded'); }
+        });
+      });
+      el.querySelectorAll('[data-open]').forEach(function(b) {
+        b.addEventListener('click', function(e) { e.stopPropagation(); openFile(this.dataset.open); });
+      });
+      el.querySelectorAll('[data-dl]').forEach(function(b) {
+        b.addEventListener('click', function(e) { e.stopPropagation(); downloadFile(this.dataset.dl); });
+      });
+      el.querySelectorAll('[data-quill]').forEach(function(b) {
+        b.addEventListener('click', function(e) { e.stopPropagation(); openQuill(this.dataset.quill); });
+      });
+      el.querySelectorAll('[data-edit]').forEach(function(b) {
+        b.addEventListener('click', function(e) { e.stopPropagation(); openDialog(this.dataset.edit); });
+      });
+      el.querySelectorAll('[data-del]').forEach(function(b) {
+        b.addEventListener('click', function(e) { e.stopPropagation(); deleteSoal(this.dataset.del, this.dataset.judul); });
+      });
+      el.querySelectorAll('[data-history]').forEach(function(b) {
+        b.addEventListener('click', function(e) { e.stopPropagation(); showEditHistory(this.dataset.history); });
+      });
+    }
+
+    /* ── File actions ── */
+    function openFile(id) {
+      window.open('/api/banksoal/file?id=' + encodeURIComponent(id) + '&token=' + encodeURIComponent(getToken()), '_blank');
+    }
+    function downloadFile(id) {
+      var a = document.createElement('a');
+      a.href = '/api/banksoal/file?id=' + encodeURIComponent(id) + '&token=' + encodeURIComponent(getToken()) + '&mode=download';
+      a.download = ''; a.style.display = 'none';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    }
+    function openQuill(id) {
+      var s = state.items.find(function(x) { return String(x.id) === String(id); });
+      if (!s) return;
+      document.getElementById('quillViewTitle').textContent = s.judul;
+      var bodyEl = document.getElementById('quillViewBody');
+      if (s.quillContent && window.Quill) {
+        var tmp = document.createElement('div');
+        tmp.style.cssText = 'position:absolute;left:-9999px;visibility:hidden;';
+        document.body.appendChild(tmp);
+        try {
+          var q = new Quill(tmp, { modules:{ toolbar:false } });
+          try { q.setContents(JSON.parse(s.quillContent)); } catch(_) { q.root.innerHTML = s.quillContent; }
+          bodyEl.innerHTML = '<div class="ql-editor" style="padding:0;">' + q.root.innerHTML + '</div>';
+        } catch(_) { bodyEl.textContent = 'Gagal memuat konten.'; }
+        finally { document.body.removeChild(tmp); }
+      } else {
+        bodyEl.innerHTML = s.quillContent
+          ? '<div class="ql-editor" style="padding:0;">' + s.quillContent + '</div>'
+          : '<p style="color:var(--muted)">Konten belum diisi.</p>';
+      }
+      document.getElementById('quillViewDialog').showModal();
+    }
+
+    /* ── Dialog ── */
+    function getFileType() {
+      var r = document.querySelector('input[name="soalFileType"]:checked');
+      return r ? r.value : 'pdf';
+    }
+
+    function updateDialogMode() {
+      var ft = getFileType(), isQuill = ft === 'quill';
+      document.getElementById('uploadZoneWrap').style.display = isQuill ? 'none' : '';
+      document.getElementById('quillWrap').style.display      = isQuill ? ''     : 'none';
+      var acceptMap = { pdf:'.pdf', docx:'.doc,.docx', doc:'.doc,.docx', xlsx:'.xls,.xlsx', xls:'.xls,.xlsx' };
+      document.getElementById('fileInput').accept = acceptMap[ft] || '.pdf,.doc,.docx,.xls,.xlsx';
+      if (isQuill && !_quill && window.Quill) {
+        _quill = new Quill('#quillEditor', {
+          theme: 'snow',
+          modules: {
+            toolbar: [
+              [{ header: [1, 2, 3, 4, false] }],
+              [{ font: [] }, { size: ['small', false, 'large', 'huge'] }],
+              ['bold', 'italic', 'underline', 'strike'],
+              [{ color: [] }, { background: [] }],
+              [{ script: 'sub' }, { script: 'super' }],
+              [{ list: 'ordered' }, { list: 'bullet' }, { indent: '-1' }, { indent: '+1' }],
+              [{ align: [] }, { direction: 'rtl' }],
+              ['blockquote', 'code-block', 'link', 'image', 'video'],
+              ['clean']
+            ]
+          }
+        });
+      }
+    }
+
+    function openDialog(editId) {
+      state.editingId = editId || null;
+      _pendingFile = null;
+      var isEdit = !!editId;
+      var s = isEdit ? state.items.find(function(x) { return String(x.id) === String(editId); }) : null;
+
+      document.getElementById('soalDialogTitle').textContent = isEdit ? 'Edit Soal' : 'Tambah Soal';
+      document.getElementById('soalId').value           = isEdit ? editId : '';
+      document.getElementById('soalJudul').value        = s ? (s.judul      || '') : '';
+      document.getElementById('soalPelajaran').value    = s ? (s.pelajaran  || '') : '';
+      document.getElementById('soalJenis').value        = s ? (s.jenis      || '') : '';
+      document.getElementById('soalTingkat').value      = s ? (s.tingkat    || '') : '';
+      document.getElementById('soalDeskripsi').value    = s ? (s.deskripsi  || '') : '';
+      document.getElementById('soalTahunAjaran').value  = s ? (s.tahunAjaranId || '') : '';
+      document.getElementById('existingFileInfo').textContent = (s && s.hasFile) ? 'File saat ini: ' + (s.fileName || 'ada') + ' — upload baru untuk mengganti.' : '';
+      document.getElementById('uploadFileName').textContent   = '';
+      document.getElementById('uploadProgress').style.display = 'none';
+      document.getElementById('uploadProgressBar').style.width = '0%';
+      document.getElementById('fileInput').value = '';
+
+      var ft = s ? (s.fileType || 'pdf') : 'pdf';
+      document.querySelectorAll('input[name="soalFileType"]').forEach(function(r) {
+        r.checked  = r.value === ft;
+        r.disabled = isEdit; // tidak boleh ganti format saat edit
+      });
+      updateDialogMode();
+
+      if (_quill && s && s.fileType === 'quill') {
+        try { _quill.setContents(JSON.parse(s.quillContent || 'null') || []); }
+        catch(_) { _quill.root.innerHTML = s.quillContent || ''; }
+      } else if (_quill) {
+        _quill.setContents([]);
+      }
+
+      var zone = document.getElementById('uploadZone');
+      zone.ondragover  = function(e) { e.preventDefault(); zone.classList.add('drag-over'); };
+      zone.ondragleave = function()  { zone.classList.remove('drag-over'); };
+      zone.ondrop      = function(e) {
+        e.preventDefault(); zone.classList.remove('drag-over');
+        var f = e.dataTransfer.files[0];
+        if (f) { _pendingFile = f; document.getElementById('uploadFileName').textContent = f.name; }
+      };
+      document.getElementById('soalDialog').showModal();
+    }
+
+    function closeDialog() {
+      document.getElementById('soalDialog').close();
+      state.editingId = null; _pendingFile = null;
+    }
+
+    async function saveSoal() {
+      var judul = document.getElementById('soalJudul').value.trim();
+      var jenis = document.getElementById('soalJenis').value.trim();
+      if (!judul) { showNotice('Judul soal wajib diisi.', 'error'); return; }
+      if (!jenis) { showNotice('Jenis soal wajib diisi.', 'error'); return; }
+
+      var ft    = getFileType();
+      var taSel = document.getElementById('soalTahunAjaran');
+      var taId  = taSel.value;
+      var taOpt = taId ? taSel.querySelector('option[value="' + taId + '"]') : null;
+      var taLabel = taOpt ? (taOpt.getAttribute('data-label') || taOpt.textContent.trim()) : '';
+
+      var payload = {
+        judul:           judul,
+        pelajaran:       document.getElementById('soalPelajaran').value.trim(),
+        jenis:           jenis,
+        tingkat:         document.getElementById('soalTingkat').value.trim(),
+        deskripsi:       document.getElementById('soalDeskripsi').value.trim(),
+        fileType:        ft,
+        tahunAjaranId:   taId,
+        tahunAjaranLabel: taLabel,
+      };
+
+      var btn = document.getElementById('btnSaveSoal');
+      btn.disabled = true;
+      try {
+        var savedId;
+        if (state.editingId) {
+          payload.id = state.editingId;
+          await api('banksoal.update', payload);
+          savedId = state.editingId;
+        } else {
+          var res = await api('banksoal.save', payload);
+          savedId = res && res.id;
+        }
+        if (ft === 'quill' && _quill) {
+          var content = JSON.stringify(_quill.getContents());
+          await api('banksoal.quill.save', { id: savedId, quillContent: content });
+        } else if (_pendingFile && savedId) {
+          await uploadFile(savedId, _pendingFile);
+        }
+        showNotice(state.editingId ? 'Soal berhasil diperbarui.' : 'Soal berhasil ditambahkan.', 'success');
+        closeDialog();
+        await loadSoal();
+      } catch(e) {
+        showNotice('Gagal menyimpan: ' + e.message, 'error');
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    function uploadFile(id, file) {
+      return new Promise(function(resolve, reject) {
+        var prog = document.getElementById('uploadProgress');
+        var bar  = document.getElementById('uploadProgressBar');
+        prog.style.display = '';
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', '/api/banksoal/upload?id=' + encodeURIComponent(id) + '&token=' + encodeURIComponent(getToken()) + '&filename=' + encodeURIComponent(file.name));
+        xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+        xhr.upload.onprogress = function(e) { if (e.lengthComputable) bar.style.width = Math.round(e.loaded/e.total*100) + '%'; };
+        xhr.onload = function() {
+          prog.style.display = 'none';
+          var res; try { res = JSON.parse(xhr.responseText); } catch(_) {}
+          if (!res || !res.ok) return reject(new Error((res && res.error && res.error.message) || 'Gagal upload file.'));
+          resolve(res.data);
+        };
+        xhr.onerror = function() { prog.style.display = 'none'; reject(new Error('Koneksi gagal saat upload.')); };
+        xhr.send(file);
+      });
+    }
+
+    async function deleteSoal(id, judul) {
+      if (!confirm('Hapus soal "' + judul + '"? Tindakan ini tidak dapat dibatalkan.')) return;
+      try {
+        await api('banksoal.delete', { id: id });
+        showNotice('Soal berhasil dihapus.', 'success');
+        _expandedIds.delete(id);
+        await loadSoal();
+      } catch(e) { showNotice('Gagal menghapus: ' + e.message, 'error'); }
+    }
+
+    function showEditHistory(id) {
+      var s = state.items.find(function(x) { return String(x.id) === String(id); });
+      if (!s) return;
+      document.getElementById('editHistorySubtitle').textContent = s.judul || '';
+      var history = [];
+      try { history = JSON.parse(s.editHistory || '[]'); } catch (_) { history = []; }
+      var listEl = document.getElementById('editHistoryList');
+      if (!history.length) {
+        listEl.innerHTML = '<p style="color:var(--muted);font-size:13px;">Belum ada riwayat edit.</p>';
+      } else {
+        listEl.innerHTML = history.map(function(e, i) {
+          return '<div style="padding:10px 12px;border-radius:10px;background:rgba(255,248,230,0.85);border:1px solid var(--line);">' +
+            '<div style="font-weight:700;font-size:13px;">' + (i + 1) + '. ' + esc(e.name || '-') + '</div>' +
+            '<div style="font-size:12px;color:var(--muted);margin-top:2px;">' + esc(e.jabatan || '-') + ' &nbsp;·&nbsp; ' + esc(e.action || 'edit') + '</div>' +
+            '<div style="font-size:11px;color:var(--muted);margin-top:1px;">' + esc(e.at || '-') + '</div>' +
+          '</div>';
+        }).join('');
+      }
+      document.getElementById('editHistoryDialog').showModal();
+    }
+
+    /* ── Init ── */
+    window.addEventListener('DOMContentLoaded', async function() {
+      if (window.PSAccess && window.PSAccess.redirectIfForbidden(getStoredSession(), 'bankSoal.html')) return;
+      if (window.PSShell) window.PSShell.mount({
+        currentPage: window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : '/pages/bankSoal/',
+        session: getStoredSession(), getStoredSession: getStoredSession, storageKey: STORAGE.session
+      });
+
+      var session = getStoredSession();
+      var scopedSession = (window.PSAccess && window.PSAccess.getScopedSession)
+        ? window.PSAccess.getScopedSession(session) : session;
+      var perms = scopedSession && scopedSession.permissions;
+      /* Cek dari scope aktif. Fallback ke flag jabatan jika session lama belum punya canUploadSoal. */
+      if (perms && perms.canUploadSoal !== undefined) {
+        canUpload = !!perms.canUploadSoal;
+        canManage = !!perms.canManageSoal;
+      } else if (perms) {
+        canUpload = !!(perms.isSuperAdmin || perms.isAdmin || perms.isAcademic || perms.hasTeacherAccess);
+        canManage = !!(perms.isSuperAdmin || perms.isAdmin || perms.isAcademic);
+      }
+      myId = String((session && session.id) || '');
+
+      if (canUpload) document.getElementById('btnTambahSoal').style.display = '';
+
+      /* Tombol toolbar */
+      document.getElementById('btnTambahSoal').addEventListener('click', function() { openDialog(null); });
+      document.getElementById('btnRefresh').addEventListener('click', loadSoal);
+
+      /* Tombol dialog soal */
+      document.getElementById('soalDialog').addEventListener('click', function(e) { if (e.target.classList.contains('ps-dialog-close-floating')) closeDialog(); });
+      document.getElementById('btnCancelSoal').addEventListener('click', closeDialog);
+      document.getElementById('btnSaveSoal').addEventListener('click', saveSoal);
+
+      /* Tombol dialog quill view */
+      document.getElementById('btnQuillViewClose').addEventListener('click', function() { document.getElementById('quillViewDialog').close(); });
+
+      /* Tombol dialog riwayat edit */
+      document.getElementById('closeEditHistoryDialog').addEventListener('click', function() { document.getElementById('editHistoryDialog').close(); });
+
+      /* Format soal radio */
+      document.querySelectorAll('input[name="soalFileType"]').forEach(function(r) {
+        r.addEventListener('change', updateDialogMode);
+      });
+
+      /* File input */
+      document.getElementById('fileInput').addEventListener('change', function() {
+        if (this.files && this.files[0]) {
+          _pendingFile = this.files[0];
+          document.getElementById('uploadFileName').textContent = _pendingFile.name;
+        }
+      });
+
+      /* Filter listeners */
+      ['searchSoal','filterPelajaran','filterJenis','filterTingkat','filterTahunAjaran'].forEach(function(id) {
+        document.getElementById(id).addEventListener('input',  applyFilters);
+        document.getElementById(id).addEventListener('change', applyFilters);
+      });
+
+      await loadTahunAjaran();
+      await loadSoal();
+    });
+  </script>
+</body>
+</html>

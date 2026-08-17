@@ -1,0 +1,1172 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#9e2f22">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="../../shared-ui.css">
+  <script src="../../shared-ui.js"></script>
+  <title>Santri Sakit</title>
+  <link rel="stylesheet" href="../../shared-shell.css">
+  <link rel="stylesheet" href="../../vendor/fontawesome/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700&display=swap');
+    :root {
+      --paper: #f6efe0; --ink: #4d4034; --muted: #7b6a58;
+      --line: rgba(91, 73, 57, 0.15); --accent: #b97650;
+      --success: #74846c; --danger: #a55a52; --warning: #b58439;
+      --shadow: 0 18px 45px rgba(87, 67, 51, 0.18); --radius: 24px;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; }
+    body::before { content: ''; position: fixed; inset: 0; pointer-events: none; opacity: 0.15; mix-blend-mode: multiply; }
+    body::after { content: ''; position: fixed; inset: 0; pointer-events: none; opacity: 0.23; }
+    h1, h2, h3 { margin: 0 0 10px; text-transform: uppercase; }
+    p { margin: 0; line-height: 1.65; }
+    .nav a, button { font-weight: 800 !important; text-transform: uppercase; }
+    .panel { padding: 22px; }
+    .card { padding: 11px !important; }
+    .filters { display: grid; gap: 12px; margin-top: 16px; }
+    button, input, select, textarea { font: inherit; }
+    button { padding: 12px 18px; font-weight: 700; cursor: pointer; }
+    .primary { box-shadow: 0 14px 28px rgba(185, 118, 80, 0.22); }
+    input, select, textarea { width: 100%; padding: 13px 14px; outline: none; }
+    label { display: grid; gap: 7px; font-size: 14px; font-weight: 600; }
+    .list { display: grid; grid-template-columns: 1fr; gap: 14px; }
+    .pill { display: inline-flex; padding: 7px 11px; font-size: 12px; font-weight: 700; border-radius: 25px;}
+    .notice { display: none; padding: 14px 16px; line-height: 1.55; }
+    .notice.show { display: block; }
+    dialog { padding: 0; }
+    .dialog-body { padding: 22px !important; display: flex; flex-direction: column; gap: 14px; max-height: 90vh; overflow: auto; }
+    .paging-host { display: grid; gap: 8px; margin: 3px 0; justify-items: center; }
+    .paging { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; }
+    .page-center { display: grid; gap: 8px; justify-items: center; }
+    .page-numbers { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+    .page-numbers button { padding: 0 14px; }
+    .page-summary { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+    .field-grid { display: grid; gap: 12px; margin-top: 12px; }
+    .dialog-body.dialog-body-split { padding: 0 !important; overflow: hidden; }
+    .dialog-head { flex-shrink: 0; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 18px 22px 14px; background: #ebf6ff; border-bottom: 1px solid rgba(75, 44, 32, 0.15); }
+    .dialog-close { flex-shrink: 0; padding: 6px 12px; font-size: 16px; line-height: 1; border-radius: 10px; }
+    .dialog-scroll { flex: 1; min-height: 0; overflow: auto; padding: 14px 22px; }
+    .dialog-footer { flex-shrink: 0; margin: 0; padding: 14px 22px 18px; border-top: 1px solid rgba(75, 44, 32, 0.15); background: #ebf6ff; }
+    .form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 600px) { .form-row-2 { grid-template-columns: 1fr; } .paging { grid-template-columns: 1fr; } }
+    .section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .tab-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 15px !important; }
+    .tab-btn { padding: 10px 16px; font-size: 12px; font-weight: 800 !important; letter-spacing: 0.08em; border-radius: 12px; }
+    .tab-btn.active { box-shadow: 0 14px 28px rgba(185, 118, 80, 0.22); }
+
+    .s-card { padding: 16px 18px; border-radius: 18px; }
+    .minimal-list-card.row-male            { background: #ddeeff; border-color: rgba(70,130,180,0.25); }
+    .minimal-list-card.row-female          { background: #ffe4f0; border-color: rgba(200,100,140,0.25); }
+    .minimal-list-card.row-male-inactive   { background: linear-gradient(135deg, #888 0%, #cce6ff 100%); border-color: rgba(70,130,180,0.25); }
+    .minimal-list-card.row-female-inactive { background: linear-gradient(135deg, #888 0%, #ffd6e8 100%); border-color: rgba(200,100,140,0.25); }
+    .minimal-list-card.row-male-frozen     { background: linear-gradient(135deg, #d0d0d0 0%, #cce6ff 100%); border-color: rgba(70,130,180,0.25); }
+    .minimal-list-card.row-female-frozen   { background: linear-gradient(135deg, #d0d0d0 0%, #ffd6e8 100%); border-color: rgba(200,100,140,0.25); }
+    .minimal-list-card.row-nogender-inactive { background: linear-gradient(135deg, #888 0%, rgba(255,248,230,0.96) 100%); }
+    .minimal-list-card.row-nogender-frozen   { background: linear-gradient(135deg, #d0d0d0 0%, rgba(255,248,230,0.96) 100%); }
+    .minimal-list-card.row-male-dibatalkan     { background: linear-gradient(135deg, #9a9a9a 0%, #cce6ff 100%); border-color: rgba(70,130,180,0.25); }
+    .minimal-list-card.row-female-dibatalkan   { background: linear-gradient(135deg, #9a9a9a 0%, #ffd6e8 100%); border-color: rgba(200,100,140,0.25); }
+    .minimal-list-card.row-nogender-dibatalkan { background: linear-gradient(135deg, #9a9a9a 0%, rgba(255,248,230,0.96) 100%); }
+    .s-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; flex-wrap: wrap; cursor: pointer; user-select: none; }
+    .s-santri-name { font-size: 15px; font-weight: 800; text-transform: uppercase; }
+    .s-santri-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .s-body { display: none; margin-top: 10px; }
+    .s-card.expanded .s-body { display: block; }
+    .s-chevron { transition: transform 0.2s; }
+    .s-card.expanded .s-chevron { transform: rotate(180deg); }
+    .s-detail { font-size: 13px; color: var(--muted); line-height: 1.55; margin-top: 6px; }
+    .s-footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); }
+    .pill-sakit      { background: rgba(165, 90, 82, 0.14); color: #8a3a30; }
+    .pill-sembuh     { background: rgba(116, 132, 108, 0.14); color: #3a5a30; }
+    .pill-dibatalkan { background: rgba(123, 106, 88, 0.16); color: #5b4a3a; }
+    .pill-santri-inactive { background: rgba(90, 90, 90, 0.18); color: #3d3d3d; }
+    .pill-santri-frozen   { background: rgba(70, 130, 180, 0.18); color: #2d5f86; }
+    .pill-santri-active   { background: rgba(74, 96, 64, 0.16); color: #3a5a30; }
+
+    .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 16px; }
+    .stat-card { padding: 14px 16px; border-radius: 16px; text-align: center; background: rgba(242, 222, 154, 0.96) !important; }
+    .stat-value { font-size: 28px; font-weight: 800; line-height: 1; }
+    .stat-label { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
+    .stat-sakit .stat-value  { color: #a55a52; }
+    .stat-sembuh .stat-value { color: #4a6040; }
+    .stat-dibatalkan .stat-value { color: #5b4a3a; }
+
+    .santri-search-wrap { position: relative; }
+    .santri-suggestions { display: none !important; position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 20; max-height: 200px; overflow-y: auto; border-radius: 14px; display: none; padding: 6px; flex-direction: column; gap: 2px; }
+    .santri-suggestions.open { display: flex !important; }
+    .suggestion-item { padding: 9px 12px; cursor: pointer; font-size: 14px; border-radius: 10px; display: flex; flex-direction: column; gap: 2px; }
+    .suggestion-item:hover { background: rgba(91, 73, 57, 0.07); }
+    .suggestion-noinduk { font-size: 11px; color: var(--muted); }
+    .empty-state { padding: 36px 20px; text-align: center; color: var(--muted); font-size: 14px; }
+
+    .edit-history-subtitle { font-weight: 600; margin: 0; }
+    .edit-history-list { display: grid; gap: 10px; }
+    .edit-history-entry { display: flex; align-items: flex-start; gap: 12px; padding: 10px 12px; background: rgba(91,73,57,0.05); border-radius: 8px; border: 1px solid rgba(91,73,57,0.12); }
+    .edit-history-order { min-width: 26px; height: 26px; border-radius: 50%; background: var(--accent, #c99a28); color: #fff; display: grid; place-items: center; font-size: 11px; font-weight: 700; flex-shrink: 0; }
+    .edit-history-info { display: grid; gap: 2px; }
+    .edit-history-name { font-weight: 700; font-size: 14px; }
+    .edit-history-jabatan { font-size: 12px; color: var(--muted); }
+    .edit-history-meta { font-size: 12px; color: var(--muted); }
+    .edit-history-empty { color: var(--muted); font-size: 13px; margin: 0; text-align: center; padding: 16px 0; }
+
+    .foto-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; justify-content: flex-end; }
+    .foto-thumb-wrap { position: relative; width: 72px; height: 72px; border-radius: 10px; overflow: hidden; }
+    .foto-thumb-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .foto-thumb-del { position: absolute; top: 2px; right: 2px; background: rgba(165,90,82,0.85); color: #fff; border: none; border-radius: 50%; width: 20px; height: 20px; font-size: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; }
+    .foto-upload-btn { padding: 8px 12px; font-size: 12px; }
+
+    #sskCamDialog { max-width: 520px; width: calc(100vw - 24px); }
+    #sskCamVideo { width: 100%; border-radius: 14px; background: #111; display: block; max-height: 54vh; object-fit: cover; }
+    #sskCamCanvas { display: none; }
+    .ssk-cam-controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: center; margin-top: 14px; }
+    .cam-dialog-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+    .cam-dialog-close { width: 42px; min-width: 42px; height: 42px; padding: 0; border-radius: 999px !important; font-size: 22px; line-height: 1; }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-left">
+      <button class="drawer-toggle" id="navToggle" type="button" aria-label="Toggle sidebar">Menu</button>
+      <div class="header-brand">Pendataan Santri</div>
+      <div class="header-page">Santri Sakit</div>
+    </div>
+    <div class="header-right">
+      <span class="header-chip" id="headerRole">Admin</span>
+    </div>
+  </header>
+  <div class="drawer-backdrop" id="navBackdrop"></div>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+  <main>
+    <div class="app-layout">
+      <section class="panel nav" id="nav"></section>
+      <div class="content-stack">
+        <section class="notice info" id="notice"></section>
+
+        <section class="panel">
+          <div class="section-head">
+            <div>
+              <h2>Santri Sakit</h2>
+              <p style="color:var(--muted);font-size:13px;margin-top:4px;">Pantau dan catat santri yang sedang dalam kondisi sakit.</p>
+            </div>
+          </div>
+          <div class="tab-bar" id="tabBar" style="margin-bottom:0; margin-top: 11px;">
+            <button class="primary tab-btn active" data-tab="rekap" type="button"><i class="fa-solid fa-list-ul"></i>&ensp;Rekap</button>
+            <button class="secondary tab-btn" data-tab="input" type="button"><i class="fa-solid fa-plus"></i>&ensp;Catat Sakit</button>
+          </div>
+          <div class="toolbar" style="margin-bottom:0;">
+            <div id="superAdminActions" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content: flex-end;">
+              <button class="primary" type="button" id="btnExportLaporan" style="background:var(--theme-gold);"><i class="fa-solid fa-file-lines"></i>&ensp;Export Laporan</button>
+              <button class="primary" type="button" id="btnCopyWa" style="background:#25D366;"><i class="fa-brands fa-whatsapp"></i>&ensp;Salin untuk WA</button>
+              <button class="primary" type="button" id="btnExportExcel" style="background:var(--theme-gold);"><i class="fa-solid fa-file-excel"></i>&ensp;Export Excel</button>
+              <button class="primary" type="button" id="btnImportExcel" style="background:var(--theme-gold);"><i class="fa-solid fa-file-import"></i>&ensp;Import Excel</button>
+              <button class="primary" type="button" id="btnDeleteAll"><i class="fa-solid fa-trash"></i>&ensp;Hapus Semua</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- REKAP -->
+        <section class="panel" id="tabRekap">
+          <div class="stats-row">
+            <div class="stat-card stat-sakit card"><div class="stat-value" id="statSakit">—</div><div class="stat-label">Sedang Sakit</div></div>
+            <div class="stat-card stat-sembuh card"><div class="stat-value" id="statSembuh">—</div><div class="stat-label">Sudah Sembuh</div></div>
+            <div class="stat-card stat-dibatalkan card"><div class="stat-value" id="statDibatalkan">—</div><div class="stat-label">Dihapus</div></div>
+          </div>
+          <div class="filters" id="filtersPanel">
+            <label>Tahun Ajaran
+              <select id="filterTahunAjaran"><option value="">Semua tahun ajaran</option></select>
+            </label>
+            <label>Dari Tanggal
+              <input type="date" id="filterDariTanggal">
+            </label>
+            <label>Sampai Tanggal
+              <input type="date" id="filterSampaiTanggal">
+            </label>
+            <label>Status
+              <select id="filterStatus">
+                <option value="">Semua (kecuali Dihapus)</option>
+                <option value="sakit">Sedang Sakit</option>
+                <option value="sembuh">Sudah Sembuh</option>
+                <option value="dihapus">Dihapus</option>
+              </select>
+            </label>
+            <label>Urutkan
+              <select id="filterSort">
+                <option value="updated">Terbaru Diperbarui</option>
+                <option value="nama_az">Nama A–Z</option>
+                <option value="nama_za">Nama Z–A</option>
+                <option value="tanggal_desc">Tanggal Terbaru</option>
+                <option value="tanggal_asc">Tanggal Terlama</option>
+              </select>
+            </label>
+            <label>Cari santri / keterangan
+              <input type="search" id="filterQ" placeholder="Ketik untuk mencari…">
+            </label>
+          </div>
+          <div class="paging-host" id="paginationTop" style="margin-top:16px;"></div>
+          <div class="list" id="rekapList" style="margin-top:16px;"></div>
+          <div class="paging-host" id="paginationBottom" style="margin-top:16px;"></div>
+        </section>
+
+        <!-- INPUT -->
+        <section class="panel" id="tabInput" hidden>
+          <h3>Catat Santri Sakit</h3>
+          <form id="inputForm" autocomplete="off">
+            <div class="field-grid">
+              <label>Santri <span style="color:var(--danger)">*</span>
+                <div class="santri-search-wrap">
+                  <input type="text" id="inputSantriSearch" placeholder="Ketik nama atau no. induk santri…" autocomplete="off">
+                  <div class="santri-suggestions card" id="santriSuggestions"></div>
+                </div>
+                <input type="hidden" id="inputSantriId">
+                <div style="font-size:12px;color:var(--success);margin-top:2px;font-weight:700;" id="santriSelected"></div>
+              </label>
+              <div class="form-row-2">
+                <label>Tanggal Mulai Sakit
+                  <div style="display:flex;gap:6px;">
+                    <input type="date" id="inputTanggalMulai" style="flex:2;">
+                    <input type="time" id="inputJamMulai" style="flex:1;">
+                  </div>
+                </label>
+                <label>Rencana/Sampai Sembuh
+                  <div style="display:flex;gap:6px;">
+                    <input type="date" id="inputTanggalSembuh" style="flex:2;">
+                    <input type="time" id="inputJamSembuh" style="flex:1;">
+                  </div>
+                </label>
+              </div>
+              <div class="form-row-2">
+                <label>Tempat Perawatan
+                  <select id="inputTempatPerawatan">
+                    <option value="">— pilih —</option>
+                    <option value="Kamar">Kamar</option>
+                    <option value="Klinik Pesantren">Klinik Pesantren</option>
+                    <option value="Rumah Sakit">Rumah Sakit</option>
+                    <option value="Rumah Orang Tua">Rumah Orang Tua</option>
+                    <option value="Lainnya">Lainnya</option>
+                  </select>
+                </label>
+                <label>Boleh masuk halaqoh &amp; kelas?
+                  <select id="inputBolehMasuk">
+                    <option value="semua" selected>Tetap wajib masuk kelas dan halaqoh</option>
+                    <option value="halaqoh">Boleh masuk halaqoh saja</option>
+                    <option value="kelas">Boleh masuk kelas saja</option>
+                    <option value="wajib_halaqoh">Wajib masuk halaqoh saja</option>
+                    <option value="wajib_kelas">Wajib masuk kelas saja</option>
+                    <option value="tidak">Tidak boleh masuk keduanya</option>
+                  </select>
+                </label>
+              </div>
+              <label>Keterangan Penyakit
+                <textarea id="inputKeterangan" rows="3" placeholder="Jenis penyakit, gejala, atau keterangan lain…" style="resize:vertical;"></textarea>
+              </label>
+              <label>Alasan
+                <textarea id="inputAlasan" rows="2" placeholder="Alasan boleh/tidak boleh masuk halaqoh & kelas…" style="resize:vertical;"></textarea>
+              </label>
+              <label>Penanganan
+                <textarea id="inputPenanganan" rows="2" placeholder="Penanganan yang sudah/akan diberikan…" style="resize:vertical;"></textarea>
+              </label>
+              <label>Tahun Ajaran
+                <select id="inputTahunAjaran"><option value="">— Pilih tahun ajaran —</option></select>
+              </label>
+              <div>
+                <div style="font-size:14px;font-weight:600;margin-bottom:8px;">Foto Rekam Medis / Surat Dokter</div>
+                <div class="foto-grid" id="inputFotoGrid"></div>
+                <input type="file" id="inputFotoFile" accept="image/*" multiple style="display:none;">
+              </div>
+              <div class="toolbar">
+                <button class="primary" type="submit" id="btnSubmit"><i class="fa-solid fa-paper-plane"></i>&ensp;Catat Sakit</button>
+                <button class="secondary" type="button" id="btnReset"><i class="fa-solid fa-rotate-left"></i>&ensp;Reset</button>
+              </div>
+            </div>
+          </form>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <!-- Dialog Tandai Sembuh -->
+  <dialog id="sembuhDialog">
+    <form method="dialog">
+      <div class="dialog-body">
+        <div>
+          <h3 style="margin-bottom:6px;">Tandai Sudah Sembuh</h3>
+          <div id="sembuhMeta" style="font-size:13px;color:var(--muted);margin-bottom:14px;"></div>
+          <input type="hidden" id="sembuhId">
+          <div class="field-grid">
+            <div class="form-row-2">
+              <label>Tanggal Sembuh
+                <input type="date" id="sembuhTanggal">
+              </label>
+              <label>Jam Sembuh
+                <input type="time" id="sembuhJam">
+              </label>
+            </div>
+            <label>Catatan
+              <input type="text" id="sembuhCatatan" placeholder="Opsional">
+            </label>
+          </div>
+        </div>
+        <div class="toolbar">
+          <button class="primary" type="button" id="btnSembuhSubmit"><i class="fa-solid fa-heart-pulse"></i>&ensp;Tandai Sembuh</button>
+          <button class="secondary" type="button" id="btnSembuhCancel">Batal</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Dialog Edit -->
+  <dialog id="editDialog">
+    <form method="dialog" class="dialog-body dialog-body-split">
+      <div class="dialog-head">
+        <div>
+          <h3 style="margin-bottom:6px;">Edit Data Sakit</h3>
+        </div>
+        <button type="button" class="secondary dialog-close" id="btnEditDialogClose" aria-label="Tutup">&times;</button>
+      </div>
+      <div class="dialog-scroll">
+        <div>
+          <input type="hidden" id="editId">
+          <div class="field-grid">
+            <div class="form-row-2">
+              <label>Tanggal Mulai Sakit
+                <div style="display:flex;gap:6px;">
+                  <input type="date" id="editTanggalMulai" style="flex:2;">
+                  <input type="time" id="editJamMulai" style="flex:1;">
+                </div>
+              </label>
+              <label>Tanggal Sembuh
+                <div style="display:flex;gap:6px;">
+                  <input type="date" id="editTanggalSembuh" style="flex:2;">
+                  <input type="time" id="editJamSembuh" style="flex:1;">
+                </div>
+              </label>
+            </div>
+            <div class="form-row-2">
+              <label>Tempat Perawatan
+                <select id="editTempatPerawatan">
+                  <option value="">— pilih —</option>
+                  <option value="Kamar">Kamar</option>
+                  <option value="Klinik Pesantren">Klinik Pesantren</option>
+                  <option value="Rumah Sakit">Rumah Sakit</option>
+                  <option value="Rumah Orang Tua">Rumah Orang Tua</option>
+                  <option value="Lainnya">Lainnya</option>
+                </select>
+              </label>
+              <label>Status
+                <select id="editStatus">
+                  <option value="Sakit">Sedang Sakit</option>
+                  <option value="Sembuh">Sudah Sembuh</option>
+                </select>
+              </label>
+            </div>
+            <label>Boleh masuk halaqoh &amp; kelas?
+              <select id="editBolehMasuk">
+                <option value="semua">Tetap wajib masuk kelas dan halaqoh</option>
+                <option value="halaqoh">Boleh masuk halaqoh saja</option>
+                <option value="kelas">Boleh masuk kelas saja</option>
+                <option value="wajib_halaqoh">Wajib masuk halaqoh saja</option>
+                <option value="wajib_kelas">Wajib masuk kelas saja</option>
+                <option value="tidak">Tidak boleh masuk keduanya</option>
+              </select>
+            </label>
+            <label>Keterangan Penyakit
+              <textarea id="editKeterangan" rows="3" style="resize:vertical;"></textarea>
+            </label>
+            <label>Alasan
+              <textarea id="editAlasan" rows="2" placeholder="Alasan boleh/tidak boleh masuk halaqoh & kelas…" style="resize:vertical;"></textarea>
+            </label>
+            <label>Penanganan
+              <textarea id="editPenanganan" rows="2" placeholder="Penanganan yang sudah/akan diberikan…" style="resize:vertical;"></textarea>
+            </label>
+            <label>Catatan Tambahan
+              <input type="text" id="editCatatan" placeholder="Opsional">
+            </label>
+            <div>
+              <div style="font-size:14px;font-weight:600;margin-bottom:8px;">Foto Rekam Medis / Surat Dokter</div>
+              <div class="foto-grid" id="editFotoGrid"></div>
+              <input type="file" id="editFotoInput" accept="image/*" multiple style="display:none;">
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="toolbar dialog-footer">
+        <button class="primary" type="button" id="btnEditSubmit"><i class="fa-solid fa-floppy-disk"></i>&ensp;Simpan</button>
+        <button class="secondary" type="button" id="btnEditCancel">Batal</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="sskCamDialog">
+    <div class="dialog-body">
+      <div class="cam-dialog-head">
+        <div>
+          <h3>Ambil Foto</h3>
+          <p style="font-size:13px;color:var(--muted);margin-top:4px;text-transform:none;">Arahkan kamera, lalu tekan Ambil Foto.</p>
+        </div>
+        <button type="button" class="secondary cam-dialog-close" id="sskBtnTutupKamera" aria-label="Tutup">&times;</button>
+      </div>
+      <video id="sskCamVideo" autoplay playsinline muted></video>
+      <canvas id="sskCamCanvas"></canvas>
+      <section class="notice" id="sskCamError" style="display:none;"></section>
+      <div class="ssk-cam-controls">
+        <button type="button" class="secondary" id="sskBtnSwitchCam" style="font-size:12px;padding:10px 16px;"><i class="fa-solid fa-camera-rotate" style="margin-right:6px;"></i>Balik Kamera</button>
+        <button type="button" class="primary" id="sskBtnCapture"><i class="fa-solid fa-camera-retro" style="margin-right:6px;"></i>Ambil Foto</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog class="ps-floating-dialog" id="editHistoryDialog">
+    <div class="dialog-body duplicate-dialog-body ps-dialog-shell">
+      <div class="duplicate-dialog-head ps-dialog-header">
+        <div>
+          <h3>Riwayat Edit Santri Sakit</h3>
+          <p id="editHistorySubtitle" class="edit-history-subtitle"></p>
+        </div>
+      </div>
+      <div class="edit-history-list" id="editHistoryList"></div>
+      <div class="toolbar ps-dialog-footer">
+        <button class="secondary" id="closeEditHistoryDialog" type="button">Tutup</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Dialog Hapus Semua -->
+  <dialog id="deleteAllDialog">
+    <form method="dialog">
+      <div class="dialog-body">
+        <div>
+          <h3 style="margin-bottom:6px;color:#a55a52;">Hapus Semua Data Santri Sakit</h3>
+          <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">Semua data santri sakit dan foto rekam medis akan dihapus <strong>permanen</strong>. Tindakan ini tidak bisa dibatalkan.</p>
+          <div class="field-grid">
+            <label>Untuk lanjut, ketik: <code>HAPUS SEMUA</code>
+              <input type="text" id="deleteAllInput" autocomplete="off" placeholder="Ketik HAPUS SEMUA">
+            </label>
+          </div>
+        </div>
+        <div class="toolbar">
+          <button class="primary" type="button" id="btnDeleteAllConfirm" disabled style="background:#a55a52;box-shadow:none;"><i class="fa-solid fa-trash"></i>&ensp;Hapus Permanen</button>
+          <button class="secondary" type="button" id="btnDeleteAllCancel">Batal</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
+  <input type="file" id="importExcelInput" accept=".xlsx,.xls" style="display:none;">
+
+  <script src="../../shared-access.js"></script>
+  <script src="../../shared-nav.js"></script>
+  <script src="../../shared-shell.js"></script>
+  <script src="../../shared-excel.js"></script>
+  <script>
+    const API_BASE = window.location.origin + '/api';
+    const STORAGE = { apiBase: 'ps_api_base', token: 'ps_token', session: 'ps_session' };
+    localStorage.setItem(STORAGE.apiBase, API_BASE);
+    const state = { items: [], refs: { santri: [], tahunAjaran: [] }, page: 1, pageSize: 10, total: 0, stats: { sakit:0, sembuh:0, dihapus:0 }, filters: { tahunAjaranId: '', dariTanggal: '', sampaiTanggal: '', status: '', q: '', sortBy: 'updated' }, expandedIds: new Set(), canEdit: false, canDelete: false };
+    const uiState = { currentNoticeId: '', noticeCounter: 0, noticeShownAt: 0, pendingNotice: null };
+    const BOLEH_MASUK_FULL_LABEL = { semua: 'Tetap wajib masuk kelas dan halaqoh', halaqoh: 'Boleh masuk halaqoh saja', kelas: 'Boleh masuk kelas saja', wajib_halaqoh: 'Wajib masuk halaqoh saja', wajib_kelas: 'Wajib masuk kelas saja', tidak: 'Tidak boleh masuk keduanya' };
+    function getToken() { return localStorage.getItem(STORAGE.token) || ''; }
+    function getStoredSession() { try { return JSON.parse(localStorage.getItem(STORAGE.session) || 'null'); } catch (_) { return null; } }
+    function toParams(d) { const p = new URLSearchParams(); Object.entries(d).forEach(([k,v]) => { if (v !== undefined && v !== null && v !== '') p.append(k, String(v)); }); return p; }
+    async function api(d) { const r = await fetch(API_BASE + '?' + toParams({ ...d, token: getToken() })); const j = await r.json(); if (!j.ok) throw new Error(j.error?.message || 'Error'); return j.data; }
+    async function apiPost(d) { const r = await fetch(API_BASE, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ...d, token: getToken() }) }); const j = await r.json(); if (!j.ok) throw new Error(j.error?.message || 'Error'); return j.data; }
+
+    function createNoticeEl(text, type) {
+      const el = document.createElement('section'); el.className = `notice show ${type||'info'}`; el.dataset.noticeId = `n-${Date.now()}`; el.textContent = text;
+      function dismiss() { if (!el.parentNode) return; el.classList.add('notice-dismissing'); window.setTimeout(() => { el.remove(); const s = document.getElementById('noticeStack'); if (s && !s.hasChildNodes() && s.matches(':popover-open')) s.hidePopover(); }, 220); }
+      el.addEventListener('click', dismiss); window.setTimeout(dismiss, type==='error' ? 10000 : 5000); return el;
+    }
+    function showNotice(text, type) {
+      if (uiState.pendingNotice) { clearTimeout(uiState.pendingNotice); uiState.pendingNotice = null; }
+      const elapsed = Date.now() - uiState.noticeShownAt;
+      if (elapsed < 2000 && uiState.currentNoticeId) { uiState.pendingNotice = window.setTimeout(() => { uiState.pendingNotice = null; showNotice(text, type); }, 2000 - elapsed); return; }
+      const el = createNoticeEl(text, type); const stack = document.getElementById('noticeStack');
+      stack.prepend(el); uiState.currentNoticeId = el.dataset.noticeId; uiState.noticeShownAt = Date.now();
+      if (stack.matches(':popover-open')) stack.hidePopover(); stack.showPopover();
+    }
+
+    function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+    function fmtDate(s) { if (!s) return '—'; const d = new Date(s); if (isNaN(d)) return s; return d.toLocaleDateString('id-ID', {day:'2-digit',month:'short',year:'numeric'}); }
+    function fmtDateJam(tanggal, jam) { const t = fmtDate(tanggal); return jam ? `${t}, ${jam}` : t; }
+    function todayIso() { return new Date().toISOString().slice(0,10); }
+
+    async function loadRefs() {
+      try { const r = await api({ action:'references' }); state.refs.santri = r.santri || []; state.refs.tahunAjaran = r.tahunAjaran || []; } catch (_) {}
+      populateTahunAjaranSelects();
+    }
+    function populateTahunAjaranSelects() {
+      ['filterTahunAjaran','inputTahunAjaran'].forEach(id => {
+        const sel = document.getElementById(id); if (!sel) return;
+        const first = sel.options[0]; sel.innerHTML = ''; sel.appendChild(first);
+        state.refs.tahunAjaran.forEach(ta => { const o = document.createElement('option'); o.value = ta.id; o.textContent = (ta.namaDisplay || ta.nama || ta.id) + (ta.isAktif ? ' (aktif)' : ''); sel.appendChild(o); });
+        if (id === 'inputTahunAjaran') { const a = state.refs.tahunAjaran.find(t => t.isAktif); if (a) sel.value = a.id; }
+        if (id === 'filterTahunAjaran') { const a = state.refs.tahunAjaran.find(t => t.isAktif); if (a) { sel.value = a.id; state.filters.tahunAjaranId = a.id; } }
+      });
+    }
+
+    async function loadRekap() {
+      const f = state.filters;
+      try {
+        const d = await api({ action:'santri.sakit.list', page:state.page, pageSize:state.pageSize, tahunAjaranId:f.tahunAjaranId, dariTanggal:f.dariTanggal, sampaiTanggal:f.sampaiTanggal, status:f.status, q:f.q, sortBy:f.sortBy });
+        state.items = d.items || []; state.total = d.total || 0; state.stats = d.stats || { sakit:0, sembuh:0, dihapus:0 };
+        renderRekap(); renderPaging(); updateStats();
+      } catch (e) { showNotice(e.message,'error'); }
+    }
+    function updateStats() {
+      const stats = state.stats || { sakit:0, sembuh:0, dihapus:0 };
+      document.getElementById('statSakit').textContent = stats.sakit;
+      document.getElementById('statSembuh').textContent = stats.sembuh;
+      document.getElementById('statDibatalkan').textContent = stats.dihapus;
+    }
+    function renderRekap() {
+      const list = document.getElementById('rekapList');
+      if (!state.items.length) { list.innerHTML = '<div class="empty-state"><i class="fa-regular fa-folder-open" style="font-size:36px;margin-bottom:10px;display:block;"></i>Tidak ada data.</div>'; return; }
+      list.innerHTML = state.items.map(renderCard).join('');
+      list.querySelectorAll('.s-card-header').forEach(header => {
+        header.addEventListener('click', e => {
+          if (e.target.closest('button')) return;
+          const card = header.closest('.s-card');
+          const id = card.dataset.id;
+          if (state.expandedIds.has(id)) state.expandedIds.delete(id);
+          else state.expandedIds.add(id);
+          card.classList.toggle('expanded', state.expandedIds.has(id));
+        });
+      });
+      list.querySelectorAll('.btn-sembuh').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); openSembuhDialog(b.dataset.id); }));
+      list.querySelectorAll('.btn-edit').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); openEditDialog(b.dataset.id); }));
+      list.querySelectorAll('.btn-history').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); showEditHistory(b.dataset.id); }));
+      list.querySelectorAll('.btn-batalkan').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); batalkanItem(b.dataset.id); }));
+      list.querySelectorAll('.btn-pulihkan').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); pulihkanItem(b.dataset.id); }));
+      list.querySelectorAll('.btn-hapus').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); openHapusDialog(b.dataset.id); }));
+    }
+    function normGender(raw) {
+      const g = (raw||'').toLowerCase().trim();
+      if (['l','lk','laki-laki','laki','pria','male','ikhwan'].includes(g)) return 'male';
+      if (['p','pr','perempuan','wanita','female','akhwat'].includes(g)) return 'female';
+      return '';
+    }
+    function normStatus(raw) {
+      const s = (raw||'').toLowerCase().trim();
+      if (['inactive','nonaktif'].includes(s)) return 'inactive';
+      if (['dibekukan','frozen','beku'].includes(s)) return 'dibekukan';
+      return 'active';
+    }
+    function getCardRowClass(gender, statusKey, recordDibatalkan) {
+      if (recordDibatalkan) {
+        if (gender === 'male') return 'row-male-dibatalkan';
+        if (gender === 'female') return 'row-female-dibatalkan';
+        return 'row-nogender-dibatalkan';
+      }
+      if (statusKey === 'inactive') {
+        if (gender === 'male') return 'row-male-inactive';
+        if (gender === 'female') return 'row-female-inactive';
+        return 'row-nogender-inactive';
+      }
+      if (statusKey === 'dibekukan') {
+        if (gender === 'male') return 'row-male-frozen';
+        if (gender === 'female') return 'row-female-frozen';
+        return 'row-nogender-frozen';
+      }
+      if (gender === 'male') return 'row-male';
+      if (gender === 'female') return 'row-female';
+      return '';
+    }
+    function renderCard(item) {
+      const statusLower = (item.status||'').toLowerCase();
+      const isSakit = statusLower === 'sakit';
+      const isDibatalkan = !!item.isDeleted;
+      const pill = isSakit ? '<span class="pill pill-sakit">Sedang Sakit</span>' : '<span class="pill pill-sembuh">Sudah Sembuh</span>';
+      const dibatalkanPill = isDibatalkan ? '<span class="pill pill-dibatalkan">Dihapus</span>' : '';
+      const bolehMasukLabel = { halaqoh: '⚠ Hanya Boleh Masuk Halaqoh (Tidak Kelas)', kelas: '⚠ Hanya Boleh Masuk Kelas (Tidak Halaqoh)', wajib_halaqoh: '⚠ Wajib Masuk Halaqoh Saja', wajib_kelas: '⚠ Wajib Masuk Kelas Saja', tidak: '⚠ Tidak Boleh Masuk Halaqoh & Kelas' };
+      const larangPill = bolehMasukLabel[item.bolehMasuk] ? `<span class="pill" style="background:rgba(165,90,82,0.85);color:#fff;">${bolehMasukLabel[item.bolehMasuk]}</span>` : '';
+      const gender = normGender(item.santriGender);
+      const statusKey = normStatus(item.santriStatus);
+      const santriStatusPill = statusKey === 'inactive' ? '<span class="pill pill-santri-inactive">Santri Nonaktif</span>'
+        : statusKey === 'dibekukan' ? '<span class="pill pill-santri-frozen">Santri Dibekukan</span>'
+        : '<span class="pill pill-santri-active">Santri Aktif</span>';
+      const rowCls = getCardRowClass(gender, statusKey, isDibatalkan);
+      const expanded = state.expandedIds.has(item.id) ? 'expanded' : '';
+      const fotos = item.fotos || [];
+      const fotoHtml = fotos.length ? `<div class="foto-grid" style="margin-top:8px;">${fotos.map(f=>`<div class="foto-thumb-wrap"><a href="/${esc(f.path)}" target="_blank"><img src="/${esc(f.path)}" alt="${esc(f.name)}"></a></div>`).join('')}</div>` : '';
+      return `<article class="card s-card minimal-list-card ${rowCls} ${expanded}" data-id="${esc(item.id)}">
+        <div class="s-card-header">
+          <div style="flex:1;min-width:0;">
+            <div class="s-santri-name">${esc(item.santriNama||'—')}</div>
+            <div class="s-santri-meta">No. Induk: ${esc(item.santriNoInduk||'—')} &nbsp;·&nbsp; Mulai: ${fmtDateJam(item.tanggalMulai, item.jamMulai)}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;justify-content:flex-end;width:100%;">
+            ${pill}
+            ${dibatalkanPill}
+            ${santriStatusPill}
+            ${larangPill}
+            <i class="fa-solid fa-chevron-down s-chevron" style="color:var(--muted);font-size:12px;"></i>
+          </div>
+        </div>
+        <div class="s-body">
+          ${item.keterangan ? `<div class="s-detail"><i class="fa-solid fa-notes-medical" style="font-size:11px;"></i>&nbsp;${esc(item.keterangan)}</div>` : ''}
+          ${item.tempatPerawatan ? `<div class="s-detail"><i class="fa-solid fa-location-dot" style="font-size:11px;"></i>&nbsp;${esc(item.tempatPerawatan)}</div>` : ''}
+          ${item.tanggalSembuh ? `<div class="s-detail" style="color:var(--success);"><i class="fa-solid fa-heart-pulse" style="font-size:11px;"></i>&nbsp;Sembuh: ${fmtDateJam(item.tanggalSembuh, item.jamSembuh)}</div>` : ''}
+          ${item.alasan ? `<div class="s-detail"><i class="fa-solid fa-circle-question" style="font-size:11px;"></i>&nbsp;Alasan: ${esc(item.alasan)}</div>` : ''}
+          ${item.penanganan ? `<div class="s-detail"><i class="fa-solid fa-kit-medical" style="font-size:11px;"></i>&nbsp;Penanganan: ${esc(item.penanganan)}</div>` : ''}
+          ${item.catatan ? `<div class="s-detail"><i class="fa-solid fa-comment" style="font-size:11px;"></i>&nbsp;${esc(item.catatan)}</div>` : ''}
+          ${fotoHtml}
+          <div class="s-footer">
+            <span>Dicatat: ${esc(item.inputByNama||'—')}</span>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              <button class="secondary btn-edit${state.canEdit ? '' : ' ps-locked'}" data-id="${esc(item.id)}" type="button" ${state.canEdit ? '' : 'disabled title="Hanya Admin, Kesehatan, Kesantrian, atau Super Admin yang bisa mengedit."'} style="font-size:11px;padding:7px 12px;"><i class="fa-solid fa-pen"></i>&ensp;Edit</button>
+              <button class="secondary btn-history" data-id="${esc(item.id)}" type="button" style="font-size:11px;padding:7px 12px;" title="Riwayat pengedit"><i class="fa-solid fa-clock-rotate-left"></i>&ensp;Riwayat</button>
+              ${isSakit ? `<button class="secondary btn-sembuh${state.canEdit ? '' : ' ps-locked'}" data-id="${esc(item.id)}" type="button" ${state.canEdit ? '' : 'disabled title="Hanya Admin, Kesehatan, Kesantrian, atau Super Admin yang bisa mengedit."'} style="font-size:11px;padding:7px 12px;"><i class="fa-solid fa-heart-pulse"></i>&ensp;Tandai Sembuh</button>` : ''}
+              ${!isDibatalkan ? `<button class="secondary btn-batalkan${state.canEdit ? '' : ' ps-locked'}" data-id="${esc(item.id)}" type="button" ${state.canEdit ? '' : 'disabled title="Hanya Admin, Kesehatan, Kesantrian, atau Super Admin yang bisa mengedit."'} style="font-size:11px;padding:7px 12px;"><i class="fa-solid fa-ban"></i>&ensp;Hapus</button>` : ''}
+              ${isDibatalkan ? `<button class="secondary btn-pulihkan${state.canEdit ? '' : ' ps-locked'}" data-id="${esc(item.id)}" type="button" ${state.canEdit ? '' : 'disabled title="Hanya Admin, Kesehatan, Kesantrian, atau Super Admin yang bisa mengedit."'} style="font-size:11px;padding:7px 12px;"><i class="fa-solid fa-rotate-left"></i>&ensp;Pulihkan</button>` : ''}
+              <button class="danger btn-hapus${state.canDelete ? '' : ' ps-locked'}" data-id="${esc(item.id)}" type="button" ${state.canDelete ? '' : 'disabled title="Hanya Super Admin yang bisa menghapus."'} style="font-size:11px;padding:7px 12px;"><i class="fa-solid fa-trash"></i>&ensp;Hapus Permanen</button>
+            </div>
+          </div>
+        </div>
+      </article>`;
+    }
+    function buildPaginationList(page, totalPages) {
+      const max = 10;
+      if (totalPages <= max) return Array.from({ length: totalPages }, (_, i) => i + 1);
+      const mid = max - 2;
+      const pages = [1];
+      let start = Math.max(2, page - Math.floor(mid / 2));
+      let end = start + mid - 1;
+      if (end > totalPages - 1) { end = totalPages - 1; start = end - mid + 1; }
+      if (start > 2) pages.push('...');
+      for (let v = start; v <= end; v++) pages.push(v);
+      if (end < totalPages - 1) pages.push('...');
+      pages.push(totalPages);
+      return pages;
+    }
+    function renderPaging() {
+      const pg = state.page, total = state.total, totalPages = Math.ceil(total / state.pageSize) || 1;
+      state.totalPages = totalPages;
+      const markup = total ? `
+        <div class="paging">
+          <button class="secondary" type="button" data-page="${pg - 1}" ${pg <= 1 ? 'disabled' : ''}>Sebelumnya</button>
+          <div class="page-center">
+            <div class="page-numbers">
+              ${buildPaginationList(pg, totalPages).map(item =>
+                item === '...'
+                  ? '<span class="page-summary">...</span>'
+                  : `<button class="secondary page-btn ${item === pg ? 'active' : ''}" type="button" data-page="${item}">${item}</button>`
+              ).join('')}
+            </div>
+            <div class="page-summary">Halaman ${pg} dari ${totalPages} &nbsp;|&nbsp; Total ${total} data</div>
+          </div>
+          <button class="secondary" type="button" data-page="${pg + 1}" ${pg >= totalPages ? 'disabled' : ''}>Berikutnya</button>
+        </div>
+      ` : '';
+      window.PSUI.syncPaginationHosts({ markup, visibleCount: state.items.length, totalCount: total, topId: 'paginationTop', bottomId: 'paginationBottom' });
+    }
+
+    // Santri search
+    let searchTimeout = null;
+    document.getElementById('inputSantriSearch').addEventListener('input', e => { clearTimeout(searchTimeout); searchTimeout = setTimeout(() => filterSantri(e.target.value), 250); });
+    document.getElementById('inputSantriSearch').addEventListener('focus', e => { if (e.target.value.length >= 1) filterSantri(e.target.value); });
+    document.addEventListener('click', e => { if (!e.target.closest('.santri-search-wrap')) document.getElementById('santriSuggestions').classList.remove('open'); });
+    function filterSantri(q) {
+      const trim = (q||'').trim().toLowerCase(); const sug = document.getElementById('santriSuggestions');
+      if (!trim) { sug.classList.remove('open'); return; }
+      const m = state.refs.santri.filter(s => (s.name||'').toLowerCase().includes(trim) || (s.noInduk||'').toLowerCase().includes(trim)).slice(0,12);
+      if (!m.length) { sug.innerHTML = '<div class="suggestion-item" style="color:var(--muted);">Tidak ditemukan</div>'; sug.classList.add('open'); return; }
+      sug.innerHTML = m.map(s => `<div class="suggestion-item" data-id="${esc(s.id)}" data-name="${esc(s.name||'')}"><strong>${esc(s.name||s.id)}</strong><span class="suggestion-noinduk">No. Induk: ${esc(s.noInduk||'—')}</span></div>`).join('');
+      sug.classList.add('open');
+      sug.querySelectorAll('.suggestion-item[data-id]').forEach(el => el.addEventListener('click', () => {
+        document.getElementById('inputSantriId').value = el.dataset.id;
+        document.getElementById('inputSantriSearch').value = el.dataset.name;
+        document.getElementById('santriSelected').textContent = '✓ ' + el.dataset.name;
+        sug.classList.remove('open');
+      }));
+    }
+
+    // Input foto (pending sebelum save)
+    let inputPendingFotos = [];
+    function renderInputFotoGrid() {
+      const grid = document.getElementById('inputFotoGrid');
+      grid.innerHTML = inputPendingFotos.map((f, i) => `<div class="foto-thumb-wrap"><img src="${esc(f.url)}" alt="${esc(f.name)}"><button class="foto-thumb-del" type="button" data-idx="${i}" title="Hapus"><i class="fa-solid fa-xmark"></i></button></div>`).join('') +
+        `<button class="secondary foto-upload-btn" type="button" id="btnInputFotoCamera"><i class="fa-solid fa-camera"></i>&ensp;Kamera</button>` +
+        `<button class="secondary foto-upload-btn" type="button" id="btnInputFotoFile"><i class="fa-solid fa-image"></i>&ensp;File</button>`;
+      grid.querySelectorAll('.foto-thumb-del').forEach(b => b.addEventListener('click', () => {
+        const idx = Number(b.dataset.idx);
+        URL.revokeObjectURL(inputPendingFotos[idx].url);
+        inputPendingFotos.splice(idx, 1);
+        renderInputFotoGrid();
+      }));
+      document.getElementById('btnInputFotoCamera').addEventListener('click', () => openSskCam('input'));
+      document.getElementById('btnInputFotoFile').addEventListener('click', () => document.getElementById('inputFotoFile').click());
+    }
+    function addInputFotos(files) {
+      Array.from(files).forEach(f => { inputPendingFotos.push({ file: f, name: f.name, url: URL.createObjectURL(f) }); });
+      renderInputFotoGrid();
+    }
+    document.getElementById('inputFotoFile').addEventListener('change', function() { if (this.files) addInputFotos(this.files); this.value = ''; });
+
+    // Form submit
+    document.getElementById('inputForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      const santriId = document.getElementById('inputSantriId').value.trim();
+      if (!santriId) { showNotice('Pilih santri terlebih dahulu.','error'); return; }
+      const tanggalMulai = document.getElementById('inputTanggalMulai').value;
+      if (!tanggalMulai) { showNotice('Tanggal mulai sakit wajib diisi.','error'); return; }
+      const btn = document.getElementById('btnSubmit'); btn.disabled = true;
+      try {
+        const res = await apiPost({ action:'santri.sakit.save', santri_id:santriId, tanggal_mulai:tanggalMulai, jam_mulai:document.getElementById('inputJamMulai').value, tanggal_sembuh:document.getElementById('inputTanggalSembuh').value, jam_sembuh:document.getElementById('inputJamSembuh').value, keterangan:document.getElementById('inputKeterangan').value.trim(), tempat_perawatan:document.getElementById('inputTempatPerawatan').value, boleh_masuk:document.getElementById('inputBolehMasuk').value, alasan:document.getElementById('inputAlasan').value.trim(), penanganan:document.getElementById('inputPenanganan').value.trim(), tahun_ajaran_id:document.getElementById('inputTahunAjaran').value });
+        const newId = res.id;
+        if (newId && inputPendingFotos.length) {
+          for (const f of inputPendingFotos) {
+            await new Promise(resolve => {
+              const reader = new FileReader();
+              reader.onload = async ev => { try { await apiPost({ action:'santri.sakit.foto.upload', id:newId, dataUrl:ev.target.result, name:f.name }); } catch(e2){} resolve(); };
+              reader.readAsDataURL(f.file);
+            });
+          }
+        }
+        showNotice('Data sakit berhasil dicatat.'); resetForm(); switchTab('rekap'); await loadRekap();
+      } catch (e) { showNotice(e.message,'error'); } finally { btn.disabled = false; }
+    });
+    document.getElementById('btnReset').addEventListener('click', resetForm);
+    function resetForm() {
+      document.getElementById('inputForm').reset();
+      document.getElementById('inputSantriId').value = '';
+      document.getElementById('santriSelected').textContent = '';
+      document.getElementById('inputTanggalMulai').value = todayIso();
+      document.getElementById('inputJamMulai').value = '';
+      document.getElementById('inputTanggalSembuh').value = '';
+      document.getElementById('inputJamSembuh').value = '';
+      document.getElementById('inputBolehMasuk').value = 'semua';
+      const a = state.refs.tahunAjaran.find(t => t.isAktif); if (a) document.getElementById('inputTahunAjaran').value = a.id;
+      inputPendingFotos.forEach(f => URL.revokeObjectURL(f.url));
+      inputPendingFotos = [];
+      renderInputFotoGrid();
+    }
+
+    // Sembuh dialog
+    function openSembuhDialog(id) {
+      const item = state.items.find(i => i.id === id); if (!item) return;
+      document.getElementById('sembuhId').value = id;
+      document.getElementById('sembuhTanggal').value = todayIso();
+      document.getElementById('sembuhJam').value = '';
+      document.getElementById('sembuhCatatan').value = '';
+      document.getElementById('sembuhMeta').innerHTML = `<strong>${esc(item.santriNama)}</strong> &mdash; sakit sejak ${fmtDate(item.tanggalMulai)}`;
+      document.getElementById('sembuhDialog').showModal();
+    }
+    document.getElementById('btnSembuhCancel').addEventListener('click', () => document.getElementById('sembuhDialog').close());
+    document.getElementById('btnSembuhSubmit').addEventListener('click', async () => {
+      const id = document.getElementById('sembuhId').value;
+      const tanggal = document.getElementById('sembuhTanggal').value;
+      if (!tanggal) { showNotice('Tanggal sembuh wajib diisi.','error'); return; }
+      const btn = document.getElementById('btnSembuhSubmit'); btn.disabled = true;
+      try { await apiPost({ action:'santri.sakit.setStatus', id, status:'Sembuh', tanggal_sembuh:tanggal, jam_sembuh:document.getElementById('sembuhJam').value, catatan:document.getElementById('sembuhCatatan').value.trim() }); document.getElementById('sembuhDialog').close(); showNotice('Santri ditandai sudah sembuh.'); await loadRekap(); }
+      catch (e) { showNotice(e.message,'error'); } finally { btn.disabled = false; }
+    });
+
+    // Batalkan (tidak menghapus data secara permanen, hanya menandai flag "Dihapus" — status Sakit/Sembuh tetap tersimpan)
+    async function batalkanItem(id) {
+      const item = state.items.find(i => i.id === id); if (!item) return;
+      if (!confirm(`Tandai catatan sakit "${item.santriNama}" sebagai Dihapus? Data tidak dihapus permanen dari sistem, hanya ditandai "Dihapus" (masih bisa dilihat lewat filter status, dan bisa dipulihkan lagi kalau perlu).`)) return;
+      try { await apiPost({ action:'santri.sakit.setDeleted', id, deleted:'1' }); showNotice('Data ditandai dihapus.'); await loadRekap(); }
+      catch (e) { showNotice(e.message,'error'); }
+    }
+
+    // Pulihkan (kembalikan data yang sebelumnya ditandai "Dihapus")
+    async function pulihkanItem(id) {
+      const item = state.items.find(i => i.id === id); if (!item) return;
+      if (!confirm(`Pulihkan catatan sakit "${item.santriNama}"? Data akan muncul lagi sebagai data aktif.`)) return;
+      try { await apiPost({ action:'santri.sakit.setDeleted', id, deleted:'0' }); showNotice('Data berhasil dipulihkan.'); await loadRekap(); }
+      catch (e) { showNotice(e.message,'error'); }
+    }
+
+    // Hapus permanen (khusus Super Admin, wajib ketik HAPUS)
+    function openHapusDialog(id) {
+      const item = state.items.find(i => i.id === id); if (!item) return;
+      let dlg = document.getElementById('hapusDialog');
+      if (!dlg) { dlg = document.createElement('dialog'); dlg.id = 'hapusDialog'; dlg.style.cssText = 'border:none;border-radius:16px;padding:0;max-width:480px;width:94vw;box-shadow:0 20px 60px rgba(0,0,0,0.3);color:var(--ink);'; document.body.appendChild(dlg); }
+      dlg.innerHTML = `<div style="padding:22px;display:grid;gap:12px;font-family:inherit;">
+        <h3 style="margin:0;color:var(--danger);">Hapus Data Sakit</h3>
+        <div style="font-size:13.5px;line-height:1.6;">Data sakit <strong>${esc(item.santriNama)}</strong> (mulai ${fmtDate(item.tanggalMulai)}) akan dihapus permanen dan tidak bisa dikembalikan. Kalau hanya ingin menandai data ini sebagai dihapus tanpa menghilangkannya secara permanen, tutup dialog ini dan gunakan tombol "Hapus" (bukan "Hapus Permanen") pada kartu.</div>
+        <label style="display:grid;gap:6px;font-size:13px;font-weight:600;">Ketik <strong>HAPUS</strong> untuk mengonfirmasi:
+          <input type="text" id="hapusWord" autocomplete="off" placeholder="HAPUS" style="padding:11px 13px;border-radius:12px;border:1.5px solid #ccc;font:inherit;text-transform:uppercase;letter-spacing:0.1em;">
+        </label>
+        <div style="display:flex;gap:10px;justify-content:flex-end;">
+          <button class="secondary" type="button" id="hapusCancel">Batal</button>
+          <button class="danger" type="button" id="hapusOk" disabled>Hapus permanen</button>
+        </div>
+      </div>`;
+      dlg.showModal();
+      const wordEl = dlg.querySelector('#hapusWord');
+      const okBtn = dlg.querySelector('#hapusOk');
+      wordEl.oninput = () => { okBtn.disabled = wordEl.value.trim().toUpperCase() !== 'HAPUS'; };
+      dlg.querySelector('#hapusCancel').onclick = () => dlg.close();
+      okBtn.onclick = async () => {
+        if (wordEl.value.trim().toUpperCase() !== 'HAPUS') return;
+        dlg.close();
+        try { const res = await apiPost({ action:'santri.sakit.delete', id, confirm:'HAPUS' }); showNotice((res && res.message) || 'Data dihapus permanen.'); await loadRekap(); }
+        catch (e) { showNotice(e.message || 'Gagal menghapus.','error'); }
+      };
+    }
+
+    // Edit dialog
+    function renderEditFotos(fotos, id) {
+      const grid = document.getElementById('editFotoGrid');
+      grid.innerHTML = (fotos||[]).map(f => `<div class="foto-thumb-wrap"><a href="/${esc(f.path)}" target="_blank"><img src="/${esc(f.path)}" alt="${esc(f.name)}"></a><button class="foto-thumb-del" type="button" data-path="${esc(f.path)}" title="Hapus"><i class="fa-solid fa-xmark"></i></button></div>`).join('') +
+        `<button class="secondary foto-upload-btn" type="button" id="btnEditFotoCamera"><i class="fa-solid fa-camera"></i>&ensp;Kamera</button>` +
+        `<button class="secondary foto-upload-btn" type="button" id="btnEditFotoFile"><i class="fa-solid fa-image"></i>&ensp;File</button>`;
+      grid.querySelectorAll('.foto-thumb-del').forEach(b => b.addEventListener('click', async () => {
+        const currentId = document.getElementById('editId').value;
+        b.disabled = true;
+        try { const res = await apiPost({ action:'santri.sakit.foto.delete', id:currentId, path:b.dataset.path }); renderEditFotos(res.fotos, currentId); const item = state.items.find(i=>i.id===currentId); if(item) item.fotos=res.fotos; }
+        catch(e2) { showNotice(e2.message,'error'); b.disabled=false; }
+      }));
+      document.getElementById('btnEditFotoCamera').addEventListener('click', () => openSskCam('edit'));
+      document.getElementById('btnEditFotoFile').addEventListener('click', () => document.getElementById('editFotoInput').click());
+    }
+    async function uploadEditFotos(input) {
+      const id = document.getElementById('editId').value;
+      const files = Array.from(input.files || []); input.value = '';
+      for (const f of files) {
+        await new Promise(resolve => {
+          const reader = new FileReader();
+          reader.onload = async ev => {
+            try { const res = await apiPost({ action:'santri.sakit.foto.upload', id, dataUrl:ev.target.result, name:f.name }); renderEditFotos(res.fotos, id); const item = state.items.find(i=>i.id===id); if(item) item.fotos=res.fotos; }
+            catch(e2) { showNotice(e2.message,'error'); } resolve();
+          }; reader.readAsDataURL(f);
+        });
+      }
+    }
+    document.getElementById('editFotoInput').addEventListener('change', function() { uploadEditFotos(this); });
+
+    function openEditDialog(id) {
+      const item = state.items.find(i => i.id === id); if (!item) return;
+      document.getElementById('editId').value = id;
+      document.getElementById('editTanggalMulai').value = item.tanggalMulai || '';
+      document.getElementById('editJamMulai').value = item.jamMulai || '';
+      document.getElementById('editTanggalSembuh').value = item.tanggalSembuh || '';
+      document.getElementById('editJamSembuh').value = item.jamSembuh || '';
+      document.getElementById('editTempatPerawatan').value = item.tempatPerawatan || '';
+      document.getElementById('editStatus').value = item.status || 'Sakit';
+      document.getElementById('editBolehMasuk').value = item.bolehMasuk || 'semua';
+      document.getElementById('editKeterangan').value = item.keterangan || '';
+      document.getElementById('editAlasan').value = item.alasan || '';
+      document.getElementById('editPenanganan').value = item.penanganan || '';
+      document.getElementById('editCatatan').value = item.catatan || '';
+      document.getElementById('editFotoInput').value = '';
+      renderEditFotos(item.fotos || [], id);
+      document.getElementById('editDialog').showModal();
+    }
+
+    function showEditHistory(id) {
+      const item = state.items.find(i => i.id === id); if (!item) return;
+      const subtitle = `${esc(item.santriNama || '—')} — ${esc(item.keterangan || '—')} (${esc(item.tanggalMulai || '—')})`;
+      document.getElementById('editHistorySubtitle').innerHTML = subtitle;
+      const history = (() => { try { return JSON.parse(item.editHistory || '[]'); } catch (_) { return []; } })();
+      const formatDate = iso => { if (!iso) return '-'; const d = new Date(iso); return isNaN(d) ? iso : d.toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }); };
+      const actionLabel = a => a === 'create' ? 'Dibuat' : 'Diedit';
+      const rows = history.map((entry, i) => `
+        <div class="edit-history-entry">
+          <div class="edit-history-order">#${i + 1}</div>
+          <div class="edit-history-info">
+            <div class="edit-history-name">${esc(entry.name || '-')}</div>
+            ${entry.jabatan ? `<div class="edit-history-jabatan">${esc(entry.jabatan)}</div>` : ''}
+            <div class="edit-history-meta">${actionLabel(entry.action)} &bull; ${esc(formatDate(entry.at))}</div>
+          </div>
+        </div>
+      `).join('');
+      document.getElementById('editHistoryList').innerHTML = rows || '<p class="edit-history-empty">Belum ada riwayat pengedit tersimpan.</p>';
+      document.getElementById('editHistoryDialog').showModal();
+    }
+    document.getElementById('btnEditCancel').addEventListener('click', () => document.getElementById('editDialog').close());
+    document.getElementById('btnEditDialogClose').addEventListener('click', () => document.getElementById('editDialog').close());
+    document.getElementById('closeEditHistoryDialog').addEventListener('click', () => document.getElementById('editHistoryDialog').close());
+    document.getElementById('btnEditSubmit').addEventListener('click', async () => {
+      const id = document.getElementById('editId').value;
+      const editTanggalMulai = document.getElementById('editTanggalMulai').value;
+      if (!editTanggalMulai) { showNotice('Tanggal mulai sakit wajib diisi.','error'); return; }
+      const btn = document.getElementById('btnEditSubmit'); btn.disabled = true;
+      try {
+        await apiPost({ action:'santri.sakit.update', id, tanggal_mulai:editTanggalMulai, jam_mulai:document.getElementById('editJamMulai').value, tanggal_sembuh:document.getElementById('editTanggalSembuh').value, jam_sembuh:document.getElementById('editJamSembuh').value, tempat_perawatan:document.getElementById('editTempatPerawatan').value, boleh_masuk:document.getElementById('editBolehMasuk').value, status:document.getElementById('editStatus').value, keterangan:document.getElementById('editKeterangan').value.trim(), alasan:document.getElementById('editAlasan').value.trim(), penanganan:document.getElementById('editPenanganan').value.trim(), catatan:document.getElementById('editCatatan').value.trim() });
+        document.getElementById('editDialog').close(); showNotice('Data berhasil diperbarui.'); await loadRekap();
+      } catch (e) { showNotice(e.message,'error'); } finally { btn.disabled = false; }
+    });
+
+    // Tabs
+    function switchTab(t) {
+      const tabs = {rekap:'tabRekap', input:'tabInput'};
+      Object.entries(tabs).forEach(([k,id]) => { const el = document.getElementById(id); if (el) el.hidden = k !== t; });
+      document.querySelectorAll('.tab-btn').forEach(b => { const a = b.dataset.tab === t; b.classList.toggle('primary',a); b.classList.toggle('secondary',!a); b.classList.toggle('active',a); });
+    }
+    document.getElementById('tabBar').addEventListener('click', e => { const b = e.target.closest('.tab-btn'); if (b) switchTab(b.dataset.tab); });
+
+    // Filters
+    let ft = null;
+    ['filterTahunAjaran','filterDariTanggal','filterSampaiTanggal','filterStatus','filterSort'].forEach(id => document.getElementById(id).addEventListener('change', () => { state.page=1; applyFilters(); }));
+    document.getElementById('filterQ').addEventListener('input', () => { clearTimeout(ft); ft = setTimeout(() => { state.page=1; applyFilters(); }, 350); });
+    function applyFilters() { state.filters.tahunAjaranId = document.getElementById('filterTahunAjaran').value; state.filters.dariTanggal = document.getElementById('filterDariTanggal').value; state.filters.sampaiTanggal = document.getElementById('filterSampaiTanggal').value; state.filters.status = document.getElementById('filterStatus').value; state.filters.q = document.getElementById('filterQ').value; state.filters.sortBy = document.getElementById('filterSort').value; loadRekap(); }
+
+    document.addEventListener('click', event => {
+      const page = event.target.getAttribute('data-page');
+      if (!page) return;
+      const nextPage = Number(page);
+      if (!nextPage || nextPage < 1 || nextPage > state.totalPages || nextPage === state.page) return;
+      state.page = nextPage;
+      loadRekap();
+    });
+
+    // Super admin actions
+    const DATASET_KEY = 'santriSakit';
+    async function apiExcel(action, payload, method) {
+      if (!method || method === 'GET') return api({ action, ...payload });
+      return apiPost({ action, ...payload });
+    }
+    document.getElementById('deleteAllInput').addEventListener('input', function() {
+      document.getElementById('btnDeleteAllConfirm').disabled = this.value.trim() !== 'HAPUS SEMUA';
+    });
+    document.getElementById('btnDeleteAllCancel').addEventListener('click', () => { document.getElementById('deleteAllDialog').close(); document.getElementById('deleteAllInput').value = ''; document.getElementById('btnDeleteAllConfirm').disabled = true; });
+    document.getElementById('btnDeleteAll').addEventListener('click', () => { document.getElementById('deleteAllInput').value = ''; document.getElementById('btnDeleteAllConfirm').disabled = true; document.getElementById('deleteAllDialog').showModal(); });
+    document.getElementById('btnDeleteAllConfirm').addEventListener('click', async () => {
+      const btn = document.getElementById('btnDeleteAllConfirm'); btn.disabled = true;
+      try {
+        const res = await apiPost({ action:'santri.sakit.deleteAll' });
+        document.getElementById('deleteAllDialog').close();
+        showNotice(res.message || 'Semua data dihapus.'); await loadRekap();
+      } catch (e) { showNotice(e.message,'error'); btn.disabled = false; }
+    });
+    document.getElementById('btnExportExcel').addEventListener('click', async () => {
+      try { await window.PSExcel.exportDatasets(apiExcel, [DATASET_KEY], 'export-santri-sakit.xlsx'); }
+      catch (e) { showNotice(e.message || 'Gagal export.','error'); }
+    });
+
+    /* ── Export Laporan (Excel berformat, bukan dump untuk import) ── */
+    function getPeriodLabel() {
+      const dari = document.getElementById('filterDariTanggal').value;
+      const sampai = document.getElementById('filterSampaiTanggal').value;
+      if (!dari && !sampai) return 'Semua Waktu';
+      if (dari && sampai) return fmtDate(dari) + ' s/d ' + fmtDate(sampai);
+      if (dari) return 'Mulai ' + fmtDate(dari);
+      return 'S/d ' + fmtDate(sampai);
+    }
+    async function fetchAllFilteredSakitItems() {
+      const f = state.filters;
+      const pageSize = 200;
+      let page = 1, all = [], total = Infinity;
+      while (all.length < total && page <= 25) {
+        const d = await api({ action:'santri.sakit.list', page, pageSize, tahunAjaranId:f.tahunAjaranId, dariTanggal:f.dariTanggal, sampaiTanggal:f.sampaiTanggal, status:f.status, q:f.q, sortBy:f.sortBy });
+        all = all.concat(d.items || []);
+        total = d.total || 0;
+        page += 1;
+        if (!d.items || !d.items.length) break;
+      }
+      return all;
+    }
+    async function exportLaporan() {
+      if (!window.PSExcel) { showNotice('Library export belum siap.', 'error'); return; }
+      const btn = document.getElementById('btnExportLaporan'); btn.disabled = true;
+      try {
+        const items = await fetchAllFilteredSakitItems();
+        if (!items.length) { showNotice('Tidak ada data untuk diekspor.', 'error'); return; }
+        const periodLabel = getPeriodLabel();
+        const columns = [
+          { label: 'No',                width: 24  },
+          { label: 'Nama Santri',       width: 108 },
+          { label: 'No. Induk',         width: 58  },
+          { label: 'Status',            width: 55  },
+          { label: 'Tanggal Mulai',     width: 58  },
+          { label: 'Jam Mulai',         width: 40  },
+          { label: 'Tanggal Sembuh',    width: 58  },
+          { label: 'Jam Sembuh',        width: 40  },
+          { label: 'Tempat Perawatan',  width: 80  },
+          { label: 'Boleh Masuk',       width: 65  },
+          { label: 'Keterangan',        width: 96  },
+          { label: 'Catatan',           width: 80  },
+          { label: 'Dicatat Oleh',      width: 79  },
+        ];
+        const rows = items.map((item, i) => [
+          i + 1,
+          item.santriNama      || '—',
+          item.santriNoInduk   || '—',
+          item.status          || '—',
+          fmtDate(item.tanggalMulai),
+          item.jamMulai || '—',
+          fmtDate(item.tanggalSembuh),
+          item.jamSembuh || '—',
+          item.tempatPerawatan || '—',
+          BOLEH_MASUK_FULL_LABEL[item.bolehMasuk] || item.bolehMasuk || '—',
+          item.keterangan        || '—',
+          item.catatan             || '—',
+          item.inputByNama          || '—',
+        ]);
+        const ts = new Date().toISOString().slice(0, 10);
+        await window.PSExcel.buildReportWorkbookAndDownload({
+          title: 'Rekap Santri Sakit',
+          subtitle: 'Periode: ' + periodLabel + '  |  Total: ' + items.length + ' data',
+          columns, rows,
+          fileName: 'laporan-santri-sakit-' + ts + '.xlsx',
+          sheetName: 'Santri Sakit',
+        });
+        showNotice('Laporan Excel berhasil diunduh.', 'success');
+      } catch (e) {
+        showNotice('Gagal membuat laporan: ' + (e.message || e), 'error');
+      } finally { btn.disabled = false; }
+    }
+    document.getElementById('btnExportLaporan').addEventListener('click', exportLaporan);
+
+    /* ── Salin untuk WA (teks polos sesuai filter, untuk paste ke WhatsApp) ── */
+    const WA_BOLEH_MASUK_LABEL = { halaqoh: 'Hanya boleh masuk halaqoh (tidak kelas)', kelas: 'Hanya boleh masuk kelas (tidak halaqoh)', wajib_halaqoh: 'Wajib masuk halaqoh saja', wajib_kelas: 'Wajib masuk kelas saja', tidak: 'Tidak boleh masuk halaqoh & kelas' };
+    function buildWaSakitText(items, periodLabel) {
+      const lines = ['*LAPORAN SANTRI SAKIT*', 'Periode: ' + periodLabel, 'Total: ' + items.length + ' data', ''];
+      items.forEach((item, i) => {
+        const isSakit = (item.status || '').toLowerCase() === 'sakit';
+        let statusText = isSakit ? 'Sedang Sakit' : 'Sudah Sembuh';
+        if (item.isDeleted) statusText += ' (Dihapus)';
+        lines.push(`${i + 1}. *${item.santriNama || '—'}* (No. Induk ${item.santriNoInduk || '—'})`);
+        lines.push(`   Status: ${statusText}`);
+        lines.push(`   Mulai: ${fmtDateJam(item.tanggalMulai, item.jamMulai)}`);
+        if (item.tanggalSembuh) lines.push(`   Sembuh: ${fmtDateJam(item.tanggalSembuh, item.jamSembuh)}`);
+        if (item.tempatPerawatan) lines.push(`   Tempat: ${item.tempatPerawatan}`);
+        if (item.keterangan) lines.push(`   Keterangan: ${item.keterangan}`);
+        if (WA_BOLEH_MASUK_LABEL[item.bolehMasuk]) lines.push(`   ⚠ ${WA_BOLEH_MASUK_LABEL[item.bolehMasuk]}`);
+        if (item.catatan) lines.push(`   Catatan: ${item.catatan}`);
+        lines.push('');
+      });
+      const now = new Date();
+      lines.push(`_Disalin dari sistem pada ${fmtDate(now.toISOString())}, ${now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}_`);
+      return lines.join('\n');
+    }
+    async function copyTextToClipboard(text) {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        return;
+      }
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.focus(); ta.select();
+      const ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      if (!ok) throw new Error('Gagal menyalin ke clipboard.');
+    }
+    document.getElementById('btnCopyWa').addEventListener('click', async () => {
+      const btn = document.getElementById('btnCopyWa'); btn.disabled = true;
+      try {
+        const items = await fetchAllFilteredSakitItems();
+        if (!items.length) { showNotice('Tidak ada data untuk disalin.', 'error'); return; }
+        const text = buildWaSakitText(items, getPeriodLabel());
+        await copyTextToClipboard(text);
+        showNotice(`Data ${items.length} santri sakit berhasil disalin. Silakan paste ke WhatsApp.`, 'success');
+      } catch (e) {
+        showNotice('Gagal menyalin: ' + (e.message || e), 'error');
+      } finally { btn.disabled = false; }
+    });
+
+    document.getElementById('btnImportExcel').addEventListener('click', () => document.getElementById('importExcelInput').click());
+    document.getElementById('importExcelInput').addEventListener('change', async function() {
+      const file = this.files && this.files[0]; this.value = ''; if (!file) return;
+      showNotice('Memproses import...','info');
+      try {
+        await window.PSExcel.importDataset(apiExcel, DATASET_KEY, file, { onProgress(done, total) { showNotice(`Import ${done}/${total}...`,'info'); } });
+        showNotice('Import selesai.'); await loadRekap();
+      } catch (e) { showNotice(e.message || 'Gagal import.','error'); }
+    });
+
+    window.addEventListener('DOMContentLoaded', async () => {
+      if (window.PSAccess && window.PSAccess.redirectIfForbidden(getStoredSession(), 'santriSakit.html')) return;
+      if (window.PSShell) window.PSShell.mount({ currentPage: window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : '/pages/santriSakit/', session: getStoredSession(), getStoredSession, storageKey: STORAGE.session });
+      document.getElementById('inputTanggalMulai').value = todayIso();
+      renderInputFotoGrid();
+      const session = getStoredSession();
+      const scopedSession = window.PSAccess && window.PSAccess.getScopedSession ? window.PSAccess.getScopedSession(session) : session;
+      const perms = scopedSession && scopedSession.permissions;
+      state.canDelete = !!(perms && (perms.isSuperAdmin || perms.canDelete));
+      state.canEdit = !!(perms && (perms.canAccessSantriSakit || perms.isSuperAdmin));
+      const lockReasonDelete = 'Hanya Super Admin yang bisa menggunakan fitur ini.';
+      const lockReasonEdit = 'Hanya Admin, Kesehatan, Kesantrian, atau Super Admin yang bisa menggunakan fitur ini.';
+      window.PSUI.applyPermissionLock(document.getElementById('btnExportLaporan'), state.canEdit, lockReasonEdit);
+      window.PSUI.applyPermissionLock(document.getElementById('btnCopyWa'), state.canEdit, lockReasonEdit);
+      window.PSUI.applyPermissionLock(document.getElementById('btnExportExcel'), state.canDelete, lockReasonDelete);
+      window.PSUI.applyPermissionLock(document.getElementById('btnImportExcel'), state.canDelete, lockReasonDelete);
+      window.PSUI.applyPermissionLock(document.getElementById('btnDeleteAll'), state.canDelete, lockReasonDelete);
+      window.PSUI.applyPermissionLock(document.getElementById('btnSubmit'), state.canEdit, lockReasonEdit);
+      await loadRefs(); await loadRekap();
+    });
+    // Kamera WebRTC
+    let _sskCamContext = 'input';
+    let _sskCamStream = null;
+    let _sskCamFacing = 'environment';
+
+    function startSskCam() {
+      stopSskCam();
+      const errEl = document.getElementById('sskCamError');
+      errEl.className = 'notice'; errEl.textContent = ''; errEl.style.display = 'none';
+      navigator.mediaDevices.getUserMedia({
+        video: { facingMode: _sskCamFacing, width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: false
+      }).then(function(stream) {
+        _sskCamStream = stream;
+        document.getElementById('sskCamVideo').srcObject = stream;
+      }).catch(function(e) {
+        const msg = e.name === 'NotAllowedError' ? 'Izin kamera ditolak.'
+          : e.name === 'NotFoundError' ? 'Kamera tidak ditemukan.'
+          : 'Gagal mengakses kamera: ' + e.message;
+        errEl.className = 'notice error'; errEl.textContent = msg; errEl.style.display = '';
+      });
+    }
+
+    function stopSskCam() {
+      if (_sskCamStream) { _sskCamStream.getTracks().forEach(t => t.stop()); _sskCamStream = null; }
+      const v = document.getElementById('sskCamVideo'); if (v) v.srcObject = null;
+    }
+
+    function captureSskPhoto() {
+      const video = document.getElementById('sskCamVideo');
+      const canvas = document.getElementById('sskCamCanvas');
+      if (!video.videoWidth) {
+        const errEl = document.getElementById('sskCamError');
+        errEl.className = 'notice error'; errEl.textContent = 'Kamera belum siap.'; errEl.style.display = '';
+        return;
+      }
+      canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      if (_sskCamFacing === 'user') { ctx.translate(canvas.width, 0); ctx.scale(-1, 1); }
+      ctx.drawImage(video, 0, 0);
+      canvas.toBlob(function(blob) {
+        stopSskCam();
+        document.getElementById('sskCamDialog').close();
+        const fileName = 'foto-sakit-' + Date.now() + '.jpg';
+        if (_sskCamContext === 'input') {
+          inputPendingFotos.push({ file: new File([blob], fileName, { type: 'image/jpeg' }), name: fileName, url: URL.createObjectURL(blob) });
+          renderInputFotoGrid();
+        } else {
+          const reader = new FileReader();
+          reader.onload = async function(ev) {
+            try {
+              const id = document.getElementById('editId').value;
+              const res = await apiPost({ action: 'santri.sakit.foto.upload', id, dataUrl: ev.target.result, name: fileName });
+              renderEditFotos(res.fotos, id);
+              const item = state.items.find(i => i.id === id); if (item) item.fotos = res.fotos;
+            } catch (err) { showNotice(err.message, 'error'); }
+          };
+          reader.readAsDataURL(blob);
+        }
+      }, 'image/jpeg', 0.9);
+    }
+
+    function openSskCam(context) {
+      _sskCamContext = context;
+      _sskCamFacing = 'environment';
+      document.getElementById('sskCamDialog').showModal();
+      startSskCam();
+    }
+
+    document.getElementById('sskBtnTutupKamera').addEventListener('click', () => { stopSskCam(); document.getElementById('sskCamDialog').close(); });
+    document.getElementById('sskCamDialog').addEventListener('close', stopSskCam);
+    document.getElementById('sskBtnSwitchCam').addEventListener('click', () => { _sskCamFacing = _sskCamFacing === 'environment' ? 'user' : 'environment'; startSskCam(); });
+    document.getElementById('sskBtnCapture').addEventListener('click', captureSskPhoto);
+  </script>
+</body>
+</html>

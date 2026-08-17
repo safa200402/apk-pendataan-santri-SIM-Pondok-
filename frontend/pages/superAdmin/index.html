@@ -1,0 +1,953 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#7f1d1d">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="../../shared-ui.css">
+  <script src="../../shared-ui.js"></script>
+  <title>Panel Super Admin</title>
+  <link rel="stylesheet" href="../../shared-shell.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700;800&display=swap');
+
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: 'Poppins', sans-serif; }
+
+    .panel { padding: 22px; }
+
+    .page-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 6px;
+    }
+    .page-header-icon {
+      width: 48px;
+      height: 48px;
+      display: grid;
+      place-items: center;
+      border-radius: 14px;
+      background: #7f1d1d;
+      font-size: 22px;
+      flex-shrink: 0;
+    }
+    .page-title { margin: 0; font-size: 1.35rem; font-weight: 800; }
+    .page-subtitle { margin: 0; font-size: 0.82rem; opacity: 0.65; }
+
+    .ops-grid {
+      display: grid;
+      gap: 14px;
+      margin-top: 20px;
+    }
+
+    .op-group {
+      border-radius: 20px;
+      overflow: hidden;
+      border: 1.5px solid rgba(0,0,0,0.09);
+    }
+
+    .op-group-header {
+      padding: 12px 20px;
+      font-size: 0.7rem;
+      font-weight: 800;
+      letter-spacing: 0.13em;
+      text-transform: uppercase;
+      background: rgba(0,0,0,0.04);
+      border-bottom: 1.5px solid rgba(0,0,0,0.07);
+    }
+
+    .op-card {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      padding: 18px 20px;
+      border-bottom: 1px solid rgba(0,0,0,0.06);
+    }
+    .op-card:last-child { border-bottom: none; }
+
+    .op-icon {
+      font-size: 28px;
+      flex-shrink: 0;
+      line-height: 1;
+      margin-top: 2px;
+    }
+
+    .op-body { flex: 1; min-width: 0; }
+    .op-title {
+      margin: 0 0 4px;
+      font-size: 0.95rem;
+      font-weight: 700;
+    }
+    .op-desc {
+      margin: 0 0 12px;
+      font-size: 0.8rem;
+      opacity: 0.65;
+      line-height: 1.5;
+    }
+    .op-meta {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+    .op-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      background: rgba(0,0,0,0.07);
+      opacity: 0.8;
+    }
+
+    .btn-run {
+      padding: 10px 20px;
+      border-radius: 12px;
+      border: 0;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.8rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      transition: transform 0.15s, opacity 0.15s;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .btn-run:hover { transform: translateY(-1px); }
+    .btn-run:active { transform: none; }
+    .btn-run:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+    .btn-danger  { background: #dc2626; color: #fff; }
+    .btn-warning { background: #d97706; color: #fff; }
+    .btn-safe    { background: #0f766e; color: #fff; }
+
+    /* Confirm dialog */
+    .confirm-dialog {
+      padding: 0;
+      border: 0;
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      width: min(94vw, 420px);
+      max-height: 90vh;
+      overflow: auto;
+    }
+    .confirm-dialog::backdrop { background: rgba(0,0,0,0.5); }
+    .confirm-dialog-body { padding: 24px; }
+    .confirm-icon { font-size: 36px; margin-bottom: 10px; }
+    .confirm-title { margin: 0 0 8px; font-size: 1.1rem; font-weight: 800; }
+    .confirm-desc { margin: 0 0 20px; font-size: 0.85rem; line-height: 1.55; opacity: 0.75; }
+    .confirm-actions { display: flex; gap: 10px; justify-content: flex-end; }
+    .btn-cancel {
+      padding: 10px 20px;
+      border-radius: 12px;
+      border: 1.5px solid rgba(0,0,0,0.12);
+      background: transparent;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.82rem;
+      font-weight: 700;
+    }
+    .btn-confirm {
+      padding: 10px 20px;
+      border-radius: 12px;
+      border: 0;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.82rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .btn-confirm.danger  { background: #dc2626; color: #fff; }
+    .btn-confirm.warning { background: #d97706; color: #fff; }
+    .btn-confirm.safe    { background: #0f766e; color: #fff; }
+
+    button { font-family: 'Poppins', sans-serif; }
+
+    .maintenance-card { border-radius: 18px; overflow: hidden; border: 2px solid; }
+    .maintenance-card.active  { border-color: #b45309; background: #fffbeb; }
+    .maintenance-card.inactive { border-color: rgba(0,0,0,0.1); }
+    .maintenance-header { display: flex; align-items: center; gap: 14px; padding: 16px 20px; }
+    .maintenance-icon { font-size: 28px; flex-shrink: 0; }
+    .maintenance-body { flex: 1; min-width: 0; }
+    .maintenance-title { margin: 0 0 2px; font-size: 1rem; font-weight: 800; }
+    .maintenance-status { font-size: 0.8rem; font-weight: 700; }
+    .maintenance-status.on  { color: #b45309; }
+    .maintenance-status.off { color: #16a34a; }
+    .maintenance-footer { padding: 0 20px 16px; display: flex; flex-direction: column; gap: 10px; }
+    .maintenance-meta { font-size: 0.75rem; opacity: 0.6; }
+    .maintenance-msg-input { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1.5px solid rgba(0,0,0,0.15); font: inherit; font-size: 0.85rem; resize: none; }
+    .btn-maintenance-on  { background: #b45309; color: #fff; }
+    .btn-maintenance-off { background: #16a34a; color: #fff; }
+
+    @media (max-width: 600px) {
+      .op-card { flex-direction: column; }
+      .op-meta { flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-left">
+      <button class="drawer-toggle" id="navToggle" type="button" aria-label="Toggle sidebar">Menu</button>
+      <div class="header-brand">Pendataan Santri</div>
+      <div class="header-page">Panel Super Admin</div>
+    </div>
+    <div class="header-right">
+      <span class="header-chip" id="headerRole">Super Admin</span>
+    </div>
+  </header>
+  <div class="drawer-backdrop" id="navBackdrop"></div>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+
+  <main>
+    <div class="app-layout">
+      <section class="panel nav" id="nav"></section>
+      <div class="content-stack">
+        <section class="panel">
+          <div class="page-header">
+            <div class="page-header-icon">🛡️</div>
+            <div>
+              <h1 class="page-title">Panel Super Admin</h1>
+              <p class="page-subtitle">Operasi massal otomatis — hati-hati, tidak bisa dibatalkan</p>
+            </div>
+          </div>
+
+          <div id="maintenanceCard" style="margin-bottom:16px;"></div>
+          <div id="riwayatSettingsCard" style="margin-bottom:16px;"></div>
+          <div id="loginSessionSettingsCard" style="margin-bottom:16px;"></div>
+          <div class="ops-grid" id="opsGrid">
+            <div style="padding:30px;text-align:center;opacity:0.5">Memuat data...</div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <!-- Confirm Dialog -->
+  <dialog id="confirmDialog" class="confirm-dialog">
+    <div class="confirm-dialog-body">
+      <div class="confirm-icon" id="confirmIcon">⚠️</div>
+      <h2 class="confirm-title" id="confirmTitle">Konfirmasi</h2>
+      <p class="confirm-desc" id="confirmDesc">Apakah kamu yakin?</p>
+      <div class="confirm-actions">
+        <button class="btn-cancel" id="confirmCancel">Batal</button>
+        <button class="btn-confirm danger" id="confirmOk">Jalankan</button>
+      </div>
+    </div>
+  </dialog>
+
+  <script src="../../shared-access.js"></script>
+  <script src="../../shared-nav.js"></script>
+  <script src="../../shared-shell.js"></script>
+  <script>
+    const API_BASE = '/api';
+    const STORAGE_KEY = 'ps_token';
+    const SESSION_KEY = 'ps_session';
+
+    function getStoredSession() {
+      try { return JSON.parse(localStorage.getItem(SESSION_KEY)); } catch { return null; }
+    }
+
+    // ── Notice / toast ─────────────────────────────────────────────────
+    const uiState = { currentNoticeId: '', noticeCounter: 0, noticeShownAt: 0, pendingNotice: null };
+
+    function createNoticeElement(text, type) {
+      const el = document.createElement('section');
+      el.className = 'notice show ' + (type || 'info');
+      el.dataset.noticeId = 'notice-' + Date.now() + '-' + (uiState.noticeCounter += 1);
+      el.textContent = text;
+      function dismiss() {
+        if (!el.parentNode) return;
+        el.classList.add('notice-dismissing');
+        setTimeout(() => {
+          el.remove();
+          const stack = document.getElementById('noticeStack');
+          if (stack && !stack.hasChildNodes() && stack.matches(':popover-open')) stack.hidePopover();
+        }, 220);
+      }
+      el.addEventListener('click', dismiss);
+      setTimeout(dismiss, type === 'error' ? 10000 : 6000);
+      return el;
+    }
+
+    function showNotice(text, type) {
+      if (uiState.pendingNotice) { clearTimeout(uiState.pendingNotice); uiState.pendingNotice = null; }
+      const elapsed = Date.now() - uiState.noticeShownAt;
+      if (elapsed < 2000 && uiState.currentNoticeId) {
+        uiState.pendingNotice = setTimeout(() => { uiState.pendingNotice = null; showNotice(text, type); }, 2000 - elapsed);
+        return;
+      }
+      if (uiState.currentNoticeId) {
+        const old = document.querySelector('[data-notice-id="' + uiState.currentNoticeId + '"]');
+        if (old) old.remove();
+        uiState.currentNoticeId = '';
+      }
+      const el = createNoticeElement(text, type);
+      const stack = document.getElementById('noticeStack');
+      stack.prepend(el);
+      uiState.currentNoticeId = el.dataset.noticeId;
+      uiState.noticeShownAt = Date.now();
+      if (stack.matches(':popover-open')) stack.hidePopover();
+      stack.showPopover();
+    }
+
+    async function api(action, payload = {}) {
+      const session = getStoredSession();
+      const scopeLabel = window.PSAccess ? (window.PSAccess.getActiveRoleScopeLabel(session) || '') : '';
+      const body = { action, token: session?.token || '', scopeLabel, ...payload };
+      const res = await fetch(API_BASE, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const json = await res.json();
+      if (!json.ok) {
+        const error = new Error((json.error && json.error.message) || 'Permintaan gagal.');
+        error.code = (json.error && json.error.code) || res.status || 500;
+        if (window.PSUI && window.PSUI.handleApiAuthError && window.PSUI.handleApiAuthError(error)) return;
+        throw error;
+      }
+      return json.data;
+    }
+
+    // ── State ──────────────────────────────────────────────────────────
+    const state = {
+      pengurusCount: '…',
+      santriCount: '…',
+      pengurusNoUsername: '…',
+      santriNoUsername: '…'
+    };
+
+    // ── PDF print ─────────────────────────────────────────────────────
+    function downloadCredentialsPdf(rows, title) {
+      const dateStr = new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
+      const badgeColor = { 'password123': '#16a34a', 'custom': '#d97706', 'belum diset': '#dc2626' };
+      const rows_html = rows.map((row, i) => `
+        <tr>
+          <td style="text-align:center;color:#6b7280">${i + 1}</td>
+          <td>${escHtml(row.nama || '-')}</td>
+          <td style="font-family:monospace;font-size:13px">${escHtml(row.username || '—')}</td>
+          <td>
+            <span style="display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;color:#fff;background:${badgeColor[row.passwordStatus] || '#6b7280'}">
+              ${escHtml(row.passwordStatus || '-')}
+            </span>
+          </td>
+          <td style="color:#6b7280;font-size:12px">${escHtml(row.status || '-')}</td>
+        </tr>`).join('');
+
+      const html = `<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>${escHtml(title)}</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Poppins', sans-serif; font-size: 13px; color: #1e293b; padding: 32px; }
+  h1 { font-size: 18px; font-weight: 800; margin-bottom: 4px; }
+  .meta { font-size: 12px; color: #6b7280; margin-bottom: 20px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { background: #1e293b; color: #fff; padding: 10px 12px; text-align: left; font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; }
+  th:first-child { text-align: center; width: 40px; }
+  td { padding: 9px 12px; border-bottom: 1px solid #e2e8f0; vertical-align: middle; }
+  tr:nth-child(even) td { background: #f8fafc; }
+  @media print {
+    body { padding: 0; }
+    @page { margin: 18mm; size: A4 portrait; }
+  }
+</style>
+</head>
+<body>
+<h1>${escHtml(title)}</h1>
+<p class="meta">Dicetak: ${dateStr} &nbsp;|&nbsp; Total: ${rows.length} pengurus</p>
+<table>
+  <thead><tr><th>#</th><th>Nama</th><th>Username</th><th>Status Password</th><th>Status Akun</th></tr></thead>
+  <tbody>${rows_html}</tbody>
+</table>
+<script>window.onload = function(){ window.print(); }<\/script>
+</body></html>`;
+
+      const win = window.open('', '_blank');
+      if (!win) { showNotice('Popup diblokir browser. Izinkan popup untuk halaman ini.', 'error'); return; }
+      win.document.write(html);
+      win.document.close();
+    }
+
+    function downloadSantriCredentialsPdf(rows, title) {
+      const dateStr = new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
+      const badgeColor = { 'password123': '#16a34a', 'custom': '#d97706', 'belum diset': '#dc2626' };
+      const rows_html = rows.map((row, i) => `
+        <tr>
+          <td style="text-align:center;color:#6b7280">${i + 1}</td>
+          <td>${escHtml(row.nama || '-')}</td>
+          <td style="font-family:monospace;font-size:13px">${escHtml(row.noInduk || '—')}</td>
+          <td style="font-family:monospace;font-size:13px">${escHtml(row.username || '—')}</td>
+          <td>
+            <span style="display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;color:#fff;background:${badgeColor[row.passwordStatus] || '#6b7280'}">
+              ${escHtml(row.passwordStatus || '-')}
+            </span>
+          </td>
+          <td style="color:#6b7280;font-size:12px">${escHtml(row.status || '-')}</td>
+        </tr>`).join('');
+
+      const html = `<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>${escHtml(title)}</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Poppins', sans-serif; font-size: 13px; color: #1e293b; padding: 32px; }
+  h1 { font-size: 18px; font-weight: 800; margin-bottom: 4px; }
+  .meta { font-size: 12px; color: #6b7280; margin-bottom: 20px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { background: #1e293b; color: #fff; padding: 10px 12px; text-align: left; font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; }
+  th:first-child { text-align: center; width: 40px; }
+  td { padding: 9px 12px; border-bottom: 1px solid #e2e8f0; vertical-align: middle; }
+  tr:nth-child(even) td { background: #f8fafc; }
+  @media print {
+    body { padding: 0; }
+    @page { margin: 18mm; size: A4 landscape; }
+  }
+</style>
+</head>
+<body>
+<h1>${escHtml(title)}</h1>
+<p class="meta">Dicetak: ${dateStr} &nbsp;|&nbsp; Total: ${rows.length} santri</p>
+<table>
+  <thead><tr><th>#</th><th>Nama</th><th>NIS</th><th>Username</th><th>Status Password</th><th>Status Akun</th></tr></thead>
+  <tbody>${rows_html}</tbody>
+</table>
+<script>window.onload = function(){ window.print(); }<\/script>
+</body></html>`;
+
+      const win = window.open('', '_blank');
+      if (!win) { showNotice('Popup diblokir browser. Izinkan popup untuk halaman ini.', 'error'); return; }
+      win.document.write(html);
+      win.document.close();
+    }
+
+    // ── Operations config ──────────────────────────────────────────────
+    const OPS = [
+      {
+        group: 'Reset Password',
+        items: [
+          {
+            id: 'resetSantriPasswords',
+            icon: '🔑',
+            title: 'Reset Semua Password Santri',
+            desc: 'Mengubah seluruh password santri menjadi "password123" (di-hash). Santri harus ganti password setelah login.',
+            badge: () => state.santriCount + ' santri',
+            btnLabel: 'Reset Password Santri',
+            btnClass: 'btn-danger',
+            confirmIcon: '🔑',
+            confirmTitle: 'Reset Semua Password Santri?',
+            confirmDesc: 'Seluruh password santri akan diubah menjadi "password123". Tindakan ini tidak bisa dibatalkan.',
+            confirmClass: 'danger',
+            action: () => api('santri.resetAllPasswords')
+          },
+          {
+            id: 'resetPengurusPasswords',
+            icon: '🔐',
+            title: 'Reset Semua Password Pengurus',
+            desc: 'Mengubah seluruh password pengurus menjadi "password123" (di-hash). Pengurus harus ganti password setelah login.',
+            badge: () => state.pengurusCount + ' pengurus',
+            btnLabel: 'Reset Password Pengurus',
+            btnClass: 'btn-danger',
+            confirmIcon: '🔐',
+            confirmTitle: 'Reset Semua Password Pengurus?',
+            confirmDesc: 'Seluruh password pengurus akan diubah menjadi "password123". Tindakan ini tidak bisa dibatalkan.',
+            confirmClass: 'danger',
+            action: () => api('pengurus.resetAllPasswords')
+          }
+        ]
+      },
+      {
+        group: 'Username Pengurus & Santri',
+        items: [
+          {
+            id: 'clearInvalidUsernames',
+            icon: '🧹',
+            title: 'Bersihkan Username Tidak Valid',
+            desc: 'Menghapus username yang isinya "none", "null", "-", atau nilai placeholder lain (bukan username asli). Jalankan ini dulu sebelum Auto-Set Username agar username lama yang salah bisa di-generate ulang.',
+            badge: () => 'Santri & Pengurus',
+            btnLabel: 'Bersihkan Username Invalid',
+            btnClass: 'btn-warning',
+            confirmIcon: '🧹',
+            confirmTitle: 'Bersihkan Username Tidak Valid?',
+            confirmDesc: 'Username berisi "none", "null", "-", dan sejenisnya akan dihapus. Setelah ini jalankan Auto-Set Username untuk membuat username yang benar.',
+            confirmClass: 'warning',
+            action: () => api('admin.clearInvalidUsernames')
+          },
+          {
+            id: 'autoSetUsernames',
+            icon: '🏷️',
+            title: 'Auto-Set Username Pengurus dari Nama',
+            desc: 'Membuat username otomatis dari nama lengkap untuk pengurus yang belum memiliki username. Pengurus yang sudah punya username tidak terpengaruh.',
+            badge: () => state.pengurusNoUsername + ' pengurus belum punya username',
+            btnLabel: 'Set Username Pengurus',
+            btnClass: 'btn-warning',
+            confirmIcon: '🏷️',
+            confirmTitle: 'Set Username Otomatis Pengurus?',
+            confirmDesc: 'Username akan dibuat dari nama pengurus (huruf kecil, spasi → underscore). Contoh: "Ahmad Fauzi" → "ahmad_fauzi". Pengurus yang sudah punya username tidak akan diubah.',
+            confirmClass: 'warning',
+            action: () => api('pengurus.autoSetUsernames')
+          },
+          {
+            id: 'autoSetSantriUsernames',
+            icon: '🏷️',
+            title: 'Auto-Set Username Santri dari Nama',
+            desc: 'Membuat username otomatis dari nama untuk santri yang belum memiliki username. Santri bisa login dengan username atau NIS. Santri yang sudah punya username tidak terpengaruh.',
+            badge: () => state.santriNoUsername + ' santri belum punya username',
+            btnLabel: 'Set Username Santri',
+            btnClass: 'btn-warning',
+            confirmIcon: '🏷️',
+            confirmTitle: 'Set Username Otomatis Santri?',
+            confirmDesc: 'Username akan dibuat dari nama santri (huruf kecil, spasi → underscore). Santri yang sudah punya username tidak akan diubah.',
+            confirmClass: 'warning',
+            action: () => api('santri.autoSetUsernames')
+          }
+        ]
+      },
+      {
+        group: 'Export Data',
+        items: [
+          {
+            id: 'exportPengurusCredentials',
+            icon: '📋',
+            title: 'Download Kredensial Pengurus',
+            desc: 'Cetak PDF berisi nama, username, dan status password pengurus. Berguna setelah reset password massal untuk distribusi ke pengurus.',
+            badge: () => state.pengurusCount + ' pengurus',
+            btnLabel: 'Cetak PDF',
+            btnClass: 'btn-safe',
+            hasStatusFilter: true,
+            confirmIcon: '📋',
+            confirmTitle: 'Cetak PDF Kredensial Pengurus?',
+            confirmDesc: 'PDF akan berisi nama, username, dan status password (apakah "password123" atau sudah diubah), sesuai filter status yang dipilih. Hash password tidak akan ditampilkan.',
+            confirmClass: 'safe',
+            action: async () => {
+              const statusFilter = document.getElementById('filter-exportPengurusCredentials').value;
+              const result = await api('pengurus.exportCredentials', { status: statusFilter });
+              const suffix = statusFilter === 'aktif' ? ' — Aktif' : statusFilter === 'dibekukan' ? ' — Dibekukan' : statusFilter === 'nonaktif' ? ' — Nonaktif' : '';
+              downloadCredentialsPdf(result.rows, 'Kredensial Pengurus' + suffix);
+              return { message: result.rows.length + ' data pengurus berhasil diunduh.' };
+            }
+          },
+          {
+            id: 'exportSantriCredentials',
+            icon: '📋',
+            title: 'Download Kredensial Santri',
+            desc: 'Cetak PDF berisi nama, NIS, username, dan status password santri. Berguna setelah reset password atau auto-set username massal.',
+            badge: () => state.santriCount + ' santri',
+            btnLabel: 'Cetak PDF',
+            btnClass: 'btn-safe',
+            hasStatusFilter: true,
+            confirmIcon: '📋',
+            confirmTitle: 'Cetak PDF Kredensial Santri?',
+            confirmDesc: 'PDF akan berisi nama, NIS, username, dan status password (apakah "password123" atau sudah diubah), sesuai filter status yang dipilih. Hash password tidak akan ditampilkan.',
+            confirmClass: 'safe',
+            action: async () => {
+              const statusFilter = document.getElementById('filter-exportSantriCredentials').value;
+              const result = await api('santri.exportCredentials', { status: statusFilter });
+              const suffix = statusFilter === 'aktif' ? ' — Aktif' : statusFilter === 'dibekukan' ? ' — Dibekukan' : statusFilter === 'nonaktif' ? ' — Nonaktif' : '';
+              downloadSantriCredentialsPdf(result.rows, 'Kredensial Santri' + suffix);
+              return { message: result.rows.length + ' data santri berhasil diunduh.' };
+            }
+          }
+        ]
+      },
+      {
+        group: 'Sesi & Keamanan',
+        items: [
+          {
+            id: 'clearAllSessions',
+            icon: '🚪',
+            title: 'Paksa Logout Semua Pengguna',
+            desc: 'Menghapus semua token aktif sehingga semua pengurus dan santri yang sedang login akan otomatis keluar. Kamu sendiri juga akan ikut logout.',
+            badge: () => 'Semua sesi aktif',
+            btnLabel: 'Paksa Logout Semua',
+            btnClass: 'btn-warning',
+            confirmIcon: '🚪',
+            confirmTitle: 'Paksa Logout Semua Pengguna?',
+            confirmDesc: 'Seluruh sesi aktif pengurus dan santri akan dihapus. Kamu sendiri juga akan logout setelah ini berhasil.',
+            confirmClass: 'warning',
+            action: async () => {
+              const result = await api('admin.clearAllSessions');
+              // Clear own session too
+              localStorage.removeItem(STORAGE_KEY);
+              localStorage.removeItem(SESSION_KEY);
+              return result;
+            },
+            afterSuccess: () => {
+              setTimeout(() => { window.location.replace('/pages/login/'); }, 1800);
+            }
+          }
+        ]
+      }
+    ];
+
+    // ── Render ─────────────────────────────────────────────────────────
+    function renderOps() {
+      const grid = document.getElementById('opsGrid');
+      grid.innerHTML = OPS.map(group => `
+        <div class="op-group">
+          <div class="op-group-header">${escHtml(group.group)}</div>
+          ${group.items.map(op => `
+            <div class="op-card" id="card-${op.id}">
+              <div class="op-icon">${op.icon}</div>
+              <div class="op-body">
+                <h3 class="op-title">${escHtml(op.title)}</h3>
+                <p class="op-desc">${escHtml(op.desc)}</p>
+                <div class="op-meta">
+                  <span class="op-badge" id="badge-${op.id}">${op.badge()}</span>
+                  ${op.hasStatusFilter ? `
+                  <select class="maintenance-msg-input" id="filter-${op.id}" style="max-width:150px;padding:8px 10px;">
+                    <option value="">Semua</option>
+                    <option value="aktif">Aktif</option>
+                    <option value="dibekukan">Dibekukan</option>
+                    <option value="nonaktif">Nonaktif</option>
+                  </select>` : ''}
+                  <button class="${op.btnClass} btn-run" id="btn-${op.id}" onclick="askConfirm('${op.id}')">
+                    ${escHtml(op.btnLabel)}
+                  </button>
+                </div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `).join('');
+    }
+
+    function refreshBadges() {
+      OPS.forEach(group => {
+        group.items.forEach(op => {
+          const badge = document.getElementById('badge-' + op.id);
+          if (badge) badge.textContent = op.badge();
+        });
+      });
+    }
+
+    function escHtml(s) {
+      return String(s || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    // ── Load stats ─────────────────────────────────────────────────────
+    async function loadStats() {
+      try {
+        const [pengurusData, santriData] = await Promise.all([
+          api('pengurus.list', { pageSize: 1 }),
+          api('santri.list', { pageSize: 1 })
+        ]);
+        state.pengurusCount = pengurusData.total ?? pengurusData.items?.length ?? '?';
+        state.santriCount = santriData.total ?? santriData.items?.length ?? '?';
+      } catch {
+        state.pengurusCount = '?';
+        state.santriCount = '?';
+      }
+
+      // Count pengurus without username
+      try {
+        const all = await api('pengurus.list', { pageSize: 1000 });
+        const items = all.items || [];
+        state.pengurusNoUsername = items.filter(item => !item.username && !item.record?.username).length;
+      } catch {
+        state.pengurusNoUsername = '?';
+      }
+
+      // Count santri without username
+      try {
+        const all = await api('santri.list', { pageSize: 5000 });
+        const items = all.items || [];
+        state.santriNoUsername = items.filter(item => !item.record?.username).length;
+      } catch {
+        state.santriNoUsername = '?';
+      }
+
+      refreshBadges();
+    }
+
+    // ── Confirm dialog ─────────────────────────────────────────────────
+    let pendingOpId = null;
+
+    function askConfirm(opId) {
+      const op = findOp(opId);
+      if (!op) return;
+      pendingOpId = opId;
+      document.getElementById('confirmIcon').textContent = op.confirmIcon;
+      document.getElementById('confirmTitle').textContent = op.confirmTitle;
+      document.getElementById('confirmDesc').textContent = op.confirmDesc;
+      const okBtn = document.getElementById('confirmOk');
+      okBtn.className = 'btn-confirm ' + op.confirmClass;
+      okBtn.textContent = op.btnLabel;
+      document.getElementById('confirmDialog').showModal();
+    }
+
+    document.getElementById('confirmCancel').addEventListener('click', () => {
+      document.getElementById('confirmDialog').close();
+      pendingOpId = null;
+    });
+
+    document.getElementById('confirmOk').addEventListener('click', async () => {
+      if (!pendingOpId) return;
+      const opId = pendingOpId;
+      pendingOpId = null;
+      document.getElementById('confirmDialog').close();
+      await runOp(opId);
+    });
+
+    function findOp(id) {
+      for (const group of OPS) {
+        const op = group.items.find(item => item.id === id);
+        if (op) return op;
+      }
+      return null;
+    }
+
+    // ── Execute operation ──────────────────────────────────────────────
+    async function runOp(opId) {
+      const op = findOp(opId);
+      if (!op) return;
+
+      const btn = document.getElementById('btn-' + opId);
+      const origLabel = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Memproses…';
+
+      try {
+        const result = await op.action();
+        showNotice(result.message || 'Berhasil.', 'success');
+        if (op.afterSuccess) op.afterSuccess();
+        await loadStats();
+      } catch (err) {
+        showNotice(err.message || 'Terjadi kesalahan.', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = origLabel;
+      }
+    }
+
+    // ── Maintenance card ───────────────────────────────────────────────
+    let maintenanceData = { active: false, message: '', setBy: '', setAt: '' };
+
+    async function loadMaintenanceCard() {
+      try { maintenanceData = (await api('system.maintenance.get')) || maintenanceData; } catch {}
+      renderMaintenanceCard();
+    }
+
+    function renderMaintenanceCard() {
+      const el = document.getElementById('maintenanceCard');
+      const isOn = !!maintenanceData.active;
+      const metaText = maintenanceData.setAt
+        ? `Diatur oleh ${escHtml(maintenanceData.setBy || '—')} pada ${new Date(maintenanceData.setAt).toLocaleString('id-ID')}`
+        : '';
+      el.innerHTML = `
+        <div class="maintenance-card ${isOn ? 'active' : 'inactive'}">
+          <div class="maintenance-header">
+            <div class="maintenance-icon">${isOn ? '🔧' : '✅'}</div>
+            <div class="maintenance-body">
+              <h3 class="maintenance-title">Mode Maintenance</h3>
+              <div class="maintenance-status ${isOn ? 'on' : 'off'}">${isOn ? '⚠ AKTIF — Perubahan data diblokir' : 'Tidak aktif — Sistem berjalan normal'}</div>
+            </div>
+          </div>
+          <div class="maintenance-footer">
+            ${isOn ? '' : `<textarea class="maintenance-msg-input" id="maintenanceMsgInput" rows="2" placeholder="Pesan untuk pengguna (opsional)…">${escHtml(maintenanceData.message || '')}</textarea>`}
+            ${metaText ? `<div class="maintenance-meta">${metaText}</div>` : ''}
+            ${isOn
+              ? `<div class="maintenance-meta" style="font-size:0.8rem;color:#92400e;">${escHtml(maintenanceData.message || '')}</div>
+                 <button class="btn-run btn-maintenance-off" id="btnMaintenanceToggle">✅ Matikan Maintenance Mode</button>`
+              : `<button class="btn-run btn-maintenance-on" id="btnMaintenanceToggle">🔧 Aktifkan Maintenance Mode</button>`
+            }
+          </div>
+        </div>`;
+      document.getElementById('btnMaintenanceToggle').addEventListener('click', toggleMaintenance);
+    }
+
+    async function toggleMaintenance() {
+      const btn = document.getElementById('btnMaintenanceToggle');
+      const isOn = !!maintenanceData.active;
+      const msgEl = document.getElementById('maintenanceMsgInput');
+      const message = msgEl ? msgEl.value.trim() : '';
+      btn.disabled = true;
+      btn.textContent = 'Memproses…';
+      try {
+        maintenanceData = await api('system.maintenance.set', { active: !isOn, message });
+        renderMaintenanceCard();
+        showNotice(maintenanceData.active ? 'Maintenance mode diaktifkan.' : 'Maintenance mode dimatikan.', maintenanceData.active ? 'warning' : 'success');
+      } catch (err) {
+        showNotice(err.message || 'Gagal mengubah maintenance mode.', 'error');
+        btn.disabled = false;
+        btn.textContent = isOn ? '✅ Matikan Maintenance Mode' : '🔧 Aktifkan Maintenance Mode';
+      }
+    }
+
+    // ── Riwayat settings card ─────────────────────────────────────────
+    let riwayatSettingsData = { limitCount: 1000 };
+    let riwayatSettingsAllowed = true;
+
+    async function loadRiwayatSettingsCard() {
+      try {
+        riwayatSettingsData = (await api('riwayat.settings.get')) || riwayatSettingsData;
+        riwayatSettingsAllowed = true;
+      } catch (err) {
+        riwayatSettingsAllowed = false;
+      }
+      renderRiwayatSettingsCard();
+    }
+
+    function renderRiwayatSettingsCard() {
+      const el = document.getElementById('riwayatSettingsCard');
+      if (!riwayatSettingsAllowed) {
+        el.innerHTML = `
+          <div class="maintenance-card inactive">
+            <div class="maintenance-header">
+              <div class="maintenance-icon">📜</div>
+              <div class="maintenance-body">
+                <h3 class="maintenance-title">Batas Riwayat</h3>
+                <div class="maintenance-status off">Hanya Super Admin dengan scope aktif Super Admin yang bisa mengatur ini.</div>
+              </div>
+            </div>
+          </div>`;
+        return;
+      }
+      el.innerHTML = `
+        <div class="maintenance-card inactive">
+          <div class="maintenance-header">
+            <div class="maintenance-icon">📜</div>
+            <div class="maintenance-body">
+              <h3 class="maintenance-title">Batas Riwayat</h3>
+              <div class="maintenance-status off">Riwayat terlama otomatis dihapus kalau jumlahnya melebihi batas ini.</div>
+            </div>
+          </div>
+          <div class="maintenance-footer">
+            <input type="number" class="maintenance-msg-input" id="riwayatLimitInput" min="100" max="50000" step="1" value="${riwayatSettingsData.limitCount}" style="max-width:200px;">
+            <button class="btn-run" id="btnSaveRiwayatLimit" style="background:#d97706;color:#fff;">💾 Simpan Batas Riwayat</button>
+          </div>
+        </div>`;
+      document.getElementById('btnSaveRiwayatLimit').addEventListener('click', saveRiwayatLimit);
+    }
+
+    async function saveRiwayatLimit() {
+      const btn = document.getElementById('btnSaveRiwayatLimit');
+      const input = document.getElementById('riwayatLimitInput');
+      const limitCount = parseInt(input.value, 10);
+      if (isNaN(limitCount) || limitCount < 100 || limitCount > 50000) {
+        showNotice('Batas riwayat harus angka antara 100 dan 50000.', 'error');
+        return;
+      }
+      btn.disabled = true;
+      btn.textContent = 'Menyimpan…';
+      try {
+        riwayatSettingsData = await api('riwayat.settings.save', { limitCount });
+        showNotice('Batas riwayat diperbarui.', 'success');
+      } catch (err) {
+        showNotice(err.message || 'Gagal menyimpan batas riwayat.', 'error');
+      } finally {
+        renderRiwayatSettingsCard();
+      }
+    }
+
+    // ── Login session settings card ─────────────────────────────────────
+    let loginSessionSettingsData = { maxSessions: 1 };
+    let loginSessionSettingsAllowed = true;
+
+    async function loadLoginSessionSettingsCard() {
+      try {
+        loginSessionSettingsData = (await api('loginSession.settings.get')) || loginSessionSettingsData;
+        loginSessionSettingsAllowed = true;
+      } catch (err) {
+        loginSessionSettingsAllowed = false;
+      }
+      renderLoginSessionSettingsCard();
+    }
+
+    function renderLoginSessionSettingsCard() {
+      const el = document.getElementById('loginSessionSettingsCard');
+      if (!loginSessionSettingsAllowed) {
+        el.innerHTML = `
+          <div class="maintenance-card inactive">
+            <div class="maintenance-header">
+              <div class="maintenance-icon">🔐</div>
+              <div class="maintenance-body">
+                <h3 class="maintenance-title">Batas Login Bersamaan</h3>
+                <div class="maintenance-status off">Hanya Super Admin yang bisa mengatur ini.</div>
+              </div>
+            </div>
+          </div>`;
+        return;
+      }
+      const options = [1, 2, 3].map(n => `<option value="${n}" ${n === loginSessionSettingsData.maxSessions ? 'selected' : ''}>${n} perangkat</option>`).join('');
+      el.innerHTML = `
+        <div class="maintenance-card inactive">
+          <div class="maintenance-header">
+            <div class="maintenance-icon">🔐</div>
+            <div class="maintenance-body">
+              <h3 class="maintenance-title">Batas Login Bersamaan</h3>
+              <div class="maintenance-status off">Jumlah maksimal perangkat yang boleh login bersamaan per akun (pengurus &amp; santri). Kalau sudah penuh, sesi paling lama otomatis logout saat ada login baru.</div>
+            </div>
+          </div>
+          <div class="maintenance-footer">
+            <select id="loginSessionMaxInput" class="maintenance-msg-input" style="max-width:200px;">${options}</select>
+            <button class="btn-run" id="btnSaveLoginSessionMax" style="background:#d97706;color:#fff;">💾 Simpan Batas Sesi</button>
+          </div>
+        </div>`;
+      document.getElementById('btnSaveLoginSessionMax').addEventListener('click', saveLoginSessionMax);
+    }
+
+    async function saveLoginSessionMax() {
+      const btn = document.getElementById('btnSaveLoginSessionMax');
+      const input = document.getElementById('loginSessionMaxInput');
+      const maxSessions = parseInt(input.value, 10);
+      if (isNaN(maxSessions) || maxSessions < 1 || maxSessions > 3) {
+        showNotice('Batas sesi login harus 1, 2, atau 3.', 'error');
+        return;
+      }
+      btn.disabled = true;
+      btn.textContent = 'Menyimpan…';
+      try {
+        loginSessionSettingsData = await api('loginSession.settings.save', { maxSessions });
+        showNotice('Batas sesi login diperbarui.', 'success');
+      } catch (err) {
+        showNotice(err.message || 'Gagal menyimpan batas sesi login.', 'error');
+      } finally {
+        renderLoginSessionSettingsCard();
+      }
+    }
+
+    // ── Init ───────────────────────────────────────────────────────────
+    function init() {
+      const session = getStoredSession();
+      if (!session) { window.location.replace('/pages/login/'); return; }
+      if (window.PSAccess && window.PSAccess.redirectIfForbidden(session, 'superAdmin.html')) return;
+
+      if (window.PSShell) {
+        window.PSShell.mount({ currentPage: 'superAdmin.html', getStoredSession, storageKey: SESSION_KEY });
+      }
+
+      renderOps();
+      loadStats();
+      loadMaintenanceCard();
+      loadRiwayatSettingsCard();
+      loadLoginSessionSettingsCard();
+    }
+
+    window.addEventListener('load', init);
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,945 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#9e2f22">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="../../shared-ui.css">
+  <script src="../../shared-ui.js"></script>
+  <title>Skema Database</title>
+  <link rel="stylesheet" href="../../shared-shell.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700&display=swap');
+    :root {
+      --paper: #f6efe0;
+      --ink: #4d4034;
+      --muted: #7b6a58;
+      --line: rgba(91, 73, 57, 0.15);
+      --accent: #b97650;
+      --radius: 20px;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; }
+    .panel { padding: 22px; }
+    h1, h2, h3 { margin: 0; text-transform: uppercase; }
+    p { margin: 0; line-height: 1.65; }
+
+    .page-intro {
+      margin-bottom: 8px;
+    }
+    .page-intro h1 {
+      font-size: clamp(20px, 3vw, 28px);
+      margin-bottom: 6px;
+    }
+    .page-intro p {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    /* Legend */
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 20px;
+      padding: 14px 16px;
+      border-radius: 14px;
+      background: rgba(91, 73, 57, 0.05);
+      border: 1px dashed var(--line);
+      margin-top: 16px;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--ink);
+    }
+    .legend-dot {
+      width: 13px;
+      height: 13px;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+    .key-label {
+      font-size: 11px;
+      font-weight: 800;
+      color: var(--accent);
+      margin-right: 2px;
+    }
+
+    /* Schema sections */
+    .schema-section {
+      margin-top: 28px;
+    }
+    .schema-section-title {
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 2px dashed var(--line);
+    }
+    .schema-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      align-items: flex-start;
+    }
+    .schema-row + .schema-row {
+      margin-top: 14px;
+    }
+    .schema-arrow {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 10px 0;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .schema-arrow::before,
+    .schema-arrow::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--line);
+    }
+
+    /* Entity cards */
+    .entity-card {
+      flex: 1 1 190px;
+      min-width: 175px;
+      max-width: 270px;
+      border-radius: 16px;
+      border: 2px solid;
+      overflow: hidden;
+    }
+    .entity-card-head {
+      padding: 11px 14px 9px;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.07);
+    }
+    .entity-tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 9px;
+      font-weight: 900;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin-bottom: 5px;
+      color: #fff;
+    }
+    .entity-name {
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--ink);
+      line-height: 1.2;
+    }
+    .entity-table {
+      font-size: 11px;
+      font-family: monospace;
+      color: var(--muted);
+      margin-top: 3px;
+      opacity: 0.85;
+    }
+    .entity-cols {
+      padding: 10px 14px;
+      display: grid;
+      gap: 5px;
+    }
+    .col-row {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 12px;
+    }
+    .col-badge {
+      font-size: 9px;
+      font-weight: 900;
+      color: var(--accent);
+      min-width: 18px;
+    }
+    .col-type {
+      font-size: 10px;
+      padding: 1px 5px;
+      border-radius: 4px;
+      background: rgba(0, 0, 0, 0.06);
+      color: var(--muted);
+      font-weight: 700;
+      font-family: monospace;
+      white-space: nowrap;
+    }
+    .col-name {
+      color: var(--ink);
+      font-weight: 600;
+    }
+    .entity-rels {
+      padding: 8px 14px 12px;
+      border-top: 1px solid rgba(0, 0, 0, 0.06);
+    }
+    .rels-title {
+      font-size: 9px;
+      font-weight: 900;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 5px;
+    }
+    .rel-chip {
+      display: inline-flex;
+      align-items: center;
+      font-size: 11px;
+      color: var(--muted);
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 7px;
+      background: rgba(0, 0, 0, 0.05);
+      margin: 2px 3px 2px 0;
+    }
+
+    /* Category color schemes */
+    .cat-entity {
+      border-color: rgba(58, 110, 165, 0.32);
+    }
+    .cat-entity .entity-tag { background: #3a6ea5; }
+    .cat-entity .entity-card-head { background: rgba(58, 110, 165, 0.06); }
+
+    .cat-struct {
+      border-color: rgba(74, 122, 74, 0.32);
+    }
+    .cat-struct .entity-tag { background: #4a7a4a; }
+    .cat-struct .entity-card-head { background: rgba(74, 122, 74, 0.06); }
+
+    .cat-activity {
+      border-color: rgba(185, 118, 80, 0.35);
+    }
+    .cat-activity .entity-tag { background: #b97650; }
+    .cat-activity .entity-card-head { background: rgba(185, 118, 80, 0.07); }
+
+    .cat-support {
+      border-color: rgba(123, 106, 88, 0.28);
+    }
+    .cat-support .entity-tag { background: #7b6a58; }
+    .cat-support .entity-card-head { background: rgba(123, 106, 88, 0.05); }
+
+    .cat-pivot {
+      border-color: rgba(130, 100, 160, 0.3);
+    }
+    .cat-pivot .entity-tag { background: #826490; }
+    .cat-pivot .entity-card-head { background: rgba(130, 100, 160, 0.06); }
+
+    .panel {
+      overflow: auto;
+
+    }
+
+    /* Tree diagram section */
+    .tree-section {
+      margin-top: 24px;
+    }
+    .tree-section-title {
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 2px dashed var(--line);
+    }
+    .tree-wrap {
+      border-radius: 16px;
+      border: 1px dashed var(--line);
+      background: rgba(255, 252, 242, 0.7);
+      padding: 20px 16px;
+      overflow-x: auto;
+      cursor: zoom-in;
+      position: relative;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .tree-wrap:hover {
+      border-color: var(--accent);
+      box-shadow: 0 4px 18px rgba(185, 118, 80, 0.12);
+    }
+    #treeChart {
+      width: 100%;
+      height: 620px;
+    }
+    .tree-zoom-hint {
+      position: absolute;
+      bottom: 10px;
+      right: 12px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--muted);
+      opacity: 0.6;
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* Fullscreen overlay */
+    #treeOverlay {
+      position: fixed;
+      inset: 0;
+      z-index: 10000;
+      background: rgba(24, 15, 6, 0.9);
+      display: none;
+      place-items: center;
+      padding: 32px;
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      cursor: zoom-out;
+      animation: tree-overlay-in 0.18s ease;
+    }
+    #treeOverlay.is-open {
+      display: grid;
+    }
+    @keyframes tree-overlay-in {
+      from { opacity: 0; transform: scale(0.97); }
+      to   { opacity: 1; transform: scale(1); }
+    }
+    #treeChartFull {
+      width: 100%;
+      height: 100%;
+      border-radius: 18px;
+      background: #fffbf0;
+      box-shadow: 0 40px 100px rgba(0, 0, 0, 0.55);
+    }
+    #treeOverlayClose {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      color: #fff;
+      font-size: 18px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background 0.15s;
+      z-index: 10001;
+    }
+    #treeOverlayClose:hover {
+      background: rgba(255, 255, 255, 0.28);
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-left">
+      <button class="drawer-toggle" id="navToggle" type="button" aria-label="Toggle sidebar">Menu</button>
+      <div class="header-brand">Pendataan Santri</div>
+      <div class="header-page">Skema Database</div>
+    </div>
+    <div class="header-right">
+      <span class="header-chip" id="headerRole">Pengurus</span>
+    </div>
+  </header>
+  <div class="drawer-backdrop" id="navBackdrop"></div>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+  <main>
+    <div class="app-layout">
+      <section class="panel nav" id="nav"></section>
+      <div class="content-stack">
+        <section class="panel">
+          <div class="page-intro">
+            <h1>Skema Database</h1>
+            <p>Gambaran struktur tabel dan relasi data dalam sistem pendataan santri.</p>
+          </div>
+
+          <!-- Legend -->
+          <div class="legend">
+            <div class="legend-item">
+              <span class="legend-dot" style="background:#3a6ea5;"></span>Entitas Inti
+            </div>
+            <div class="legend-item">
+              <span class="legend-dot" style="background:#4a7a4a;"></span>Struktur Pembelajaran
+            </div>
+            <div class="legend-item">
+              <span class="legend-dot" style="background:#b97650;"></span>Kegiatan &amp; Penilaian
+            </div>
+            <div class="legend-item">
+              <span class="legend-dot" style="background:#7b6a58;"></span>Referensi &amp; Pendukung
+            </div>
+            <div class="legend-item">
+              <span class="legend-dot" style="background:#826490;"></span>Tabel Pivot
+            </div>
+            <div class="legend-item">
+              <span class="key-label">PK</span>Primary Key
+            </div>
+            <div class="legend-item">
+              <span class="key-label">FK</span>Foreign Key
+            </div>
+          </div>
+
+          <!-- ═══ Diagram Pohon ═══ -->
+          <div class="tree-section">
+            <div class="tree-section-title">Diagram Pohon Relasi</div>
+            <div class="tree-wrap" id="treeWrap" title="Klik untuk zoom penuh">
+              <span class="tree-zoom-hint">⛶ klik untuk zoom</span>
+              <div id="treeChart"></div>
+            </div>
+          </div>
+
+          <!-- ═══ Level 1: Entitas Inti ═══ -->
+          <div class="schema-section">
+            <div class="schema-section-title">Entitas Inti</div>
+            <div class="schema-row">
+
+              <div class="entity-card cat-entity">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Entitas</div>
+                  <div class="entity-name">Santri</div>
+                  <div class="entity-table">tabel: santri</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">nama</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">no_induk</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">NIK</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">jenis_kelamin</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">status</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">tanggal_lahir</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">alamat</span></div>
+                </div>
+                <div class="entity-rels">
+                  <div class="rels-title">Terhubung ke</div>
+                  <span class="rel-chip">→ Halaqoh</span>
+                  <span class="rel-chip">→ Kelas Siang</span>
+                  <span class="rel-chip">→ Regu</span>
+                </div>
+              </div>
+
+              <div class="entity-card cat-entity">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Entitas</div>
+                  <div class="entity-name">Pengurus</div>
+                  <div class="entity-table">tabel: pengurus</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">nama</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">email</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">gender</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">status</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">photo_url</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">token</span></div>
+                </div>
+                <div class="entity-rels">
+                  <div class="rels-title">Terhubung ke</div>
+                  <span class="rel-chip">→ Jabatan (via pivot)</span>
+                  <span class="rel-chip">→ Kelas Siang</span>
+                  <span class="rel-chip">→ Halaqoh</span>
+                  <span class="rel-chip">→ Regu</span>
+                </div>
+              </div>
+
+              <div class="entity-card cat-support">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Referensi</div>
+                  <div class="entity-name">Jabatan</div>
+                  <div class="entity-table">tabel: jabatan</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">name</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">level</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">deskription</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">status</span></div>
+                </div>
+                <div class="entity-rels">
+                  <div class="rels-title">Terhubung ke</div>
+                  <span class="rel-chip">→ Pengurus (via pivot)</span>
+                </div>
+              </div>
+
+              <div class="entity-card cat-pivot">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Pivot</div>
+                  <div class="entity-name">Pengurus &times; Jabatan</div>
+                  <div class="entity-table">tabel: pengurus_jabatan</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_pengurus</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_jabatan</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">BOOL</span><span class="col-name">is_utama</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">status</span></div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <div class="schema-arrow">↓ Santri &amp; Pengurus masuk ke struktur belajar ↓</div>
+
+          <!-- ═══ Level 2: Struktur Pembelajaran ═══ -->
+          <div class="schema-section">
+            <div class="schema-section-title">Struktur Pembelajaran &amp; Organisasi</div>
+            <div class="schema-row">
+
+              <div class="entity-card cat-struct">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Struktur</div>
+                  <div class="entity-name">Kelas Siang</div>
+                  <div class="entity-table">tabel: kelasSiang</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">name</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">jam</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_pengajar</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">JSON</span><span class="col-name">id_murid</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">gender_group</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">tahun_ajaran_id</span></div>
+                </div>
+                <div class="entity-rels">
+                  <div class="rels-title">Terhubung ke</div>
+                  <span class="rel-chip">← Santri</span>
+                  <span class="rel-chip">← Pengurus</span>
+                  <span class="rel-chip">← Tahun Ajaran</span>
+                  <span class="rel-chip">→ Absensi Kelas</span>
+                  <span class="rel-chip">→ Nilai UP</span>
+                </div>
+              </div>
+
+              <div class="entity-card cat-struct">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Struktur</div>
+                  <div class="entity-name">Halaqoh</div>
+                  <div class="entity-table">tabel: halaqoh</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">name</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_pengampu_halaqoh</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_pengampu_badal</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">JSON</span><span class="col-name">id_santri</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">gender_group</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">tahun_ajaran_id</span></div>
+                </div>
+                <div class="entity-rels">
+                  <div class="rels-title">Terhubung ke</div>
+                  <span class="rel-chip">← Santri</span>
+                  <span class="rel-chip">← Pengurus</span>
+                  <span class="rel-chip">← Tahun Ajaran</span>
+                  <span class="rel-chip">→ Absensi Halaqoh</span>
+                </div>
+              </div>
+
+              <div class="entity-card cat-struct">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Struktur</div>
+                  <div class="entity-name">Regu</div>
+                  <div class="entity-table">tabel: regu</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">name</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_pembina</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">JSON</span><span class="col-name">id_santri</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">gender_group</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">tahun_ajaran_id</span></div>
+                </div>
+                <div class="entity-rels">
+                  <div class="rels-title">Terhubung ke</div>
+                  <span class="rel-chip">← Santri</span>
+                  <span class="rel-chip">← Pengurus (pembina)</span>
+                  <span class="rel-chip">← Tahun Ajaran</span>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <div class="schema-arrow">↓ Kelas &amp; Halaqoh menghasilkan data kegiatan ↓</div>
+
+          <!-- ═══ Level 3: Kegiatan & Penilaian ═══ -->
+          <div class="schema-section">
+            <div class="schema-section-title">Kegiatan &amp; Penilaian</div>
+            <div class="schema-row">
+
+              <div class="entity-card cat-activity">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Kegiatan</div>
+                  <div class="entity-name">Absensi Kelas</div>
+                  <div class="entity-table">tabel: absensiKelas</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">DATE</span><span class="col-name">tanggal</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_kelas</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_pengurus_input</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">JSON</span><span class="col-name">data_absensi</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">catatan</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">status</span></div>
+                </div>
+              </div>
+
+              <div class="entity-card cat-activity">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Kegiatan</div>
+                  <div class="entity-name">Nilai UP</div>
+                  <div class="entity-table">tabel: nilaiUp</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">DATE</span><span class="col-name">tanggal</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_kelas</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_pengajar</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">JSON</span><span class="col-name">detail_nilai</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">catatan</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">status</span></div>
+                </div>
+              </div>
+
+              <div class="entity-card cat-activity">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Kegiatan</div>
+                  <div class="entity-name">Absensi Halaqoh</div>
+                  <div class="entity-table">tabel: absensiHalaqoh</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">DATE</span><span class="col-name">tanggal</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_halaqoh</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_pengurus_input</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">JSON</span><span class="col-name">data_absensi</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">catatan</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">status</span></div>
+                </div>
+              </div>
+
+              <div class="entity-card cat-activity">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Kegiatan</div>
+                  <div class="entity-name">Absensi Guru</div>
+                  <div class="entity-table">tabel: absensiGuru</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">DATE</span><span class="col-name">tanggal</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">day_status</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">nonaktif_reason</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">JSON</span><span class="col-name">data_absensi</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">status</span></div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- ═══ Level 4: Referensi & Pendukung ═══ -->
+          <div class="schema-section">
+            <div class="schema-section-title">Referensi &amp; Pendukung</div>
+            <div class="schema-row">
+
+              <div class="entity-card cat-support">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Referensi</div>
+                  <div class="entity-name">Tahun Ajaran</div>
+                  <div class="entity-table">tabel: tahunAjaran</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">nama</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">semester</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">DATE</span><span class="col-name">tanggal_mulai</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">DATE</span><span class="col-name">tanggal_selesai</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">BOOL</span><span class="col-name">is_aktif</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">BOOL</span><span class="col-name">is_locked</span></div>
+                </div>
+                <div class="entity-rels">
+                  <div class="rels-title">Digunakan oleh</div>
+                  <span class="rel-chip">Kelas Siang</span>
+                  <span class="rel-chip">Halaqoh</span>
+                  <span class="rel-chip">Regu</span>
+                </div>
+              </div>
+
+              <div class="entity-card cat-support">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Referensi</div>
+                  <div class="entity-name">Kalender Akademik</div>
+                  <div class="entity-table">tabel: kaldik</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">judul</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">deskripsi</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">DATE</span><span class="col-name">tanggal_mulai</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">DATE</span><span class="col-name">tanggal_selesai</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">warna</span></div>
+                </div>
+              </div>
+
+              <div class="entity-card cat-support">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Referensi</div>
+                  <div class="entity-name">Kegiatan SOP</div>
+                  <div class="entity-table">tabel: kegiatanSop</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">name</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">jabatan_utama</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">description</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">status</span></div>
+                </div>
+                <div class="entity-rels">
+                  <div class="rels-title">Terhubung ke</div>
+                  <span class="rel-chip">→ SOP Item</span>
+                </div>
+              </div>
+
+              <div class="entity-card cat-support">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Detail</div>
+                  <div class="entity-name">SOP Item</div>
+                  <div class="entity-table">tabel: kegiatanSopItem</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_kegiatan</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">pj_label</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">waktu</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">sop_text</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">INT</span><span class="col-name">urutan</span></div>
+                </div>
+              </div>
+
+            </div>
+            <div class="schema-row">
+
+              <div class="entity-card cat-support">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Portal</div>
+                  <div class="entity-name">Content</div>
+                  <div class="entity-table">tabel: content</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">title</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">slug</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">summary</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">body</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">target_role</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">DATE</span><span class="col-name">published_at</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">status</span></div>
+                </div>
+              </div>
+
+              <div class="entity-card cat-support">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Portal</div>
+                  <div class="entity-name">Portal Brand</div>
+                  <div class="entity-table">tabel: portalBrand</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">organization_name</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">logo_url</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">tagline</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">description</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">address</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">contact</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">JSON</span><span class="col-name">landing_gallery_json</span></div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <!-- Tree fullscreen overlay -->
+  <div id="treeOverlay" role="dialog" aria-modal="true" aria-label="Diagram Pohon">
+    <button id="treeOverlayClose" type="button" aria-label="Tutup">✕</button>
+    <div id="treeChartFull"></div>
+  </div>
+
+  <script src="../../shared-access.js"></script>
+  <script src="../../shared-nav.js"></script>
+  <script src="../../shared-shell.js"></script>
+  <script>
+    const STORAGE = { session: 'ps_session' };
+
+    function getStoredSession() {
+      try { return JSON.parse(localStorage.getItem(STORAGE.session) || 'null'); }
+      catch (e) { return null; }
+    }
+
+    if (window.PSAccess && window.PSAccess.redirectIfForbidden(getStoredSession(), 'skemaDb.html')) {
+      // redirected
+    } else {
+      window.PSShell.mount({
+        currentPage: window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : '/pages/skemaDb/',
+        session: getStoredSession(),
+        getStoredSession,
+        storageKey: STORAGE.session
+      });
+    }
+
+    // ── ECharts tree ──────────────────────────────────────────
+    const TREE_DATA = {
+      name: 'Sistem\nPendataan Santri', value: '',
+      itemStyle: { color: '#c4a055', borderColor: '#8a6a20', borderWidth: 2 },
+      children: [
+        {
+          name: 'Santri', value: 'santri',
+          itemStyle: { color: '#3a6ea5', borderColor: '#2a4e7a', borderWidth: 2 },
+          children: [
+            {
+              name: 'Kelas Siang', value: 'kelasSiang',
+              itemStyle: { color: '#4a7a4a', borderColor: '#305530', borderWidth: 2 },
+              children: [
+                { name: 'Absensi Kelas',  value: 'absensiKelas',  itemStyle: { color: '#b97650', borderColor: '#7a4a28', borderWidth: 2 } },
+                { name: 'Nilai UP',       value: 'nilaiUp',       itemStyle: { color: '#b97650', borderColor: '#7a4a28', borderWidth: 2 } },
+                { name: 'Absensi Guru',   value: 'absensiGuru',   itemStyle: { color: '#b97650', borderColor: '#7a4a28', borderWidth: 2 } }
+              ]
+            },
+            {
+              name: 'Halaqoh', value: 'halaqoh',
+              itemStyle: { color: '#4a7a4a', borderColor: '#305530', borderWidth: 2 },
+              children: [
+                { name: 'Absensi Halaqoh', value: 'absensiHalaqoh', itemStyle: { color: '#b97650', borderColor: '#7a4a28', borderWidth: 2 } }
+              ]
+            },
+            { name: 'Regu', value: 'regu', itemStyle: { color: '#4a7a4a', borderColor: '#305530', borderWidth: 2 } }
+          ]
+        },
+        {
+          name: 'Pengurus', value: 'pengurus',
+          itemStyle: { color: '#3a6ea5', borderColor: '#2a4e7a', borderWidth: 2 },
+          children: [
+            { name: 'Jabatan',            value: 'jabatan',           itemStyle: { color: '#7b6a58', borderColor: '#504030', borderWidth: 2 } },
+            { name: 'Pengurus × Jabatan', value: 'pengurus_jabatan',  itemStyle: { color: '#826490', borderColor: '#584468', borderWidth: 2 } }
+          ]
+        },
+        {
+          name: 'Referensi\n& Pendukung', value: '',
+          itemStyle: { color: '#7b6a58', borderColor: '#504030', borderWidth: 2 },
+          children: [
+            { name: 'Tahun Ajaran', value: 'tahunAjaran',      itemStyle: { color: '#7b6a58', borderColor: '#504030', borderWidth: 2 } },
+            { name: 'Kaldik',       value: 'kaldik',           itemStyle: { color: '#7b6a58', borderColor: '#504030', borderWidth: 2 } },
+            {
+              name: 'Kegiatan SOP', value: 'kegiatanSop',
+              itemStyle: { color: '#7b6a58', borderColor: '#504030', borderWidth: 2 },
+              children: [
+                { name: 'SOP Item', value: 'kegiatanSopItem', itemStyle: { color: '#7b6a58', borderColor: '#504030', borderWidth: 2 } }
+              ]
+            },
+            { name: 'Content',      value: 'content',          itemStyle: { color: '#7b6a58', borderColor: '#504030', borderWidth: 2 } },
+            { name: 'Portal Brand', value: 'portalBrand',      itemStyle: { color: '#7b6a58', borderColor: '#504030', borderWidth: 2 } }
+          ]
+        }
+      ]
+    };
+
+    function buildOption(roam) {
+      return {
+        backgroundColor: 'transparent',
+        tooltip: {
+          trigger: 'item',
+          formatter: function (p) {
+            return p.data.value
+              ? '<strong>' + p.name.replace('\n', ' ') + '</strong><br/><code style="font-size:11px;color:#7b6a58">tabel: ' + p.data.value + '</code>'
+              : '<strong>' + p.name.replace('\n', ' ') + '</strong>';
+          },
+          backgroundColor: '#fffbf0',
+          borderColor: '#c4a055',
+          textStyle: { color: '#4d4034', fontFamily: 'Poppins, sans-serif', fontSize: 13 }
+        },
+        series: [{
+          type: 'tree',
+          data: [TREE_DATA],
+          top: '4%', left: '3%', bottom: '4%', right: '26%',
+          symbolSize: 11,
+          symbol: 'roundRect',
+          orient: 'LR',
+          roam: roam,
+          expandAndCollapse: false,
+          initialTreeDepth: 10,
+          label: {
+            show: true,
+            position: 'right',
+            fontSize: 12,
+            fontFamily: 'Poppins, sans-serif',
+            fontWeight: '700',
+            color: '#4d4034',
+            backgroundColor: 'rgba(255, 248, 230, 0.94)',
+            borderRadius: 7,
+            padding: [4, 9],
+            borderWidth: 1.5,
+            borderColor: 'rgba(196, 160, 85, 0.5)',
+            distance: 6,
+            formatter: function (p) {
+              return p.data.value
+                ? '{n|' + p.name + '}\n{t|' + p.data.value + '}'
+                : '{n|' + p.name + '}';
+            },
+            rich: {
+              n: { fontSize: 12, fontWeight: '700', fontFamily: 'Poppins, sans-serif', color: '#4d4034', lineHeight: 18 },
+              t: { fontSize: 10, fontFamily: 'Courier New, monospace', color: '#7b6a58', lineHeight: 15 }
+            }
+          },
+          lineStyle: { color: '#b09070', width: 1.5, curveness: 0.45 },
+          emphasis: { focus: 'descendant' },
+          animationDuration: 500,
+          animationDurationUpdate: 650
+        }]
+      };
+    }
+
+    const chartDom = document.getElementById('treeChart');
+    const mainChart = echarts.init(chartDom, null, { renderer: 'canvas' });
+    mainChart.setOption(buildOption(false));
+    window.addEventListener('resize', function () { mainChart.resize(); });
+
+    // ── Fullscreen overlay ─────────────────────────────────────
+    const treeWrap    = document.getElementById('treeWrap');
+    const overlay     = document.getElementById('treeOverlay');
+    const overlayClose = document.getElementById('treeOverlayClose');
+    const fullDom     = document.getElementById('treeChartFull');
+    let fullChart     = null;
+
+    function openTreeZoom() {
+      overlay.classList.add('is-open');
+      document.body.style.overflow = 'hidden';
+      if (!fullChart) {
+        fullChart = echarts.init(fullDom, null, { renderer: 'canvas' });
+      }
+      fullChart.setOption(buildOption(true));
+      fullChart.resize();
+    }
+
+    function closeTreeZoom() {
+      overlay.classList.remove('is-open');
+      document.body.style.overflow = '';
+    }
+
+    treeWrap.addEventListener('click', openTreeZoom);
+    overlayClose.addEventListener('click', function (e) { e.stopPropagation(); closeTreeZoom(); });
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) closeTreeZoom(); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeTreeZoom(); });
+  </script>
+</body>
+</html>

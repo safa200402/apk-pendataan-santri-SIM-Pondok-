@@ -1,0 +1,847 @@
+CATATAN - POPUP PENGUMUMAN & POPUP AUDIT ABSENSI (dua sistem berbeda,
+satu file yang sama)
+===================================================================
+Ditulis: 2026-07-28
+Terkait: frontend/shared-shell.js, backend/server.js
+
+
+RINGKASAN
+---------
+Ada 2 sistem popup mengambang yang MIRIP tapi TIDAK SAMA, keduanya hidup
+di frontend/shared-shell.js dan dipanggil otomatis tiap halaman dimuat
+lewat mount() (baris ~1164-1166):
+
+    syncMaintenanceBanner(options);   // banner maintenance, bukan popup
+    syncAnnouncementPopup(options);   // -> sistem PENGUMUMAN
+    syncAbsensiHalaqohAudit(options);  // -> sistem AUDIT ABSENSI
+
+Koreksi nama: fungsi audit-nya bernama syncAbsensiHalaqohAudit, BUKAN
+"syncAuditAbsensi" (nama itu gampang salah ingat/salah ketik saat mau
+grep -- pastikan grep pakai nama yang benar).
+
+Kedua sistem sengaja dipisah biar tidak numpuk di layar:
+- Popup pengumuman muncul di kanan-bawah (atau fullscreen kalau
+  isFullscreen true).
+- Popup audit absensi muncul di kiri-bawah.
+
+
+1) SISTEM PENGUMUMAN -- syncAnnouncementPopup
+----------------------------------------------
+Lokasi: frontend/shared-shell.js baris 1205-1404
+
+Alur:
+- syncAnnouncementPopup(options) fetch action 'pengumuman.owed' -> dapat
+  json.data.items (daftar pengumuman yang belum "dilihat" akun ini).
+- Item isFullscreen didahulukan masuk _announcementQueue (antrean
+  module-level), baru sisanya.
+- showNextAnnouncement(token) nge-render SATU popup dari depan antrean
+  (id="_announcementPopup"). Kalau popup itu sudah ada di DOM, fungsi
+  langsung return (jaga cuma 1 popup nongol barengan).
+- Tema warna per item: ANNOUNCEMENT_THEMES (biasa/merah/jingga/hijau),
+  dipilih dari item.colorType.
+- Ada 2 varian tampilan: fullscreen (isFullscreen=true, cuma bisa
+  ditutup lewat tombol "x", supaya tidak ketutup gak sengaja pas
+  scroll baca) dan kartu kecil kanan-bawah (klik di mana saja buat
+  tutup).
+- Lampiran gambar/video: item.media[]. Klik gambar -> lightbox
+  (openAnnouncementImageLightbox), bukan bagian dari popup utama.
+- Video wajib-tonton (media.mustWatchFull=true): TIDAK PAKAI native
+  'controls' (tidak ada scrubber yg bisa di-skip) -- cuma 4 tombol
+  custom: "Open"/"Close" (toggle 1 tombol, label berubah sesuai
+  status -- BUKAN Fullscreen API browser, cuma CSS wrap jadi
+  position:fixed;inset:0 100% lebar x 100% tinggi layar, murni
+  styling supaya konsisten di semua WebView/PWA & tidak switch ke
+  player native iOS), "Putar"/"Jeda", dan "-5 detik" (satu2nya cara
+  mundur yg diizinkan; anti-skip MAJU tetap berlaku lewat listener
+  'seeking' + lastGoodTime). Popup baru bisa ditutup setelah event
+  'ended' native tercapai (lihat unfinishedRequiredVideoCount &
+  closeAndAdvance). [UPDATE 2026-08-07: sebelumnya Putar/Jeda digembok
+  sampai fullscreen (Fullscreen API asli) dimasuki dulu, dengan tombol
+  Fullscreen/Keluar Fullscreen/Ulang terpisah -- didesain ulang jadi 1
+  tombol toggle Open/Close.]
+  [UPDATE 2026-08-07 lanjutan] Putar/Jeda/-5 detik SEMBUNYI (hidden)
+  & videonya TIDAK main sama sekali sebelum user klik "Open" --
+  enterVideoFullscreen() SEKALIGUS memunculkan ketiga tombol itu DAN
+  video.play() (aman dari blokir autoplay krn dipanggil langsung di
+  dalam click handler = ada user gesture). Klik "Close"
+  (exitVideoFullscreen()) mengembalikan ketiganya jadi hidden lagi DAN
+  video.pause() -- jadi Putar/Jeda/-5 detik cuma pernah kelihatan &
+  bisa dipakai selama wrap-nya dalam status "Open".
+- [UPDATE 2026-08-07] Gerbang unfinishedRequiredVideoCount SEKARANG
+  juga berlaku di tombol "Kirim Respon" (sebelumnya cuma di tombol "x"/
+  closeAndAdvance) -- kalau masih ada video wajib yg belum 'ended',
+  submit respon ditolak di frontend (belum sempat fetch ke server sama
+  sekali). KEDUA titik ini (closeAndAdvance & handler Kirim Respon)
+  SEKARANG menampilkan popup peringatan custom (showAnnouncementVideoWarning_,
+  z-index 10020 -- di atas SEMUA overlay lain termasuk pseudo-fullscreen
+  video 10010) selain scroll+focus ke videonya, BUKAN cuma diam2 gagal
+  spt sebelumnya.
+- Ada fitur "Respon" (tombol toggle panel + 2 quick-button "Sudah
+  Paham"/"Ada Pertanyaan" + textarea wajib diisi) -> kirim ke action
+  'pengumuman.respond' dengan {id, quick_type, note, token}.
+- Tutup popup (baik manual klik/tombol x, maupun otomatis setelah
+  kirim respon) -> closeAndAdvance(): popup.remove(), lalu fetch
+  action 'pengumuman.markSeen' {id, token} (fire-and-forget, tidak
+  nunggu hasilnya), lalu showNextAnnouncement(token) lagi buat lanjut
+  ke item antrean berikutnya.
+- "Sudah dilihat" itu STATE YANG DISIMPAN DI SERVER per akun per
+  pengumuman (via markSeen). Jadi kalau sudah ditutup sekali, tidak
+  akan muncul lagi walau reload halaman.
+
+Backend handler (backend/server.js):
+- 'pengumuman.owed'    -> baris 2107 dan 13086
+- 'pengumuman.markSeen'-> baris 2109 dan 13087
+- 'pengumuman.respond' -> baris 2111 dan 13088
+(Ada 2 titik tiap action karena pola routing di server.js memang
+duplikat routing-table + switch implementasi -- cek dua-duanya kalau
+mau ubah behavior.)
+
+
+2) SISTEM AUDIT ABSENSI -- syncAbsensiHalaqohAudit
+----------------------------------------------------
+Lokasi: frontend/shared-shell.js baris 1406-1493
+
+Beda mendasar dari sistem pengumuman: TIDAK ADA state "sudah dilihat"
+yang disimpan. Popup ini murni derived dari data live -- begitu
+pengampu/pengajar bersangkutan sudah mengisi absensi hari yang bolong,
+popup otomatis berhenti muncul sendiri di reload berikutnya (tidak
+perlu di-"markSeen").
+
+Alur:
+- syncAbsensiHalaqohAudit(options) fetch action 'absensi.owed' ->
+  dapat json.data.items, tiap item punya {kind: 'halaqoh'|'kelas',
+  id, name, missingCount}.
+- showAuditPopup(session, items) render SATU kartu (id="_auditPopup")
+  yang berisi SEMUA item sekaligus (bukan antrean bergantian seperti
+  pengumuman) -- baris demi baris per halaqoh/kelas yang bolong,
+  masing-masing punya tombol "Bereskan".
+- AUDIT_KIND_CONFIG (baris 1411-1424) memetakan kind -> label entitas,
+  keyword scope jabatan (buat cocokkan scope aktif), redirectPath, dan
+  query param.
+- Klik "Bereskan" -> cari scope role yang cocok (lewat
+  PSAccess.getRoleScopeOptions/setRoleScope) berdasar scopeKeywords,
+  set scope itu jadi aktif, lalu redirect ke
+  redirectPath + '?' + queryParam + '=' + item.id
+  (mis. /pages/halaqohAbsensi/?openHalaqoh=<id>).
+- Tutup manual lewat tombol "x" (#_auditCloseBtn) cuma popup.remove()
+  polos -- TIDAK ada request markSeen apa pun (karena memang tidak ada
+  state itu). Jadi kalau reload halaman dan absensinya masih bolong,
+  popup akan muncul lagi.
+- Pakai tema warna ANNOUNCEMENT_THEMES.merah (dishare dari sistem
+  pengumuman di atas, bukan definisi warna sendiri).
+
+Backend handler (backend/server.js):
+- 'absensi.owed' -> baris 2113 dan 13089
+  (di sinilah logic "berapa hari dianggap belum diisi sejak awal
+  tahun ajaran" dihitung -- kalau mau ubah threshold/definisi
+  "bolong", edit di sini, bukan di frontend.)
+
+
+3) HALAMAN "KELOLA AUDIT" -- switch ON/OFF per jenis (2026-07-28)
+--------------------------------------------------------------------
+Ditambahkan supaya Admin/Super Admin/Mudir bisa mematikan/menghidupkan
+popup audit TANPA ubah kode, dari 1 halaman baru:
+frontend/pages/kelolaAudit/index.html (nav: Pengaturan > "* Kelola Audit").
+
+Beda dari pengumuman: audit TIDAK punya konsep "item/record" (dia
+derived dari data live absensi), jadi bukan CRUD -- cuma 2 switch
+ON/OFF, satu untuk 'halaqoh' satu untuk 'kelas', disimpan sebagai 1
+baris state global (bukan per-akun, bukan per-halaqoh/kelas
+individual). Pola yang dicontek: system.maintenance.get/set (file
+JSON di backend/data/, BUKAN sheet/tabel), bukan pola pengumuman.
+
+Backend (backend/server.js):
+- State: `auditSettingsState = { halaqohActive, kelasActive, setBy,
+  setAt }`, persist ke file backend/data/auditSettings.json
+  (var AUDIT_SETTINGS_PATH, didefinisikan persis di sebelah
+  MAINTENANCE_PATH di baris atas file).
+- Action baru: 'audit.settings.get' (baca state) & 'audit.settings.set'
+  (ubah, terima {halaqoh_active, kelas_active} boolean, salah satu
+  boleh diisi sendiri-sendiri -- tidak harus dua-duanya).
+- Otorisasi (di authorizeAction_): sama seperti pengumuman.list/save
+  -- isAdmin || isSuperAdmin || isMudir. BUKAN superadmin-only.
+- handleAbsensiOwed_ di-skip per config kalau kind-nya lagi
+  dinonaktifkan (if (config.kind === 'halaqoh' && !auditSettingsState.
+  halaqohActive) return; sama utk 'kelas') -- jadi kalau audit
+  dimatikan, items dari kind itu otomatis tidak pernah dihasilkan.
+  showAuditPopup di shared-shell.js TIDAK PERLU DIUBAH SAMA SEKALI --
+  dia cuma nampilin apa pun yang dikirim server, jadi kalau server
+  kirim array kosong, popup ya tidak muncul. Titik integrasi ada di
+  BACKEND, bukan frontend.
+- Ikut di-backup/di-restore: auditSettings.json disertakan di
+  createBackup_() dan restoreFromBackupZip_() persis seperti
+  maintenance.json (cari 'AUDIT_SETTINGS_PATH' kalau perlu ubah lagi).
+
+Frontend (frontend/pages/kelolaAudit/index.html):
+- Halaman baru, styling dicontek dari pages/pengumuman/index.html
+  (variabel warna --paper/--ink/--muted, font Playfair+Poppins) tapi
+  isinya cuma 2 kartu status (bukan list panjang + dialog form).
+- canManage() sama persis dgn pengumuman: isAdmin||isSuperAdmin||
+  isMudir. Kalau bukan salah satu itu, tombol toggle disembunyikan
+  (walau halaman ini memang cuma bisa diakses role itu saja lewat
+  shared-access.js redirectIfForbidden).
+- Akses diatur di frontend/shared-access.js key 'kelolaAudit.html'
+  (persis di sebelah 'pengumuman.html', rule sama).
+- Entry nav ditambahkan di frontend/shared-nav.js, section
+  'Pengaturan', persis di bawah entry "* Kelola Pengumuman".
+
+BELUM/PERLU DIINGAT:
+- Belum ditest end-to-end lewat browser dengan login sungguhan (DB
+  lokal berisi 80 baris pengurus asli -- sengaja tidak coba tebak
+  kredensial buat smoke test otomatis). Sudah dicek: node --check
+  lolos untuk server.js, shared-access.js, shared-nav.js, dan script
+  inline di kelolaAudit/index.html; server berhasil boot (HTTP 200)
+  dengan kode baru ter-load. Tetap perlu 1x cek manual di browser
+  pakai akun Admin/Super Admin/Mudir asli: buka /pages/kelolaAudit/,
+  matikan salah satu switch, lalu pastikan popup audit utk jenis itu
+  benar-benar berhenti muncul di halaman lain.
+- Kalau nanti mau audit granular per-halaqoh/per-kelas (bukan cuma
+  2 switch global), state auditSettingsState perlu diubah dari flat
+  boolean jadi map by id -- saat ini scoping-nya SENGAJA cuma
+  "semua halaqoh" / "semua kelas", bukan per-entitas.
+
+
+4) KIND KE-3: AUDIT HAFALAN HARIAN (2026-07-28)
+--------------------------------------------------
+Ditambahkan sebagai kind ketiga ('hafalan') di sistem audit yang sama
+(bukan sistem terpisah) -- ikut nimbrung di 1 kartu popup
+(_auditPopup), dan dapat switch ON/OFF ke-3 di halaman Kelola Audit
+("Audit Hafalan Harian").
+
+BEDA PENTING dari kind 'halaqoh'/'kelas': absensiHalaqoh/absensiKelas
+itu 1 BARIS per (entitas, tanggal, sesi) yg isi kolom data_absensi
+utk SEMUA santri sekaligus -- jadi cukup cek "ada barisnya atau
+tidak". hafalanHarian itu 1 BARIS PER SANTRI PER TANGGAL (ada kolom
+id_santri di tiap baris) -- jadi "sudah terisi" TIDAK BISA cuma cek
+"ada baris" (itu pola halaqoh/kelas), harus cek SEMUA santri di
+ROSTER halaqoh (kolom id_santri di baris halaqoh, lihat
+editHalaqoh/dataKelompok) sudah masing-masing py minimal 1 baris
+hafalanHarian hari itu. Ini keputusan sadar (sudah ditanya & dijawab
+user 2026-07-28): PER-SANTRI, bukan per-halaqoh kayak absensi.
+Konsekuensinya: kalau 1 santri dari 15 di halaqoh itu belum diisi
+hafalannya hari itu, SELURUH halaqoh dianggap "gap" hari itu (bukan
+cuma santri itu doang) -- karena unit yang di-audit tetap "halaqoh",
+sama seperti kind lain, cuma kriteria "lengkap"-nya lebih ketat.
+
+Definisi "terisi": HANYA cek ada barisnya atau tidak per (santri,
+tanggal) -- TIDAK peduli kolom ziyadah/muroja_sabaqi/muroja_manzili
+mana yang kosong (keputusan user: cukup 1 baris apa pun sudah
+dianggap "sudah setor" hari itu, walau cuma isi salah satu kolom).
+
+Backend (backend/server.js):
+- Fungsi baru `collectHafalanGapItems_(activeTaId, taStartDate,
+  yesterday, pengurusId)` -- terpisah dari collectAbsensiGapItems_
+  (bukan lewat ABSENSI_OWED_CONFIGS) karena logikanya beda (per-santri
+  vs per-baris). Baca sheet 'halaqoh' (filter pengampu = pengurusId,
+  TA aktif, status aktif, is_deleted false -- SAMA PERSIS filter
+  'mine' di collectAbsensiGapItems_ config 'halaqoh'), lalu utk tiap
+  halaqoh: roster = parseIdList_(row.id_santri); kalau roster kosong,
+  skip (tidak mungkin gap). Iterasi tanggal dari max(taStartDate,
+  created_at halaqoh) s/d kemarin, tiap hari cek apakah SEMUA id di
+  roster sudah py entri hafalanHarian hari itu (dihitung dari Set
+  per (halaqoh, tanggal) hasil scan 1x seluruh sheet hafalanHarian).
+- Dipanggil dari handleAbsensiOwed_ (action 'absensi.owed' -- nama
+  action-nya TIDAK diubah walau sekarang juga mencakup hafalan,
+  supaya tidak perlu ubah semua caller lama), di-guard oleh
+  `auditSettingsState.hafalanActive`.
+- auditSettingsState nambah field `hafalanActive` (default true),
+  action 'audit.settings.set' terima payload tambahan
+  `hafalan_active`. TIDAK perlu entry baru di authorizeAction_ --
+  masih pakai action 'audit.settings.get'/'audit.settings.set' yang
+  sama, cuma payload-nya nambah 1 field.
+
+Frontend:
+- shared-shell.js: AUDIT_KIND_CONFIG nambah key 'hafalan' ->
+  entityLabel 'Hafalan Halaqoh' (sengaja beda label dari kind
+  'halaqoh' yang cuma 'Halaqoh', supaya 2 baris yang nyebut halaqoh
+  yg sama di 1 popup tidak keliatan identik/membingungkan),
+  redirectPath '/pages/hafalanHarian/', queryParam 'openHalaqoh'.
+  showAuditPopup() SENDIRI TIDAK PERLU DIUBAH -- generik terhadap
+  AUDIT_KIND_CONFIG.
+- frontend/pages/hafalanHarian/index.html: SEBELUMNYA halaman ini
+  TIDAK support deep-link buka halaqoh tertentu dari query string
+  (beda dari halaqohAbsensi/kelasAbsensi yang sudah lama support
+  ?openHalaqoh=<id> / ?openKelas=<id>). Ditambahkan blok baru persis
+  sebelum </script> penutup: setelah loadDashboard() selesai, baca
+  `new URLSearchParams(location.search).get('openHalaqoh')`, kalau
+  ada langsung history.replaceState (bersihkan query dari address
+  bar) lalu panggil openHalaqoh(id) yang sudah ada. KETERBATASAN:
+  openHalaqoh(id) cuma cari di state.halaqohList yang sedang
+  ke-load di HALAMAN AKTIF (server-side paginated) -- kalau halaqoh
+  tujuan kebetulan tidak ada di page pertama daftar, tombol
+  "Bereskan" di popup audit akan diam saja (tidak error, tidak buka
+  apa-apa). Belum ada fetch-by-id terpisah utk kasus itu.
+- frontend/pages/kelolaAudit/index.html: AUDIT_KINDS nambah entry
+  'hafalan' (field hafalanActive / payloadKey hafalan_active) --
+  otomatis muncul sbg kartu switch ke-3 tanpa ubah HTML lain (list-
+  nya di-render dari array ini).
+
+BELUM DIKERJAKAN / PERLU DIINGAT (kind hafalan):
+- TIDAK ada pengecualian utk santri yang lagi izin/sakit/cuti --
+  kalau santri X sakit seminggu, halaqoh-nya akan "gap" 7 hari
+  berturut-turut walau pengampu-nya sudah benar isi hafalan semua
+  santri lain yg hadir. Ini trade-off yang disadari (user memilih
+  opsi "semua santri aktif harus terisi" tanpa exclude izin/sakit
+  krn itu di luar cakupan 3 pertanyaan yg diajukan) -- kalau nanti
+  jadi keluhan nyata dari pengampu, perlu join ke sheet santriSakit/
+  izinPulang utk exclude tanggal2 itu per santri, sebelum masuk
+  hitungan missingCount.
+- Belum ditest end-to-end di browser (alasan sama seperti di atas:
+  tidak ada kredensial testing yg aman dipakai). Sudah dicek node
+  --check lolos di server.js, shared-shell.js, dan script inline
+  hafalanHarian/index.html + kelolaAudit/index.html; server boot
+  bersih (HTTP 200) dengan kode baru.
+
+
+5) FIX (2026-07-28): tombol "Bereskan" kadang menghapus scope alih-alih
+   menggantinya -- akar masalah ada di setRoleScope's TOGGLE semantics
+------------------------------------------------------------------------
+BUG YANG DILAPORKAN: pengurus yang pegang banyak jabatan sekaligus
+(mis. "Mudir 'Amm" [primary] + "Pengajar Ikhwan" + "Pengampu Halaqoh
+Ikhwan") klik "Bereskan" di item kind 'kelas' -> chip jabatan di
+header malah balik ke "Mudir 'Amm" alih-alih pindah ke "Pengajar
+Ikhwan", padahal modal kelas yang kebuka sudah BENAR (kelas yang
+tepat, bukan salah data/akses). Jadi murni bug tampilan chip, bukan
+bug akses/data.
+
+SEMPAT SALAH DIAGNOSIS (jangan diulang): percobaan pertama mengira
+akar masalahnya ada di perbandingan "nama jabatan mentah" vs
+`session.permissions.label` (label HASIL PRIORITAS gabungan semua
+jabatan yg dipegang orang itu, dihitung backend di
+resolvePengurusPermissions_, backend/server.js sekitar baris 13052 --
+rantainya: isSuperAdmin > isAdmin > isJamDigitalOperator > isAcademic
+> isHalaqohCoordinator > isPengampuHalaqoh > isPengujiHafalan >
+canManageNilaiUp("Pengajar") > ... ; PENTING: "Mudir"/isMudir TIDAK
+PERNAH muncul di rantai ini, jadi permissions.label seorang Mudir'Amm
+yang juga Pengampu Halaqoh akan berbunyi "Pengampu Halaqoh", bukan
+"Mudir 'Amm"). Sempat dicoba fix dengan MENGHAPUS TOTAL logic ganti-
+scope dari tombol Bereskan -- tapi ternyata itu skalah: ganti-scope
+ini memang FITUR YANG DIINGINKAN (biar sidebar/menu ikut berubah
+sesuai peran yg lagi dibereskan), bukan sesuatu yang harus dibuang.
+Simulasi ulang pakai data jabatan asli (lewat node, load langsung
+frontend/shared-access.js dgn localStorage tiruan -- lihat riwayat
+sesi kalau mau reproduce) membuktikan logic keyword-matching yang
+lama SEBENARNYA SUDAH BENAR memilih "Pengajar Ikhwan" utk kind
+'kelas' pada kasus normal.
+
+AKAR MASALAH SEBENARNYA (ditemukan lewat simulasi node meniru
+frontend/shared-access.js dgn data jabatan asli, BUKAN lewat login
+sungguhan -- DB lokal isinya 80 pengurus asli jadi sengaja tidak
+dicoba login): fungsi `setRoleScope(session, scopeLabel)` di
+frontend/shared-access.js (skitar baris 363) punya SEMANTIK TOGGLE:
+
+    var activeLabel = getActiveRoleScopeLabel(session) || permissions.label || '';
+    if (normalizeAccessText(selected.label) === normalizeAccessText(activeLabel)) {
+      // Switch ke scope yang sama dengan yang aktif = kembali ke default
+      clearRoleScope();
+      return;
+    }
+
+Ini FITUR yang disengaja utk dropdown MANUAL di header (klik opsi yg
+lagi aktif = "batalkan", balik ke default) -- masuk akal buat
+interaksi manual. TAPI tombol "Bereskan" di showAuditPopup() ikut
+manggil setRoleScope() yg sama, padahal yang diinginkan di situ
+IDEMPOTEN ("pastikan scope = X", bukan "nyalakan/matikan X"). Kalau
+scope yang LAGI AKTIF pas SAMA dengan hasil keyword-match (misalnya:
+audit kelas diklik utk kelas kedua setelah kelas pertama, atau
+sebelumnya sempat pindah scope manual ke "Pengajar Ikhwan" duluan),
+maka setRoleScope MALAH MENGHAPUS scope itu (mengira user sedang
+"membatalkan pilihan yg sama") -- localStorage ps_role_scope jadi
+kosong lagi, dan begitu halaman baru dimuat, getScopedSession()
+AUTO-DEFAULT ke options[0] (jabatan PERTAMA di jabatanLabels orang
+itu, urutannya = urutan assignment di tabel pengurus_jabatan, BUKAN
+per is_utama) -- utk kasus di atas options[0] = "Mudir 'Amm" (karena
+itu jabatan pertama yg pernah di-assign ke pengurus tsb secara
+historis) -- PERSIS gejala yang dilaporkan.
+
+FIX YANG DITERAPKAN (final, di showAuditPopup's tombol Bereskan,
+frontend/shared-shell.js): sebelum manggil PSAccess.setRoleScope(),
+cek dulu scope yg LAGI AKTIF (lewat PSAccess.getScopedSession(session)
+.primaryJabatanLabel) -- kalau sudah SAMA dengan hasil keyword-match,
+SKIP panggil setRoleScope() sama sekali (tidak perlu diubah, sudah
+benar). Cuma panggil setRoleScope() kalau memang beda. Ini menghindari
+kena logic toggle-off di atas, sambil tetap mempertahankan fitur
+ganti-scope yang memang diinginkan. Sudah diverifikasi lewat simulasi
+node (4 skenario: tanpa scope awal, scope awal beda kind, scope awal
+SAMA dgn kind yg diklik -- termasuk edge case yg dulu bikin bug --
+dan across kind halaqoh & kelas) -- semua menghasilkan chip akhir yang
+benar.
+
+CATATAN UTK DIRI SENDIRI (supaya tidak salah lagi kalau ada laporan
+serupa di masa depan): kalau user bilang "kok pas diklik jadi balik
+ke jabatan awal/utama", curigai DULU logic TOGGLE di setRoleScope
+sebelum curiga ke soal keyword-matching/permissions.label -- baru
+setelah simulasi/trace-nya jelas beneran salah keyword-nya, baru
+sentuh scopeKeywords. Simulasi lewat node (load shared-access.js
+langsung dgn `new Function('window', code + ...)` + localStorage
+tiruan) jauh lebih cepat & akurat drpd nebak manual dari baca kode --
+pakai cara ini lagi kalau ada bug scope serupa.
+
+
+HAL YANG SERING BIKIN BINGUNG SAAT EDIT
+------------------------------------------
+- Dua fungsi sync- ini API SHAPE-nya mirip (fetch -> cek json.ok ->
+  cek items.length) tapi RENDER-nya beda pola: pengumuman = antrean
+  1-per-1 (_announcementQueue + showNextAnnouncement recursive),
+  audit = 1 kartu isi semua item sekaligus (showAuditPopup dipanggil
+  sekali, tidak ada "next").
+- Posisi CSS sengaja dibedakan (kanan-bawah vs kiri-bawah) supaya
+  kalau kebetulan sama-sama ada item, dua popup itu tidak akan saling
+  menimpa. Kalau mau nambah popup jenis ke-3 di masa depan, JANGAN
+  pakai posisi bottom kanan/kiri yang sama -- cari pojok lain atau
+  gabung ke salah satu antrean yang sudah ada.
+- ANNOUNCEMENT_THEMES itu shared dipakai 2 tempat (showNextAnnouncement
+  & showAuditPopup) -- kalau ubah warna 'merah' di situ, otomatis
+  ikut berubah juga tampilan popup audit.
+- ID DOM yang dipakai buat cek "apakah popup ini sudah tampil" beda
+  per sistem: '_announcementPopup' vs '_auditPopup'. Kalau salah
+  ganti/duplikat id ini, guard "cuma 1 popup dalam 1 waktu" bisa jebol.
+- Backend server.js baris-baris di atas gampang geser kalau ada
+  perubahan besar di server.js -- kalau grep by line number tidak
+  ketemu lagi, grep ulang pakai nama action-nya (mis. grep -n
+  "pengumuman.owed" backend/server.js atau grep -n "absensi.owed"
+  backend/server.js).
+
+
+6) FIX (2026-07-28): BADAL (pengajar/pengampu pengganti) sekarang
+   ikut diaudit juga, bukan cuma pengampu/pengajar UTAMA
+------------------------------------------------------------------
+BUG YANG DILAPORKAN: pengurus (akun "aaaaaaaa", id 89) yang jadi
+pengajar UTAMA di 1 kelas dan jadi BADAL/pengganti di 1 kelas lain,
+cuma dapat 1 tombol "Bereskan" (utk kelas dia jadi pengajar utama).
+Kelas dimana dia badal (id_pengajar_badal) sama sekali tidak pernah
+nongol di audit, walau kelas itu juga kosong absensinya.
+
+AKAR MASALAH: `collectAbsensiGapItems_` (dipakai kind 'halaqoh' &
+'kelas' lewat ABSENSI_OWED_CONFIGS) DAN `collectHafalanGapItems_`
+cuma cek kolom pengampu/pengajar UTAMA (id_pengampu_halaqoh /
+id_pengajar) di filter "mine" -- kolom badal (id_pengampu_badal /
+id_pengajar_badal) tidak pernah ikut dicek sama sekali. Ini memang
+disengaja di versi awal (lihat komentar lama "jadi pengampu/pengajar
+utama (bukan badal)"), tapi user mengonfirmasi (2026-07-28): badal
+JUGA harus ikut kena reminder, karena badal juga ikut bertanggung
+jawab kalau kelas/halaqoh itu bolong.
+
+FIX: filter "mine" di ketiga fungsi (collectAbsensiGapItems_ generik
+utk halaqoh+kelas, dan collectHafalanGapItems_ khusus hafalan) sekarang
+cek KEDUA kolom sekaligus (OR): pengampu/pengajar utama ATAU badal.
+- ABSENSI_OWED_CONFIGS nambah field `badalColumn` per kind
+  ('id_pengampu_badal' utk halaqoh, 'id_pengajar_badal' utk kelas).
+- collectHafalanGapItems_ (khusus, bukan lewat ABSENSI_OWED_CONFIGS)
+  di-update manual cek 'id_pengampu_badal' juga di halaqoh.
+Diverifikasi read-only lewat query langsung ke DB (bukan lewat login):
+pengurus 89 sekarang match ke 2 kelas (59 = utama, 88 = badal),
+sebelumnya cuma 1.
+
+TIDAK ADA PERUBAHAN di sisi tampilan (rowsHtml/showAuditPopup) --
+badal & utama tampil SAMA (baris "Kelas <nama> -- X hari belum
+diisi"), tidak dibedakan labelnya. Kalau nanti mau dibedakan (mis.
+kasih tanda "(badal)" di baris), tinggal tambah properti `role` di
+item yang di-push (`items.push({..., isBadal: true})`) dan render
+bedanya di shared-shell.js showAuditPopup's rowsHtml.
+
+
+7) KIND KE-4: AUDIT PERKEMBANGAN SANTRI (2026-07-28) -- beda dari
+   semua audit lain: per PEKAN, bukan per HARI, dan angka minimalnya
+   bisa diatur (bukan cuma switch ON/OFF)
+------------------------------------------------------------------------
+Ditambahkan sbg kind ke-4 di sistem audit yang sama (nimbrung di
+_auditPopup yg sama), utk pembina regu, ngecek input di halaman
+pages/perkembanganSantri/ (sheet perkembanganBulanan: 1 baris per
+id_santri + id_regu + tanggal + teks -- persis pola hafalanHarian,
+BUKAN pola absensi yg 1 baris per sesi).
+
+KEPUTUSAN DESAIN (ditanya & dijawab user 2026-07-28, backup di
+riwayat percakapan kalau perlu tinjau ulang):
+- Granularitas: PER SANTRI (ketat, sama pola hafalan) -- SEMUA santri
+  di roster regu (kolom id_santri di baris regu, sama persis pola
+  halaqoh/hafalan) harus dapat minimal N input per pekan. Kalau ada
+  1 santri kurang, SELURUH regu dianggap gap pekan itu (bukan cuma
+  santri itu doang) -- unit yg diaudit tetap "regu", kriteria
+  "lengkap"-nya aja yg per-santri.
+- Definisi "pekan": KALENDER Senin-Minggu (bukan rolling 7 hari).
+- Nilai minimal (N): FLEKSIBEL, field angka bebas (bukan cuma
+  pilihan 2/3), default 2, range yg divalidasi backend 1-14.
+  Diatur di halaman Kelola Audit (bukan cuma switch ON/OFF spt kind
+  lain -- ini satu-satunya kind yg py extra input angka).
+- Pekan yg SEDANG BERJALAN (Minggu-nya > kemarin) TIDAK dihitung --
+  baru dinilai stlh pekan itu selesai. Jadi kalau baru hari Rabu,
+  pekan ini belum bakal muncul sbg "kurang" walau baru 0 input.
+
+Backend (backend/server.js):
+- auditSettingsState nambah `perkembanganActive` (bool, default true)
+  & `perkembanganMinPerWeek` (angka, default 2). handleAuditSettingsSet_
+  divalidasi: perkembangan_min_per_week harus integer 1-14, kalau di
+  luar itu throw error 400 (bukan silent-clamp).
+- Fungsi baru `getMondayOfWeek_(dateOnly)` -- helper pekan kalender,
+  dipakai buat key grouping. `collectPerkembanganGapItems_(activeTaId,
+  taStartDate, yesterday, pengurusId, minPerWeek)` -- filter "mine" dari
+  sheet 'regu' (pembina UTAMA id_pembina ATAU BADAL id_pembina_badal --
+  langsung ikut prinsip section 6 di atas, tidak perlu nunggu laporan
+  bug terpisah lagi utk perkembangan), lalu iterasi pekan kalender dari
+  Senin-nya startDate sampai pekan terakhir yg Minggu-nya <= kemarin;
+  tiap pekan cek SEMUA rosterIds py count>=minPerWeek pekan itu (dihitung
+  dari scan 1x seluruh sheet perkembanganBulanan, dikelompokkan per
+  (id_regu, weekMonday, id_santri)).
+- Dipanggil dari handleAbsensiOwed_, di-guard `auditSettingsState.
+  perkembanganActive`, hasil digabung ke items array yg sama (action
+  masih 'absensi.owed', tidak ada action baru).
+- SUDAH diverifikasi read-only lewat query+simulasi manual ke DB asli
+  (regu id 19, 18 santri, TA mulai 2026-07-01): hasil 4 pekan dicek,
+  4 gap (wajar krn baru ~4 pekan sejak TA mulai & requirement ketat
+  per-santri) -- angka tidak meledak/aneh.
+
+Frontend:
+- shared-shell.js: AUDIT_KIND_CONFIG nambah key 'perkembangan' ->
+  entityLabel 'Perkembangan Regu', scopeKeywords utk jabatan pembina
+  regu (['pembina regu','wali regu','musyrif regu'], SAMA dgn
+  ACCESS_CONTROL.pembinaReguJabatanKeywords di backend), redirectPath
+  '/pages/perkembanganSantri/', queryParam 'openRegu', DAN field baru
+  `missingLabel: 'pekan belum memenuhi target'` -- karena teks
+  "X hari belum diisi" yg di-hardcode di showAuditPopup's rowsHtml
+  TIDAK cocok utk audit per-pekan. showAuditPopup() sekarang baca
+  `kindConfig.missingLabel || 'hari belum diisi'` (default dipertahankan
+  supaya 3 kind lain yg lama tidak perlu diubah).
+- frontend/pages/perkembanganSantri/index.html: SEBELUMNYA halaman ini
+  TIDAK support deep-link ?openRegu=<id> (pola sama kayak hafalanHarian
+  sebelum section 3 di atas) -- ditambahkan blok baru di
+  window.addEventListener('load', ...): setelah loadRegu() selesai,
+  baca openRegu dari query string, history.replaceState buat
+  bersihkan address bar, panggil openRegu(id) yg udah ada. Batasan
+  sama kayak hafalanHarian: openRegu() cuma cari di state.reguList yg
+  KE-LOAD DI HALAMAN AKTIF (server-side paginated) -- kalau regu
+  tujuan kebetulan di halaman lain, tombol "Bereskan" diam saja.
+- frontend/pages/kelolaAudit/index.html: AUDIT_KINDS nambah entry
+  'perkembangan' dgn property TAMBAHAN `numberField` (field/payloadKey/
+  label/min/max) -- satu-satunya entry yg py ini. renderAuditList()
+  di-generalisasi: kalau kind.numberField ada, render 1 baris
+  <input type="number"> + tombol "Simpan" terpisah dari tombol
+  toggle ON/OFF biasa (fungsi baru saveNumberField(key), action yg
+  sama 'audit.settings.set' tapi payload beda field). Judul halaman
+  diubah dari "Kelola Audit Absensi" jadi "Kelola Audit" (sudah tidak
+  cuma soal absensi lagi).
+
+BELUM DIKERJAKAN / PERLU DIINGAT (kind perkembangan):
+- SAMA seperti kind hafalan: TIDAK ada pengecualian santri izin/
+  sakit/cuti -- santri yg lama tidak masuk ikut bikin regu "gap"
+  terus tiap pekan walau bukan salah pembina.
+- Requirement PER-SANTRI ini BERAT utk regu berukuran besar (roster
+  16-18 santri observed di data asli) -- kalau nanti pembina komplain
+  targetnya mustahil dicapai, opsi yg tersedia tanpa ubah kode: turunkan
+  angka minPerWeek lewat Kelola Audit (sudah fleksibel by design).
+  Kalau perlu ubah granularitas jadi per-regu-total (bukan per-santri),
+  itu perubahan kode (collectPerkembanganGapItems_ perlu diubah dari
+  "every roster santri met" jadi "total entri regu itu pekan ini >=
+  minPerWeek", independen dari kind.numberField's UI yg sudah ada).
+- Belum ditest end-to-end di browser (alasan sama: tidak ada
+  kredensial testing yg aman dipakai). node --check lolos di semua
+  file yg disentuh (server.js, shared-shell.js, shared-nav.js,
+  kelolaAudit/index.html, perkembanganSantri/index.html); server boot
+  bersih (HTTP 200).
+
+
+8) BUG SERIUS (2026-07-28): auditSettingsState di-REPLACE TOTAL saat
+   load dari disk, bukan di-MERGE -- field baru yg ditambah belakangan
+   jadi permanen undefined kalau file JSON-nya sudah kepalang ada
+------------------------------------------------------------------------
+GEJALA: audit 'perkembangan' (section 7 di atas) sudah dipasang lengkap
+(backend + frontend + Kelola Audit), tapi TIDAK PERNAH muncul di popup
+sama sekali walau datanya jelas ada yg gap. User sempat coba isi angka
+minPerWeek di Kelola Audit (berhasil tersimpan ke
+backend/data/auditSettings.json), tapi tetap tidak muncul.
+
+AKAR MASALAH: pola load state dari file JSON di top-of-file:
+    var auditSettingsState = { ...defaults... };
+    try { auditSettingsState = JSON.parse(fs.readFileSync(PATH)); } catch(e) {}
+Baris kedua itu REPLACE TOTAL objek default dgn ISI FILE, bukan MERGE.
+Kalau file itu SUDAH ADA di disk dari SEBELUM sebuah field baru
+ditambahkan ke default (mis. auditSettings.json ditulis pertama kali
+cuma dgn {halaqohActive, kelasActive, hafalanActive, setBy, setAt} --
+dari sebelum section 7 field perkembanganActive/perkembanganMinPerWeek
+ada), maka field baru itu SELAMANYA jadi `undefined` stlh load,
+BERAPA KALIPUN defaultnya diperbarui di kode -- karena isi file
+lama selalu menimpa SEMUA properti objek default, termasuk yg tidak
+ada di file. `undefined` itu falsy, jadi guard
+`if (auditSettingsState.perkembanganActive)` di handleAbsensiOwed_
+selalu gagal, collectPerkembanganGapItems_ tidak pernah dipanggil --
+audit itu "mati" tanpa error apa pun yg keliatan (silent).
+Diverifikasi langsung: backend/data/auditSettings.json isinya betulan
+tidak py key perkembanganActive sama sekali stlh user coba save angka
+minPerWeek -- state di memori pas itu mmg sudah undefined dari awal
+boot server (file lama sblm section 7 ditulis), jadi ikut kebawa pas
+di-save ulang juga.
+
+FIX: ganti pola load jadi MERGE, bukan replace. Sekarang:
+    var AUDIT_SETTINGS_DEFAULTS = { ...defaults... };
+    var auditSettingsState = Object.assign({}, AUDIT_SETTINGS_DEFAULTS);
+    try { auditSettingsState = Object.assign({}, AUDIT_SETTINGS_DEFAULTS, JSON.parse(fs.readFileSync(PATH))); } catch(e) {}
+Object.assign dgn AUDIT_SETTINGS_DEFAULTS sbg base pertama, baru isi
+file di atasnya -- jadi key yg ADA di file tetap dipakai (override),
+tapi key yg TIDAK ADA di file tetap fallback ke default kode terbaru.
+Fix yg sama diterapkan juga di titik restore-from-backup
+(restoreFromBackupZip_, sekitar baris 24425) yg punya bug identik
+(bahkan fallback error-nya lebih basi lagi -- cuma py halaqohActive+
+kelasActive, ketinggalan hafalanActive segala).
+Diverifikasi read-only: Object.assign(...AUDIT_SETTINGS_DEFAULTS,
+JSON.parse(isi auditSettings.json asli yg sudah rusak itu)) berhasil
+mengisi perkembanganActive:true dari default sambil tetap
+mempertahankan perkembanganMinPerWeek:3 yg sudah kesimpan.
+
+PENTING UTK DIRI SENDIRI KE DEPAN: field APA PUN yg ditambah ke
+auditSettingsState (atau state sejenis yg di-persist ke file JSON
+serupa, kalau ada yg baru dibuat nanti) HARUS lewat AUDIT_SETTINGS_
+DEFAULTS + Object.assign merge ini, BUKAN cuma nambah key ke objek
+literal default doang -- kalau lupa, field baru itu bakal "ghost
+bug" yg persis kayak di atas: kelihatan terpasang lengkap di kode,
+tapi diam-diam tidak pernah aktif di server yg sudah pernah jalan
+sebelumnya (staging/production yg sudah py auditSettings.json lama).
+Testing lokal dgn file BARU (belum pernah ada) TIDAK bakal ketahuan
+bug ini -- baru ketauan kalau file-nya sudah pernah ditulis oleh versi
+kode SEBELUM field itu ada. Kalau nemu audit/switch baru yg "sudah
+dipasang tapi tidak pernah nyala", curigai DULU pola load-nya (replace
+vs merge) sebelum curiga ke logic gap-checking-nya.
+
+
+9) KIND KE-5: AUDIT ABSENSI REGU (2026-07-28)
+--------------------------------------------------
+Ditambahkan utk pembina regu, persis pola audit absensi halaqoh/kelas
+(BUKAN pola hafalan/perkembangan yg per-santri) -- karena sheet
+absensiRegu strukturnya SAMA PERSIS dgn absensiHalaqoh/absensiKelas:
+1 baris per (regu, tanggal, sesi) dgn kolom data_absensi yg isi status
+SEMUA santri sekaligus, jadi cukup cek "ada barisnya atau tidak" per
+hari (bukan per-santri).
+
+Ini kind PALING SEDERHANA dari 5 kind yg ada sejauh ini -- karena
+regu.id_pembina/id_pembina_badal/tahun_ajaran_id/status/id_santri
+strukturnya identik dgn halaqoh & kelasSiang, cukup TAMBAH 1 ENTRY
+BARU ke ABSENSI_OWED_CONFIGS yg SUDAH ADA (tidak perlu fungsi
+collect...GapItems_ baru sama sekali, langsung pakai
+collectAbsensiGapItems_ yg generik, termasuk dukungan badal dari
+section 6 otomatis ikut kepakai):
+    { kind: 'regu', entitySheet: 'regu', pengampuColumn: 'id_pembina',
+      badalColumn: 'id_pembina_badal', absensiSheet: 'absensiRegu',
+      absensiFkColumn: 'id_regu' }
+
+Backend:
+- ABSENSI_OWED_CONFIGS nambah entry 'regu' di atas.
+- auditSettingsState nambah `reguActive` (default true, lewat
+  AUDIT_SETTINGS_DEFAULTS + merge dari section 8 -- otomatis aman
+  dari "ghost bug" yg sama).
+- Guard baru di handleAbsensiOwed_'s forEach: skip config kalau
+  auditSettingsState.reguActive false.
+- handleAuditSettingsSet_ terima payload tambahan `regu_active`.
+
+Frontend:
+- shared-shell.js: AUDIT_KIND_CONFIG nambah key 'regu' -> entityLabel
+  'Regu', scopeKeywords utk jabatan pembina regu (SAMA dgn kind
+  'perkembangan': ['pembina regu','wali regu','musyrif regu']),
+  redirectPath '/pages/reguAbsensi/', queryParam 'openRegu'. TIDAK
+  py missingLabel custom (default 'hari belum diisi' sudah pas,
+  krn ini per-hari sama kayak halaqoh/kelas).
+- frontend/pages/reguAbsensi/index.html: SEBELUMNYA TIDAK support
+  deep-link ?openRegu=<id> (pola sama spt hafalanHarian &
+  perkembanganSantri sebelum diperbaiki) -- ditambahkan di
+  window.addEventListener('load', ...) stlh loadDashboardData(false)
+  selesai: baca 'openRegu' dari query string, history.replaceState,
+  panggil openAttendanceModal(id) yg udah ada (nama fungsinya PERSIS
+  sama dgn punya halaqohAbsensi, cuma beda halaman).
+- frontend/pages/kelolaAudit/index.html: AUDIT_KINDS nambah entry
+  'regu' (switch ON/OFF biasa, tanpa numberField).
+
+CATATAN: query param 'openRegu' dipakai OLEH DUA HALAMAN BERBEDA
+sekaligus (reguAbsensi/ utk audit absensi regu, DAN
+perkembanganSantri/ utk audit perkembangan santri) -- ini TIDAK
+masalah/collision krn masing-masing kind py redirectPath sendiri
+(URL tujuan beda), jadi nama query param yg sama boleh dipakai ulang
+di halaman berbeda. Jangan bingung kalau grep 'openRegu' dan ketemu
+di 2 file.
+
+Diverifikasi read-only ke data asli: sheet absensiRegu memang ada isi
+(51 baris total), struktur regu (id_pembina/id_santri/dst) identik
+dgn halaqoh/kelasSiang seperti diharapkan -- tidak perlu simulasi
+manual krn logic-nya 100% reuse collectAbsensiGapItems_ yg sudah
+diverifikasi berkali-kali sebelumnya. node --check lolos semua file
+yg disentuh, server boot bersih (HTTP 200).
+
+Total sekarang ada 5 kind audit dlm 1 sistem: halaqoh, kelas, regu
+(ketiganya per-hari, generik lewat ABSENSI_OWED_CONFIGS), hafalan,
+perkembangan (keduanya per-santri/per-pekan, fungsi collect...
+tersendiri masing2). Kelola Audit sekarang py 5 kartu switch (4 ON/OFF
+biasa + 1 numberField khusus perkembangan).
+
+
+10) KIND KE-6: AUDIT STATUS SETORAN TASMI' (2026-07-28) -- satu-
+    satunya kind yg jadwalnya TERIKAT HARI TERTENTU (Sabtu saja), dan
+    yg dicek BUKAN cuma "ada barisnya" tapi KELENGKAPAN ISI per santri
+------------------------------------------------------------------------
+Ditambahkan utk pengampu halaqoh tasmi' (entitas independen, lihat
+[[project-halaqohTasmi]] di memory -- klon dari editHalaqoh, py kolom
+id_pengampu_halaqoh/id_pengampu_badal/id_santri persis sama), ngecek
+input di pages/tasmiSetoran/.
+
+KEPUTUSAN DESAIN (ditanya & dijawab user 2026-07-28):
+- Granularitas: PER SANTRI (sama pola hafalan/perkembangan) -- SEMUA
+  santri di roster halaqoh tasmi' wajib py entries_json dgn statusTasmi
+  terisi (lulus/gagal/tidak) hari Sabtu itu.
+- Rentang: SEMUA hari Sabtu sejak awal TA (akumulasi terus, sama pola
+  semua kind lain), bukan cuma Sabtu terakhir.
+- Kewajiban catatan: HANYA kalau statusTasmi === 'tidak' (Tidak
+  Tasmi'). Status 'lulus'/'gagal' tidak wajib py catatan.
+
+BEDA STRUKTURAL dari kind lain: tasmiSetoran itu 1 baris per (halaqoh
+tasmi', tanggal) yg entries_json-nya berisi array per-santri {santriId,
+nilai, catatan, statusTasmi} -- BUKAN 1 baris per santri (beda dari
+hafalanHarian/perkembanganBulanan) dan BUKAN cuma cek "ada baris"
+(beda dari absensiHalaqoh/Kelas/Regu). Jadi HARUS parse entries_json
+per baris dan cek key statusTasmi/catatan tiap entry -- tidak bisa
+reuse fungsi generik/pola manapun yg sudah ada, perlu fungsi baru.
+
+DAN: jadwalnya TERIKAT HARI SABTU SAJA (bukan tiap hari kalender spt
+audit absensi/hafalan, bukan pekan kalender spt perkembangan) --
+sesuai konvensi yg SUDAH ADA di sistem ini sebelum audit ini dibuat
+(lihat komentar asli di handleTasmiSetoranRekapBulanan_: "Rekap satu
+bulan: berapa pekan (Sabtu) di bulan itu..."), BUKAN aturan baru yg
+saya buat sendiri.
+
+Backend:
+- Fungsi baru `getNextSaturdayOnOrAfter_(dateOnly)` -- loncat ke Sabtu
+  berikutnya (atau tetap kalau dateOnly sendiri sudah Sabtu), dipakai
+  buat iterasi per-7-hari dari titik mulai.
+- Fungsi baru `collectTasmiGapItems_(activeTaId, taStartDate, yesterday,
+  pengurusId)` -- filter "mine" dari sheet halaqohTasmi (pengampu utama
+  ATAU badal, prinsip section 6), lalu iterasi Sabtu dari
+  getNextSaturdayOnOrAfter_(startDate) sampai Sabtu terakhir yg <=
+  kemarin; tiap Sabtu, parse entries_json semua baris tasmiSetoran hari
+  itu utk halaqoh tsb jadi map per santriId, lalu cek SEMUA rosterIds:
+  py entry dgn statusTasmi valid (lulus/gagal/tidak) DAN (statusTasmi
+  !== 'tidak' ATAU catatan terisi).
+- auditSettingsState nambah `tasmiActive` (default true, lewat
+  AUDIT_SETTINGS_DEFAULTS + merge dari section 8 -- aman dari ghost bug).
+- Dipanggil dari handleAbsensiOwed_, guard `auditSettingsState.
+  tasmiActive`. handleAuditSettingsSet_ terima `tasmi_active`.
+
+Frontend:
+- shared-shell.js: AUDIT_KIND_CONFIG nambah key 'tasmi' -> entityLabel
+  "Setoran Tasmi' Halaqoh", scopeKeywords sama dgn kind 'halaqoh'/
+  'hafalan' (pengampu halaqoh), redirectPath '/pages/tasmiSetoran/',
+  queryParam 'openHalaqoh' (SAMA dgn kind 'halaqoh'/'hafalan' -- tidak
+  masalah, beda redirectPath jadi tidak collision, lihat catatan
+  serupa di section 9 soal 'openRegu').
+- frontend/pages/tasmiSetoran/index.html: halaman ini strukturnya BEDA
+  dari semua halaman audit lain -- bukan pola "list kartu -> klik ->
+  modal", tapi search-box + hidden input (#halaqohSelect) + date input
+  (#tanggalInput) yg langsung render tabel di halaman utama (bukan
+  dialog). Ditambahkan deep-link ?openHalaqoh=<id> di
+  window.addEventListener('load', ...): kalau ada & valid, panggil
+  setHalaqohSelection(id) (fungsi yg sudah ada, isi search box + hidden
+  input), hitung SABTU TERAKHIR YG SUDAH LEWAT (mundur dari hari ini,
+  BUKAN nearestSaturdayStr() yg sudah ada di halaman ini -- itu bisa
+  maju ke Sabtu berikutnya kalau itu lebih dekat, tidak cocok buat
+  audit yg cuma menagih yg sudah lewat), lalu panggil loadGridFor(id,
+  tanggal) yg sudah ada. KETERBATASAN: landing date-nya "Sabtu
+  terakhir yg lewat" secara umum, BUKAN Sabtu SPESIFIK yg jadi
+  penyebab gap (audit cuma kirim missingCount total, bukan daftar
+  tanggal) -- kalau gap-nya di beberapa Sabtu ke belakang, pengampu
+  perlu geser tanggal manual utk cek yg lebih lama.
+- frontend/pages/kelolaAudit/index.html: AUDIT_KINDS nambah entry
+  'tasmi' (switch ON/OFF biasa, tanpa numberField).
+
+PENTING -- DAMPAK KE DATA EXISTING: diverifikasi read-only ke
+tasmiSetoran asli (23 baris), TIDAK SATU PUN baris yg py key
+'statusTasmi'/'catatan' di entries_json-nya (cuma {santriId, nilai})
+-- artinya kalau audit ini diaktifkan, HAMPIR SEMUA halaqoh tasmi'
+yg py sesi tercatat bakal langsung keliatan "gap" (krn field
+statusTasmi memang belum pernah dipakai/diisi sebelumnya). Ini bukan
+bug, tapi WAJAR mengingat aturan wajib-isi-status ini baru resmi
+ditegakkan lewat audit ini -- user perlu tahu bakal ada banyak
+notifikasi "Bereskan" muncul sekaligus pas pertama kali fitur ini
+aktif, bukan tanda-tanda sistem salah hitung.
+
+Diverifikasi read-only lewat simulasi manual (halaqoh tasmi' id 18,
+9 santri, TA mulai 2026-07-01, halaqoh dibuat 2026-07-18): 2 Sabtu
+dicek (07-18, 07-25), keduanya gap (wajar, blm ada statusTasmi
+terisi) -- angka masuk akal, tidak meledak. node --check lolos semua
+file yg disentuh (server.js, shared-shell.js, tasmiSetoran/index.html,
+kelolaAudit/index.html); server boot bersih (HTTP 200).
+
+Total sekarang ada 6 kind audit. Popup judulnya sudah diganti jadi
+"Audit" polos (bukan "Absensi Belum Diisi" lagi, krn isinya sudah
+jauh lebih dari sekadar absensi) -- lihat entityLabel tiap kind kalau
+mau tau prefix yg tampil di tiap baris item ("Absensi Halaqoh"/
+"Absensi Kelas"/"Absensi Regu"/"Hafalan Halaqoh"/"Perkembangan Regu"/
+"Setoran Tasmi' Halaqoh").
+
+
+11) GERBANG AKSES: jurnalSdm TERKUNCI kalau masih ada audit pending
+    (2026-07-28)
+------------------------------------------------------------------------
+Beda dari semua fitur audit sebelumnya (yg sifatnya cuma "nagging" --
+popup bisa ditutup/diabaikan, tidak menghalangi akses ke mana pun),
+fitur ini BENERAN MENGUNCI 1 halaman spesifik: pages/jurnalSdm/. Kalau
+pengurus itu masih punya minimal 1 item pending dari SALAH SATU dari
+6 jenis audit (halaqoh/kelas/regu/hafalan/perkembangan/tasmi -- SEMUA
+dihitung, tidak ada pengecualian per-jenis), dia TIDAK BISA akses
+jurnalSdm sama sekali -- baik lihat maupun isi -- sampai semuanya
+"Bereskan".
+
+KEPUTUSAN DESAIN (ditanya & dijawab user 2026-07-28):
+- Ditegakkan di DUA LAPIS: frontend (halaman tampil pesan terkunci,
+  tidak render UI aslinya) DAN backend (server tolak action-nya juga)
+  -- supaya tidak bisa ditembus lewat panggil API langsung/DevTools.
+- Super Admin DIKECUALIKAN (selalu bisa akses jurnalSdm kapan pun,
+  walau kebetulan py audit pending sendiri). SEMUA role lain (Admin,
+  Mudir, Bagian SDM, pengurus biasa) TETAP kena kalau py audit
+  pending -- tidak ada pengecualian role selain Super Admin.
+
+Backend (backend/server.js):
+- Fungsi baru `assertNoPendingAudit_(session)` -- kalau
+  session.permissions.isSuperAdmin, langsung return (lolos). Selain
+  itu, panggil handleAbsensiOwed_(session) (FUNGSI YG SAMA dipakai
+  popup audit, bukan hitungan terpisah) dan cek items.length; kalau
+  > 0, throw createError_(..., 403).
+- Dipanggil di authorizeAction_, di AWAL tiap case yg relevan:
+  'sdm.jurnal.pilihanKegiatan', 'sdm.jurnal.bulan.detail',
+  'sdm.jurnal.entry.save', 'sdm.jurnal.entry.pengesahan',
+  'sdm.fingerprint.save', 'sdm.dataLapangan.save'. TIDAK disentuh:
+  'sdm.jurnal.entry.delete' (sudah requireSuperAdmin_ duluan, jadi
+  otomatis lolos gerbang ini juga krn Super Admin dikecualikan).
+
+Frontend (frontend/pages/jurnalSdm/index.html):
+- Section baru `#auditLockPanel` (pesan "Halaman Terkunci" + instruksi
+  singkat, hidden by default) ditaruh SEBELUM `#mainContentPanel`
+  (id baru yg ditambahkan ke <section class="panel"> utama yg berisi
+  seluruh UI jurnal -- sebelumnya section ini tanpa id).
+- Fungsi baru `checkAuditLock()`: kalau sessionPermissions().
+  isSuperAdmin return false (tidak terkunci) langsung; selain itu
+  panggil `api('absensi.owed')` (action yg SAMA dgn yg dipanggil
+  shared-shell.js utk popup) dan cek items.length. FAIL-OPEN kalau
+  request itu sendiri gagal (network error dll) -- supaya bug
+  jaringan tidak ikut mengunci orang yg sebenarnya bersih.
+- Dipanggil di awal window.addEventListener('load', ...), SEBELUM
+  loadData(): kalau locked, toggle display #auditLockPanel/
+  #mainContentPanel lalu `return` (skip loadData() & setup lainnya
+  sepenuhnya -- tidak ada request data jurnal yg terkirim sama sekali
+  kalau lagi terkunci).
+
+CATATAN PENTING:
+- Blokir ini PER-PENGURUS (berdasar audit pending milik akun yg
+  sedang login), BUKAN blokir global. Kalau pengurus A ada gap tapi
+  pengurus B tidak, cuma A yg terkunci dari jurnalSdm, B tetap bisa
+  akses seperti biasa.
+- assertNoPendingAudit_ manggil handleAbsensiOwed_ yg scan BANYAK
+  sheet (halaqoh, kelasSiang, regu, hafalanHarian, perkembanganBulanan,
+  halaqohTasmi, tasmiSetoran, tahunAjaran) -- jadi SEKARANG scan itu
+  jalan bukan cuma 1x per page-load (spt popup audit), tapi TIAP KALI
+  action sdm.jurnal.*/dst dipanggil (mis. tiap ganti bulan di kalender
+  = 1x panggil sdm.jurnal.bulan.detail = 1x re-scan). Belum jadi
+  masalah performa nyata (data organisasi umumnya ratusan baris, bukan
+  jutaan), tapi kalau nanti data membesar drastis & jurnalSdm kerasa
+  lambat, ini titik pertama yg perlu dicurigai/di-cache.
+- Kalau nanti mau nambah gerbang serupa ke halaman lain (bukan cuma
+  jurnalSdm), pola yg sama tinggal dicontek: assertNoPendingAudit_ di
+  backend (panggil di authorizeAction_ case yg relevan) + checkAuditLock-
+  style check di frontend (panggil 'absensi.owed', toggle panel kalau
+  hasilnya ada items & bukan superadmin).
+- Belum ditest end-to-end di browser (alasan sama spt biasa: tidak ada
+  kredensial testing yg aman dipakai). node --check lolos di server.js
+  & jurnalSdm/index.html; server boot bersih (HTTP 200).

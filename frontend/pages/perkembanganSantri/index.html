@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#9e2f22">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="../../shared-ui.css">
+  <link rel="stylesheet" href="../../shared-shell.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+  <script src="../../shared-ui.js"></script>
+  <title>Perkembangan Santri</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700&display=swap');
+    :root { --paper:#f6efe0; --ink:#4d4034; --muted:#7b6a58; --line:rgba(91,73,57,0.15); --accent:#b97650; --success:#74846c; --danger:#a55a52; --warning:#b58439; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; }
+    .panel { padding: 22px; }
+    h1,h2,h3 { margin: 0 0 10px; }
+    p { margin: 0; line-height: 1.6; }
+    button, input, select, textarea { font: inherit; }
+    button { text-transform: uppercase; letter-spacing: 0.03em; font-weight: 800; }
+    label { display: grid; gap: 6px; font-size: 13px; font-weight: 600; }
+    .ctl { padding: 10px 14px; border-radius: 14px; border: 1.5px solid var(--line); font-weight: 600; color: var(--ink); outline: none; }
+    .ctl:focus { border-color: var(--accent); }
+    button.ctl:disabled { opacity: 0.45; cursor: not-allowed !important; }
+    .filters { display: grid; gap: 12px; margin-top: 16px; }
+    .toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+    .pager { display: flex; gap: 8px; align-items: center; justify-content: center; margin-top: 16px; flex-wrap: wrap; }
+    .regu-grid {
+        display: grid;
+        /* grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); */
+        gap: 14px;
+        margin-top: 16px;
+    }
+    .chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; background: var(--line); color: var(--ink); }
+    .santri-dibekukan-badge { display: inline-flex; margin-left: 6px; padding: 1px 8px; font-size: 10px; font-weight: 700; border-radius: 999px; background: rgba(181,132,57,0.18); color: var(--warning, #b8860b); text-transform: uppercase; vertical-align: middle; }
+    .empty-state { text-align: center; padding: 40px 16px; color: var(--muted); }
+    .empty-state i { font-size: 32px; opacity: 0.4; }
+    #dlg { width: min(680px, 96vw); }
+    .dlg-shell { display: flex; flex-direction: column; }
+    /* 3 view (santri list / entries / sheet RJ) selalu ada di DOM, diganti pakai show/hide (bukan innerHTML
+       diganti ulang tiap pindah view) — lihat setActiveDlgView() di script. Masing-masing full width/height. */
+    .dlg-view { display: none; width: 100%; height: 100%; }
+    .dlg-view.is-active { display: block; }
+    /* Saat lihat sheet RJ, tombol "×" bawaan dialog disembunyikan — sudah ada tombol "Kembali" sendiri. */
+    #dlg.rj-view-active .ps-dialog-close-floating { display: none !important; }
+    .eyebrow { font-size: 11px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+    .srow { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 14px; background: rgba(255,251,243,0.7); margin-bottom: 8px; cursor: pointer; }
+    .srow:hover { border-color: var(--accent); }
+    .srow .nm { flex: 1; min-width: 0; }
+    .srow .nm strong { display: block; font-size: 14px; }
+    .srow .nm small { color: var(--muted); font-size: 11px; }
+    .srow-view-rj { flex-shrink: 0; min-height: 32px; padding: 0 12px; font-size: 12px; }
+
+    /*
+      SYNC: rule .rp-dlg-toolbar / .sheet / .raport-page / rp-prefixed / rj-prefixed di bawah ini adalah
+      SALINAN dari CSS pages/raport&rekamJejak/index.html (bagian yang dipakai renderRekamJejak()) — hanya
+      subset yg relevan utk Rekam Jejak (bagian raport 3-lembar seperti rp-sign / rp-absen tidak perlu di sini).
+      BEDA dari raport&rekamJejak: di sana sheet RJ tampil di dialog terpisah (#rekamJejakOverlay). Di sini
+      sheet RJ dirender sebagai VIEW BIASA di dalam #dlgBody (dialog #dlg yang sama dengan daftar santri),
+      bukan dialog baru — supaya membuka "Lihat RJ" tidak menutup/menimpa dialog santri yang sedang terbuka.
+      Lihat fungsi viewRekamJejakSheet()/closeRekamJejakView()/printRekamJejakView().
+      Kalau desain sheet RJ di raport&rekamJejak diubah, cek apakah perlu disalin ke sini juga.
+    */
+    .rp-dlg-toolbar { max-width: 820px; margin: 0 auto 14px; display: flex; gap: 10px; justify-content: space-between; flex-direction: row-reverse; }
+    .sheet { max-width: 820px; margin: 0 auto; background: #fff; color: #222; padding: 38px 42px; border-radius: 6px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); font-family: 'Lora', serif; }
+    .raport-page { padding-bottom: 10px; min-height: 889px; display: flex; flex-direction: column; }
+    .rp-head { text-align: center; border-bottom: 3px double #555; padding-bottom: 12px; margin-bottom: 16px; }
+    .rp-head h1 { font-family: 'Playfair Display', serif; font-size: 1.5rem; margin: 0 0 2px; }
+    .rp-head p { font-size: 12px; color: #666; }
+    .rp-ident { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 24px; font-size: 13.5px; margin-bottom: 18px; }
+    .rp-ident .row { display: flex; gap: 8px; }
+    .rp-ident .row .k { width: auto; white-space: nowrap; flex-shrink: 0; font-weight: 600; color: #444; flex: 1 1 calc(1% - 10px); }
+    .rp-ident .row .v { flex: 1; min-width: 0; }
+    .rp-sec { margin-bottom: 16px; }
+    .rp-sec h2 { font-family: 'Playfair Display', serif; font-size: 1rem; margin: 0 0 7px; padding: 4px 0px; }
+    #rekamJejakSheet .rp-sec h2 { text-align: center; }
+    #rekamJejakSheet .rj-bottom { margin-top: auto; }
+    #rekamJejakSheet .rj-bottom .rp-sec { text-align: center; }
+    table.rp-tbl { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    table.rp-tbl th, table.rp-tbl td { border: 1px solid #ccc; padding: 5px 8px; text-align: left; }
+    table.rp-tbl th { background: #9090901f; font-weight: 600; }
+    table.rp-tbl td.num, table.rp-tbl th.num { text-align: center; }
+    table.rp-tbl tfoot td { font-weight: 700; background: #faf6ee; }
+    .muted-note { color: #999; font-size: 12.5px; font-style: italic; }
+    .rj-perk { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid #ccc; border-left: 1px solid #ccc; }
+    .rj-perk .pe { font-size: 13px; line-height: 1.55; padding: 5px 8px; border-right: 1px solid #ccc; border-bottom: 1px solid #ccc; min-height: 28px; }
+    .rj-perk .pe .d { font-weight: 600; color: var(--accent); }
+    .rj-nasehat { margin-top: 8px; font-style: italic; font-size: 13px; }
+    /* Cetak sheet RJ: sembunyikan semua kecuali #dlg, dan di dalam #dlg sembunyikan semua kecuali .sheet */
+    @media print {
+      body { background: #fff; }
+      body > *:not(#dlg) { display: none !important; }
+      #dlg:not(.rp-dlg-printing) { display: none !important; }
+      #dlg.rp-dlg-printing {
+        position: static !important; inset: auto !important; background: #fff !important; padding: 0 !important;
+        margin: 0 !important; overflow: visible !important; display: block !important; border: none !important;
+        outline: none !important; box-shadow: none !important; border-radius: 0 !important;
+        max-width: 100% !important; width: 100% !important; height: auto !important; max-height: none !important;
+      }
+      #dlg.rp-dlg-printing .dlg-shell { padding: 0 !important; }
+      #dlg.rp-dlg-printing .duplicate-dialog-head,
+      #dlg.rp-dlg-printing #dlgNotice,
+      #dlg.rp-dlg-printing .rp-dlg-toolbar { display: none !important; }
+      .sheet { box-shadow: none; max-width: 100%; margin: 0; padding: 0; border-radius: 0; }
+    }
+    .week-group { margin-bottom: 14px; }
+    .week-header { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 11px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; color: var(--accent); padding: 4px 2px 6px; margin-bottom: 6px; border-bottom: 1.5px solid var(--line); cursor: pointer; list-style: none; user-select: none; }
+    .week-header::-webkit-details-marker { display: none; }
+    .week-header .week-label { display: flex; align-items: center; gap: 6px; }
+    .week-header .week-chevron { transition: transform 0.15s ease; flex-shrink: 0; font-size: 10px; }
+    .week-group[open] .week-header .week-chevron { transform: rotate(90deg); }
+    .week-header .week-count { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: none; letter-spacing: 0; background: var(--line); padding: 2px 9px; border-radius: 999px; white-space: nowrap; }
+    .week-past-badge { display: inline-flex; align-items: center; gap: 4px; margin-left: 8px; padding: 2px 8px; font-size: 10px; font-weight: 700; text-transform: none; letter-spacing: 0; border-radius: 999px; background: rgba(116,132,108,0.18); color: var(--success); vertical-align: middle; }
+    .entry { padding: 12px 14px; border: 1px solid var(--line); border-radius: 14px; background: rgba(255,251,243,0.7); margin-bottom: 8px; }
+    .entry .et-date { font-size: 12px; font-weight: 700; color: var(--accent); margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center; }
+    .entry .et-text { font-size: 13px; white-space: pre-wrap; line-height: 1.55; }
+    textarea.ctl { width: 100%; min-height: 90px; resize: vertical; font-weight: 500; }
+    .ico-btn { background: none; border: none; cursor: pointer; padding: 4px 6px; border-radius: 8px; color: var(--muted); }
+    .ico-btn:hover { color: var(--accent); }
+    .ico-btn.del:hover { color: var(--danger); }
+    .sd-notice { display: none; margin-top: 10px; padding: 10px 14px; border-radius: 10px; font-size: 13px; }
+    .minimal-list-card.is-inactive.entity-gender-ikhwan  { background: linear-gradient(135deg, #888 0%, rgba(210,233,255,0.98) 100%) !important; }
+    .minimal-list-card.is-inactive.entity-gender-akhowat { background: linear-gradient(135deg, #888 0%, rgba(255,222,232,0.98) 100%) !important; }
+    .minimal-list-card.is-inactive.entity-gender-campur  { background: linear-gradient(135deg, #888 0%, rgba(212,232,255,0.98) 46%, rgba(255,222,232,0.98) 100%) !important; }
+    .minimal-list-card.is-inactive { background: linear-gradient(135deg, #888 0%, rgba(255,248,230,0.96) 100%) !important; }
+    .attendance-audit {
+      padding: 0 15px 12px;
+      margin-top: -4px;
+      font-size: 11.5px;
+      color: var(--warning);
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+      line-height: 1.5;
+    }
+    .attendance-audit i { margin-top: 2px; flex-shrink: 0; }
+    .pager button { padding: 7px 13px; border-radius: 10px; border: 1.5px solid var(--line); background: rgba(255,255,255,0.7); font-weight: 700; font-size: 13px; cursor: pointer; color: var(--ink); min-width: 38px; }
+    .pager button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .pager button:hover:not(.active) { border-color: var(--accent); }
+    .pager.is-empty { display: none; }
+
+    .paging { display: flex; justify-content: center; }
+    .page-center { display: grid; gap: 8px; justify-items: center; }
+    .page-numbers { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+    .page-summary { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+    .paging button { min-height: 36px; padding: 0 14px; border-radius: 10px; border: 1.5px solid var(--line); background: rgba(255,255,255,0.7); font-weight: 700; color: var(--ink); cursor: pointer; }
+    .paging button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .paging button:disabled { opacity: 0.4; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+  <main>
+    <div class="app-layout">
+      <section class="panel nav" id="nav"></section>
+      <div class="content-stack">
+        <section class="panel">
+          <h1 style="font-family:'Playfair Display',serif;font-size:1.9rem;">Perkembangan Santri</h1>
+          <p style="color:var(--muted);font-size:14px;">Catat cerita/perkembangan harian santri (Rekam Jejak). Pilih regu, lalu santri, lalu tulis catatan harian.</p>
+          <div class="filters" id="filtersPanel">
+            <label>
+              Tahun Ajaran
+              <select id="fTa" class="ctl"><option value="">Semua tahun ajaran</option></select>
+            </label>
+            <label>
+              Cari nama regu, pembina, atau santri
+              <input type="search" id="fSearch" class="ctl" placeholder="Mis. regu 1, ustadz, ikhwan, atau nama santri">
+            </label>
+            <label>
+              Status
+              <select id="fStatus" class="ctl">
+                <option value="">Semua</option>
+                <option value="active">Aktif</option>
+                <option value="inactive">Nonaktif</option>
+              </select>
+            </label>
+            <label>
+              Urutkan
+              <select id="fSort" class="ctl">
+                <option value="recent">Edit terbaru</option>
+                <option value="name_asc">Nama A–Z</option>
+                <option value="name_desc">Nama Z–A</option>
+                <option value="santri_desc">Santri terbanyak</option>
+              </select>
+            </label>
+            <label>
+              Jumlah per halaman
+              <select id="fPageSize" class="ctl">
+                <option value="6">6</option>
+                <option value="12" selected>12</option>
+                <option value="24">24</option>
+                <option value="48">48</option>
+              </select>
+            </label>
+          </div>
+          <div class="toolbar" id="actionToolbar">
+            <button class="ctl" id="absensiHalaqohButton" type="button" disabled title="Hanya untuk pengurus yang menjabat sebagai Pengampu Halaqoh." style="cursor:pointer;background:#9d9d9d;"><i class="fa-solid fa-clipboard-check"></i>&ensp;Absensi Halaqoh</button>
+            <button class="ctl" id="refreshButton" type="button" title="Muat ulang" style="cursor:pointer;"><i class="fa-solid fa-arrows-rotate"></i></button>
+          </div>
+          <div id="pagerTop" class="pager" style="margin-top:8px;margin-bottom:4px;"></div>
+          <div id="area" style="margin-top:4px;"><div class="empty-state"><i class="fa-solid fa-spinner fa-spin"></i><p style="margin-top:8px;">Memuat...</p></div></div>
+          <div id="pager" class="pager"></div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <dialog id="dlg">
+    <div class="dialog-body duplicate-dialog-body ps-dialog-shell dlg-shell">
+      <div class="duplicate-dialog-head ps-dialog-header">
+        <div>
+          <span class="eyebrow" id="dlgEyebrow">Perkembangan</span>
+          <h3 id="dlgTitle" style="margin:2px 0 0;">&nbsp;</h3>
+        </div>
+      </div>
+      <div id="dlgBody">
+        <div id="viewSantriList" class="dlg-view"></div>
+        <div id="viewEntries" class="dlg-view"></div>
+        <div id="viewRekamJejak" class="dlg-view"></div>
+      </div>
+      <div id="dlgNotice" class="sd-notice"></div>
+    </div>
+  </dialog>
+
+  <!--
+    SYNC: fungsi renderRekamJejak()/viewRekamJejakSheet()/closeRekamJejakView()/printRekamJejakView() di bawah
+    adalah DUPLIKAT (bagian renderRekamJejak()) dari pages/raport&rekamJejak/index.html (dialog #rekamJejakOverlay
+    + renderRekamJejak() + viewRekamJejak()). Dibuat mandiri (bukan link ke halaman raport&rekamJejak) karena
+    halaman itu dibatasi hanya Admin/SuperAdmin/Ksantrian, sedangkan pengguna utama halaman ini (Pembina Regu)
+    tidak termasuk situ tapi tetap berhak lihat RJ santri di regunya sendiri (lihat raportAccessibleSantri_
+    di backend/server.js). BEDA dengan raport&rekamJejak: sheet RJ di sini TIDAK punya <dialog> sendiri —
+    dirender sebagai view biasa di dalam #dlgBody (dialog #dlg yang sama dgn daftar santri di atas), supaya
+    "Lihat RJ" tidak menutup/menimpa dialog santri yang sedang terbuka.
+    Kalau format sheet RJ (bagian "Perkembangan Santri" / hafalan / ujian) diubah di salah satu file,
+    ubah juga di file satunya supaya tampilannya tetap sama.
+  -->
+
+  <script src="../../shared-access.js"></script>
+  <script src="../../shared-nav.js"></script>
+  <script src="../../shared-shell.js"></script>
+  <script>
+    const API_BASE = window.location.origin + '/api';
+    const STORAGE = { apiBase: 'ps_api_base', token: 'ps_token', session: 'ps_session' };
+    localStorage.setItem(STORAGE.apiBase, API_BASE);
+    const state = { bulan: '', reguList: [], tahunAjaranList: [], filtered: [], page: 1, pageSize: 12, fTa: '', fSearch: '', fStatus: '', fSort: 'recent', activeRegu: null, activeSantri: null, view: 'regu', templates: [] };
+    let noticeId = '', noticeCounter = 0;
+    // SYNC: sama dengan BULAN_ID di pages/raport&rekamJejak/index.html — dipakai fmtMonth() untuk label sheet RJ.
+    const BULAN_ID = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+    const BULAN_PENDEK_ID = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+    const HARI_ID = ['Ahad', 'Senin', 'Selasa', 'Rabu', 'Kamis', "Jum'at", 'Sabtu'];
+
+    function getToken() { return localStorage.getItem(STORAGE.token) || ''; }
+    function clearSession() { localStorage.removeItem(STORAGE.token); localStorage.removeItem(STORAGE.session); }
+    function getStoredSession() { try { return JSON.parse(localStorage.getItem(STORAGE.session) || 'null'); } catch (e) { return null; } }
+    function canManagePerkembanganScoped() {
+      const session = window.PSAccess && typeof window.PSAccess.getScopedSession === 'function' ? window.PSAccess.getScopedSession(getStoredSession()) : getStoredSession();
+      const p = session && session.permissions;
+      return !!(p && (p.isAdmin || p.isSuperAdmin || p.isKsantrian || p.isPembinaRegu));
+    }
+    function findPengampuHalaqohScopeOption(rawSession) {
+      if (!window.PSAccess || typeof window.PSAccess.getRoleScopeOptions !== 'function') return null;
+      const options = window.PSAccess.getRoleScopeOptions(rawSession) || [];
+      const keywords = ['pengampu halaqoh', 'pengampu', 'musyrif halaqoh', 'murobbi halaqoh'];
+      return options.find(opt => keywords.some(kw => (opt.label || '').toLowerCase().includes(kw))) || null;
+    }
+    function toParams(d) { const p = new URLSearchParams(); Object.entries(d).forEach(([k, v]) => { if (v === undefined || v === null) return; p.append(k, typeof v === 'object' ? JSON.stringify(v) : String(v)); }); return p; }
+    function escapeHtml(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+    function jsAttr(v) { return JSON.stringify(String(v == null ? '' : v)).replace(/&/g, '&amp;').replace(/'/g, '&#39;'); }
+    function fmtDate(s) { if (!s) return '-'; const d = new Date(s + 'T00:00:00'); if (isNaN(d)) return s; return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }); }
+    function fmtHariIniInfo() { const d = new Date(); return `Hari ini tanggal ${d.getDate()} ${BULAN_ID[d.getMonth()]} ${d.getFullYear()}`; }
+    function fmtDateInWeek(s) { if (!s) return '-'; const d = new Date(s + 'T00:00:00'); if (isNaN(d)) return s; return `${HARI_ID[d.getDay()]}, ${d.getDate()} ${BULAN_PENDEK_ID[d.getMonth()]}`; }
+    // Pekan kalender Senin—Ahad — SAMA dgn getMondayOfWeek_() di backend (dipakai
+    // computePerkembanganAudit_ & collectPerkembanganGapItems_/popup Kelola Audit), supaya batas
+    // "pekan" yg ditampilkan di sini konsisten dgn perhitungan audit "minggu belum genap".
+    function getWeekStartSenin(dateStr) { const d = new Date(dateStr + 'T00:00:00'); const day = d.getDay(); const diff = day === 0 ? -6 : 1 - day; d.setDate(d.getDate() + diff); return d; }
+    function formatDateYmd(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+    function fmtWeekLabel(weekStartYmd) {
+      const start = new Date(weekStartYmd + 'T00:00:00');
+      const end = new Date(start); end.setDate(end.getDate() + 6);
+      const sameYear = start.getFullYear() === end.getFullYear();
+      const startLabel = `${start.getDate()} ${BULAN_PENDEK_ID[start.getMonth()]}${sameYear ? '' : ' ' + start.getFullYear()}`;
+      const endLabel = `${end.getDate()} ${BULAN_PENDEK_ID[end.getMonth()]} ${end.getFullYear()}`;
+      return `Pekan ${startLabel} – ${endLabel}`;
+    }
+    function isWeekPast(weekStartYmd) {
+      const start = new Date(weekStartYmd + 'T00:00:00');
+      const end = new Date(start); end.setDate(end.getDate() + 6);
+      return formatDateYmd(end) < formatDateYmd(new Date());
+    }
+    // Semua pekan (Senin—Ahad) yg overlap dgn bulan tsb, termasuk pekan yg lintas ke bulan
+    // sebelum/sesudahnya — dipakai supaya pekan yg belum ada catatannya sama sekali tetap muncul.
+    function getAllWeeksInMonth(bulan) {
+      if (!/^\d{4}-\d{2}$/.test(bulan || '')) return [];
+      const [y, m] = bulan.split('-').map(Number);
+      const firstWeekStart = getWeekStartSenin(formatDateYmd(new Date(y, m - 1, 1)));
+      const lastWeekStart = getWeekStartSenin(formatDateYmd(new Date(y, m, 0)));
+      const weeks = [];
+      const cursor = new Date(firstWeekStart);
+      while (cursor.getTime() <= lastWeekStart.getTime()) { weeks.push(formatDateYmd(cursor)); cursor.setDate(cursor.getDate() + 7); }
+      return weeks;
+    }
+    function groupEntriesByWeek(entries, bulan) {
+      const byWeek = {};
+      entries.forEach(e => { const wKey = formatDateYmd(getWeekStartSenin(e.tanggal)); (byWeek[wKey] = byWeek[wKey] || []).push(e); });
+      const weekKeys = getAllWeeksInMonth(bulan);
+      Object.keys(byWeek).forEach(k => { if (weekKeys.indexOf(k) === -1) weekKeys.push(k); });
+      weekKeys.sort().reverse();
+      return weekKeys.map(wKey => ({ weekStart: wKey, entries: byWeek[wKey] || [] }));
+    }
+    function showNotice(text, type) {
+      const stack = document.getElementById('noticeStack');
+      const el = document.createElement('div'); el.className = `notice show ${type || ''}`.trim();
+      el.dataset.noticeId = `n-${Date.now()}-${noticeCounter += 1}`; el.textContent = text;
+      el.addEventListener('click', () => el.remove()); setTimeout(() => el.remove(), type === 'error' ? 9000 : 5000);
+      if (noticeId) { const o = document.querySelector(`[data-notice-id="${noticeId}"]`); if (o) o.remove(); }
+      stack.prepend(el); noticeId = el.dataset.noticeId; if (stack.matches(':popover-open')) stack.hidePopover(); stack.showPopover();
+    }
+    async function api(action, payload = {}, method = 'GET') {
+      const token = getToken();
+      if (!token) { clearSession(); window.location.replace('/pages/login/'); throw new Error('Sesi tidak ditemukan.'); }
+      const scopeLabel = window.PSAccess ? (window.PSAccess.getActiveRoleScopeLabel(getStoredSession()) || '') : '';
+      const response = method === 'GET'
+        ? await fetch(`${API_BASE}?${toParams({ action, token, scopeLabel, ...payload }).toString()}`)
+        : await fetch(API_BASE, { method, body: toParams({ action, token, scopeLabel, ...payload }) });
+      const json = await response.json();
+      if (!json.ok) { const e = new Error(json.error?.message ? `Server: ${json.error.message}` : 'Gagal.'); e.code = json.error?.code || 500; if (e.code === 401) { clearSession(); window.location.replace('/pages/login/'); } throw e; }
+      return json.data;
+    }
+    function mountShell(session) { return window.PSShell.mount({ currentPage: window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : 'perkembanganSantri.html', session, getStoredSession, storageKey: STORAGE.session }); }
+    function dlgNotice(msg, type) { const el = document.getElementById('dlgNotice'); if (!msg) { el.style.display = 'none'; return; } el.style.display = 'block'; el.style.background = type === 'error' ? 'rgba(165,90,82,0.12)' : 'rgba(116,132,108,0.15)'; el.style.color = type === 'error' ? 'var(--danger)' : 'var(--success)'; el.textContent = msg; }
+
+    function normalizeGender(g) {
+      const v = (g || '').trim().toLowerCase();
+      if (['l','lk','laki-laki','laki','pria','male'].includes(v)) return 'male';
+      if (['p','pr','perempuan','wanita','female'].includes(v)) return 'female';
+      return '';
+    }
+    function normalizeStatus(s) {
+      const v = (s || '').trim().toLowerCase();
+      if (['inactive','nonaktif'].includes(v)) return 'inactive';
+      if (['dibekukan','frozen','beku'].includes(v)) return 'dibekukan';
+      return 'active';
+    }
+    function getCardRowClass(gender, statusKey) {
+      if (statusKey === 'inactive') {
+        if (gender === 'male') return 'row-male-inactive';
+        if (gender === 'female') return 'row-female-inactive';
+        return 'row-nogender-inactive';
+      }
+      if (statusKey === 'dibekukan') {
+        if (gender === 'male') return 'row-male-frozen';
+        if (gender === 'female') return 'row-female-frozen';
+        return 'row-nogender-frozen';
+      }
+      if (gender === 'male') return 'row-male';
+      if (gender === 'female') return 'row-female';
+      return '';
+    }
+    function buildPaginationList(page, totalPages) {
+      const maxNumbers = 10;
+      if (totalPages <= maxNumbers) return Array.from({ length: totalPages }, (_, index) => index + 1);
+      const middleSlots = maxNumbers - 2;
+      const pages = [1];
+      let start = Math.max(2, page - Math.floor(middleSlots / 2));
+      let end = start + middleSlots - 1;
+      if (end > totalPages - 1) { end = totalPages - 1; start = end - middleSlots + 1; }
+      if (start > 2) pages.push('...');
+      for (let value = start; value <= end; value += 1) pages.push(value);
+      if (end < totalPages - 1) pages.push('...');
+      pages.push(totalPages);
+      return pages;
+    }
+
+    async function loadRegu() {
+      const area = document.getElementById('area');
+      const isFirstLoad = state.tahunAjaranList.length === 0;
+      area.innerHTML = '<div class="empty-state"><i class="fa-solid fa-spinner fa-spin"></i></div>';
+      try {
+        const data = await api('perkembangan.reguList');
+        state.reguList = data.reguList || [];
+        state.tahunAjaranList = data.tahunAjaranList || [];
+        if (isFirstLoad) {
+          const aktif = state.tahunAjaranList.find(t => t.isAktif);
+          if (aktif) state.fTa = String(aktif.id);
+        }
+        populateTaFilter();
+        applyFilter();
+      } catch (e) { area.innerHTML = `<div class="empty-state"><i class="fa-solid fa-triangle-exclamation" style="color:var(--danger)"></i><p style="margin-top:8px;color:var(--danger);font-weight:600;">${escapeHtml(e.message)}</p></div>`; }
+    }
+    function populateTaFilter() {
+      const sel = document.getElementById('fTa');
+      sel.innerHTML = '<option value="">Semua tahun ajaran</option>' + state.tahunAjaranList.map(t => `<option value="${escapeHtml(t.id)}">${escapeHtml(t.namaDisplay || t.nama)}${t.isAktif ? ' (Aktif)' : ''}</option>`).join('');
+      if (state.fTa) sel.value = state.fTa;
+    }
+    function applyFilter() {
+      const q = state.fSearch.trim().toLowerCase();
+      let list = state.reguList.filter(r => {
+        if (state.fTa && String(r.tahunAjaranId) !== String(state.fTa)) return false;
+        if (state.fStatus === 'active' && !r.active) return false;
+        if (state.fStatus === 'inactive' && r.active) return false;
+        if (q) {
+          const hay = (r.name + ' ' + (r.genderGroup || '') + ' ' + (r.pembinaNames || []).join(' ') + ' ' + (r.santriNames || []).join(' ')).toLowerCase();
+          if (!hay.includes(q)) return false;
+        }
+        return true;
+      });
+      list.sort((a, b) => {
+        switch (state.fSort) {
+          case 'name_asc': return a.name.localeCompare(b.name);
+          case 'name_desc': return b.name.localeCompare(a.name);
+          case 'santri_desc': return (b.santriCount || 0) - (a.santriCount || 0);
+          default: return (b.updatedAt || '').localeCompare(a.updatedAt || '') || a.name.localeCompare(b.name);
+        }
+      });
+      state.filtered = list;
+      state.page = 1;
+      renderRegu();
+    }
+    function normalizeGenderGroupLabel(value) {
+      const text = String(value == null ? '' : value).trim().toLowerCase().replace(/\s+/g, ' ');
+      if (!text || text === '-' || text === 'tidak ada' || text === 'none') return 'Tidak ada';
+      if (['ikhwan', 'putra', 'l', 'lk', 'laki laki', 'laki-laki', 'male'].includes(text)) return 'Ikhwan';
+      if (['akhowat', 'akhawat', 'akhwat', 'putri', 'p', 'pr', 'perempuan', 'female'].includes(text)) return 'Akhowat';
+      if (['campur', 'mixed', 'mix', 'gabung', 'bersama', 'umum'].includes(text)) return 'Campur';
+      return 'Tidak ada';
+    }
+    function getGenderGroupCardClass(value) {
+      const label = normalizeGenderGroupLabel(value);
+      if (label === 'Ikhwan') return 'entity-gender-ikhwan';
+      if (label === 'Akhowat') return 'entity-gender-akhowat';
+      if (label === 'Campur') return 'entity-gender-campur';
+      return '';
+    }
+
+    function getPerkembanganAuditHtml(item) {
+      const audit = item.audit;
+      if (!audit || !audit.active || !audit.missingCount) return '';
+      return `<div class="attendance-audit">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        ${audit.missingCount}x minggu belum genap ${audit.minPerWeek}x Rekam Jejak sejak ${fmtDate(audit.since)}
+      </div>`;
+    }
+
+    function renderRegu() {
+      const area = document.getElementById('area');
+      const pager = document.getElementById('pager');
+      const pagerTop = document.getElementById('pagerTop');
+      if (!state.reguList.length) { area.innerHTML = '<div class="empty-state"><i class="fa-solid fa-users-slash"></i><p style="margin-top:8px;font-weight:600;">Tidak ada regu yang bisa Anda akses.</p></div>'; pager.innerHTML = ''; pagerTop.innerHTML = ''; return; }
+      if (!state.filtered.length) { area.innerHTML = '<div class="empty-state"><i class="fa-solid fa-filter-circle-xmark"></i><p style="margin-top:8px;font-weight:600;">Tidak ada regu cocok filter.</p></div>'; pager.innerHTML = ''; pagerTop.innerHTML = ''; return; }
+      const totalPages = Math.max(1, Math.ceil(state.filtered.length / state.pageSize));
+      if (state.page > totalPages) state.page = totalPages;
+      const start = (state.page - 1) * state.pageSize;
+      const slice = state.filtered.slice(start, start + state.pageSize);
+      area.innerHTML = '<div class="regu-grid">' + slice.map(r => {
+        const genderClass = getGenderGroupCardClass(r.genderGroup);
+        const hintParts = [normalizeGenderGroupLabel(r.genderGroup), `${r.santriCount} santri`];
+        if (r.pembinaNames && r.pembinaNames.length) hintParts.push(`Pembina: ${r.pembinaNames.join(', ')}`);
+        if (!r.active) hintParts.push('Nonaktif');
+        return `
+        <article class="card minimal-list-card${genderClass ? ` ${genderClass}` : ''}${r.active ? '' : ' is-inactive'}">
+          <div class="minimal-list-card-head">
+            <div class="minimal-list-card-main">
+              <strong class="minimal-list-card-name">${escapeHtml(r.name)}</strong>
+              <span class="minimal-list-card-hint">${escapeHtml(hintParts.join(' · '))}</span>
+            </div>
+            <button class="secondary minimal-list-card-toggle" type="button" onclick='openRegu(${jsAttr(r.id)})'>Buka</button>
+          </div>
+          ${getPerkembanganAuditHtml(r)}
+        </article>`;
+      }).join('') + '</div>';
+      const pgMarkup = `
+        <div class="paging">
+          <div class="page-center">
+            <div class="page-numbers">
+              ${buildPaginationList(state.page, totalPages).map(item =>
+                item === '...'
+                  ? '<span class="page-summary">...</span>'
+                  : `<button class="${item === state.page ? 'active' : ''}" onclick="goPage(${item})">${item}</button>`
+              ).join('')}
+            </div>
+            <div class="page-summary">Halaman ${state.page} dari ${totalPages} | total ${state.filtered.length} regu</div>
+          </div>
+        </div>
+      `;
+      window.PSUI.syncPaginationHosts({ markup: pgMarkup, totalCount: state.filtered.length, minimumCount: 0, topId: 'pagerTop', bottomId: 'pager' });
+    }
+    function goPage(p) { state.page = p; renderRegu(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+
+    // Tukar view aktif di dalam #dlg lewat show/hide (bukan innerHTML #dlgBody diganti total) — dipakai
+    // openRegu/renderSantri (viewSantriList), openSantri/renderEntries (viewEntries), viewRekamJejakSheet
+    // (viewRekamJejak). Tombol "×" bawaan dialog ikut disembunyikan khusus saat viewRekamJejak aktif (CSS
+    // #dlg.rj-view-active) karena view itu sudah punya tombol "Kembali" sendiri.
+    function setActiveDlgView(viewId) {
+      document.querySelectorAll('#dlgBody .dlg-view').forEach(el => el.classList.toggle('is-active', el.id === viewId));
+      document.getElementById('dlg').classList.toggle('rj-view-active', viewId === 'viewRekamJejak');
+    }
+
+    async function openRegu(reguId) {
+      const regu = state.reguList.find(r => r.id === reguId);
+      if (!regu) return;
+      state.activeRegu = regu; state.activeSantri = null; state.view = 'santri';
+      state.bulan = new Date().toISOString().slice(0, 7);
+      document.getElementById('dlgTitle').textContent = regu.name;
+      document.getElementById('dlgEyebrow').textContent = 'Pilih Santri';
+      dlgNotice('');
+      setActiveDlgView('viewSantriList');
+      document.getElementById('viewSantriList').innerHTML = '<div class="empty-state"><i class="fa-solid fa-spinner fa-spin"></i></div>';
+      document.getElementById('dlg').showModal();
+      await renderSantri();
+    }
+    async function renderSantri() {
+      try {
+        const data = await api('perkembangan.santriList', { reguId: state.activeRegu.id, bulan: state.bulan });
+        const list = data.santriList || [];
+        const body = document.getElementById('viewSantriList');
+        const bulanCtrl = `<label style="margin-bottom:10px;font-size:12px;">Bulan <input type="month" id="santriListBulanInput" class="ctl" value="${escapeHtml(state.bulan)}" style="max-width:180px;"></label>`;
+        if (!list.length) { body.innerHTML = bulanCtrl + '<div class="empty-state"><i class="fa-solid fa-user-slash"></i><p style="margin-top:6px;">Tidak ada santri.</p></div>'; attachSantriListBulanInput(); return; }
+        body.innerHTML = bulanCtrl + `<p style="font-size:12px;color:var(--muted);margin-bottom:8px;">klik santri untuk menulis catatan</p>` + list.map(s => `
+          <div class="srow" onclick='openSantri(${jsAttr(s.id)},${jsAttr(s.name)})'>
+            <div class="nm"><strong>${escapeHtml(s.name)}</strong>${s.statusKey === 'dibekukan' ? '<span class="santri-dibekukan-badge">Dibekukan</span>' : ''}<small>${escapeHtml(s.noInduk || '-')}</small></div>
+            <span class="chip">${s.entryCount} catatan</span>
+            <button class="secondary srow-view-rj" type="button" title="Lihat sheet Rekam Jejak bulan ${escapeHtml(state.bulan)}" onclick='event.stopPropagation(); viewRekamJejakSheet(${jsAttr(s.id)});'><i class="fa-solid fa-book-open"></i> Lihat RJ</button>
+            <i class="fa-solid fa-chevron-right" style="color:var(--muted)"></i>
+          </div>`).join('');
+        attachSantriListBulanInput();
+      } catch (e) { dlgNotice(e.message, 'error'); }
+    }
+    function attachSantriListBulanInput() {
+      const input = document.getElementById('santriListBulanInput');
+      if (!input) return;
+      input.addEventListener('change', function () { state.bulan = this.value; renderSantri(); });
+    }
+
+    async function openSantri(santriId, name) {
+      state.activeSantri = { id: santriId, name };
+      state.view = 'entries';
+      state.entryBulan = new Date().toISOString().slice(0, 7);
+      document.getElementById('dlgEyebrow').textContent = state.activeRegu.name + ' · ' + (state.bulan || '');
+      document.getElementById('dlgTitle').textContent = name;
+      setActiveDlgView('viewEntries');
+      document.getElementById('viewEntries').innerHTML = '<div class="empty-state"><i class="fa-solid fa-spinner fa-spin"></i></div>';
+      await renderEntries();
+    }
+    async function refreshEntryList() {
+      try {
+        const data = await api('perkembangan.entryList', { santriId: state.activeSantri.id, reguId: state.activeRegu.id, bulan: state.entryBulan });
+        document.getElementById('entryList').innerHTML = renderEntryList(data.entries || []);
+      } catch (e) { dlgNotice(e.message, 'error'); }
+    }
+    async function renderEntries() {
+      try {
+        const data = await api('perkembangan.entryList', { santriId: state.activeSantri.id, reguId: state.activeRegu.id, bulan: state.entryBulan });
+        const entries = data.entries || [];
+        const todayIso = new Date().toISOString().slice(0, 10);
+        const today = todayIso.slice(0, 7) === state.entryBulan ? todayIso : state.entryBulan + '-01';
+        const body = document.getElementById('viewEntries');
+        const tplOpts = state.templates.length
+          ? '<option value="">— Sisipkan Template —</option>' + state.templates.map(t => `<option value="${escapeHtml(t.id)}">${escapeHtml(t.judul)}</option>`).join('')
+          : '';
+        body.innerHTML = `
+          <button onclick="backToSantri()" style="margin-bottom:12px;padding:8px 14px;border-radius:14px;border:1.5px solid var(--line);cursor:pointer;font-weight:700;min-height:38px;display:inline-flex;align-items:center;justify-content:center;gap:8px;background:transparent;color:var(--ink);font-size:13px;"><i class="fa-solid fa-arrow-left"></i> Kembali</button>
+          <div style="border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:14px;background:rgba(255,255,255,0.5);">
+            <label style="margin-bottom:8px;">Tanggal <input type="date" id="etDate" class="ctl" value="${today}" style="max-width:200px;"></label>
+            ${tplOpts ? `<label style="margin-bottom:8px;">Template <select id="etTpl" class="ctl">${tplOpts}</select></label>` : ''}
+            <label>Catatan perkembangan
+              <textarea id="etText" class="ctl" placeholder="Pada hari ini ananda ..."></textarea>
+            </label>
+            <div style="margin-top:10px;display:flex;justify-content:flex-end;">
+              <button id="etSaveBtn" style="padding:8px 14px;border-radius:14px;border:none;cursor:pointer;font-weight:700;min-height:38px;display:inline-flex;align-items:center;justify-content:center;gap:8px;background:var(--accent);color:#fff;font-size:13px;"><i class="fa-solid fa-plus"></i> Tambah Catatan</button>
+            </div>
+          </div>
+          <p style="font-size:12px;color:var(--muted);font-weight:600;margin-bottom:8px;">${escapeHtml(fmtHariIniInfo())}</p>
+          <div id="entryList">${renderEntryList(entries)}</div>`;
+        document.getElementById('etSaveBtn').addEventListener('click', () => saveEntry(null));
+        document.getElementById('etDate').addEventListener('change', function () {
+          const newBulan = this.value.slice(0, 7);
+          if (newBulan !== state.entryBulan) { state.entryBulan = newBulan; refreshEntryList(); }
+        });
+        const etTpl = document.getElementById('etTpl');
+        if (etTpl) etTpl.addEventListener('change', function () {
+          const t = state.templates.find(x => x.id === this.value);
+          if (t) { const ta = document.getElementById('etText'); ta.value = (ta.value ? ta.value + ' ' : '') + t.teks; this.value = ''; ta.focus(); }
+        });
+      } catch (e) { dlgNotice(e.message, 'error'); }
+    }
+    function renderEntryList(entries) {
+      const weeks = groupEntriesByWeek(entries, state.entryBulan);
+      if (!weeks.length) return '<div class="empty-state" style="padding:20px;"><i class="fa-solid fa-book-open"></i><p style="margin-top:6px;">Belum ada catatan bulan ini.</p></div>';
+      return weeks.map(g => {
+        const past = isWeekPast(g.weekStart);
+        return `
+        <details class="week-group${past ? ' is-past' : ''}">
+          <summary class="week-header">
+            <span class="week-label"><i class="fa-solid fa-chevron-right week-chevron"></i>${escapeHtml(fmtWeekLabel(g.weekStart))}${past ? '<span class="week-past-badge"><i class="fa-solid fa-check"></i> Sudah lewat</span>' : ''}</span>
+            <span class="week-count">${g.entries.length} catatan</span>
+          </summary>
+          ${g.entries.length ? g.entries.map(e => `
+            <div class="entry" data-id="${escapeHtml(e.id)}">
+              <div class="et-date"><span>${fmtDateInWeek(e.tanggal)}</span>
+                <span><button class="ico-btn" onclick='editEntry(${jsAttr(e.id)})' title="Edit"><i class="fa-solid fa-pen"></i></button>
+                <button class="ico-btn del" onclick='deleteEntry(${jsAttr(e.id)})' title="Hapus"><i class="fa-solid fa-trash"></i></button></span>
+              </div>
+              <div class="et-text">${escapeHtml(e.teks)}</div>
+            </div>`).join('') : '<p style="padding:2px 4px 10px;color:var(--muted);font-size:12px;font-style:italic;">Belum ada catatan di pekan ini.</p>'}
+        </details>`;
+      }).join('');
+    }
+    function backToSantri() { state.activeSantri = null; state.view = 'santri'; document.getElementById('dlgEyebrow').textContent = 'Pilih Santri'; document.getElementById('dlgTitle').textContent = state.activeRegu.name; setActiveDlgView('viewSantriList'); renderSantri(); }
+
+    async function saveEntry(id) {
+      if (!canManagePerkembanganScoped()) { dlgNotice('Mudir hanya bisa melihat catatan perkembangan, tidak bisa menyimpan.', 'error'); return; }
+      const tanggal = document.getElementById('etDate').value;
+      const teks = document.getElementById('etText').value.trim();
+      if (!tanggal) { dlgNotice('Tanggal wajib diisi.', 'error'); return; }
+      if (!teks) { dlgNotice('Tulis catatan dulu.', 'error'); return; }
+      try {
+        await api('perkembangan.save', { id: id || '', santriId: state.activeSantri.id, reguId: state.activeRegu.id, tanggal, teks }, 'POST');
+        document.getElementById('etText').value = '';
+        dlgNotice('Catatan disimpan.', 'success');
+        await renderEntries();
+      } catch (e) { dlgNotice(e.message, 'error'); }
+    }
+    async function editEntry(id) {
+      const data = await api('perkembangan.entryList', { santriId: state.activeSantri.id, reguId: state.activeRegu.id, bulan: state.entryBulan });
+      const ent = (data.entries || []).find(x => x.id === id);
+      if (!ent) return;
+      document.getElementById('etDate').value = ent.tanggal;
+      document.getElementById('etText').value = ent.teks;
+      const btn = document.getElementById('etSaveBtn');
+      btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Simpan Perubahan';
+      btn.onclick = () => saveEntry(id);
+      document.getElementById('etText').focus();
+    }
+    async function deleteEntry(id) {
+      if (!canManagePerkembanganScoped()) { dlgNotice('Mudir hanya bisa melihat catatan perkembangan, tidak bisa menghapus.', 'error'); return; }
+      if (!confirm('Hapus catatan ini?')) return;
+      try { await api('perkembangan.delete', { id }, 'POST'); await renderEntries(); } catch (e) { dlgNotice(e.message, 'error'); }
+    }
+
+    async function loadTemplates() { try { const d = await api('perkembangan.template.list'); state.templates = d.templates || []; } catch (e) { state.templates = []; } }
+
+    // SYNC: renderRekamJejak/viewRekamJejakSheet/closeRekamJejakView/printRekamJejakView — lihat komentar
+    // SYNC di dekat script ini dan di blok CSS-nya. renderRekamJejak() salinan dari raport&rekamJejak;
+    // sisanya (view di dalam #dlg, bukan dialog terpisah) khusus halaman ini.
+    function fmtMonth(ym) { if (!/^\d{4}-\d{2}$/.test(ym || '')) return ym || '-'; const [y, m] = ym.split('-'); return BULAN_ID[parseInt(m, 10) - 1] + ' ' + y; }
+    function renderRekamJejak(d) {
+      const bulanLabel = fmtMonth(d.bulan);
+      const ident = `<div class="rp-ident">
+        <div class="row"><span class="k">Nama</span><span class="v">${escapeHtml(d.santri.name)}</span></div>
+        <div class="row"><span class="k">NIS</span><span class="v">${escapeHtml(d.santri.noInduk || '-')}</span></div>
+        <div class="row"><span class="k">Regu</span><span class="v">${escapeHtml(d.reguName || '-')}</span></div>
+        <div class="row"><span class="k">Halaqoh</span><span class="v">${escapeHtml(d.halaqohName || '-')}</span></div>
+        <div class="row"><span class="k">Musyrif/ah / Pembina</span><span class="v">${escapeHtml([...new Set([...(d.musyrifNames || []), ...(d.pembinaNames || [])])].join(', ') || '-')}</span></div>
+      </div>`;
+      const perkRows = [...(d.perkembangan || [])];
+      while (perkRows.length < 20) perkRows.push(null); // minimal 10 baris × 2 kolom
+      const perk = '<div class="rj-perk">' + perkRows.map(p => p
+        ? `<div class="pe"><span class="d">${escapeHtml(p.tanggal)}</span> — ${escapeHtml(p.teks)}</div>`
+        : '<div class="pe"></div>'
+      ).join('') + '</div>';
+      const haf = d.hafalan && d.hafalan.length
+        ? `<table class="rp-tbl"><thead><tr><th>Tgl</th><th>Jenis</th><th>Detail</th><th class="num">Nilai</th></tr></thead><tbody>` +
+          d.hafalan.map(h => `<tr><td>${escapeHtml(h.tanggal)}</td><td>${escapeHtml(h.jenisLabel)}</td><td>${escapeHtml(h.detail)}</td><td class="num">${escapeHtml(h.nilai || '-')}</td></tr>`).join('') +
+          `</tbody><tfoot><tr><td colspan="2">Total</td><td colspan="2">Ziyadah: ${d.hafalanTotals.ziyadah} &nbsp;|&nbsp; Sabaqi: ${d.hafalanTotals.sabaqi} &nbsp;|&nbsp; Manzili: ${d.hafalanTotals.manzili} &nbsp;|&nbsp; Muroja'ah: ${d.hafalanTotals.murojaah || 0}</td></tr></tfoot></table>`
+        : '<p class="muted-note">Belum ada data hafalan bulan ini.</p>';
+      const ujian = d.ujian && d.ujian.length
+        ? `<table class="rp-tbl"><thead><tr><th>Tgl</th><th>Kelas</th><th class="num">Nilai</th><th>Catatan</th></tr></thead><tbody>` +
+          d.ujian.map(u => `<tr><td>${escapeHtml(u.tanggal)}</td><td>${escapeHtml(u.kelasName)}</td><td class="num">${escapeHtml(u.nilai)}</td><td>${escapeHtml(u.catatan || '-')}</td></tr>`).join('') +
+          `</tbody></table>`
+        : '<p class="muted-note">Belum ada data ujian bulan ini.</p>';
+      const nasehat = d.nasehat ? `<div class="rp-sec"><h2>Pesan &amp; Nasehat</h2><div class="rj-nasehat">${escapeHtml(d.nasehat)}</div></div>` : '';
+      return `<div class="raport-page">
+        <div class="rp-head"><h1>Rekam Jejak Santri</h1><p>Laporan Perkembangan Bulanan — ${escapeHtml(bulanLabel)}</p></div>
+        ${ident}
+        <div class="rp-sec"><h2>Perkembangan Santri</h2>${perk}</div>
+        <div class="rj-bottom">
+          <div class="rp-sec"><h2>Total Pencapaian Hafalan dalam Satu Bulan</h2>${haf}</div>
+          <div class="rp-sec"><h2>Ujian Kelas Siang Pekanan</h2>${ujian}</div>
+          ${nasehat}
+        </div>
+      </div>`;
+    }
+    // Tampilkan sheet RJ sebagai VIEW di dalam #dlgBody (dialog #dlg yang sudah terbuka), bukan dialog baru
+    // — dipanggil dari tombol "Lihat RJ" di srow (renderSantri()), jadi "kembali" selalu balik ke daftar santri.
+    async function viewRekamJejakSheet(santriId) {
+      state.view = 'rekamJejak';
+      document.getElementById('dlgEyebrow').textContent = state.activeRegu.name + ' · Rekam Jejak · ' + (state.bulan || '');
+      setActiveDlgView('viewRekamJejak');
+      const view = document.getElementById('viewRekamJejak');
+      view.innerHTML = '<div class="empty-state"><i class="fa-solid fa-spinner fa-spin"></i></div>';
+      try {
+        const d = await api('rekamJejak.data', { santriId, bulan: state.bulan });
+        document.getElementById('dlgTitle').textContent = d.santri.name;
+        view.innerHTML = `
+          <div class="rp-dlg-toolbar">
+            <button class="secondary" type="button" onclick="closeRekamJejakView()"><i class="fa-solid fa-arrow-left"></i> Kembali</button>
+            <button class="primary" type="button" onclick="printRekamJejakView()"><i class="fa-solid fa-print"></i> Cetak</button>
+          </div>
+          <div class="sheet" id="rekamJejakSheet">${renderRekamJejak(d)}</div>`;
+      } catch (e) {
+        view.innerHTML = `<p style="color:var(--danger);font-weight:600;">${escapeHtml(e.message)}</p>`;
+      }
+    }
+    function closeRekamJejakView() {
+      state.view = 'santri';
+      document.getElementById('dlgEyebrow').textContent = 'Pilih Santri';
+      document.getElementById('dlgTitle').textContent = state.activeRegu.name;
+      setActiveDlgView('viewSantriList');
+      renderSantri();
+    }
+    function printRekamJejakView() {
+      const dlg = document.getElementById('dlg');
+      dlg.classList.add('rp-dlg-printing');
+      const after = () => { dlg.classList.remove('rp-dlg-printing'); window.removeEventListener('afterprint', after); };
+      window.addEventListener('afterprint', after);
+      window.print();
+    }
+
+    window.openRegu = openRegu; window.openSantri = openSantri; window.backToSantri = backToSantri;
+    window.editEntry = editEntry; window.deleteEntry = deleteEntry; window.goPage = goPage;
+    window.viewRekamJejakSheet = viewRekamJejakSheet; window.closeRekamJejakView = closeRekamJejakView; window.printRekamJejakView = printRekamJejakView;
+
+    const session = getStoredSession();
+    if (!session) { clearSession(); window.location.replace('/pages/login/'); }
+    else if (window.PSAccess && !window.PSAccess.canAccessPage(session, '/pages/perkembanganSantri/')) { window.location.replace('/pages/accountProfile/'); }
+    else {
+      mountShell(session);
+      const absensiHalaqohButton = document.getElementById('absensiHalaqohButton');
+      const pengampuHalaqohOption = findPengampuHalaqohScopeOption(session);
+      if (pengampuHalaqohOption) {
+        absensiHalaqohButton.disabled = false;
+        absensiHalaqohButton.title = '';
+        absensiHalaqohButton.innerHTML = '<i class="fa-solid fa-clipboard-check"></i>&ensp;Absensi Halaqoh';
+        absensiHalaqohButton.addEventListener('click', () => {
+          if (window.PSAccess && typeof window.PSAccess.setRoleScope === 'function') {
+            window.PSAccess.setRoleScope(session, pengampuHalaqohOption.label);
+          }
+          window.location.href = '../halaqohAbsensi/';
+        });
+      } else {
+        const notPengampuMsg = 'Kamu bukan Pengampu Halaqoh dan tidak bisa mengisi absensi';
+        absensiHalaqohButton.disabled = true;
+        absensiHalaqohButton.title = notPengampuMsg;
+        absensiHalaqohButton.textContent = notPengampuMsg;
+      }
+      document.getElementById('refreshButton').addEventListener('click', async () => {
+        try { await loadRegu(); } catch (e) { showNotice(e.message || 'Gagal memuat ulang data.', 'error'); }
+      });
+      document.getElementById('fTa').addEventListener('change', function () { state.fTa = this.value; applyFilter(); });
+      document.getElementById('fSearch').addEventListener('input', function () { state.fSearch = this.value; applyFilter(); });
+      document.getElementById('fStatus').addEventListener('change', function () { state.fStatus = this.value; applyFilter(); });
+      document.getElementById('fSort').addEventListener('change', function () { state.fSort = this.value; applyFilter(); });
+      document.getElementById('fPageSize').addEventListener('change', function () { state.pageSize = parseInt(this.value, 10) || 12; state.page = 1; renderRegu(); });
+      document.getElementById('dlg').addEventListener('cancel', (e) => { e.preventDefault(); document.getElementById('dlg').close(); });
+      window.addEventListener('load', async () => {
+        await loadTemplates();
+        await loadRegu();
+        const openReguId = new URLSearchParams(location.search).get('openRegu');
+        if (openReguId) {
+          history.replaceState(null, '', location.pathname);
+          await openRegu(openReguId);
+        }
+      });
+    }
+    if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {}); }
+  </script>
+</body>
+</html>

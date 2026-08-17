@@ -1,0 +1,888 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#9e2f22">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="../../shared-ui.css">
+  <script src="../../shared-ui.js"></script>
+  <title>Pengaturan Portal</title>
+  <link rel="stylesheet" href="../../shared-shell.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700&display=swap');
+
+    * { box-sizing: border-box; }
+
+    body { margin: 0; }
+
+    .panel { padding: 22px; }
+
+    .grid { display: grid; gap: 18px; grid-template-columns: minmax(280px, 340px) minmax(0, 1fr); align-items: start; }
+
+    .preview-card { display: grid; place-items: center;}
+
+    .logo-stage { width: min(100%, 296px); aspect-ratio: 1; display: grid; place-items: center; padding: 20px; border-radius: 28px; border: 2px solid rgba(74, 47, 34, 0.12); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35); }
+
+    .brand-logo { width: min(100%, 220px); max-height: 220px; object-fit: contain; border-radius: 24px; }
+
+
+    .settings-form { display: grid; gap: 18px; }
+
+    .settings-section,
+    .settings-actions {
+      display: grid;
+      gap: 16px;
+      padding: 20px 22px;
+      background: rgba(255, 248, 230, 0.96);
+      border-radius: 20px;
+      border: 2px solid rgba(74, 47, 34, 0.12);
+      box-shadow: 0 2px 8px rgba(74, 47, 34, 0.07), inset 0 0 0 1px rgba(255, 255, 255, 0.45);
+      border-width: 3px;
+      border-style: solid;
+      border-color: #4b2c20;
+      border-radius: 24px;
+      box-shadow: 9px 15px 0 #4b2c20;
+    }
+
+    .section-divider { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; cursor: pointer; user-select: none; }
+
+    .section-divider:hover { opacity: 0.85; }
+
+    .section-divider-text { display: grid; gap: 6px; flex: 1; min-width: 0; }
+
+    .section-divider h3 { margin: 0; font-size: 28px; line-height: 1.05; }
+
+    .section-divider p { margin: 0; line-height: 1.6; }
+
+    .section-chevron { flex: 0 0 auto; font-size: 20px; line-height: 1; margin-top: 4px; color: rgba(74, 47, 34, 0.55); transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1); }
+
+    .settings-section.is-collapsed .section-chevron { transform: rotate(-90deg); }
+
+    .section-body { display: grid; grid-template-rows: 1fr; transition: grid-template-rows 0.3s ease; overflow: hidden; }
+
+    .section-body-inner { min-height: 0; display: grid; gap: 16px; padding-top: 4px; }
+
+    .settings-section.is-collapsed .section-body { grid-template-rows: 0fr; }
+    label { display: grid; gap: 8px; font-weight: 700; }
+
+    input,
+    textarea { width: 100%; min-height: 52px; padding: 12px 14px; font: inherit; }
+
+    input[type="file"] { padding: 10px 12px; }
+
+    textarea { min-height: 120px; resize: vertical; }
+
+    input:focus,
+    textarea:focus { outline: none; }
+
+    .selected-file { min-height: 18px; margin-top: -4px; font-size: 13px; font-weight: 700; color: rgba(74, 47, 34, 0.72); }
+
+    .carousel-slot-grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+
+    .carousel-slot { display: grid; gap: 12px; padding: 16px; border-radius: 22px; background: rgba(255, 248, 230, 0.96); border: 2px solid rgba(74, 47, 34, 0.12); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.45); }
+
+    .carousel-slot-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+
+    .carousel-slot-head strong { font-size: 15px; color: #24170f; }
+
+    .carousel-slot-preview { position: relative; aspect-ratio: 4 / 3; overflow: hidden; border-radius: 18px; background: linear-gradient(135deg, rgba(236, 218, 184, 0.96), rgba(214, 170, 97, 0.72)); border: 2px solid rgba(74, 47, 34, 0.12); }
+
+    .carousel-slot-preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+    .carousel-slot-empty { position: absolute; inset: 0; display: grid; place-items: center; padding: 18px; text-align: center; color: rgba(74, 47, 34, 0.72); font-size: 13px; font-weight: 700; line-height: 1.55; }
+
+    .carousel-slot-caption { position: absolute; inset: auto 0 0 0; padding: 12px 14px; background: linear-gradient(180deg, rgba(18, 12, 8, 0.02), rgba(18, 12, 8, 0.76)); color: #fff7eb; }
+
+    .carousel-slot-caption strong { display: block; font-size: 14px; line-height: 1.2; }
+
+    .carousel-slot-caption span { display: none; margin-top: 4px; font-size: 12px; line-height: 1.45; color: rgba(255, 247, 235, 0.84); }
+
+    .carousel-slot textarea { min-height: 96px; }
+
+    .carousel-slot .selected-file { margin-top: 0; min-height: 16px; }
+
+    .toolbar { display: flex; gap: 12px; flex-wrap: wrap; }
+
+    button, .btn { font-weight: 800 !important; text-transform: uppercase; font-family: 'Poppins', sans-serif; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; min-height: 46px; padding: 0 18px; border: 2px solid #4a2f22; border-radius: 14px; font-weight: 800; text-decoration: none; box-shadow: 4px 4px 0 #4a2f22; cursor: pointer; }
+
+    .notice { padding: 14px 16px; line-height: 1.55; }
+    .notice.show { display: block; }
+
+    @media (max-width: 900px) {
+      .grid { grid-template-columns: 1fr; }
+
+    /* .preview-card { order: 2; } */
+
+      .form-card { order: 1; }
+    }
+  </style>
+</head>
+<body>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+  <main>
+    <section class="panel">
+      <div id="nav"></div>
+    </section>
+    <section class="grid">
+      <article class="panel preview-card">
+        <div class="logo-stage">
+          <img class="brand-logo" id="previewLogo" src="../../icons/icon-192.svg" alt="Logo Pendataan Santri">
+        </div>
+      </article>
+      <section class="panel form-card">
+        <form class="settings-form" id="form">
+          <section class="settings-section">
+            <div class="section-divider">
+              <h3>Profil Organisasi</h3>
+              <p>Isi identitas utama portal yang akan tampil di beranda dan navigasi publik.</p>
+            </div>
+            <label>
+              Nama organisasi
+              <input type="text" name="organization_name" maxlength="120" required placeholder="Contoh: Pondok Pesantren Al Falah">
+            </label>
+            <label>
+              Tagline organisasi
+              <input type="text" name="organization_tagline" maxlength="180" placeholder="Contoh: Pendidikan, adab, dan pembinaan yang terarah">
+            </label>
+            <label>
+              Deskripsi organisasi
+              <textarea name="organization_description" maxlength="2400" placeholder="Tulis profil singkat organisasi yang ingin ditampilkan di halaman depan portal."></textarea>
+            </label>
+            <label>
+              Alamat organisasi
+              <input type="text" name="organization_address" maxlength="240" placeholder="Contoh: Jl. Raya Pesantren No. 10, Kudus">
+            </label>
+            <label>
+              Kontak organisasi
+              <input type="text" name="organization_contact" maxlength="180" placeholder="Contoh: 0812-3456-7890 | admin@contoh.id">
+            </label>
+            <label>
+              Upload logo
+              <input type="file" id="logoFileInput" name="logo_file" accept="image/png,image/jpeg,image/webp,image/gif">
+              <span style="font-size:12px;font-weight:400;opacity:0.6;margin-top:2px;">Disarankan PNG persegi minimal 512×512px agar ikon PWA tampil optimal.</span>
+            </label>
+            <div class="selected-file" id="selectedFileName"></div>
+          </section>
+          <section class="settings-section">
+            <div class="section-divider">
+              <h3>Penerimaan Santri Baru</h3>
+              <p>Panel pendaftaran yang muncul di beranda. Aktifkan untuk menampilkan formulir minat calon santri.</p>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <input type="checkbox" id="enrollmentEnabledCheck" name="enrollment_enabled" style="width:18px;height:18px;accent-color:#4b2c20;flex:0 0 auto;cursor:pointer;">
+              <label for="enrollmentEnabledCheck" style="font-weight:700;cursor:pointer;margin:0;">Tampilkan panel penerimaan santri di beranda</label>
+            </div>
+            <label>
+              Tahun ajaran
+              <input type="text" name="enrollment_academic_year" maxlength="20" placeholder="Contoh: 2025/2026">
+            </label>
+            <label>
+              Bulan mulai tahun ajaran
+              <input type="text" name="enrollment_start_month" maxlength="30" placeholder="Contoh: Juli">
+            </label>
+            <label>
+              Deskripsi pendaftaran
+              <textarea name="enrollment_description" maxlength="400" placeholder="Contoh: Daftarkan putra-putri Anda dan mulailah perjalanan menuntut ilmu yang penuh berkah."></textarea>
+            </label>
+            <label>
+              Nomor WhatsApp admin (untuk tombol Daftar Sekarang)
+              <input type="text" name="enrollment_admin_contact" maxlength="30" placeholder="Contoh: 6281234567890 (tanpa + atau spasi)">
+            </label>
+          </section>
+          <section class="settings-section">
+            <div class="section-divider">
+              <h3>Galeri Landing Page</h3>
+              <p>Tambahkan beberapa foto kegiatan untuk carousel di beranda. Setiap slide bisa punya judul dan keterangan singkat.</p>
+            </div>
+            <div class="toolbar" style="margin-bottom:14px;">
+              <button class="btn" id="addSlotButton" type="button">Tambah Slide</button>
+              <button class="btn" id="removeSlotButton" type="button">Hapus Slide Terakhir</button>
+              <span id="slotCountLabel" style="font-size:13px;font-weight:700;padding:0 4px;"></span>
+            </div>
+            <div class="carousel-slot-grid" id="carouselSlotGrid"></div>
+          </section>
+          <section class="settings-actions">
+            <div class="section-divider">
+              <h3>Aksi</h3>
+              <p>Simpan perubahan setelah semua isi dan preview sesuai.</p>
+            </div>
+            <div class="toolbar">
+              <button class="btn primary" type="submit">Simpan perubahan</button>
+              <button class="btn" id="reloadButton" type="button">Muat ulang</button>
+              <button class="btn" id="defaultButton" type="button">Pakai default</button>
+            </div>
+          </section>
+        </form>
+      </section>
+    </section>
+  </main>
+
+  <script src="../../shared-access.js"></script>
+  <script src="../../shared-nav.js"></script>
+  <script src="../../shared-shell.js"></script>
+  <script>
+    const API_BASE = window.location.origin + '/api';
+    const STORAGE = { apiBase: 'ps_api_base', token: 'ps_token', session: 'ps_session' };
+    const DEFAULT_BRAND = {
+      organizationName: 'Pendataan Santri',
+      logoUrl: '/icons/icon-192.svg',
+      organizationTagline: '',
+      organizationDescription: '',
+      organizationAddress: '',
+      organizationContact: '',
+      carouselItems: [],
+      enrollmentEnabled: false,
+      enrollmentAcademicYear: '',
+      enrollmentStartMonth: 'Juli',
+      enrollmentAdminContact: '',
+      enrollmentDescription: 'Daftarkan putra-putri Anda dan mulailah perjalanan menuntut ilmu yang penuh berkah.'
+    };
+    const MAX_LOGO_BYTES = 5 * 1024 * 1024;
+    const ALLOWED_LOGO_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp', 'gif'];
+    let slotCount = 4;
+
+    const state = {
+      brand: normalizeBrand(DEFAULT_BRAND),
+      pendingUpload: null,
+      useDefaultLogo: false,
+      carouselSlots: createEmptyCarouselSlotState()
+    };
+
+    localStorage.setItem(STORAGE.apiBase, API_BASE);
+
+    let noticeId = '';
+    let noticeCounter = 0;
+
+    function getToken() {
+      return localStorage.getItem(STORAGE.token) || '';
+    }
+
+    function clearSession() {
+      localStorage.removeItem(STORAGE.token);
+      localStorage.removeItem(STORAGE.session);
+    }
+
+    function getStoredSession() {
+      try {
+        return JSON.parse(localStorage.getItem(STORAGE.session) || 'null');
+      } catch (error) {
+        return null;
+      }
+    }
+
+    function createNotice(text, type) {
+      const element = document.createElement('div');
+      element.className = `notice show ${type || ''}`.trim();
+      element.dataset.noticeId = `notice-${Date.now()}-${noticeCounter += 1}`;
+      element.textContent = text;
+      function dismiss() {
+        if (!element.parentNode) return;
+        element.classList.add('notice-dismissing');
+        window.setTimeout(() => {
+          element.remove();
+          const stack = document.getElementById('noticeStack');
+          if (stack && !stack.hasChildNodes() && stack.matches(':popover-open')) stack.hidePopover();
+        }, 220);
+      }
+      element.addEventListener('click', dismiss);
+      window.setTimeout(dismiss, type === 'error' ? 10000 : 6000);
+      return element;
+    }
+
+    function showNotice(text, type) {
+      if (noticeId) {
+        const existing = document.querySelector(`[data-notice-id="${noticeId}"]`);
+        if (existing) existing.remove();
+      }
+      const element = createNotice(text, type);
+      const stack = document.getElementById('noticeStack');
+      stack.prepend(element);
+      noticeId = element.dataset.noticeId;
+      if (stack.matches(':popover-open')) stack.hidePopover();
+      stack.showPopover();
+    }
+
+    function clearNotice() {
+      if (!noticeId) return;
+      const existing = document.querySelector(`[data-notice-id="${noticeId}"]`);
+      if (existing) existing.remove();
+      noticeId = '';
+    }
+
+    function toParams(data) {
+      const params = new URLSearchParams();
+      Object.entries(data).forEach(([key, value]) => {
+        if (value === undefined || value === null) return;
+        params.append(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
+      });
+      return params;
+    }
+
+    async function api(action, payload = {}, method = 'GET') {
+      const token = getToken();
+      if (!token) {
+        clearSession();
+        window.location.replace('/pages/login/');
+        throw new Error('Sesi tidak ditemukan.');
+      }
+      const response = method === 'GET'
+        ? await fetch(`${API_BASE}?${toParams({ action, token, ...payload }).toString()}`)
+        : await fetch(API_BASE, { method, body: toParams({ action, token, ...payload }) });
+      const json = await response.json();
+      if (!json.ok) {
+        const error = new Error(json.error?.message ? `Server mengatakan: ${json.error.message}` : 'Permintaan gagal.');
+        error.code = json.error?.code || response.status || 500;
+        if (error.code === 401) {
+          clearSession();
+          window.location.replace('/pages/login/');
+        }
+        throw error;
+      }
+      return json.data;
+    }
+
+    function mountShell(session) {
+      return window.PSShell.mount({
+        currentPage: window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : '/pages/portalSettings/',
+        session,
+        getStoredSession,
+        storageKey: STORAGE.session
+      });
+    }
+
+    function normalizeBrand(brand) {
+      return {
+        organizationName: String(brand && brand.organizationName ? brand.organizationName : DEFAULT_BRAND.organizationName).trim() || DEFAULT_BRAND.organizationName,
+        logoUrl: resolveAssetUrl(String(brand && brand.logoUrl ? brand.logoUrl : DEFAULT_BRAND.logoUrl).trim() || DEFAULT_BRAND.logoUrl),
+        organizationTagline: String(brand && brand.organizationTagline ? brand.organizationTagline : DEFAULT_BRAND.organizationTagline).trim(),
+        organizationDescription: String(brand && brand.organizationDescription ? brand.organizationDescription : DEFAULT_BRAND.organizationDescription).trim(),
+        organizationAddress: String(brand && brand.organizationAddress ? brand.organizationAddress : DEFAULT_BRAND.organizationAddress).trim(),
+        organizationContact: String(brand && brand.organizationContact ? brand.organizationContact : DEFAULT_BRAND.organizationContact).trim(),
+        carouselItems: normalizeCarouselItems(brand && brand.carouselItems),
+        enrollmentEnabled: !!(brand && brand.enrollmentEnabled),
+        enrollmentAcademicYear: String(brand && brand.enrollmentAcademicYear ? brand.enrollmentAcademicYear : DEFAULT_BRAND.enrollmentAcademicYear).trim(),
+        enrollmentStartMonth: String(brand && brand.enrollmentStartMonth ? brand.enrollmentStartMonth : DEFAULT_BRAND.enrollmentStartMonth).trim() || DEFAULT_BRAND.enrollmentStartMonth,
+        enrollmentAdminContact: String(brand && brand.enrollmentAdminContact ? brand.enrollmentAdminContact : DEFAULT_BRAND.enrollmentAdminContact).trim(),
+        enrollmentDescription: String(brand && brand.enrollmentDescription ? brand.enrollmentDescription : DEFAULT_BRAND.enrollmentDescription).trim() || DEFAULT_BRAND.enrollmentDescription
+      };
+    }
+
+    function resolveAssetUrl(url) {
+      if (!url) return '';
+      const s = String(url);
+      if (s.startsWith('data:') || s.startsWith('http://') || s.startsWith('https://') || s.startsWith('/')) return s;
+      return '/' + s;
+    }
+
+    function normalizeCarouselItems(items) {
+      return (Array.isArray(items) ? items : []).map(item => ({
+        imageUrl: resolveAssetUrl(String(item && item.imageUrl ? item.imageUrl : '').trim()),
+        title: String(item && item.title ? item.title : '').trim(),
+        description: String(item && item.description ? item.description : '').trim()
+      })).filter(item => item.imageUrl).slice(0, slotCount);
+    }
+
+    function createEmptyCarouselSlotState() {
+      return Array.from({ length: slotCount }, () => ({
+        pendingUpload: null,
+        clearImage: false
+      }));
+    }
+
+    function getCarouselItemFieldName(key, index) {
+      return `landing_carousel_${key}_${index}`;
+    }
+
+    function getExistingCarouselItem(index) {
+      return state.brand.carouselItems[index] || { imageUrl: '', title: '', description: '' };
+    }
+
+    function getCarouselSlotState(index) {
+      return state.carouselSlots[index] || { pendingUpload: null, clearImage: false };
+    }
+
+    function getFormElements() {
+      return document.getElementById('form').elements;
+    }
+
+    function initCollapsibleSections() {
+      document.querySelectorAll('.settings-section').forEach(function(section) {
+        var divider = section.querySelector(':scope > .section-divider');
+        if (!divider) return;
+
+        var textWrapper = document.createElement('div');
+        textWrapper.className = 'section-divider-text';
+        Array.from(divider.children).forEach(function(child) { textWrapper.appendChild(child); });
+        divider.appendChild(textWrapper);
+
+        var chevron = document.createElement('span');
+        chevron.className = 'section-chevron';
+        chevron.textContent = '▾';
+        divider.appendChild(chevron);
+
+        var body = document.createElement('div');
+        body.className = 'section-body';
+        var inner = document.createElement('div');
+        inner.className = 'section-body-inner';
+        body.appendChild(inner);
+        Array.from(section.children).forEach(function(child) {
+          if (child !== divider) inner.appendChild(child);
+        });
+        section.appendChild(body);
+
+        section.classList.add('is-collapsed');
+
+        divider.addEventListener('click', function() {
+          section.classList.toggle('is-collapsed');
+        });
+      });
+    }
+
+    function buildCarouselSlotHtml(index) {
+      return `
+        <article class="carousel-slot" data-carousel-slot="${index}">
+          <div class="carousel-slot-head">
+            <strong>Slide ${index + 1}</strong>
+          </div>
+          <div class="carousel-slot-preview">
+            <img data-carousel-preview-image="${index}" hidden>
+            <div class="carousel-slot-empty" data-carousel-preview-empty="${index}"></div>
+            <div class="carousel-slot-caption" data-carousel-preview-caption="${index}" hidden>
+              <strong data-carousel-preview-title="${index}">Slide ${index + 1}</strong>
+              <span data-carousel-preview-description="${index}">Tambahkan judul dan keterangan agar slide terasa lebih hidup.</span>
+            </div>
+          </div>
+          <label>
+            Upload foto slide
+            <input type="file" data-carousel-file="${index}" accept="image/png,image/jpeg,image/webp,image/gif">
+          </label>
+          <div class="selected-file" data-carousel-file-name="${index}"></div>
+          <label>
+            Judul slide
+            <input type="text" name="${getCarouselItemFieldName('title', index)}" maxlength="90" placeholder="Contoh: Kegiatan Santri">
+          </label>
+          <label>
+            Keterangan slide
+            <textarea name="${getCarouselItemFieldName('description', index)}" maxlength="240" placeholder="Tulis ringkasan singkat untuk melengkapi foto ini."></textarea>
+          </label>
+          <div class="toolbar">
+            <button class="btn" type="button" data-carousel-clear="${index}">Kosongkan slide</button>
+          </div>
+        </article>
+      `;
+    }
+
+    function renderCarouselSlotGrid() {
+      const grid = document.getElementById('carouselSlotGrid');
+      if (!grid) return;
+      grid.innerHTML = Array.from({ length: slotCount }, (_, index) => buildCarouselSlotHtml(index)).join('');
+    }
+
+    function updateSelectedFileName() {
+      const target = document.getElementById('selectedFileName');
+      target.textContent = state.pendingUpload ? state.pendingUpload.fileName : '';
+    }
+
+    function updateCarouselSelectedFileNames() {
+      state.carouselSlots.forEach((slot, index) => {
+        const target = document.querySelector(`[data-carousel-file-name="${index}"]`);
+        if (!target) return;
+        target.textContent = slot.pendingUpload ? slot.pendingUpload.fileName : (slot.clearImage ? 'Slide ini akan dikosongkan saat disimpan.' : '');
+      });
+    }
+
+    function getEffectiveCarouselItem(index) {
+      const fields = getFormElements();
+      const title = fields.namedItem(getCarouselItemFieldName('title', index))?.value.trim() || '';
+      const description = fields.namedItem(getCarouselItemFieldName('description', index))?.value.trim() || '';
+      const existingItem = getExistingCarouselItem(index);
+      const slotState = getCarouselSlotState(index);
+      const imageUrl = slotState.pendingUpload
+        ? slotState.pendingUpload.dataUrl
+        : (slotState.clearImage ? '' : existingItem.imageUrl);
+      return { imageUrl, title, description };
+    }
+
+    function getEffectiveCarouselItems() {
+      return Array.from({ length: slotCount }, (_, index) => getEffectiveCarouselItem(index))
+        .filter(item => item.imageUrl);
+    }
+
+    function syncCarouselSlotPreviews() {
+      Array.from({ length: slotCount }, (_, index) => index).forEach(index => {
+        const item = getEffectiveCarouselItem(index);
+        const image = document.querySelector(`[data-carousel-preview-image="${index}"]`);
+        const empty = document.querySelector(`[data-carousel-preview-empty="${index}"]`);
+        const caption = document.querySelector(`[data-carousel-preview-caption="${index}"]`);
+        const title = document.querySelector(`[data-carousel-preview-title="${index}"]`);
+        const description = document.querySelector(`[data-carousel-preview-description="${index}"]`);
+        if (!image || !empty || !caption || !title || !description) return;
+        const hasImage = !!item.imageUrl;
+        image.hidden = !hasImage;
+        empty.hidden = hasImage;
+        caption.hidden = !hasImage;
+        if (hasImage) {
+          image.src = resolveAssetUrl(item.imageUrl);
+          image.alt = item.title ? `Preview ${item.title}` : `Preview slide ${index + 1}`;
+        } else {
+          image.removeAttribute('src');
+        }
+        title.textContent = item.title || `Slide ${index + 1}`;
+        description.textContent = item.description || 'Tambahkan judul dan keterangan agar slide terasa lebih hidup.';
+      });
+      updateCarouselSelectedFileNames();
+    }
+
+    function getEffectiveBrandForPreview() {
+      const fields = getFormElements();
+      return normalizeBrand({
+        organizationName: fields.namedItem('organization_name').value,
+        organizationTagline: fields.namedItem('organization_tagline').value,
+        organizationDescription: fields.namedItem('organization_description').value,
+        organizationAddress: fields.namedItem('organization_address').value,
+        organizationContact: fields.namedItem('organization_contact').value,
+        carouselItems: getEffectiveCarouselItems(),
+        enrollmentEnabled: !!(document.getElementById('enrollmentEnabledCheck') && document.getElementById('enrollmentEnabledCheck').checked),
+        enrollmentAcademicYear: fields.namedItem('enrollment_academic_year').value,
+        enrollmentStartMonth: fields.namedItem('enrollment_start_month').value,
+        enrollmentAdminContact: fields.namedItem('enrollment_admin_contact').value,
+        enrollmentDescription: fields.namedItem('enrollment_description').value,
+        logoUrl: state.pendingUpload
+          ? state.pendingUpload.dataUrl
+          : (state.useDefaultLogo ? DEFAULT_BRAND.logoUrl : state.brand.logoUrl)
+      });
+    }
+
+    function syncPreview() {
+      const previewLogo = document.getElementById('previewLogo');
+      const previewBrand = getEffectiveBrandForPreview();
+
+      previewLogo.alt = `Logo ${previewBrand.organizationName}`;
+      previewLogo.onerror = () => {
+        if (previewLogo.src.indexOf(DEFAULT_BRAND.logoUrl) !== -1) return;
+        previewLogo.src = DEFAULT_BRAND.logoUrl;
+      };
+      previewLogo.src = previewBrand.logoUrl;
+      syncCarouselSlotPreviews();
+
+      if (window.PSShell && typeof window.PSShell.applyPortalBrand === 'function') {
+        window.PSShell.applyPortalBrand(previewBrand);
+      }
+
+      document.title = `${previewBrand.organizationName} | Pengaturan Portal`;
+    }
+
+    function fillForm(brand) {
+      const normalized = normalizeBrand(brand);
+      const fields = getFormElements();
+
+      state.brand = normalized;
+      state.pendingUpload = null;
+      state.useDefaultLogo = false;
+      state.carouselSlots = createEmptyCarouselSlotState();
+
+      fields.namedItem('organization_name').value = normalized.organizationName;
+      fields.namedItem('organization_tagline').value = normalized.organizationTagline;
+      fields.namedItem('organization_description').value = normalized.organizationDescription;
+      fields.namedItem('organization_address').value = normalized.organizationAddress;
+      fields.namedItem('organization_contact').value = normalized.organizationContact;
+      const enrollmentCheck = document.getElementById('enrollmentEnabledCheck');
+      if (enrollmentCheck) enrollmentCheck.checked = !!normalized.enrollmentEnabled;
+      fields.namedItem('enrollment_academic_year').value = normalized.enrollmentAcademicYear;
+      fields.namedItem('enrollment_start_month').value = normalized.enrollmentStartMonth;
+      fields.namedItem('enrollment_admin_contact').value = normalized.enrollmentAdminContact;
+      fields.namedItem('enrollment_description').value = normalized.enrollmentDescription;
+      const newCount = Math.max(1, normalized.carouselItems.length);
+      if (newCount !== slotCount) {
+        slotCount = newCount;
+        state.carouselSlots = createEmptyCarouselSlotState();
+        renderCarouselSlotGrid();
+      }
+      updateSlotCountLabel();
+      Array.from({ length: slotCount }, (_, index) => index).forEach(index => {
+        const item = normalized.carouselItems[index] || { title: '', description: '' };
+        const titleField = fields.namedItem(getCarouselItemFieldName('title', index));
+        const descriptionField = fields.namedItem(getCarouselItemFieldName('description', index));
+        const fileField = document.querySelector(`[data-carousel-file="${index}"]`);
+        if (titleField) titleField.value = item.title || '';
+        if (descriptionField) descriptionField.value = item.description || '';
+        if (fileField) fileField.value = '';
+      });
+      document.getElementById('logoFileInput').value = '';
+      updateSelectedFileName();
+      syncPreview();
+    }
+
+    function readFileAsDataUrl(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onerror = () => reject(new Error('Gagal membaca file logo.'));
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function isAllowedLogoFile(file) {
+      const fileName = String(file && file.name ? file.name : '').toLowerCase();
+      const extension = fileName.split('.').pop();
+      const type = String(file && file.type ? file.type : '').toLowerCase();
+      return /^image\/(png|jpeg|webp|gif)$/.test(type) || ALLOWED_LOGO_EXTENSIONS.indexOf(extension) !== -1;
+    }
+
+    async function handleLogoFileChange(event) {
+      const input = event.currentTarget;
+      const file = input.files && input.files[0] ? input.files[0] : null;
+
+      if (!file) {
+        state.pendingUpload = null;
+        updateSelectedFileName();
+        syncPreview();
+        return;
+      }
+
+      if (!isAllowedLogoFile(file)) {
+        input.value = '';
+        state.pendingUpload = null;
+        updateSelectedFileName();
+        syncPreview();
+        showNotice('Logo harus berupa PNG, JPG, WEBP, atau GIF.', 'error');
+        return;
+      }
+
+      if (file.size > MAX_LOGO_BYTES) {
+        input.value = '';
+        state.pendingUpload = null;
+        updateSelectedFileName();
+        syncPreview();
+        showNotice('Ukuran logo maksimal 5 MB.', 'error');
+        return;
+      }
+
+      try {
+        state.pendingUpload = {
+          fileName: file.name,
+          fileType: file.type,
+          dataUrl: await readFileAsDataUrl(file)
+        };
+        state.useDefaultLogo = false;
+        updateSelectedFileName();
+        syncPreview();
+      } catch (error) {
+        input.value = '';
+        state.pendingUpload = null;
+        updateSelectedFileName();
+        syncPreview();
+        showNotice(error.message || 'Gagal membaca file logo.', 'error');
+      }
+    }
+
+    async function handleCarouselFileChange(event) {
+      const input = event.currentTarget;
+      const index = Number(input.dataset.carouselFile);
+      if (!Number.isInteger(index) || index < 0 || index >= slotCount) return;
+      const file = input.files && input.files[0] ? input.files[0] : null;
+      if (!file) {
+        state.carouselSlots[index].pendingUpload = null;
+        syncPreview();
+        return;
+      }
+      if (!isAllowedLogoFile(file)) {
+        input.value = '';
+        state.carouselSlots[index].pendingUpload = null;
+        syncPreview();
+        showNotice('Foto slide harus berupa PNG, JPG, WEBP, atau GIF.', 'error');
+        return;
+      }
+      if (file.size > MAX_LOGO_BYTES) {
+        input.value = '';
+        state.carouselSlots[index].pendingUpload = null;
+        syncPreview();
+        showNotice('Ukuran foto slide maksimal 5 MB.', 'error');
+        return;
+      }
+      try {
+        state.carouselSlots[index].pendingUpload = {
+          fileName: file.name,
+          fileType: file.type,
+          dataUrl: await readFileAsDataUrl(file)
+        };
+        state.carouselSlots[index].clearImage = false;
+        syncPreview();
+      } catch (error) {
+        input.value = '';
+        state.carouselSlots[index].pendingUpload = null;
+        syncPreview();
+        showNotice(error.message || 'Gagal membaca file foto slide.', 'error');
+      }
+    }
+
+    function updateSlotCountLabel() {
+      const label = document.getElementById('slotCountLabel');
+      if (label) label.textContent = `${slotCount} slide`;
+    }
+
+    function addCarouselSlot() {
+      if (slotCount >= 100) { showNotice('Maksimal 100 slide.', 'error'); return; }
+      const index = slotCount;
+      slotCount++;
+      state.carouselSlots.push({ pendingUpload: null, clearImage: false });
+      const grid = document.getElementById('carouselSlotGrid');
+      if (grid) {
+        const temp = document.createElement('div');
+        temp.innerHTML = buildCarouselSlotHtml(index);
+        grid.appendChild(temp.firstElementChild);
+      }
+      updateSlotCountLabel();
+    }
+
+    function removeCarouselSlot() {
+      if (slotCount <= 1) { showNotice('Minimal 1 slide.', 'error'); return; }
+      slotCount--;
+      state.carouselSlots.pop();
+      const grid = document.getElementById('carouselSlotGrid');
+      if (grid && grid.lastElementChild) grid.lastElementChild.remove();
+      updateSlotCountLabel();
+    }
+
+    function clearCarouselSlot(index) {
+      if (!Number.isInteger(index) || index < 0 || index >= slotCount) return;
+      const fields = getFormElements();
+      const titleField = fields.namedItem(getCarouselItemFieldName('title', index));
+      const descriptionField = fields.namedItem(getCarouselItemFieldName('description', index));
+      const fileField = document.querySelector(`[data-carousel-file="${index}"]`);
+      if (titleField) titleField.value = '';
+      if (descriptionField) descriptionField.value = '';
+      if (fileField) fileField.value = '';
+      state.carouselSlots[index].pendingUpload = null;
+      state.carouselSlots[index].clearImage = true;
+      syncPreview();
+    }
+
+    async function loadBrand() {
+      clearNotice();
+      showNotice('Memuat pengaturan portal...', '');
+      try {
+        const data = await api('portal.brand.get');
+        fillForm(data.brand || DEFAULT_BRAND);
+        clearNotice();
+      } catch (error) {
+        showNotice(error.message || 'Gagal memuat pengaturan portal.', 'error');
+      }
+    }
+
+    async function saveForm(event) {
+      event.preventDefault();
+      const fields = event.currentTarget.elements;
+      const record = {
+        organization_name: fields.namedItem('organization_name').value.trim(),
+        organization_tagline: fields.namedItem('organization_tagline').value.trim(),
+        organization_description: fields.namedItem('organization_description').value.trim(),
+        organization_address: fields.namedItem('organization_address').value.trim(),
+        organization_contact: fields.namedItem('organization_contact').value.trim(),
+        enrollment_enabled: !!(document.getElementById('enrollmentEnabledCheck') && document.getElementById('enrollmentEnabledCheck').checked),
+        enrollment_academic_year: fields.namedItem('enrollment_academic_year').value.trim(),
+        enrollment_start_month: fields.namedItem('enrollment_start_month').value.trim(),
+        enrollment_admin_contact: fields.namedItem('enrollment_admin_contact').value.trim(),
+        enrollment_description: fields.namedItem('enrollment_description').value.trim(),
+        carousel_items: Array.from({ length: slotCount }, (_, index) => {
+          const existingItem = getExistingCarouselItem(index);
+          const slotState = getCarouselSlotState(index);
+          const item = {
+            title: fields.namedItem(getCarouselItemFieldName('title', index))?.value.trim() || '',
+            description: fields.namedItem(getCarouselItemFieldName('description', index))?.value.trim() || ''
+          };
+          if (slotState.pendingUpload) {
+            item.image_file_name = slotState.pendingUpload.fileName;
+            item.image_file_type = slotState.pendingUpload.fileType;
+            item.image_file_data_url = slotState.pendingUpload.dataUrl;
+          } else if (!slotState.clearImage && existingItem.imageUrl) {
+            item.image_url = existingItem.imageUrl;
+          }
+          if (slotState.clearImage) {
+            item.remove_image = true;
+          }
+          return item;
+        })
+      };
+
+      if (state.useDefaultLogo) {
+        record.use_default_logo = true;
+      }
+
+      if (state.pendingUpload) {
+        record.logo_file_name = state.pendingUpload.fileName;
+        record.logo_file_type = state.pendingUpload.fileType;
+        record.logo_file_data_url = state.pendingUpload.dataUrl;
+      }
+
+      const submitBtn = event.currentTarget.querySelector('[type="submit"]');
+      if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Menyimpan...'; }
+
+      try {
+        const data = await api('portal.brand.save', { record }, 'POST');
+        fillForm(data.brand || DEFAULT_BRAND);
+        if (window.PSUI && window.PSUI.showNotice) {
+          window.PSUI.showNotice(data.message || 'Pengaturan portal berhasil disimpan.', 'success');
+        } else {
+          showNotice(data.message || 'Pengaturan portal berhasil disimpan.', 'success');
+        }
+      } catch (error) {
+        if (window.PSUI && window.PSUI.showNotice) {
+          window.PSUI.showNotice(error.message || 'Gagal menyimpan pengaturan portal.', 'error');
+        } else {
+          showNotice(error.message || 'Gagal menyimpan pengaturan portal.', 'error');
+        }
+      } finally {
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Simpan perubahan'; }
+      }
+    }
+
+    function useDefaultLogo() {
+      state.pendingUpload = null;
+      state.useDefaultLogo = true;
+      document.getElementById('logoFileInput').value = '';
+      updateSelectedFileName();
+      syncPreview();
+    }
+
+    const session = getStoredSession();
+    if (!session) {
+      clearSession();
+      window.location.replace('/pages/login/');
+    } else if (window.PSAccess && window.PSAccess.redirectIfForbidden(session, '/pages/portalSettings/')) {
+      // redirected
+    } else {
+      renderCarouselSlotGrid();
+      updateSlotCountLabel();
+      initCollapsibleSections();
+      mountShell(session);
+      document.getElementById('form').addEventListener('submit', saveForm);
+      document.getElementById('form').addEventListener('input', syncPreview);
+      document.getElementById('logoFileInput').addEventListener('change', handleLogoFileChange);
+      document.getElementById('carouselSlotGrid').addEventListener('change', event => {
+        const input = event.target.closest('[data-carousel-file]');
+        if (input) {
+          handleCarouselFileChange({ currentTarget: input });
+        }
+      });
+      document.getElementById('carouselSlotGrid').addEventListener('click', event => {
+        const button = event.target.closest('[data-carousel-clear]');
+        if (!button) return;
+        clearCarouselSlot(Number(button.dataset.carouselClear));
+      });
+      document.getElementById('addSlotButton').addEventListener('click', addCarouselSlot);
+      document.getElementById('removeSlotButton').addEventListener('click', removeCarouselSlot);
+      document.getElementById('reloadButton').addEventListener('click', loadBrand);
+      document.getElementById('defaultButton').addEventListener('click', useDefaultLogo);
+      window.addEventListener('load', loadBrand);
+    }
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
+    }
+  </script>
+</body>
+</html>

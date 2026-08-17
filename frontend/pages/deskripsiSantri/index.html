@@ -1,0 +1,349 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#9e2f22">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="../../shared-ui.css">
+  <link rel="stylesheet" href="../../shared-shell.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+  <script src="../../shared-ui.js"></script>
+  <title>Deskripsi Raport</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700&display=swap');
+    :root { --paper:#f6efe0; --ink:#4d4034; --muted:#7b6a58; --line:rgba(91,73,57,0.15); --accent:#b97650; --success:#74846c; --danger:#a55a52; --warning:#b58439; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; }
+    .panel { padding: 22px; }
+    h1,h2,h3 { margin: 0 0 10px; }
+    p { margin: 0; line-height: 1.6; }
+    button, input, select, textarea { font: inherit; }
+    label { display: grid; gap: 6px; font-size: 13px; font-weight: 600; }
+    .ctl { padding: 10px 14px; border-radius: 14px; border: 1.5px solid var(--line); background: rgba(255,255,255,0.7); font-weight: 600; color: var(--ink); outline: none; }
+    .ctl:focus { border-color: var(--accent); }
+    textarea.ctl { width: 100%; min-height: 130px; resize: vertical; font-weight: 500; }
+    .regu-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 14px; margin-top: 16px; }
+    .regu-card { display: flex; flex-direction: column; gap: 10px; padding: 16px; border: 1px solid var(--line); border-radius: 18px; background: rgba(255,251,243,0.7); }
+    .meta { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; background: var(--line); color: var(--ink); }
+    .chip.gender { background: rgba(116,132,108,0.16); color: var(--success); }
+    .chip.filled { background: rgba(116,132,108,0.18); color: var(--success); }
+    .empty-state { text-align: center; padding: 40px 16px; color: var(--muted); }
+    .empty-state i { font-size: 32px; opacity: 0.4; }
+    dialog { width: min(680px, 96vw); }
+    .dlg-shell { display: flex; flex-direction: column; }
+    .eyebrow { font-size: 11px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+    .srow { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 14px; background: rgba(255,251,243,0.7); margin-bottom: 8px; cursor: pointer; }
+    .srow:hover { border-color: var(--accent); }
+    .srow .nm { flex: 1; min-width: 0; }
+    .srow .nm strong { display: block; font-size: 14px; }
+    .srow .nm small { color: var(--muted); font-size: 11px; }
+    .tpl-row { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; background: rgba(255,251,243,0.7); }
+    .tpl-row .th { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .tpl-row .th strong { font-size: 14px; }
+    .tpl-row .tb { font-size: 12px; color: var(--muted); margin-top: 4px; white-space: pre-wrap; max-height: 60px; overflow: hidden; }
+    .ico-btn { background: none; border: none; cursor: pointer; padding: 4px 6px; border-radius: 8px; color: var(--muted); }
+    .ico-btn:hover { color: var(--accent); }
+    .ico-btn.del:hover { color: var(--danger); }
+    .sd-foot { display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+    .sd-notice { display: none; margin-top: 10px; padding: 10px 14px; border-radius: 10px; font-size: 13px; }
+    .minimal-list-card.row-male            { background: #ddeeff; border-color: rgba(70,130,180,0.25); }
+    .minimal-list-card.row-female          { background: #ffe4f0; border-color: rgba(200,100,140,0.25); }
+    .minimal-list-card.row-male-inactive   { background: linear-gradient(135deg, #888 0%, #cce6ff 100%); border-color: rgba(70,130,180,0.25); }
+    .minimal-list-card.row-female-inactive { background: linear-gradient(135deg, #888 0%, #ffd6e8 100%); border-color: rgba(200,100,140,0.25); }
+    .minimal-list-card.row-male-frozen     { background: linear-gradient(135deg, #d0d0d0 0%, #cce6ff 100%); border-color: rgba(70,130,180,0.25); }
+    .minimal-list-card.row-female-frozen   { background: linear-gradient(135deg, #d0d0d0 0%, #ffd6e8 100%); border-color: rgba(200,100,140,0.25); }
+    .minimal-list-card.row-nogender-inactive { background: linear-gradient(135deg, #888 0%, rgba(255,248,230,0.96) 100%); }
+    .minimal-list-card.row-nogender-frozen   { background: linear-gradient(135deg, #d0d0d0 0%, rgba(255,248,230,0.96) 100%); }
+  </style>
+</head>
+<body>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+  <main>
+    <div class="app-layout">
+      <section class="panel nav" id="nav"></section>
+      <div class="content-stack">
+        <section class="panel">
+          <h1 style="font-family:'Playfair Display',serif;font-size:1.9rem;">Deskripsi Raport</h1>
+          <p style="color:var(--muted);font-size:14px;">Tulis deskripsi/nasehat raport santri per regu per semester. Gunakan template agar tidak bingung menulis.</p>
+          <div style="margin-top:14px;display:flex;flex-wrap:wrap;gap:12px;align-items:end;">
+            <label>Tahun Ajaran <select id="taSelect" class="ctl" style="min-width:200px;"></select></label>
+            <label>Gender <select id="genderFilter" class="ctl" style="min-width:160px;">
+              <option value="">Semua</option>
+              <option value="Ikhwan">Ikhwan</option>
+              <option value="Akhowat">Akhowat</option>
+              <option value="Campur">Campur</option>
+              <option value="Tidak ada">Tidak ada</option>
+            </select></label>
+            <button id="manageTplBtn" type="button"><i class="fa-solid fa-list-ul"></i> Kelola Template</button>
+          </div>
+        </section>
+        <section class="panel">
+          <div id="area"><div class="empty-state"><i class="fa-solid fa-spinner fa-spin"></i><p style="margin-top:8px;">Memuat...</p></div></div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <!-- Dialog regu->santri->editor -->
+  <dialog id="dlg">
+    <div class="dialog-body duplicate-dialog-body ps-dialog-shell dlg-shell">
+      <div class="duplicate-dialog-head ps-dialog-header">
+        <div><span class="eyebrow" id="dlgEyebrow">Deskripsi</span><h3 id="dlgTitle" style="margin:2px 0 0;">&nbsp;</h3></div>
+      </div>
+      <div id="dlgBody"></div>
+      <div id="dlgNotice" class="sd-notice"></div>
+    </div>
+  </dialog>
+
+  <!-- Dialog kelola template -->
+  <dialog id="tplDlg">
+    <div class="dialog-body duplicate-dialog-body ps-dialog-shell dlg-shell">
+      <div class="duplicate-dialog-head ps-dialog-header">
+        <div><span class="eyebrow">Template Deskripsi</span><h3 style="margin:2px 0 0;">Kelola Template</h3></div>
+      </div>
+      <div style="border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:14px;background:rgba(255,255,255,0.5);">
+        <input type="hidden" id="tplId">
+        <label style="margin-bottom:8px;">Judul <input type="text" id="tplJudul" class="ctl" placeholder="Contoh: Nasehat Umum"></label>
+        <label>Isi <textarea id="tplTeks" class="ctl" placeholder="Alhamdulillah, ananda ..."></textarea></label>
+        <div class="sd-foot">
+          <button id="tplResetBtn" type="button">Reset</button>
+          <button id="tplSaveBtn" type="button"><i class="fa-solid fa-plus"></i> Tambah Template</button>
+        </div>
+      </div>
+      <div id="tplList"></div>
+      <div id="tplNotice" class="sd-notice"></div>
+    </div>
+  </dialog>
+
+  <script src="../../shared-access.js"></script>
+  <script src="../../shared-nav.js"></script>
+  <script src="../../shared-shell.js"></script>
+  <script>
+    const API_BASE = window.location.origin + '/api';
+    const STORAGE = { apiBase: 'ps_api_base', token: 'ps_token', session: 'ps_session' };
+    localStorage.setItem(STORAGE.apiBase, API_BASE);
+    const state = { tahunAjaranId: '', tahunAjaranList: [], reguList: [], activeRegu: null, activeSantri: null, templates: [], genderFilter: '' };
+    let noticeId = '', noticeCounter = 0;
+
+    function getToken() { return localStorage.getItem(STORAGE.token) || ''; }
+    function clearSession() { localStorage.removeItem(STORAGE.token); localStorage.removeItem(STORAGE.session); }
+    function getStoredSession() { try { return JSON.parse(localStorage.getItem(STORAGE.session) || 'null'); } catch (e) { return null; } }
+    function canManageDeskripsiScoped() {
+      const session = window.PSAccess && typeof window.PSAccess.getScopedSession === 'function' ? window.PSAccess.getScopedSession(getStoredSession()) : getStoredSession();
+      const p = session && session.permissions;
+      return !!(p && (p.isAdmin || p.isSuperAdmin || p.isKsantrian || p.isPembinaRegu));
+    }
+    function canManageDeskripsiTemplateScoped() {
+      const session = window.PSAccess && typeof window.PSAccess.getScopedSession === 'function' ? window.PSAccess.getScopedSession(getStoredSession()) : getStoredSession();
+      const p = session && session.permissions;
+      return !!(p && (p.isAdmin || p.isSuperAdmin || p.isKsantrian));
+    }
+    function toParams(d) { const p = new URLSearchParams(); Object.entries(d).forEach(([k, v]) => { if (v === undefined || v === null) return; p.append(k, typeof v === 'object' ? JSON.stringify(v) : String(v)); }); return p; }
+    function escapeHtml(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+    function showNotice(text, type) {
+      const stack = document.getElementById('noticeStack');
+      const el = document.createElement('div'); el.className = `notice show ${type || ''}`.trim();
+      el.dataset.noticeId = `n-${Date.now()}-${noticeCounter += 1}`; el.textContent = text;
+      el.addEventListener('click', () => el.remove()); setTimeout(() => el.remove(), type === 'error' ? 9000 : 5000);
+      if (noticeId) { const o = document.querySelector(`[data-notice-id="${noticeId}"]`); if (o) o.remove(); }
+      stack.prepend(el); noticeId = el.dataset.noticeId; if (stack.matches(':popover-open')) stack.hidePopover(); stack.showPopover();
+    }
+    async function api(action, payload = {}, method = 'GET') {
+      const token = getToken();
+      if (!token) { clearSession(); window.location.replace('/pages/login/'); throw new Error('Sesi tidak ditemukan.'); }
+      const scopeLabel = window.PSAccess ? (window.PSAccess.getActiveRoleScopeLabel(getStoredSession()) || '') : '';
+      const response = method === 'GET'
+        ? await fetch(`${API_BASE}?${toParams({ action, token, scopeLabel, ...payload }).toString()}`)
+        : await fetch(API_BASE, { method, body: toParams({ action, token, scopeLabel, ...payload }) });
+      const json = await response.json();
+      if (!json.ok) { const e = new Error(json.error?.message ? `Server: ${json.error.message}` : 'Gagal.'); e.code = json.error?.code || 500; if (e.code === 401) { clearSession(); window.location.replace('/pages/login/'); } throw e; }
+      return json.data;
+    }
+    function mountShell(session) { return window.PSShell.mount({ currentPage: window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : 'deskripsiSantri.html', session, getStoredSession, storageKey: STORAGE.session }); }
+    function dlgNotice(id, msg, type) { const el = document.getElementById(id); if (!msg) { el.style.display = 'none'; return; } el.style.display = 'block'; el.style.background = type === 'error' ? 'rgba(165,90,82,0.12)' : 'rgba(116,132,108,0.15)'; el.style.color = type === 'error' ? 'var(--danger)' : 'var(--success)'; el.textContent = msg; }
+
+    function normalizeGender(g) {
+      const v = (g || '').trim().toLowerCase();
+      if (['l','lk','laki-laki','laki','pria','male'].includes(v)) return 'male';
+      if (['p','pr','perempuan','wanita','female'].includes(v)) return 'female';
+      return '';
+    }
+    function normalizeStatus(s) {
+      const v = (s || '').trim().toLowerCase();
+      if (['inactive','nonaktif'].includes(v)) return 'inactive';
+      if (['dibekukan','frozen','beku'].includes(v)) return 'dibekukan';
+      return 'active';
+    }
+    function getCardRowClass(gender, statusKey) {
+      if (statusKey === 'inactive') {
+        if (gender === 'male') return 'row-male-inactive';
+        if (gender === 'female') return 'row-female-inactive';
+        return 'row-nogender-inactive';
+      }
+      if (statusKey === 'dibekukan') {
+        if (gender === 'male') return 'row-male-frozen';
+        if (gender === 'female') return 'row-female-frozen';
+        return 'row-nogender-frozen';
+      }
+      if (gender === 'male') return 'row-male';
+      if (gender === 'female') return 'row-female';
+      return '';
+    }
+
+    async function loadRegu() {
+      const area = document.getElementById('area');
+      area.innerHTML = '<div class="empty-state"><i class="fa-solid fa-spinner fa-spin"></i></div>';
+      try { const data = await api('deskripsi.reguList'); state.reguList = data.reguList || []; renderRegu(); }
+      catch (e) { area.innerHTML = `<div class="empty-state"><i class="fa-solid fa-triangle-exclamation" style="color:var(--danger)"></i><p style="margin-top:8px;color:var(--danger);font-weight:600;">${escapeHtml(e.message)}</p></div>`; }
+    }
+    function renderRegu() {
+      const area = document.getElementById('area');
+      if (!state.reguList.length) { area.innerHTML = '<div class="empty-state"><i class="fa-solid fa-users-slash"></i><p style="margin-top:8px;font-weight:600;">Tidak ada regu yang bisa Anda akses.</p></div>'; return; }
+      const filtered = state.genderFilter ? state.reguList.filter(r => r.genderGroup === state.genderFilter) : state.reguList;
+      if (!filtered.length) { area.innerHTML = '<div class="empty-state"><i class="fa-solid fa-users-slash"></i><p style="margin-top:8px;font-weight:600;">Tidak ada regu yang cocok dengan filter gender.</p></div>'; return; }
+      area.innerHTML = '<div class="regu-grid">' + filtered.map(r => `
+        <div class="regu-card">
+          <h3>${escapeHtml(r.name)}</h3>
+          <div class="meta">
+            ${r.genderGroup ? `<span class="chip gender">${escapeHtml(r.genderGroup)}</span>` : ''}
+            <span class="chip"><i class="fa-solid fa-users"></i> ${r.santriCount} santri</span>
+          </div>
+          ${r.pembinaNames && r.pembinaNames.length ? `<p style="font-size:12px;color:var(--muted)">Pembina: ${escapeHtml(r.pembinaNames.join(', '))}</p>` : ''}
+          <button onclick="openRegu('${escapeHtml(r.id)}')"><i class="fa-solid fa-pen-nib"></i> Tulis Deskripsi</button>
+        </div>`).join('') + '</div>';
+    }
+
+    async function openRegu(reguId) {
+      const regu = state.reguList.find(r => r.id === reguId);
+      if (!regu) return;
+      state.activeRegu = regu; state.activeSantri = null;
+      document.getElementById('dlgTitle').textContent = regu.name;
+      document.getElementById('dlgEyebrow').textContent = 'Pilih Santri';
+      dlgNotice('dlgNotice', '');
+      document.getElementById('dlgBody').innerHTML = '<div class="empty-state"><i class="fa-solid fa-spinner fa-spin"></i></div>';
+      document.getElementById('dlg').showModal();
+      await renderSantriList();
+    }
+    async function renderSantriList() {
+      try {
+        const data = await api('deskripsi.santriList', { reguId: state.activeRegu.id, tahunAjaranId: state.tahunAjaranId });
+        state.activeRegu._santri = data.santriList || [];
+        const body = document.getElementById('dlgBody');
+        if (!state.activeRegu._santri.length) { body.innerHTML = '<div class="empty-state"><i class="fa-solid fa-user-slash"></i></div>'; return; }
+        document.getElementById('dlgEyebrow').textContent = 'Pilih Santri';
+        document.getElementById('dlgTitle').textContent = state.activeRegu.name;
+        body.innerHTML = state.activeRegu._santri.map(s => `
+          <div class="srow" onclick="openSantri('${escapeHtml(s.id)}')">
+            <div class="nm"><strong>${escapeHtml(s.name)}</strong><small>${escapeHtml(s.noInduk || '-')}</small></div>
+            ${s.teks ? '<span class="chip filled"><i class="fa-solid fa-check"></i> terisi</span>' : '<span class="chip">kosong</span>'}
+            <i class="fa-solid fa-chevron-right" style="color:var(--muted)"></i>
+          </div>`).join('');
+      } catch (e) { dlgNotice('dlgNotice', e.message, 'error'); }
+    }
+    function openSantri(santriId) {
+      const s = (state.activeRegu._santri || []).find(x => x.id === santriId);
+      if (!s) return;
+      state.activeSantri = s;
+      document.getElementById('dlgEyebrow').textContent = state.activeRegu.name;
+      document.getElementById('dlgTitle').textContent = s.name;
+      const tplOpts = '<option value="">— Sisipkan Template —</option>' + state.templates.map(t => `<option value="${escapeHtml(t.id)}">${escapeHtml(t.judul)}</option>`).join('');
+      document.getElementById('dlgBody').innerHTML = `
+        <button onclick="backToList()" style="margin-bottom:12px;"><i class="fa-solid fa-arrow-left"></i> Kembali</button>
+        <label style="margin-bottom:10px;">Template
+          <select id="tplPick" class="ctl">${tplOpts}</select>
+        </label>
+        <label>Deskripsi / Nasehat
+          <textarea id="dsText" class="ctl" placeholder="Alhamdulillah, ananda ...">${escapeHtml(s.teks || '')}</textarea>
+        </label>
+        <div class="sd-foot"><button id="dsSaveBtn"><i class="fa-solid fa-floppy-disk"></i> Simpan Deskripsi</button></div>`;
+      document.getElementById('tplPick').addEventListener('change', function () {
+        const t = state.templates.find(x => x.id === this.value);
+        if (t) { const ta = document.getElementById('dsText'); ta.value = (ta.value ? ta.value + '\n\n' : '') + t.teks; this.value = ''; }
+      });
+      document.getElementById('dsSaveBtn').addEventListener('click', saveDeskripsi);
+    }
+    function backToList() { state.activeSantri = null; renderSantriList(); }
+    async function saveDeskripsi() {
+      if (!canManageDeskripsiScoped()) { dlgNotice('dlgNotice', 'Mudir hanya bisa melihat deskripsi santri, tidak bisa menyimpan perubahan.', 'error'); return; }
+      const teks = document.getElementById('dsText').value.trim();
+      try {
+        await api('deskripsi.save', { santriId: state.activeSantri.id, reguId: state.activeRegu.id, tahunAjaranId: state.tahunAjaranId, teks }, 'POST');
+        state.activeSantri.teks = teks;
+        dlgNotice('dlgNotice', 'Deskripsi disimpan.', 'success');
+      } catch (e) { dlgNotice('dlgNotice', e.message, 'error'); }
+    }
+
+    /* ── Templates ── */
+    async function loadTemplates() { try { const data = await api('deskripsi.template.list'); state.templates = data.templates || []; } catch (e) { state.templates = []; } }
+    function openTplManager() {
+      renderTplList(); resetTplForm(); dlgNotice('tplNotice', '');
+      document.getElementById('tplDlg').showModal();
+    }
+    function renderTplList() {
+      const el = document.getElementById('tplList');
+      if (!state.templates.length) { el.innerHTML = '<p style="color:var(--muted);font-size:13px;">Belum ada template.</p>'; return; }
+      el.innerHTML = state.templates.map(t => `
+        <div class="tpl-row">
+          <div class="th"><strong>${escapeHtml(t.judul)}</strong>
+            <span><button class="ico-btn" onclick="editTpl('${escapeHtml(t.id)}')"><i class="fa-solid fa-pen"></i></button>
+            <button class="ico-btn del" onclick="deleteTpl('${escapeHtml(t.id)}')"><i class="fa-solid fa-trash"></i></button></span>
+          </div>
+          <div class="tb">${escapeHtml(t.teks)}</div>
+        </div>`).join('');
+    }
+    function resetTplForm() { document.getElementById('tplId').value = ''; document.getElementById('tplJudul').value = ''; document.getElementById('tplTeks').value = ''; document.getElementById('tplSaveBtn').innerHTML = '<i class="fa-solid fa-plus"></i> Tambah Template'; }
+    function editTpl(id) { const t = state.templates.find(x => x.id === id); if (!t) return; document.getElementById('tplId').value = t.id; document.getElementById('tplJudul').value = t.judul; document.getElementById('tplTeks').value = t.teks; document.getElementById('tplSaveBtn').innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Simpan Perubahan'; }
+    async function saveTpl() {
+      if (!canManageDeskripsiTemplateScoped()) { dlgNotice('tplNotice', 'Mudir hanya bisa melihat template deskripsi, tidak bisa menyimpan perubahan.', 'error'); return; }
+      const id = document.getElementById('tplId').value;
+      const judul = document.getElementById('tplJudul').value.trim();
+      const teks = document.getElementById('tplTeks').value.trim();
+      if (!judul || !teks) { dlgNotice('tplNotice', 'Judul & isi wajib diisi.', 'error'); return; }
+      try { await api('deskripsi.template.save', { id, judul, teks }, 'POST'); await loadTemplates(); renderTplList(); resetTplForm(); dlgNotice('tplNotice', 'Template disimpan.', 'success'); }
+      catch (e) { dlgNotice('tplNotice', e.message, 'error'); }
+    }
+    async function deleteTpl(id) {
+      if (!canManageDeskripsiTemplateScoped()) { dlgNotice('tplNotice', 'Mudir hanya bisa melihat template deskripsi, tidak bisa menghapus.', 'error'); return; }
+      if (!confirm('Hapus template ini?')) return;
+      try { await api('deskripsi.template.delete', { id }, 'POST'); await loadTemplates(); renderTplList(); } catch (e) { dlgNotice('tplNotice', e.message, 'error'); }
+    }
+
+    function renderTa() {
+      const sel = document.getElementById('taSelect');
+      sel.innerHTML = state.tahunAjaranList.map(t => `<option value="${escapeHtml(t.id)}" ${t.id === state.tahunAjaranId ? 'selected' : ''}>${escapeHtml(t.namaDisplay || t.nama)}${t.isAktif ? ' (Aktif)' : ''}</option>`).join('') || '<option value="">-- belum ada --</option>';
+    }
+    async function loadTa() {
+      try {
+        const data = await api('tahunAjaran.list');
+        const items = (data.items || []).slice().sort((a, b) => (a.isAktif === b.isAktif) ? 0 : (a.isAktif ? -1 : 1));
+        state.tahunAjaranList = items.map(t => ({ id: t.id, nama: t.nama, namaDisplay: t.namaDisplay || (t.semester ? t.nama + ' - ' + t.semester : t.nama), isAktif: t.isAktif }));
+        const aktif = state.tahunAjaranList.find(t => t.isAktif) || state.tahunAjaranList[0];
+        state.tahunAjaranId = aktif ? aktif.id : '';
+        renderTa();
+      } catch (e) { /* ignore */ }
+    }
+
+    window.openRegu = openRegu; window.openSantri = openSantri; window.backToList = backToList;
+    window.editTpl = editTpl; window.deleteTpl = deleteTpl;
+
+    const session = getStoredSession();
+    if (!session) { clearSession(); window.location.replace('/pages/login/'); }
+    else if (window.PSAccess && window.PSAccess.redirectIfForbidden(session, '/pages/deskripsiSantri/')) { /* redirected */ }
+    else {
+      mountShell(session);
+      document.getElementById('taSelect').addEventListener('change', function () { state.tahunAjaranId = this.value; });
+      document.getElementById('genderFilter').addEventListener('change', function () { state.genderFilter = this.value; renderRegu(); });
+      document.getElementById('manageTplBtn').addEventListener('click', openTplManager);
+      document.getElementById('tplSaveBtn').addEventListener('click', saveTpl);
+      document.getElementById('tplResetBtn').addEventListener('click', resetTplForm);
+      document.getElementById('dlg').addEventListener('cancel', (e) => { e.preventDefault(); document.getElementById('dlg').close(); });
+      document.getElementById('tplDlg').addEventListener('cancel', (e) => { e.preventDefault(); document.getElementById('tplDlg').close(); });
+      window.addEventListener('load', async () => { await loadTa(); await loadTemplates(); await loadRegu(); });
+    }
+    if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {}); }
+  </script>
+</body>
+</html>
