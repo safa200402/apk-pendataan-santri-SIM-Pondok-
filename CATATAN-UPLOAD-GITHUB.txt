@@ -78,7 +78,7 @@ git init
 git add .
 git commit -m "Initial commit"
 git branch -M main
-git remote add origin https://github.com/safa200402/apk-pendataan-santri.git
+git remote add origin https://github.com/safa200402/apk-pendataan-santri-SIM-Pondok-.git
 git push -u origin main
 
    Ganti "https://github.com/USERNAME/NAMA-REPO.git" dengan URL asli dari STEP A.
