@@ -1,0 +1,110 @@
+CATATAN OPTIMASI RAM/PERFORMA -- loadDataset_() BACA 18 TABEL PENUH
+====================================================================
+Ringkasan hasil audit + perbaikan backend/server.js (branch
+claude/ram-consumption-optimization-ch3nal). Status tiap butir:
+  [✅] = SUDAH DIKERJAKAN & SUDAH DI-PUSH   [ ] = BELUM, masih perlu diputuskan/dikerjakan
+
+
+1. AKAR MASALAH
+----------------
+loadDataset_() (~baris 17876) baca + normalize SEMUA 18 tabel (pengurus,
+jabatan, pengurus_jabatan, santri, halaqoh, halaqohTasmi, kelasSiang,
+regu, nilaiUp, absensiGuru, absensiHalaqoh, absensiKelas, absensiRegu,
+kegiatanSop, kegiatanSopItem, kegiatanSopLampiran, content, tahunAjaran)
+tiap kali dipanggil. Dipanggil dari ~140 tempat di file, kebanyakan cuma
+butuh 1-7 dari 18 tabel itu. Efeknya: tiap request bikin object besar
+yang langsung dibuang lagi -> boros CPU + RAM (GC churn), kerasa pas
+banyak pengurus akses bersamaan (DatabaseSync = sinkron/blocking).
+
+
+2. YANG SUDAH DIBERESKAN (10 commit, cek `git log 61f75db..HEAD`)
+------------------------------------------------------------------
+[✅] authenticateRequest_()            -> loadAuthDataset_() (6 tabel)
+     Dipanggil di SETIAP request buat cek token. Sebelumnya narik 18
+     tabel cuma buat itung siapa yg login.
+
+[✅] buildReferencePayload_()          -> loadReferenceDataset_() (7 tabel)
+     Action 'references', isi dropdown di 5 halaman (santriSakit,
+     survey, pelanggaran, pengumuman, izinPulang).
+
+[✅] handleRekapAbsensiPengurusList_() -> ditambah CACHE 20 detik
+     (bukan loader ringan -- hasilnya sama utk semua admin, jadi lebih
+     pas di-cache daripada dipersempit).
+
+[✅] handleTasmiSetoranRekapBulananLengkapSemua_() -> loadTasmiRekapDataset_() (4 tabel)
+     TIDAK bisa di-cache (hasilnya beda per sesi/koordinator halaqoh).
+
+[✅] handleJadwalIbadahBerandaCarousel_() -> loadJadwalIbadahBerandaDataset_() (1 tabel)
+     Halaman Beranda -- halaman PERTAMA yg kebuka tiap pengurus login.
+
+[✅] handleContentPublicList_() & handleContentSelfList_() -> loadContentListDataset_() (1 tabel)
+     content.public.list dipanggil TANPA LOGIN dari index.html --
+     traffic paling tinggi di aplikasi ini.
+
+[✅] quizSantriContext_() (dipakai 6 handler quiz.santri.*) -> loadQuizSantriContextDataset_() (4 tabel)
+     Dipanggil berulang dalam 1 sesi santri ngerjain quiz.
+
+[✅] handleSantriSelf_()               -> loadSantriSelfDataset_() (7 tabel)
+     Halaman profil/home portal SANTRI.
+
+[✅] handleKegiatanSopLampiranList_()  -> loadKegiatanSopLampiranDataset_() (1 tabel)
+
+[✅] buildHalaqohTasmiListItems_() + handleHalaqohTasmiSummaryPdfData_() -> loadHalaqohTasmiListDataset_() (5 tabel)
+     Bonus: yg kedua tadinya manggil loadDataset_() DUA KALI, sekarang
+     cuma 1x load yg jauh lebih sempit, dipakai bareng 2 handler.
+
+[✅] handleCatatanRefs_()              -> loadCatatanRefsDataset_() (3 tabel)
+     Dialog "bagikan dokumen" di Catatanku.
+
+Semua sudah dites nyata (bukan cuma node --check): jalanin server lokal,
+login, panggil action-nya pakai data asli (bikin santri/kelas/pengurus/
+tahun ajaran via API), bandingkan hasil sebelum & sesudah -- semua
+identik/benar.
+
+
+3. YANG BELUM DIPUTUSKAN / BELUM DIKERJAKAN
+---------------------------------------------
+[ ] A. Dead code: action 'kegiatanSop.byJabatan' & 'kegiatanSop.byPengurus'
+       (handler: handleKegiatanSopByJabatan_, ~baris 17386)
+       Sudah dicek: NOL pemanggil di frontend maupun di tempat lain
+       backend/server.js -- kemungkinan besar beneran gak kepake.
+       CATATAN: ini BUKAN masalah RAM (kode yg gak pernah dipanggil ya
+       gak makan resource jalan). Cuma soal kerapian/dead code cleanup.
+       Keputusan yg perlu diambil: hapus, atau biarkan (in case ada
+       pemanggil tersembunyi yg belum ketemu, mis. dari tools/ atau
+       automasi lain)?
+
+[ ] B. Sisa ~125 tempat lain yang masih manggil loadDataset_() penuh
+       Audit kemarin cuma fokus nyari TOP kandidat (yang paling boros x
+       paling sering dipanggil). Di luar 11 titik yang udah dibereskan
+       di atas, MASIH ADA banyak handler lain yang manggil loadDataset_()
+       tapi belum diaudit satu-satu -- kemungkinan ada lagi yang serupa
+       (boros tapi jarang kepake = prioritas rendah; atau boros DAN
+       sering = worth dicek). Kalau mau lanjut, cara paling efisien:
+       audit ulang sisa call site (grep 'loadDataset_()' di
+       backend/server.js), fokus ke action yang paling sering dipanggil
+       dari frontend/pages/**.
+
+[ ] C. Endpoint rekap/agregasi LAIN yang mungkin belum punya cache
+       Baru handleHafalanHarianRekapSemua_ (sudah ada dari awal) dan
+       handleRekapAbsensiPengurusList_ (baru ditambah) yang punya cache.
+       Kalau ada endpoint rekap lain yang sering dipanggil ulang dgn
+       filter yang gonta-ganti (mirip pola dialog), cek apa perlu cache
+       serupa (pola: hafalanAggCacheGet_/Set_/hafalanAggSourceFingerprint_,
+       ~baris 22997).
+
+[ ] D. Cek operasional (bukan kode): pastikan `node_modules/archiver`
+       ke-install di server produksi/hosting. Kalau kosong, fitur backup
+       diam-diam jatuh ke jalur lama (adm-zip) yang numpuk SEMUA file di
+       RAM sekaligus -- sudah ditandai di komentar kode sendiri sebagai
+       penyebab OOM di shared hosting. Cek: ls node_modules/archiver
+       di server, atau lihat log saat backup jalan.
+
+
+4. CARA LANJUTIN
+-----------------
+Semua perbaikan di atas ada di branch `claude/ram-consumption-optimization-ch3nal`.
+Kalau mau lanjut kerjain poin 3, tinggal buka obrolan baru dan rujuk file
+catatan ini (atau commit-commit di atas sebagai contoh pola yang dipakai:
+1 fungsi loader baru per handler/kelompok handler, isinya cuma tabel yang
+beneran kepake, dites pakai data asli sebelum di-commit).
