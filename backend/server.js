@@ -20121,13 +20121,51 @@ function applyScopeToPermissions_(scopeLabel, enriched, dataset, existingPerms) 
   return p;
 }
 
+// Versi ringan loadDataset_() khusus buat authenticateRequest_(): cuma baca 6 tabel yang
+// benar-benar dipakai buat cocokin token + hitung hak akses (pengurus, santri, jabatan,
+// pengurus_jabatan, kelasSiang buat collectPengurusKelasIds_, regu buat collectPembinaReguIds_),
+// bukan 18 tabel penuh seperti loadDataset_(). Menghindari baca+normalize absensi*/nilaiUp/
+// kegiatanSop/content/tahunAjaran yang tak dipakai sama sekali di jalur auth, padahal jalur ini
+// dieksekusi di SETIAP request (bukan cuma yang butuh dataset penuh).
+function loadAuthDataset_() {
+  var pengurusState = readSheetState_('pengurus');
+  var santriState = readSheetState_('santri');
+  var jabatanState = readSheetState_('jabatan');
+  var pengurusJabatanState = readSheetState_('pengurus_jabatan');
+  var kelasState = readSheetState_('kelasSiang');
+  var reguState = readSheetState_('regu');
+
+  var dataset = {
+    pengurus: pengurusState.rows.map(normalizePengurus_),
+    santri: santriState.rows.map(normalizeSantri_),
+    jabatan: jabatanState.rows.map(normalizeJabatan_),
+    pengurusJabatan: pengurusJabatanState.rows.map(normalizePengurusJabatan_),
+    kelasSiang: kelasState.rows.map(normalizeKelas_),
+    regu: reguState.rows.map(normalizeRegu_)
+  };
+
+  dataset.indexes = {
+    jabatanById: indexById_(dataset.jabatan)
+  };
+
+  dataset.jabatanByPengurus = {};
+  dataset.pengurusJabatan.forEach(function (row) {
+    if (!dataset.jabatanByPengurus[row.idPengurus]) {
+      dataset.jabatanByPengurus[row.idPengurus] = [];
+    }
+    dataset.jabatanByPengurus[row.idPengurus].push(row);
+  });
+
+  return dataset;
+}
+
 function authenticateRequest_(token, allowSantri, scopeLabel) {
   var cleanedToken = cleanString_(token);
   if (!cleanedToken) {
     throw createError_('Token tidak ditemukan.', 401);
   }
 
-  var dataset = loadDataset_();
+  var dataset = loadAuthDataset_();
   var pengurus = dataset.pengurus.filter(function (item) {
     return item.active && parseSessionTokens_(item.token).indexOf(cleanedToken) !== -1;
   })[0];
