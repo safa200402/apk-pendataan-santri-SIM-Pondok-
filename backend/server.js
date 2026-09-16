@@ -31105,12 +31105,38 @@ function catatanInsertVersion_(docId, opts) {
   extra.forEach(function (r) { runStatement_('DELETE FROM "catatanVersion" WHERE "id" = ?', [r.id]); });
 }
 
+// Versi ringan loadDataset_() khusus buat handleCatatanRefs_() (dialog "bagikan dokumen" di
+// Catatanku): cuma baca 3 tabel -- pengurus, jabatan, pengurus_jabatan (buat label jabatan lewat
+// enrichPengurus_) -- bukan 18 tabel penuh.
+function loadCatatanRefsDataset_() {
+  var pengurusState = readSheetState_('pengurus');
+  var jabatanState = readSheetState_('jabatan');
+  var pengurusJabatanState = readSheetState_('pengurus_jabatan');
+
+  var dataset = {
+    pengurus: pengurusState.rows.map(normalizePengurus_),
+    jabatan: jabatanState.rows.map(normalizeJabatan_),
+    pengurusJabatan: pengurusJabatanState.rows.map(normalizePengurusJabatan_)
+  };
+
+  dataset.indexes = { jabatanById: indexById_(dataset.jabatan) };
+  dataset.jabatanByPengurus = {};
+  dataset.pengurusJabatan.forEach(function (row) {
+    if (!dataset.jabatanByPengurus[row.idPengurus]) {
+      dataset.jabatanByPengurus[row.idPengurus] = [];
+    }
+    dataset.jabatanByPengurus[row.idPengurus].push(row);
+  });
+
+  return dataset;
+}
+
 function handleCatatanRefs_(request, session) {
   requirePengurus_(session);
   if (!canManageAddon_(session, 'catatanku', ADDON_MANAGE_FALLBACK_.catatanku)) {
     throw createError_('Hanya Mudir, Admin, Super Admin, atau jabatan yang diatur di Kelola Addons yang dapat mengelola berbagi dokumen.', 403);
   }
-  var dataset = loadDataset_();
+  var dataset = loadCatatanRefsDataset_();
   var users = (dataset.pengurus || [])
     .filter(function (p) { return p.active; })
     .map(function (p) {
