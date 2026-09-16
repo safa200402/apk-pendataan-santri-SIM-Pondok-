@@ -11153,12 +11153,20 @@ function normalizeContentTargetRole_(value, fallback) {
   return normalizeContentTargetRole_(fallback || 'umum');
 }
 
+// Versi ringan loadDataset_() khusus buat handleContentPublicList_/handleContentSelfList_:
+// cuma baca 1 tabel (content), bukan 18. content.public.list dipanggil TANPA LOGIN dari
+// frontend/index.html (halaman utama) -- dihit semua pengunjung sebelum sempat login, jadi
+// termasuk yang paling sering diakses (dan paling boros kalau baca 18 tabel tiap kali).
+function loadContentListDataset_() {
+  return { content: readSheetState_('content').rows.map(normalizeContent_) };
+}
+
 function handleContentPublicList_(request) {
   var targetRole = normalizeContentTargetRole_(request.targetRole || 'umum');
   if (targetRole !== 'umum') {
     targetRole = 'umum';
   }
-  var dataset = loadDataset_();
+  var dataset = loadContentListDataset_();
   return {
     ok: true,
     timestamp: nowIso_(),
@@ -11174,7 +11182,7 @@ function handleContentSelfList_(session) {
   if (!session || session.role !== 'pengurus') {
     throw createError_('Akses hanya untuk pengurus aktif.', 403);
   }
-  var dataset = loadDataset_();
+  var dataset = loadContentListDataset_();
   return {
     ok: true,
     timestamp: nowIso_(),
