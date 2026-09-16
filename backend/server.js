@@ -27128,47 +27128,59 @@ function handleRekapAbsensiPengurusList_(request, session) {
   if (!session.permissions.canManageKoordinatAbsensi) requireAdmin_(session);
   var bulan = cleanString_(request.bulan || '').slice(0, 7);
   if (!/^\d{4}-\d{2}$/.test(bulan)) bulan = nowIso_().slice(0, 7);
-  var todayStr = nowIso_().slice(0, 10);
-  var days = getDaysInMonth_(bulan);
-  var dataset = loadDataset_();
-  var koordinatState = readSheetState_('koordinatAbsensi');
-  var absensiState = readSheetState_('absensiPengurus');
 
-  var aturanByPengurus = {};
-  koordinatState.rows.forEach(function (r) {
-    if (cleanString_(r.status || '').toLowerCase() === 'nonaktif') return;
-    var pid = String(r.id_pengurus);
-    if (!aturanByPengurus[pid]) aturanByPengurus[pid] = [];
-    aturanByPengurus[pid].push(r);
-  });
+  // Cache hasil agregasi (pola sama dgn hafalanAggCache_/'rekapSemua' di atas): kunci = bulan
+  // (satu-satunya filter yg mempengaruhi hasil, halaman ini tak discope per-session), fingerprint
+  // tabel sumber + ceiling TTL 20 dtk. Sebelumnya TANPA cache -- admin/SDM yang gonta-ganti bulan
+  // atau buka ulang halaman ini bikin loadDataset_() + rekapStatsForPengurus_ (loop semua pengurus
+  // x semua hari sebulan) diulang dari nol tiap kali walau datanya belum berubah sama sekali.
+  var rapFp = hafalanAggSourceFingerprint_(['pengurus', 'jabatan', 'pengurus_jabatan', 'koordinatAbsensi', 'absensiPengurus']);
+  var items = hafalanAggCacheGet_('rekapAbsensiPengurus', bulan, rapFp);
 
-  var absensiByPengurusByDate = {};
-  absensiState.rows.forEach(function (r) {
-    if (cleanString_(r.status || '').toLowerCase() === 'dihapus') return;
-    if (!String(r.tanggal || '').startsWith(bulan)) return;
-    var pid = String(r.id_pengurus);
-    if (!absensiByPengurusByDate[pid]) absensiByPengurusByDate[pid] = {};
-    if (!absensiByPengurusByDate[pid][r.tanggal]) absensiByPengurusByDate[pid][r.tanggal] = [];
-    absensiByPengurusByDate[pid][r.tanggal].push(r);
-  });
+  if (!items) {
+    var todayStr = nowIso_().slice(0, 10);
+    var days = getDaysInMonth_(bulan);
+    var dataset = loadDataset_();
+    var koordinatState = readSheetState_('koordinatAbsensi');
+    var absensiState = readSheetState_('absensiPengurus');
 
-  var items = dataset.pengurus
-    .filter(function (p) { return p.active !== false && cleanString_(p.status || '').toLowerCase() !== 'inactive'; })
-    .map(function (p) {
-      var pid = String(p.id);
-      var enriched = enrichPengurus_(p, dataset);
-      var aturanList = aturanByPengurus[pid] || [];
-      var stats = rekapStatsForPengurus_(pid, aturanList, absensiByPengurusByDate[pid] || {}, days, todayStr);
-      return {
-        id: enriched.id,
-        name: enriched.name,
-        jabatanDisplay: enriched.jabatanLabels.join(', '),
-        primaryJabatanLabel: enriched.primaryJabatanLabel,
-        hasAturan: aturanList.length > 0,
-        stats: stats
-      };
+    var aturanByPengurus = {};
+    koordinatState.rows.forEach(function (r) {
+      if (cleanString_(r.status || '').toLowerCase() === 'nonaktif') return;
+      var pid = String(r.id_pengurus);
+      if (!aturanByPengurus[pid]) aturanByPengurus[pid] = [];
+      aturanByPengurus[pid].push(r);
     });
-  items.sort(function (a, b) { return (a.name || '').localeCompare(b.name || '', 'id'); });
+
+    var absensiByPengurusByDate = {};
+    absensiState.rows.forEach(function (r) {
+      if (cleanString_(r.status || '').toLowerCase() === 'dihapus') return;
+      if (!String(r.tanggal || '').startsWith(bulan)) return;
+      var pid = String(r.id_pengurus);
+      if (!absensiByPengurusByDate[pid]) absensiByPengurusByDate[pid] = {};
+      if (!absensiByPengurusByDate[pid][r.tanggal]) absensiByPengurusByDate[pid][r.tanggal] = [];
+      absensiByPengurusByDate[pid][r.tanggal].push(r);
+    });
+
+    items = dataset.pengurus
+      .filter(function (p) { return p.active !== false && cleanString_(p.status || '').toLowerCase() !== 'inactive'; })
+      .map(function (p) {
+        var pid = String(p.id);
+        var enriched = enrichPengurus_(p, dataset);
+        var aturanList = aturanByPengurus[pid] || [];
+        var stats = rekapStatsForPengurus_(pid, aturanList, absensiByPengurusByDate[pid] || {}, days, todayStr);
+        return {
+          id: enriched.id,
+          name: enriched.name,
+          jabatanDisplay: enriched.jabatanLabels.join(', '),
+          primaryJabatanLabel: enriched.primaryJabatanLabel,
+          hasAturan: aturanList.length > 0,
+          stats: stats
+        };
+      });
+    items.sort(function (a, b) { return (a.name || '').localeCompare(b.name || '', 'id'); });
+    hafalanAggCacheSet_('rekapAbsensiPengurus', bulan, rapFp, items);
+  }
   return { ok: true, timestamp: nowIso_(), data: { items: items, bulan: bulan } };
 }
 
