@@ -505,13 +505,13 @@
         </div>
         <p class="muted hidden" id="qDokHint" style="margin-top:6px;">Mode <strong>Dokumen</strong>: tiap slide = editor teks kaya + durasi detik. Santri harus menunggu timer tiap slide habis (sekali) sebelum bisa lanjut; setelah tamat sekali, navigasi bebas. Pengaturan skor/waktu/percobaan diabaikan — hanya <strong>Batasi peserta</strong> yang berlaku.</p>
         <p class="muted" style="margin-top:6px;">Tiap soal wajib punya kunci jawaban + penjelasan (muncul ke santri setelah menjawab). Total nilai otomatis dinormalisasi ke 100. <strong>Isian Bank Kata</strong> = kalimat rumpang <code>[[jawaban]]</code> yang diisi santri dgn ketuk kartu kata (dinilai per-rumpang). <strong>Susun Kalimat</strong> = kartu kata teracak disusun jadi kalimat urut (benar semua atau salah). <strong>Halaman Materi</strong> = blok bacaan (teks kaya) yang santri baca lalu lanjut &mdash; tidak dijawab, tidak dinilai, dan dilewati saat pengacakan soal.</p>
-        <p class="muted" id="qTextHint" style="margin-top:6px;display:none;">Mode Teks: baris 1 = pertanyaan, baris berikutnya = opsi jawaban (tandai yang benar dengan &#9989; di akhir baris). Baris <code>PENJELASAN:</code> = penjelasan (wajib, muncul ke santri), baris <code>BOBOT:</code> = bobot poin (opsional, default 1). Pisahkan tiap soal dengan 1 baris kosong. Kalau hanya 1 baris jawaban &mdash; atau semua baris jawaban diberi &#9989; &mdash; soal jadi <strong>Isian Singkat</strong> (boleh banyak alternatif), selain itu <strong>Pilihan Ganda</strong>. Opsi pilihan ganda tidak boleh ada yang isinya sama. Mode Form &amp; Mode Teks saling sinkron saat pindah tab. <strong>Isian Bank Kata</strong>, &amp; <strong>Susun Kalimat</strong> ditulis mulai baris <code>[BANK-KATA #n]</code> / <code>[SUSUN #n]</code> lalu isinya di baris-baris berikutnya (baris <code>JUDUL:</code>, <code>PROMPT:</code>, <code>PENGECOH:</code>, <code>PENJELASAN:</code>, <code>BOBOT:</code> = metadata). <strong>Halaman Materi</strong> ditandai baris <code>[MATERI #n]</code> + <code>JUDUL:</code> saja &mdash; isi rich text-nya (format tebal/miring, gambar, embed video) <strong>tidak</strong> ditulis di sini, tapi diedit langsung lewat kartu di bawah kotak teks. Jangan pakai baris kosong di tengah isi blok (baris kosong = pemisah antar-blok).</p>
+        <p class="muted" id="qTextHint" style="margin-top:6px;display:none;">Mode Teks: tiap soal WAJIB diawali simbol penanda tipe di baris pertama &mdash; <code>&#10132; Pilihan Ganda</code>, <code>&#9999;&#65039; Isian Singkat</code>, <code>&#129513; Isian Bank Kata</code>, <code>&#128036; Susun Kalimat</code>, <code>&#128196; Halaman Materi</code>. Baris kosong BEBAS dipakai di mana saja (dalam maupun antar-soal) &mdash; tidak lagi jadi pemisah, cuma simbol di atas yang menentukan mulainya soal baru. Baris berikutnya = opsi/jawaban (tandai yang benar dengan &#9989; di akhir baris). Baris <code>PENJELASAN:</code> = penjelasan (muncul ke santri), baris <code>BOBOT:</code> = bobot poin (opsional, default 1). Opsi pilihan ganda tidak boleh ada yang isinya sama. Mode Form &amp; Mode Teks saling sinkron saat pindah tab. <strong>Isian Bank Kata</strong> (baris <code>JUDUL:</code>/<code>PENGECOH:</code>) &amp; <strong>Susun Kalimat</strong> (baris <code>PROMPT:</code>/<code>PENGECOH:</code>) pakai baris metadata yang sama seperti sebelumnya, cuma penandanya sekarang simbol &#129513;/&#128036; di depan, bukan <code>[BANK-KATA #n]</code>/<code>[SUSUN #n]</code> lagi. <strong>Halaman Materi</strong> cuma bawa <code>JUDUL:</code> di sini &mdash; isi rich text-nya (format tebal/miring, gambar, embed video) diedit langsung lewat kartu di bawah kotak teks.</p>
         <div id="qFormMode">
           <div class="q-paging" id="qEditPaging"></div>
           <div class="q-list" id="qEditList"></div>
         </div>
         <div id="qTextMode" style="display:none;margin-top:10px;">
-          <textarea id="quizBulkText" rows="14" placeholder="Apa hukum mad thabi'i?&#10;Dibaca 2 harakat &#9989;&#10;Dibaca 6 harakat&#10;Boleh tidak dipanjangkan&#10;PENJELASAN: Mad thabi'i wajib dibaca 2 harakat.&#10;BOBOT: 2&#10;&#10;Sebutkan ibukota Indonesia.&#10;Jakarta &#9989;&#10;DKI Jakarta &#9989;&#10;PENJELASAN: Ibukota Republik Indonesia adalah Jakarta."></textarea>
+          <textarea id="quizBulkText" rows="14" placeholder="&#10132; Apa hukum mad thabi'i?&#10;Dibaca 2 harakat &#9989;&#10;Dibaca 6 harakat&#10;Boleh tidak dipanjangkan&#10;PENJELASAN: Mad thabi'i wajib dibaca 2 harakat.&#10;BOBOT: 2&#10;&#10;&#9999;&#65039; Sebutkan ibukota Indonesia.&#10;Jakarta &#9989;&#10;DKI Jakarta &#9989;&#10;PENJELASAN: Ibukota Republik Indonesia adalah Jakarta."></textarea>
           <div id="qTextMateriPanel" style="margin-top:14px;"></div>
         </div>
       </div>
@@ -1643,6 +1643,12 @@
       return pages;
     }
     const QUIZ_CORRECT_MARK = '✅';
+    // Simbol penanda AWAL SOAL di Mode Teks -- baris yang diawali salah satu ini = mulai blok
+    // baru. Baris kosong di mana pun (dalam maupun antar-blok) TIDAK lagi berarti apa-apa, cuma
+    // simbol ini yang menentukan batas antar-soal.
+    const QUIZ_TYPE_MARK = { mc: '➡️', short: '✏️', wordbank: '🧩', sentence: '🔤', materi: '📄' };
+    const QUIZ_MARK_TYPE = Object.keys(QUIZ_TYPE_MARK).reduce((m, t) => (m[QUIZ_TYPE_MARK[t]] = t, m), {});
+    const QUIZ_ALL_MARKS = Object.values(QUIZ_TYPE_MARK);
 
     // Baris isi (tanpa penanda) untuk blok opaque — dipakai serialize & dibandingkan saat parse.
     // Halaman Materi TIDAK ikut meratakan HTML-nya ke sini -- isi rich text-nya diedit langsung
@@ -1669,28 +1675,28 @@
       return L;
     }
 
-    // Mode Teks (tempel data): baris 1 = pertanyaan; baris berikutnya = opsi/jawaban
-    // (✅ di akhir = benar); baris "PENJELASAN:" & "BOBOT:" = metadata; 1 baris kosong
-    // pisah antar-soal. ≤1 baris jawaban ATAU semua baris ber-✅ → Isian Singkat.
+    // Mode Teks (tempel data): tiap soal diawali simbol penanda tipe (QUIZ_TYPE_MARK). Baris
+    // kosong di mana pun DIABAIKAN -- bukan pemisah antar-soal lagi, cuma simbol yang menentukan
+    // batas blok. ✅ di akhir baris = jawaban benar (PG) / salah satu alternatif (Isian Singkat).
     function serializeQuizDraftsToText(drafts) {
-      // Blok opaque (materi / wordbank / sentence): penanda [TAG #n] + isi diratakan jadi teks
+      // Blok opaque (materi / wordbank / sentence): simbol penanda + isi diratakan jadi teks
       // (Halaman Materi cuma bawa JUDUL, isi rich text-nya diedit via kartu Quill terpisah --
       // lihat renderTextMateriPanel). Di-stash juga bareng index aslinya di S.editDraft
       // (S._materiStashIndex) -- dipakai saat parse utk wordbank/susun (restore-jika-tak-berubah)
       // & utk Halaman Materi (selalu ambil html LIVE dari S.editDraft, bukan dari stash beku).
+      // Urutan kemunculan blok opaque (bukan nomor eksplisit) yang jadi kunci pencocokan balik.
       S._materiStash = [];
       S._materiStashIndex = [];
-      let opaqueK = 0;
       return drafts.map((q, idx) => {
         if (q.type === 'materi' || q.type === 'wordbank' || q.type === 'sentence') {
-          opaqueK += 1;
           S._materiStash.push(JSON.parse(JSON.stringify(q)));
           S._materiStashIndex.push(idx);
-          const tag = q.type === 'wordbank' ? 'BANK-KATA' : q.type === 'sentence' ? 'SUSUN' : 'MATERI';
-          const body = opaqueBlockLines(q).join('\n');
-          return `[${tag} #${opaqueK}]` + (body ? '\n' + body : '');
+          const mark = QUIZ_TYPE_MARK[q.type];
+          const body = opaqueBlockLines(q);
+          return [body.length ? (mark + ' ' + body[0]) : mark].concat(body.slice(1)).join('\n');
         }
-        const lines = [(q.text || '').trim()];
+        const mark = QUIZ_TYPE_MARK[q.type] || QUIZ_TYPE_MARK.mc;
+        const lines = [mark + ' ' + (q.text || '').trim()];
         if (q.type === 'mc') {
           (q.options || []).forEach((opt, idx) => {
             const o = (opt || '').trim();
@@ -1705,7 +1711,12 @@
         return lines.join('\n');
       }).join('\n\n');
     }
-    function parseQuizTextToDrafts(text) {
+
+    // Parser LAMA (format sebelum ada simbol ➡️/✏️/🧩/🔤/📄): pemisah = baris kosong, tipe
+    // PG/Isian ditebak dari pola ✅, blok opaque pakai tag [BANK-KATA #n]/[SUSUN #n]/[MATERI #n].
+    // Dipertahankan HANYA sebagai fallback otomatis -- lihat parseQuizTextToDrafts di bawah --
+    // supaya teks quiz lama (dibuat sebelum simbol ada) tetap kebaca kalau ditempel ulang.
+    function parseQuizTextToDraftsLegacy_(text) {
       const stripMark = l => l.replace(new RegExp('\\s*' + QUIZ_CORRECT_MARK + '\\s*$'), '').trim();
       let opaqueSeq = 0;
       return String(text || '').split(/\n\s*\n/).map(b => b.trim()).filter(Boolean).map(block => {
@@ -1718,9 +1729,6 @@
           const kind = mOpaque[1].toLowerCase();
           const rest = rawLines.slice(1);
           const stashed = (S._materiStash || [])[idx];
-          // Tak diubah dari bentuk yang di-serialize -> pulihkan aslinya. Halaman Materi TIDAK
-          // ikut jalur ini -- isi rich text-nya (mungkin baru saja diedit lewat kartu Quill di
-          // panel Materi) selalu diambil LIVE dari S.editDraft di bawah, bukan dari stash beku.
           if (kind !== 'materi' && stashed && rest.join('\n').trim() === opaqueBlockLines(stashed).join('\n').trim()) {
             return JSON.parse(JSON.stringify(stashed));
           }
@@ -1745,9 +1753,6 @@
           if (kind === 'susun') {
             return { id: '', type: 'sentence', text: prompt, options: [], correctIndex: 0, correctAnswers: [], answerText: body.join(' ').trim(), distractorsText: dist.join(', '), explanation: expl, points: pts, html: '' };
           }
-          // Isi rich text Halaman Materi selalu diambil live dari S.editDraft (sudah di-flush
-          // dari kartu Quill di panel Materi) -- baris teks di sini cuma bawa JUDUL, bukan isi.
-          // Fallback ke baris polos hanya utk tag baru yg belum pernah lewat Mode Form.
           const origIdx = (S._materiStashIndex || [])[idx];
           const liveDraft = (origIdx != null && S.editDraft[origIdx] && S.editDraft[origIdx].type === 'materi') ? S.editDraft[origIdx] : null;
           const html = liveDraft ? (liveDraft.html || '') : (body.length ? body.map(l => '<p>' + esc(l) + '</p>').join('') : '<p></p>');
@@ -1765,6 +1770,95 @@
         const markedCount = answerLines.filter(l => l.includes(QUIZ_CORRECT_MARK)).length;
         const isShort = answerLines.length <= 1 || (answerLines.length >= 1 && markedCount === answerLines.length);
         if (isShort) {
+          const answers = answerLines.map(stripMark).filter(Boolean);
+          return { id: '', type: 'short', text: questionText, options: [], correctIndex: 0, correctAnswers: answers.length ? answers : [''], explanation, points };
+        }
+        let correctIndex = answerLines.findIndex(l => l.includes(QUIZ_CORRECT_MARK));
+        if (correctIndex === -1) correctIndex = 0;
+        const options = answerLines.map(stripMark);
+        while (options.length < 2) options.push('');
+        return { id: '', type: 'mc', text: questionText, options, correctIndex, correctAnswers: [], explanation, points };
+      });
+    }
+
+    // Mode Teks: tiap blok soal diawali simbol penanda tipe (➡️ PG, ✏️ Isian Singkat, 🧩 Bank
+    // Kata, 🔤 Susun Kalimat, 📄 Materi). Baris kosong di mana pun DIABAIKAN -- bukan pemisah
+    // lagi, cuma simbol itu yang menentukan batas antar-soal. Kalau teks yang ditempel sama
+    // sekali tidak mengandung simbol penanda (mis. tempelan lama dari sebelum simbol ada),
+    // otomatis jatuh ke parseQuizTextToDraftsLegacy_ supaya data lama tetap kebaca.
+    function parseQuizTextToDrafts(text) {
+      const raw = String(text || '');
+      if (!QUIZ_ALL_MARKS.some(m => raw.includes(m))) {
+        return parseQuizTextToDraftsLegacy_(raw);
+      }
+      const stripMark = l => l.replace(new RegExp('\\s*' + QUIZ_CORRECT_MARK + '\\s*$'), '').trim();
+      // Baris kosong dibuang duluan -- di format baru baris kosong tidak berarti apa-apa lagi.
+      const lines = raw.split('\n').map(l => l.trim()).filter(l => l !== '');
+      // Kelompokkan jadi blok: mulai blok baru tiap ketemu baris berawalan simbol penanda.
+      // Baris sebelum simbol penanda PERTAMA (kalau ada, mis. tempelan yang belum rapi) dibuang.
+      const blocks = [];
+      lines.forEach(line => {
+        const mark = QUIZ_ALL_MARKS.find(m => line.startsWith(m));
+        if (mark) {
+          const rest = line.slice(mark.length).trim();
+          blocks.push({ type: QUIZ_MARK_TYPE[mark], lines: rest ? [rest] : [] });
+        } else if (blocks.length) {
+          blocks[blocks.length - 1].lines.push(line);
+        }
+      });
+      let opaqueSeq = 0;
+      return blocks.map(({ type, lines: rawLines }) => {
+        if (type === 'wordbank' || type === 'sentence' || type === 'materi') {
+          const idx = opaqueSeq;
+          opaqueSeq += 1;
+          const stashed = (S._materiStash || [])[idx];
+          // Tak diubah dari bentuk yang di-serialize -> pulihkan aslinya. Halaman Materi TIDAK
+          // ikut jalur ini -- isi rich text-nya (mungkin baru saja diedit lewat kartu Quill di
+          // panel Materi) selalu diambil LIVE dari S.editDraft di bawah, bukan dari stash beku.
+          if (type !== 'materi' && stashed && stashed.type === type && rawLines.join('\n').trim() === opaqueBlockLines(stashed).join('\n').trim()) {
+            return JSON.parse(JSON.stringify(stashed));
+          }
+          let dist = [], expl = '', pts = 1, prompt = '', title = '';
+          const body = [];
+          rawLines.forEach(l => {
+            const mPr = l.match(/^prompt\s*[:：]\s*(.*)$/i);
+            const mJ = l.match(/^judul\s*[:：]\s*(.*)$/i);
+            const mP = l.match(/^pengecoh\s*[:：]\s*(.*)$/i);
+            const mE = l.match(/^penjelasan\s*[:：]\s*(.*)$/i);
+            const mB = l.match(/^bobot\s*[:：]\s*(.*)$/i);
+            if (mPr) { prompt = mPr[1].trim(); return; }
+            if (mJ) { title = mJ[1].trim(); return; }
+            if (mP) { dist = splitDistractors_(mP[1]); return; }
+            if (mE) { expl = mE[1].trim(); return; }
+            if (mB) { const n = parseFloat(String(mB[1]).replace(',', '.')); if (!Number.isNaN(n)) pts = n; return; }
+            body.push(l);
+          });
+          if (type === 'wordbank') {
+            return { id: '', type: 'wordbank', text: body.join(' ').trim(), options: [], correctIndex: 0, correctAnswers: [], answerText: '', distractorsText: dist.join(', '), explanation: expl, points: pts, html: '' };
+          }
+          if (type === 'sentence') {
+            return { id: '', type: 'sentence', text: prompt, options: [], correctIndex: 0, correctAnswers: [], answerText: body.join(' ').trim(), distractorsText: dist.join(', '), explanation: expl, points: pts, html: '' };
+          }
+          // Isi rich text Halaman Materi selalu diambil live dari S.editDraft (sudah di-flush
+          // dari kartu Quill di panel Materi) -- baris teks di sini cuma bawa JUDUL, bukan isi.
+          const origIdx = (S._materiStashIndex || [])[idx];
+          const liveDraft = (origIdx != null && S.editDraft[origIdx] && S.editDraft[origIdx].type === 'materi') ? S.editDraft[origIdx] : null;
+          const html = liveDraft ? (liveDraft.html || '') : (body.length ? body.map(l => '<p>' + esc(l) + '</p>').join('') : '<p></p>');
+          return { id: liveDraft ? liveDraft.id : '', type: 'materi', text: title, options: [], correctIndex: 0, correctAnswers: [], explanation: '', points: 0, html: html };
+        }
+
+        const questionText = rawLines[0] || '';
+        let explanation = '', points = 1;
+        const answerLines = [];
+        rawLines.slice(1).forEach(l => {
+          const mExp = l.match(/^penjelasan\s*[:：]\s*(.*)$/i);
+          const mBob = l.match(/^bobot\s*[:：]\s*(.*)$/i);
+          if (mExp) { explanation = mExp[1].trim(); return; }
+          if (mBob) { const n = parseFloat(String(mBob[1]).replace(',', '.')); if (!Number.isNaN(n)) points = n; return; }
+          answerLines.push(l);
+        });
+
+        if (type === 'short') {
           const answers = answerLines.map(stripMark).filter(Boolean);
           return { id: '', type: 'short', text: questionText, options: [], correctIndex: 0, correctAnswers: answers.length ? answers : [''], explanation, points };
         }
