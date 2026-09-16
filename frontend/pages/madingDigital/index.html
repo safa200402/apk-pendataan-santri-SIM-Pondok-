@@ -272,7 +272,7 @@
       document.getElementById('viewDialog').showModal();
     }
 
-    document.getElementById('searchInput').addEventListener('input', () => { currentPage = 1; renderContent(); });
+    document.getElementById('searchInput').addEventListener('input', PSUI.debounce(() => { currentPage = 1; renderContent(); }, PSUI.AUTOSAVE_DEBOUNCE_MS));
     document.getElementById('closeView').addEventListener('click', () => document.getElementById('viewDialog').close());
     document.getElementById('viewDialog').addEventListener('click', e => { if (e.target === e.currentTarget) e.currentTarget.close(); });
 

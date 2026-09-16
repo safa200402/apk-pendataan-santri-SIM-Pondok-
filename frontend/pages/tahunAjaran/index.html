@@ -98,6 +98,7 @@
           </div>
           <div class="toolbar" id="actionToolbar">
             <button class="primary" id="addButton" type="button">Tambah tahun ajaran</button>
+            <button class="secondary" id="toggleExpandButton" type="button" data-expand-state="collapsed">Buka semua</button>
             <button class="secondary" id="refreshButton" type="button">Muat ulang</button>
           </div>
           <div class="list" id="list">
@@ -249,9 +250,11 @@
   <script src="../../shared-nav.js"></script>
   <script src="../../shared-shell.js"></script>
   <script>
+    const API_BASE = window.location.origin + '/api';
     const STORAGE = { apiBase: 'ps_api_base', token: 'ps_token', session: 'ps_session' };
+    localStorage.setItem(STORAGE.apiBase, API_BASE);
 
-    const state = { items: [], deleteTargetId: null, duplicateSourceId: null };
+    const state = { items: [], deleteTargetId: null, duplicateSourceId: null, expandedIds: new Set() };
 
     const uiState = {
       currentNoticeId: '',
@@ -394,46 +397,92 @@
       });
     }
 
+    function isItemExpanded(id) {
+      return state.expandedIds.has(id);
+    }
+
+    function pruneExpandedIds() {
+      const visibleIds = new Set(state.items.map(item => item.id));
+      Array.from(state.expandedIds).forEach(id => {
+        if (!visibleIds.has(id)) state.expandedIds.delete(id);
+      });
+    }
+
+    function syncExpandToggleButton() {
+      const button = document.getElementById('toggleExpandButton');
+      if (!button) return;
+      const hasItems = state.items.length > 0;
+      const allExpanded = hasItems && state.items.every(item => state.expandedIds.has(item.id));
+      button.disabled = !hasItems;
+      button.dataset.expandState = allExpanded ? 'expanded' : 'collapsed';
+      button.textContent = allExpanded ? 'Tutup semua' : 'Buka semua';
+    }
+
+    function toggleItemExpanded(id) {
+      if (!id) return;
+      if (state.expandedIds.has(id)) state.expandedIds.delete(id);
+      else state.expandedIds.add(id);
+      renderList();
+    }
+
+    function toggleExpandedList() {
+      const allExpanded = state.items.length > 0 && state.items.every(item => state.expandedIds.has(item.id));
+      if (allExpanded) state.expandedIds.clear();
+      else state.items.forEach(item => state.expandedIds.add(item.id));
+      renderList();
+    }
+
     function renderList() {
       const list = document.getElementById('list');
       if (!state.items.length) {
         list.innerHTML = '<p class="empty-state">Belum ada tahun ajaran. Klik "Tambah tahun ajaran" untuk memulai.</p>';
         syncRestrictedActions();
+        syncExpandToggleButton();
         return;
       }
       const canDelete = canDeleteRecords();
       const canManage = canManageRecord();
-      list.innerHTML = state.items.map((item, index) => `
-        <div class="card ta-card${item.isLocked ? ' is-locked' : ''}">
-          <div class="ta-card-head">
-            <div style="display:flex;flex-direction:column;gap:2px;">
+      list.innerHTML = state.items.map((item, index) => {
+        const expanded = isItemExpanded(item.id);
+        return `
+        <article class="card minimal-list-card ${expanded ? 'is-expanded' : ''}" style="${item.isLocked ? 'opacity:0.88;' : ''}">
+          <div class="minimal-list-card-head">
+            <div style="display:flex;flex-direction:column;gap:2px;flex-shrink:0;">
               <button class="secondary${canManage ? '' : ' ps-locked'}" type="button" data-move-up="${item.id}" ${(index === 0 || !canManage) ? 'disabled' : ''} ${canManage ? '' : 'aria-disabled="true" title="Mudir hanya bisa melihat data tahun ajaran, tidak bisa mengubah urutan."'} style="min-height:26px;padding:0 8px;line-height:1;">&#9650;</button>
               <button class="secondary${canManage ? '' : ' ps-locked'}" type="button" data-move-down="${item.id}" ${(index === state.items.length - 1 || !canManage) ? 'disabled' : ''} ${canManage ? '' : 'aria-disabled="true" title="Mudir hanya bisa melihat data tahun ajaran, tidak bisa mengubah urutan."'} style="min-height:26px;padding:0 8px;line-height:1;">&#9660;</button>
             </div>
-            <div class="ta-card-info">
-              <p class="ta-card-name">${escapeHtml(item.nama)}</p>
+            <div class="minimal-list-card-main" data-collapse="${escapeHtml(item.id)}" role="button" tabindex="0" aria-expanded="${expanded ? 'true' : 'false'}" aria-label="${expanded ? 'Tutup detail tahun ajaran' : 'Buka detail tahun ajaran'}">
+              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                <p class="ta-card-name" style="margin:0;">${escapeHtml(item.nama)}${item.isLocked ? ' &#128274;' : ''}</p>
+                <span class="pill ${item.isAktif ? 'aktif' : 'nonaktif'}">${item.isAktif ? 'Aktif' : 'Nonaktif'}</span>
+                <span class="pill ${item.isLocked ? 'closed' : 'open'}" title="${item.isLocked ? 'Close: data tahun ajaran ini terkunci, tidak bisa diedit' : 'Open: data tahun ajaran ini bisa diedit'}">${item.isLocked ? 'Close' : 'Open'}</span>
+              </div>
+              <span class="minimal-list-card-hint">${item.semester ? 'Semester ' + escapeHtml(item.semester) + ' &nbsp;·&nbsp; ' : ''}${formatDate(item.tanggalMulai)} — ${formatDate(item.tanggalSelesai)}</span>
+            </div>
+            <button class="secondary minimal-list-card-toggle" type="button" data-collapse="${escapeHtml(item.id)}" aria-expanded="${expanded ? 'true' : 'false'}" aria-label="${expanded ? 'Tutup detail tahun ajaran' : 'Buka detail tahun ajaran'}">${expanded ? 'Tutup' : 'Detail'}</button>
+          </div>
+          <div class="minimal-list-card-detail">
+            <div class="minimal-list-card-summary">
               ${item.semester ? `<p class="ta-card-dates" style="font-weight:600;font-size:12px;">Semester ${escapeHtml(item.semester)}</p>` : ''}
               <p class="ta-card-dates">${formatDate(item.tanggalMulai)} — ${formatDate(item.tanggalSelesai)}</p>
+              ${item.isAktif ? '<p style="font-size:13px;color:var(--success);font-weight:700;margin:0;">&#10003; Tahun ajaran aktif saat ini</p>' : ''}
             </div>
-            <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-              <span class="pill ${item.isAktif ? 'aktif' : 'nonaktif'}">${item.isAktif ? 'Aktif' : 'Nonaktif'}</span>
-              <span class="pill ${item.isLocked ? 'closed' : 'open'}" title="${item.isLocked ? 'Close: data tahun ajaran ini terkunci, tidak bisa diedit' : 'Open: data tahun ajaran ini bisa diedit'}">${item.isLocked ? 'Close' : 'Open'}</span>
+            <div class="toolbar minimal-list-card-actions">
+              ${!item.isAktif && !item.isLocked ? `<button class="primary" type="button" data-set-active="${item.id}" data-super-admin="true">Jadikan aktif</button>` : ''}
+              <button class="secondary" type="button" data-edit="${item.id}"${item.isLocked ? ' disabled title="Tahun ajaran berstatus Close"' : ''}>Edit</button>
+              <button class="secondary" type="button" data-history="${item.id}">Riwayat Edit</button>
+              <button class="secondary${canManage ? '' : ' ps-locked'}" type="button" data-lock="${item.id}" ${canManage ? '' : 'disabled aria-disabled="true" title="Mudir hanya bisa melihat data tahun ajaran, tidak bisa mengubah status Open/Close."'}>
+                ${item.isLocked ? '&#128275; Buka (Open)' : '&#128274; Tutup (Close)'}
+              </button>
+              <button class="secondary" type="button" data-duplicate="${item.id}" data-super-admin="true">&#128203; Gandakan</button>
+              ${(!item.isAktif && !item.isLocked && canDelete) ? `<button class="secondary" type="button" data-delete="${item.id}" data-super-admin="true">&#128465; Hapus</button>` : ''}
             </div>
           </div>
-          <div class="ta-card-actions">
-            ${!item.isAktif && !item.isLocked ? `<button class="primary" type="button" data-set-active="${item.id}" data-super-admin="true">Jadikan aktif</button>` : ''}
-            <button class="secondary" type="button" data-edit="${item.id}"${item.isLocked ? ' disabled title="Tahun ajaran berstatus Close"' : ''}>Edit</button>
-            <button class="secondary" type="button" data-history="${item.id}">Riwayat Edit</button>
-            ${item.isAktif ? '<span style="font-size:13px;color:var(--success);display:flex;font-weight:700;align-items:center;padding:11px">&#10003; Tahun ajaran aktif saat ini</span>' : ''}
-            <button class="secondary${canManage ? '' : ' ps-locked'}" type="button" data-lock="${item.id}" ${canManage ? '' : 'disabled aria-disabled="true" title="Mudir hanya bisa melihat data tahun ajaran, tidak bisa mengubah status Open/Close."'}>
-              ${item.isLocked ? '&#128275; Buka (Open)' : '&#128274; Tutup (Close)'}
-            </button>
-            <button class="secondary" type="button" data-duplicate="${item.id}" data-super-admin="true">&#128203; Gandakan</button>
-            ${(!item.isAktif && !item.isLocked && canDelete) ? `<button class="secondary" type="button" data-delete="${item.id}" data-super-admin="true">&#128465; Hapus</button>` : ''}
-          </div>
-        </div>
-      `).join('');
+        </article>
+      `;
+      }).join('');
       syncRestrictedActions();
+      syncExpandToggleButton();
     }
 
     function showEditHistory(id) {
@@ -463,6 +512,7 @@
       try {
         const data = await api('tahunAjaran.list');
         state.items = data.items || [];
+        pruneExpandedIds();
         renderList();
         clearNotice();
       } catch (err) {
@@ -494,46 +544,56 @@
         tanggalMulai: fields.namedItem('tanggalMulai').value,
         tanggalSelesai: fields.namedItem('tanggalSelesai').value
       };
+      const btn = event.submitter;
+      if (btn) btn.disabled = true;
       try {
         await api('tahunAjaran.save', { record }, 'POST');
         document.getElementById('dialog').close();
         await loadData();
       } catch (err) {
         showNotice(err.message || 'Gagal menyimpan.', 'error');
+      } finally {
+        if (btn) btn.disabled = false;
       }
     }
 
-    async function setActive(id) {
+    async function setActive(id, btn) {
       const item = state.items.find(x => x.id === id);
       if (!item) return;
       if (!confirm(`Jadikan "${item.nama}" sebagai tahun ajaran aktif?`)) return;
+      if (btn) btn.disabled = true;
       try {
         await api('tahunAjaran.setActive', { id }, 'POST');
         await loadData();
       } catch (err) {
         showNotice(err.message || 'Gagal mengubah tahun ajaran aktif.', 'error');
+        if (btn) btn.disabled = false;
       }
     }
 
-    async function moveOrder(id, direction) {
+    async function moveOrder(id, direction, btn) {
+      if (btn) btn.disabled = true;
       try {
         await api('tahunAjaran.reorder', { id, direction }, 'POST');
         await loadData();
       } catch (err) {
         showNotice(err.message || 'Gagal mengubah urutan tahun ajaran.', 'error');
+        if (btn) btn.disabled = false;
       }
     }
 
-    async function toggleLock(id) {
+    async function toggleLock(id, btn) {
       const item = state.items.find(x => x.id === id);
       if (!item) return;
       const action = item.isLocked ? 'membuka (Open)' : 'menutup (Close)';
       if (!confirm(`${item.isLocked ? 'Buka (Open)' : 'Tutup (Close)'} tahun ajaran "${item.nama}"?\n\n${item.isLocked ? 'Status Open: seluruh data tahun ajaran ini bisa diedit kembali.' : 'Status Close: seluruh data yang terikat tahun ajaran ini (kelas, halaqoh, regu, absensi, nilai, hafalan awal, tingkat kelas, akhlak, deskripsi) tidak bisa diedit.'}`)) return;
+      if (btn) btn.disabled = true;
       try {
         await api('tahunAjaran.lock', { id }, 'POST');
         await loadData();
       } catch (err) {
         showNotice(err.message || `Gagal ${action} tahun ajaran.`, 'error');
+        if (btn) btn.disabled = false;
       }
     }
 
@@ -578,7 +638,7 @@
       }
     }
 
-    async function confirmDelete() {
+    async function confirmDelete(btn) {
       const id = state.deleteTargetId;
       if (!id) return;
       const input = document.getElementById('deleteConfirmInput');
@@ -586,6 +646,7 @@
         showNotice('Ketik kata HAPUS untuk mengonfirmasi.', 'error');
         return;
       }
+      if (btn) btn.disabled = true;
       try {
         const res = await api('tahunAjaran.delete', { id, confirm: input.value.trim() }, 'POST');
         document.getElementById('deleteDialog').close();
@@ -594,6 +655,7 @@
         showNotice((res && res.message) || 'Tahun ajaran dihapus.', 'info');
       } catch (err) {
         showNotice(err.message || 'Gagal menghapus.', 'error');
+        if (btn) btn.disabled = false;
       }
     }
 
@@ -686,7 +748,7 @@
       document.getElementById('refreshButton').addEventListener('click', loadData);
       document.getElementById('form').addEventListener('submit', saveForm);
       document.getElementById('closeDialog').addEventListener('click', () => document.getElementById('dialog').close());
-      document.getElementById('deleteForm').addEventListener('submit', (e) => { e.preventDefault(); confirmDelete(); });
+      document.getElementById('deleteForm').addEventListener('submit', (e) => { e.preventDefault(); confirmDelete(e.submitter); });
       document.getElementById('deleteConfirmInput').addEventListener('input', syncDeleteConfirmButton);
       document.getElementById('closeDeleteDialog').addEventListener('click', () => document.getElementById('deleteDialog').close());
       document.getElementById('duplicateForm').addEventListener('submit', submitDuplicate);
@@ -708,9 +770,9 @@
           const item = state.items.find(x => x.id === editBtn.getAttribute('data-edit'));
           if (item && !item.isLocked) openDialog(item);
         } else if (activeBtn) {
-          setActive(activeBtn.getAttribute('data-set-active'));
+          setActive(activeBtn.getAttribute('data-set-active'), activeBtn);
         } else if (lockBtn) {
-          toggleLock(lockBtn.getAttribute('data-lock'));
+          toggleLock(lockBtn.getAttribute('data-lock'), lockBtn);
         } else if (deleteBtn) {
           openDeleteDialog(deleteBtn.getAttribute('data-delete'));
         } else if (dupBtn) {
@@ -718,11 +780,22 @@
         } else if (historyBtn) {
           showEditHistory(historyBtn.getAttribute('data-history'));
         } else if (moveUpBtn) {
-          moveOrder(moveUpBtn.getAttribute('data-move-up'), 'up');
+          moveOrder(moveUpBtn.getAttribute('data-move-up'), 'up', moveUpBtn);
         } else if (moveDownBtn) {
-          moveOrder(moveDownBtn.getAttribute('data-move-down'), 'down');
+          moveOrder(moveDownBtn.getAttribute('data-move-down'), 'down', moveDownBtn);
+        } else {
+          const collapseTrigger = event.target.closest('[data-collapse]');
+          if (collapseTrigger) toggleItemExpanded(collapseTrigger.getAttribute('data-collapse'));
         }
       });
+      document.getElementById('list').addEventListener('keydown', event => {
+        const collapseTarget = event.target.closest('[data-collapse]');
+        if (!collapseTarget || collapseTarget.tagName === 'BUTTON') return;
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        toggleItemExpanded(collapseTarget.getAttribute('data-collapse'));
+      });
+      document.getElementById('toggleExpandButton').addEventListener('click', toggleExpandedList);
     }
   </script>
 </body>

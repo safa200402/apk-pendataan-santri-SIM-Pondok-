@@ -245,7 +245,7 @@
       });
       list.innerHTML = html;
       list.querySelectorAll('.btn-edit-jenis').forEach(b => b.addEventListener('click', () => openJenisEdit(b.dataset.id)));
-      list.querySelectorAll('.btn-toggle-jenis').forEach(b => b.addEventListener('click', () => toggleJenis(b.dataset.id, b.dataset.status)));
+      list.querySelectorAll('.btn-toggle-jenis').forEach(b => b.addEventListener('click', () => toggleJenis(b.dataset.id, b.dataset.status, b)));
       renderPaging(filtered.length);
     }
 
@@ -280,13 +280,14 @@
       document.getElementById('jenisNama').focus();
     }
 
-    async function toggleJenis(id, status) {
+    async function toggleJenis(id, status, btn) {
+      if (btn) btn.disabled = true;
       try {
         const active = (status || '').toLowerCase() !== 'nonaktif';
         await apiPost({ action: 'pelanggaran.jenis.toggle', id, status: active ? 'Nonaktif' : 'Aktif' });
         showNotice(active ? 'Jenis dinonaktifkan.' : 'Jenis diaktifkan.');
         await loadJenis();
-      } catch (e) { showNotice(e.message, 'error'); }
+      } catch (e) { showNotice(e.message, 'error'); if (btn) btn.disabled = false; }
     }
 
     function resetForm() {

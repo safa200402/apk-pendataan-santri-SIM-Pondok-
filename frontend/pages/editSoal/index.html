@@ -1092,10 +1092,10 @@ Bobot: 5</button>
 
       el.querySelectorAll('[data-add]').forEach(btn => btn.addEventListener('click', ()=>openDlg(null, btn.dataset.add)));
       el.querySelectorAll('[data-edit]').forEach(btn => btn.addEventListener('click', ()=>openDlg(btn.dataset.edit)));
-      el.querySelectorAll('[data-copy]').forEach(btn => btn.addEventListener('click', ()=>copyItem(btn.dataset.copy)));
-      el.querySelectorAll('[data-del]').forEach(btn  => btn.addEventListener('click', ()=>delSoal(btn.dataset.del)));
-      el.querySelectorAll('[data-up]').forEach(btn   => btn.addEventListener('click', ()=>moveItem(btn.dataset.up, -1)));
-      el.querySelectorAll('[data-down]').forEach(btn => btn.addEventListener('click', ()=>moveItem(btn.dataset.down, 1)));
+      el.querySelectorAll('[data-copy]').forEach(btn => btn.addEventListener('click', ()=>copyItem(btn.dataset.copy, btn)));
+      el.querySelectorAll('[data-del]').forEach(btn  => btn.addEventListener('click', ()=>delSoal(btn.dataset.del, btn)));
+      el.querySelectorAll('[data-up]').forEach(btn   => btn.addEventListener('click', ()=>moveItem(btn.dataset.up, -1, btn)));
+      el.querySelectorAll('[data-down]').forEach(btn => btn.addEventListener('click', ()=>moveItem(btn.dataset.down, 1, btn)));
     }
 
     function renderItem(s, idx, total) {
@@ -1133,7 +1133,7 @@ Bobot: 5</button>
     }
 
     // ── move item (reorder) ──────────────────────────────
-    async function moveItem(id, dir) {
+    async function moveItem(id, dir, btn) {
       const s = S.soalData.find(x=>x.id===id);
       if (!s) return;
       const peers = soalFiltered().slice().sort((a,b)=>a.nomor-b.nomor);
@@ -1141,15 +1141,16 @@ Bobot: 5</button>
       const swapIdx = idx+dir;
       if (swapIdx<0||swapIdx>=peers.length) return;
       const other = peers[swapIdx];
+      if (btn) btn.disabled = true;
       const tmp = s.nomor; s.nomor = other.nomor; other.nomor = tmp;
       try {
         await api('soal.reorder', { orders: JSON.stringify([{id:s.id,nomor:s.nomor},{id:other.id,nomor:other.nomor}]) });
-      } catch(e) { s.nomor=other.nomor; other.nomor=tmp; showNotice(e.message||'Gagal menyimpan urutan.','error'); return; }
+      } catch(e) { s.nomor=other.nomor; other.nomor=tmp; showNotice(e.message||'Gagal menyimpan urutan.','error'); if (btn) btn.disabled = false; return; }
       renderJenisStrip(); renderStats(); renderSoal();
     }
 
     // ── copy item ────────────────────────────────────────
-    async function copyItem(id) {
+    async function copyItem(id, btn) {
       const s = S.soalData.find(x=>x.id===id);
       if (!s) return;
       const payload = {
@@ -1160,11 +1161,12 @@ Bobot: 5</button>
         opsiA: s.opsiA, opsiB: s.opsiB, opsiC: s.opsiC, opsiD: s.opsiD,
         jawaban: s.jawaban
       };
+      if (btn) btn.disabled = true;
       try {
         await api('soal.save', payload);
         await loadSoal();
         showNotice('Soal diduplikat.','success');
-      } catch(e) { showNotice(e.message||'Gagal menduplikat.','error'); }
+      } catch(e) { showNotice(e.message||'Gagal menduplikat.','error'); if (btn) btn.disabled = false; }
     }
 
     // ── dialog ───────────────────────────────────────────
@@ -1263,12 +1265,14 @@ Bobot: 5</button>
     document.getElementById('dlgDeleteBtn').addEventListener('click', async () => {
       const id = document.getElementById('fId').value;
       if (!id || !confirm('Hapus soal ini?')) return;
+      const btn = document.getElementById('dlgDeleteBtn');
+      btn.disabled = true;
       try {
         await api('soal.delete',{id});
         document.getElementById('soalDlg').close();
         await loadSoal();
         showNotice('Soal dihapus.','success');
-      } catch(e) { showNotice(e.message||'Gagal.','error'); }
+      } catch(e) { showNotice(e.message||'Gagal.','error'); } finally { btn.disabled = false; }
     });
 
     document.getElementById('dlgCancelBtn').addEventListener('click', ()=>document.getElementById('soalDlg').close());
@@ -1346,13 +1350,14 @@ Bobot: 5</button>
     });
 
     // ── delete soal ──────────────────────────────────────
-    async function delSoal(id) {
+    async function delSoal(id, btn) {
       if (!confirm('Hapus soal ini?')) return;
+      if (btn) btn.disabled = true;
       try {
         await api('soal.delete',{id});
         await loadSoal();
         showNotice('Soal dihapus.','success');
-      } catch(e) { showNotice(e.message||'Gagal.','error'); }
+      } catch(e) { showNotice(e.message||'Gagal.','error'); if (btn) btn.disabled = false; }
     }
 
     function nextNomor(tipe, jenis) {
@@ -1915,11 +1920,11 @@ Bobot: 5</button>
         const p = parseInt(btn.dataset.page, 10);
         if (p >= 1 && p <= totalPages) { S.page = p; renderDashboard(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
       });
-      document.getElementById('searchInput').addEventListener('input', function () {
+      document.getElementById('searchInput').addEventListener('input', PSUI.debounce(function () {
         S.searchQuery = this.value.trim();
         S.page = 1;
         renderDashboard();
-      });
+      }, PSUI.AUTOSAVE_DEBOUNCE_MS));
       document.getElementById('statusFilter').addEventListener('change', function () {
         S.statusFilter = this.value;
         S.page = 1;

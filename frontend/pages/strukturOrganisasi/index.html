@@ -548,7 +548,7 @@
         });
         dropdown.classList.add('open');
       }
-      input.addEventListener('input', () => renderList(input.value.trim()));
+      input.addEventListener('input', PSUI.debounce(() => renderList(input.value.trim()), PSUI.AUTOSAVE_DEBOUNCE_MS));
       input.addEventListener('focus', () => renderList(input.value.trim()));
       document.addEventListener('click', e => { if (!document.getElementById('pengurusFinder').contains(e.target)) dropdown.classList.remove('open'); });
     }

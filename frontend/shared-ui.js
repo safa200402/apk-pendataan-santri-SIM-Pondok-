@@ -17,6 +17,11 @@
     closingViaPopstate: false
   };
 
+  // Jeda baku (ms) untuk debounce input pencarian/filter di semua halaman -- supaya ketikan
+  // beruntun tidak nembak API / re-render tiap huruf. Dipakai lewat PSUI.debounce(fn) atau
+  // PSUI.AUTOSAVE_DEBOUNCE_MS langsung. Satu tempat biar gampang di-tune serentak.
+  var AUTOSAVE_DEBOUNCE_MS = 350;
+
   if (global.document && global.document.documentElement) {
     global.document.documentElement.classList.add(BOOT_LOADING_CLASS);
     pageLoaderState.active = true;
@@ -33,6 +38,26 @@
     if (global.document && global.document.documentElement) {
       global.document.documentElement.classList.remove(BOOT_LOADING_CLASS);
     }
+  }
+
+  // Bungkus fn supaya baru dijalankan `wait` ms setelah panggilan TERAKHIR (pola trailing
+  // debounce). `this` & argumen (mis. event) diteruskan apa adanya, jadi bisa langsung dipakai
+  // sebagai listener: el.addEventListener('input', PSUI.debounce(handler)). wait default =
+  // AUTOSAVE_DEBOUNCE_MS. Return-nya punya .cancel() buat batalin timer yang lagi menunggu.
+  function debounce(fn, wait) {
+    var delay = (wait === undefined || wait === null) ? AUTOSAVE_DEBOUNCE_MS : wait;
+    var timer = null;
+    function debounced() {
+      var context = this;
+      var args = arguments;
+      global.clearTimeout(timer);
+      timer = global.setTimeout(function () {
+        timer = null;
+        fn.apply(context, args);
+      }, delay);
+    }
+    debounced.cancel = function () { global.clearTimeout(timer); timer = null; };
+    return debounced;
   }
 
   function getLayerMountTarget(kind) {
@@ -365,14 +390,20 @@
     enhanceQuickImportExample(example);
     copyQuickImportExample(example);
   }
+  // Ikon gembok inline (tanpa Font Awesome) supaya seragam di semua halaman,
+  // termasuk yang tidak memuat Font Awesome (mis. changePassword, editPengurus).
+  var PASSWORD_ICON_SVG_ATTRS = 'viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"';
+  var PASSWORD_ICON_LOCKED = '<svg ' + PASSWORD_ICON_SVG_ATTRS + '><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>';
+  var PASSWORD_ICON_UNLOCKED = '<svg ' + PASSWORD_ICON_SVG_ATTRS + '><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>';
+
   function syncPasswordToggleState(input, button) {
     var visible = !!input && input.type === 'text';
     if (!input || !button) {
       return;
     }
     button.setAttribute('aria-pressed', visible ? 'true' : 'false');
-    button.setAttribute('aria-label', visible ? 'Sembunyikan password' : 'Lihat password');
-    button.textContent = visible ? 'Sembunyikan' : 'Lihat';
+    button.setAttribute('aria-label', visible ? 'Sembunyikan password' : 'Tampilkan password');
+    button.innerHTML = visible ? PASSWORD_ICON_UNLOCKED : PASSWORD_ICON_LOCKED;
   }
 
   function enhancePasswordField(input) {
@@ -381,14 +412,20 @@
     if (!input || input.dataset.psPasswordEnhanced === 'true') {
       return;
     }
+    if (input.dataset.psPasswordToggle === 'off') {
+      // Halaman menyediakan tombol lihat/sembunyikan sendiri (mis. login & loginSantri).
+      input.dataset.psPasswordEnhanced = 'true';
+      return;
+    }
     wrapper = global.document.createElement('div');
     wrapper.className = 'ps-password-field';
     input.parentNode.insertBefore(wrapper, input);
     wrapper.appendChild(input);
     button = global.document.createElement('button');
-    button.className = 'secondary ps-password-toggle';
+    button.className = 'ps-password-toggle';
     button.type = 'button';
     button.setAttribute('data-ps-password-toggle', 'true');
+    button.setAttribute('aria-pressed', 'false');
     wrapper.appendChild(button);
     syncPasswordToggleState(input, button);
     button.addEventListener('click', function () {
@@ -763,7 +800,12 @@
 
     dialog.addEventListener('close', function () {
       syncDialogScrollLock();
-      if (!dialogHistoryState.closingViaPopstate && dialogHistoryState.depth > 0 && global.history && global.history.back) {
+      // `data-no-history` dialog tidak pernah push entry saat open (lihat observer di
+      // observeDialogs), jadi jangan pop / history.back() saat close juga -- kalau tidak,
+      // depth dari dialog INDUK yang masih terbuka akan ikut ke-pop dan induknya ikut
+      // tertutup (bug dialog bertumpuk). `== null` sengaja: `data-no-history` polos =>
+      // dataset.noHistory === "" (truthy? tidak, tapi bukan null) => tetap dihormati.
+      if (dialog.dataset.noHistory == null && !dialogHistoryState.closingViaPopstate && dialogHistoryState.depth > 0 && global.history && global.history.back) {
         dialogHistoryState.depth -= 1;
         global.history.back();
       }
@@ -792,7 +834,10 @@
         if (mutation.type === 'attributes') {
           if (mutation.attributeName === 'open' && mutation.target && mutation.target.tagName === 'DIALOG') {
             shouldSyncScrollLock = true;
-            if (mutation.target.open && !mutation.target.dataset.noHistory) {
+            // `== null`, BUKAN `!...`: `data-no-history` polos (tanpa nilai) => dataset.noHistory
+            // === "" => `!""` === true => dulu history TETAP di-push (atribut polos tak berefek).
+            // Sekarang atribut polos benar-benar men-skip push (dan close listener men-skip back).
+            if (mutation.target.open && mutation.target.dataset.noHistory == null) {
               pushDialogHistory();
             }
           }
@@ -961,6 +1006,8 @@
   }
 
   global.PSUI = {
+    AUTOSAVE_DEBOUNCE_MS: AUTOSAVE_DEBOUNCE_MS,
+    debounce: debounce,
     handleApiAuthError: handleApiAuthError,
     getLayerMountTarget: getLayerMountTarget,
     applyPermissionLock: applyPermissionLock,

@@ -1046,12 +1046,6 @@
     <div class="app-layout">
       <section class="panel nav" id="nav"></section>
       <div class="content-stack">
-        <section class="issue-panel">
-          <h2>Masalah Terkait</h2>
-          <div class="issue-summary" id="issueSummary"></div>
-          <ul class="issue-warning-list" id="issueList"></ul>
-        </section>
-
         <section class="panel">
           <div class="filters" id="advancedFiltersPanel">
             <label>
@@ -1203,7 +1197,7 @@
     </form>
   </dialog>
 
-  <dialog class="ps-floating-dialog" id="sopOverviewDialog" data-no-history>
+  <dialog class="ps-floating-dialog" id="sopOverviewDialog" data-no-history="true">
     <div class="dialog-body duplicate-dialog-body ps-dialog-shell">
       <div class="duplicate-dialog-head ps-dialog-header">
         <div>
@@ -1217,7 +1211,7 @@
     </div>
   </dialog>
 
-  <dialog class="ps-floating-dialog" id="lampiranViewDialog" data-no-history>
+  <dialog class="ps-floating-dialog" id="lampiranViewDialog" data-no-history="true">
     <div class="dialog-body duplicate-dialog-body ps-dialog-shell">
       <div class="duplicate-dialog-head ps-dialog-header">
         <div>
@@ -1231,7 +1225,7 @@
     </div>
   </dialog>
 
-  <dialog id="lampiranListDialog" data-no-history>
+  <dialog id="lampiranListDialog" data-no-history="true">
     <div class="dialog-body duplicate-dialog-body ps-dialog-shell">
       <div class="duplicate-dialog-head ps-dialog-header">
         <div>
@@ -1252,7 +1246,7 @@
     </div>
   </dialog>
 
-  <dialog id="lampiranFormDialog" data-no-history>
+  <dialog id="lampiranFormDialog" data-no-history="true">
     <div class="dialog-body duplicate-dialog-body ps-dialog-shell">
       <div class="duplicate-dialog-head ps-dialog-header">
         <div>
@@ -1314,10 +1308,6 @@
     const API_BASE = window.location.origin + '/api';
     const STORAGE = { apiBase: 'ps_api_base', token: 'ps_token', session: 'ps_session' };
     const DATASET_KEY = 'kegiatanSop';
-    const ISSUE_GROUP_CONFIG = {
-      kegiatan_sop_without_jabatan: true,
-      kegiatan_sop_without_sop: true
-    };
     const state = {
       items: [],
       refs: { jabatan: [] },
@@ -2144,43 +2134,48 @@ function renderActivityList(items) {
           urutan: String(i + 1)
         }))
       };
+      const btn = event.submitter;
+      if (btn) btn.disabled = true;
       try {
         showNotice('Menyimpan kegiatan operasional...', 'info');
         await api('kegiatanSop.save', { record }, 'POST');
         document.getElementById('dialog').close();
         await loadData();
-        await issuePanelController.load();
         showNotice('Kegiatan operasional berhasil disimpan.', 'info');
       } catch (error) {
         showNotice(error.message || 'Gagal menyimpan kegiatan operasional.', 'error');
+      } finally {
+        if (btn) btn.disabled = false;
       }
     }
 
-    async function toggleItemStatus(id) {
+    async function toggleItemStatus(id, btn) {
       const item = state.items.find(entry => entry.id === id);
       if (!item) return;
+      if (btn) btn.disabled = true;
       try {
         await api('kegiatanSop.toggle', {
           id,
           active: item.statusKey !== 'active'
         }, 'POST');
         await loadData();
-        await issuePanelController.load();
       } catch (error) {
         showNotice(error.message || 'Gagal mengubah status kegiatan.', 'error');
+        if (btn) btn.disabled = false;
       }
     }
 
-    async function deleteItem(id) {
+    async function deleteItem(id, btn) {
       const item = state.items.find(entry => entry.id === id);
       if (!item) return;
       if (!confirm(`Hapus kegiatan "${item.name}"?`)) return;
+      if (btn) btn.disabled = true;
       try {
         await api('kegiatanSop.delete', { id }, 'POST');
         await loadData();
-        await issuePanelController.load();
       } catch (error) {
         showNotice(error.message || 'Gagal menghapus kegiatan.', 'error');
+        if (btn) btn.disabled = false;
       }
     }
 
@@ -2325,6 +2320,8 @@ function renderActivityList(items) {
       const file = event.target.files && event.target.files[0];
       event.target.value = '';
       if (!file) return;
+      const importBtn = document.getElementById('importExcelButton');
+      importBtn.disabled = true;
       try {
         showNotice('Mengimpor Excel kegiatan SOP...', 'info');
         await window.PSExcel.importDataset(api, DATASET_KEY, file, {
@@ -2333,10 +2330,11 @@ function renderActivityList(items) {
           }
         });
         await loadData();
-        await issuePanelController.load();
         showNotice('Import kegiatan SOP selesai.', 'info');
       } catch (error) {
         showNotice(error.message || 'Gagal import Excel kegiatan SOP.', 'error');
+      } finally {
+        importBtn.disabled = false;
       }
     }
 
@@ -2350,10 +2348,6 @@ function renderActivityList(items) {
       syncActionToolbar();
     }
 
-    const issuePanelController = createIssuePanelController(api, {
-      issueConfig: ISSUE_GROUP_CONFIG
-    });
-
     const session = getStoredSession();
     if (!session) {
       clearSession();
@@ -2366,7 +2360,7 @@ function renderActivityList(items) {
       syncAdvancedFiltersVisibility();
       syncActionToolbar();
 
-      document.getElementById('searchInput').addEventListener('input', () => { state.page = 1; renderList(); });
+      document.getElementById('searchInput').addEventListener('input', PSUI.debounce(() => { state.page = 1; renderList(); }, PSUI.AUTOSAVE_DEBOUNCE_MS));
       document.getElementById('statusFilter').addEventListener('change', () => { state.page = 1; renderList(); });
       document.getElementById('sortSelect').addEventListener('change', () => { state.page = 1; renderList(); });
       document.getElementById('pageSizeSelect').addEventListener('change', event => {
@@ -2376,7 +2370,6 @@ function renderActivityList(items) {
       });
       document.getElementById('refreshButton').addEventListener('click', async () => {
         await loadData();
-        await issuePanelController.load();
       });
       document.getElementById('addButton').addEventListener('click', () => openDialog());
       document.getElementById('toggleExpandButton').addEventListener('click', toggleExpandCurrentView);
@@ -2545,12 +2538,12 @@ function renderActivityList(items) {
         }
 
         if (toggleStatusButton) {
-          toggleItemStatus(toggleStatusButton.getAttribute('data-toggle-status'));
+          toggleItemStatus(toggleStatusButton.getAttribute('data-toggle-status'), toggleStatusButton);
           return;
         }
 
         if (deleteButton) {
-          deleteItem(deleteButton.getAttribute('data-delete'));
+          deleteItem(deleteButton.getAttribute('data-delete'), deleteButton);
           return;
         }
 
@@ -2586,7 +2579,7 @@ function renderActivityList(items) {
           const idKegiatan = lampiranPageDeleteButton.getAttribute('data-lampiran-page-kegiatan');
           state.lampiranContext = 'global';
           state.lampiranKegiatanId = idKegiatan;
-          deleteLampiran(id);
+          deleteLampiran(id, lampiranPageDeleteButton);
         }
       });
       document.getElementById('list').addEventListener('keydown', event => {
@@ -2601,7 +2594,6 @@ function renderActivityList(items) {
 
       window.addEventListener('load', async () => {
         await loadData();
-        await issuePanelController.load();
       });
     }
 
@@ -2743,6 +2735,8 @@ function renderActivityList(items) {
         ? document.getElementById('lampiranKegiatanSelect').value
         : state.lampiranKegiatanId;
       if (!kegiatanId) { showNotice('Pilih kegiatan untuk lampiran / ketentuan ini.', 'error'); return; }
+      const saveBtn = document.getElementById('saveLampiranBtn');
+      saveBtn.disabled = true;
       try {
         showNotice('Menyimpan lampiran / ketentuan...', 'info');
         await api('kegiatanSopLampiran.save', {
@@ -2762,12 +2756,15 @@ function renderActivityList(items) {
         showNotice('Lampiran / ketentuan berhasil disimpan.', 'info');
       } catch (err) {
         showNotice(err.message || 'Gagal menyimpan lampiran / ketentuan.', 'error');
+      } finally {
+        saveBtn.disabled = false;
       }
     }
 
-    async function deleteLampiran(id) {
+    async function deleteLampiran(id, btn) {
       if (!confirm('Hapus lampiran / ketentuan ini?')) return;
       const kegiatanId = state.lampiranKegiatanId;
+      if (btn) btn.disabled = true;
       try {
         showNotice('Menghapus lampiran / ketentuan...', 'info');
         await api('kegiatanSopLampiran.delete', { id }, 'POST');
@@ -2783,6 +2780,7 @@ function renderActivityList(items) {
         clearNotice();
       } catch (err) {
         showNotice(err.message || 'Gagal menghapus lampiran / ketentuan.', 'error');
+        if (btn) btn.disabled = false;
       }
     }
 
@@ -2812,7 +2810,7 @@ function renderActivityList(items) {
         return;
       }
       const delBtn = event.target.closest('[data-lampiran-delete]');
-      if (delBtn) deleteLampiran(delBtn.getAttribute('data-lampiran-delete'));
+      if (delBtn) deleteLampiran(delBtn.getAttribute('data-lampiran-delete'), delBtn);
     });
 
     document.getElementById('lampiranTabBar').addEventListener('click', event => {

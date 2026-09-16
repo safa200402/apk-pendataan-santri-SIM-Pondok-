@@ -14,6 +14,14 @@ body.page-shell {
   --shell-mustard: #ebcd75;
   --shell-line: rgba(244, 217, 120, 0.18);
   --shell-shadow: rgba(0, 0, 0, 0.18);
+  /* Bottom tab bar audit: tinggi SAMA dengan header. NB: .app-header di bawah punya
+     `height: 95px` yg meng-override `--shell-header-height` (84px), jadi angka riil
+     header = 95px -- itu yg dipakai di sini (keputusan user 2026-08-29). */
+  --shell-tabbar-height: 95px;
+  /* Tinggi total bar termasuk safe-area iOS; dipakai bar + padding-bottom `main`. */
+  --shell-tabbar-space: calc(var(--shell-tabbar-height) + env(safe-area-inset-bottom, 0px));
+  /* Tinggi seragam ke-3 item di dalam tab bar (2 tab + tombol Beranda). */
+  --shell-audit-item-size: 48px;
   width: 100%;
 }
 
@@ -258,7 +266,7 @@ body.page-shell .notice-stack {
 body.page-shell main {
   width: 100%;
   margin: 0;
-  padding: calc(var(--shell-header-height) + 24px) 24px 32px 24px;
+  padding: calc(var(--shell-header-height) + 24px) 24px calc(var(--shell-tabbar-space) + 24px) 24px;
   transition: padding-left 0.28s ease;
 }
 
@@ -268,6 +276,180 @@ body.page-shell.sidebar-open main {
 
 body.page-shell .app-layout {
   display: block;
+}
+
+body.page-shell .shell-audit-tabbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: var(--shell-z-header);
+  box-sizing: border-box;
+  height: var(--shell-tabbar-space);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 0 16px env(safe-area-inset-bottom, 0px);
+  background: #333;
+  border-top: 6px solid rgb(73 73 73);
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.18);
+  transition: left 0.28s ease;
+}
+
+body.page-shell.sidebar-open .shell-audit-tabbar {
+  left: var(--shell-sidebar-width);
+}
+
+/* Popup "Audit Diri" (#_auditPopup, shared-shell.js) diposisi inline via JS (left:16px) --
+   inline style menang atas rule biasa, jadi override sidebar-open ini WAJIB !important.
+   Cuma popup KIRI yg perlu digeser (sidebar cuma di kiri) -- popup "Audit Bawahan" di kanan
+   tidak pernah ketiban sidebar, jadi dibiarkan spt biasa. Dipicu laporan user 2026-08-29:
+   pas sidebar kebuka di laptop, popup kiri nge-tindih menu sidebar krn posisinya fixed ke
+   pojok viewport, tidak peduli sidebar lagi makan tempat atau tidak. z-index popup jg sudah
+   diturunkan (var(--shell-z-header) di shared-shell.js) supaya di mobile (drawer-backdrop
+   BENERAN gelap/nutupin di situ, beda dari desktop yg opacity:0) popup ikut ke-dim di
+   belakang backdrop selama drawer kebuka, bukan ngambang di depannya. */
+body.page-shell.sidebar-open #_auditPopup {
+  left: calc(var(--shell-sidebar-width) + 16px) !important;
+}
+
+/* Slot pembungkus tiap elemen tab bar -- tinggi seragam = tinggi bar, konten di-center.
+   overflow visible supaya tombol Beranda boleh 'protrude' tanpa nambah tinggi baris. */
+body.page-shell .shell-audit-slot {
+  flex: 0 0 auto;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 3 elemen tab bar (button, a, button) dipaksa TINGGI SAMA (--shell-audit-item-size) &
+   di-center vertikal di slot-nya -> sejajar seperti bottom nav biasa, tidak ada yg
+   protrude / ketinggian sendiri. */
+body.page-shell .shell-audit-tab {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: var(--shell-audit-item-size);
+  border: none;
+  border-radius: 999px;
+  padding: 0 18px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 246, 223, 0.5);
+  box-shadow: none;
+  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+body.page-shell .shell-audit-tab > span {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+}
+
+body.page-shell .shell-audit-tab i {
+  font-size: 16px;
+  line-height: 1;
+}
+
+body.page-shell .shell-audit-tab[disabled] {
+  cursor: default;
+  opacity: 0.55;
+}
+
+body.page-shell .shell-audit-tab.is-active {
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.55);
+}
+
+body.page-shell .shell-audit-tab-badge {
+  min-width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 0 4px;
+}
+
+/* Tombol Beranda di tengah tab bar audit -- bulat, warna aksen mustard supaya beda dari
+   2 tab audit di kiri-kanan. TINGGI SAMA dgn tab (--shell-audit-item-size), TIDAK
+   protrude/terangkat -- sejajar di garis tengah bar seperti bottom nav biasa. */
+body.page-shell .shell-audit-home {
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--shell-audit-item-size);
+  height: var(--shell-audit-item-size);
+  border-radius: 999px;
+  border: 2px solid #333;
+  background: var(--shell-mustard, #ebcd75);
+  color: #2a2118;
+  font-size: 18px;
+  text-decoration: none;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+body.page-shell .shell-audit-home:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.42);
+}
+
+body.page-shell .shell-audit-home:active {
+  transform: translateY(0);
+}
+
+body.page-shell .shell-audit-home:focus-visible {
+  outline: 3px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 2px;
+}
+
+/* Link "Dokumen & Catatan" di tab bar -- bentuk & tinggi sama dgn tombol Beranda tapi
+   warna netral (cream) supaya jelas beda peran dari Beranda (mustard) & tab audit. */
+body.page-shell .shell-audit-link {
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--shell-audit-item-size);
+  height: var(--shell-audit-item-size);
+  border-radius: 999px;
+  border: 2px solid #333;
+  background: rgba(255, 246, 223, 0.92);
+  color: #2a2118;
+  font-size: 17px;
+  text-decoration: none;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+body.page-shell .shell-audit-link:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.42);
+}
+
+body.page-shell .shell-audit-link:active {
+  transform: translateY(0);
+}
+
+body.page-shell .shell-audit-link.is-current {
+  background: var(--shell-mustard, #ebcd75);
+  box-shadow: inset 0 0 0 2px rgba(51, 51, 51, 0.55), 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+
+body.page-shell .shell-audit-link:focus-visible {
+  outline: 3px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 2px;
 }
 
 body.page-shell .content-stack {
@@ -708,7 +890,15 @@ body.page-shell .role-scope-filter:focus {
   }
 
   body.page-shell main {
-    padding: calc(var(--shell-header-height) + 20px) 16px 24px 16px;
+    padding: calc(var(--shell-header-height) + 20px) 16px calc(var(--shell-tabbar-space) + 24px) 16px;
+  }
+
+  body.page-shell.sidebar-open .shell-audit-tabbar {
+    left: 0;
+  }
+
+  body.page-shell.sidebar-open #_auditPopup {
+    left: 16px !important;
   }
 
   body.page-shell .sidebar-scroll {

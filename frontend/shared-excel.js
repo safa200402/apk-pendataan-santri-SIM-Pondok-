@@ -1,9 +1,14 @@
 (function (global) {
-  var XLSX_URL = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+  // Di-vendor lokal (2026-09-07) supaya jalan tanpa internet / di cPanel yg blokir CDN.
+  // Path root-absolut karena shared-excel.js dipakai halaman di kedalaman folder berbeda
+  // (pages/x/ vs pages/santri/x/); loader inject <script> yg src-nya di-resolve relatif ke
+  // dokumen, bukan ke file ini. Versi disamakan ke 0.20.3 (sama dgn nilaiUjian & quizDigital).
+  var XLSX_URL = '/vendor/xlsx/xlsx.full.min.js';
   // ExcelJS dipakai KHUSUS utk workbook yang perlu warna (fill/font cell) — SheetJS community
   // edition (XLSX_URL di atas) tidak mendukung menulis style warna saat writeFile, cuma bisa
-  // baca. ExcelJS punya API styling penuh & tetap murni client-side (CDN, sama seperti XLSX).
-  var EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
+  // baca. ExcelJS punya API styling penuh & tetap murni client-side. Di-vendor lokal (v4.4.0),
+  // path root-absolut sama alasannya dgn XLSX_URL.
+  var EXCELJS_URL = '/vendor/exceljs/exceljs.min.js';
   var SCHEMAS = {
     santri: [
       ['id', 'ID internal'],
@@ -53,7 +58,13 @@
       ['tanggal_keluar', 'Tanggal keluar'],
       ['infaq_pengajar', 'Infaq pengajar'],
       ['jaminan', 'Jaminan'],
-      ['asal_sekolah', 'Asal sekolah']
+      ['asal_sekolah', 'Asal sekolah'],
+      ['golongan_darah', 'Golongan darah (A/B/AB/O/Tidak tahu)'],
+      ['riwayat_penyakit', 'Riwayat penyakit / penyakit bawaan'],
+      ['alergi', 'Alergi (makanan/obat/lainnya)'],
+      ['kebutuhan_khusus', 'Kebutuhan khusus / disabilitas'],
+      ['obat_rutin', 'Obat / perawatan rutin'],
+      ['catatan_kesehatan', 'Catatan kesehatan lain']
     ],
     pengurus: [
       ['id', 'ID internal'],

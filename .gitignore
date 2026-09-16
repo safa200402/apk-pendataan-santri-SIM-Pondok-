@@ -25,6 +25,7 @@ frontend/izin-pulang-fotos/
 frontend/pelanggaran-fotos/
 frontend/absensi-pengurus-fotos/
 frontend/pengumuman-media/
+frontend/catatan-media/
 
 # ==== File laporan/preview hasil export (data asli, bukan source code) ====
 preview_result.json

@@ -109,6 +109,18 @@
     .empty-state {
       padding: 28px 16px; text-align: center; opacity: 0.55; font-size: 14px;
     }
+    .empty-state-msg {
+      padding: 28px 16px 4px; text-align: center; opacity: 0.55; font-size: 14px;
+    }
+    .prev-month-block { padding: 0 16px 24px; text-align: center; }
+    .empty-state-hint { margin: 0 0 8px; font-size: 13px; opacity: 0.7; }
+    .prev-month-btn {
+      min-height: 34px; padding: 0 16px; border-radius: 10px;
+      border: 2px solid rgba(0,0,0,0.12); background: transparent;
+      font-size: 13px; font-weight: 700;
+      transition: background 0.15s;
+    }
+    .prev-month-btn:hover { background: rgba(0,0,0,0.05); }
     .loading-state {
       padding: 20px 16px; text-align: center; opacity: 0.5; font-size: 14px;
     }
@@ -250,6 +262,21 @@
       return `<span class="badge ${cls}">${text}</span>`;
     }
 
+    function prevMonthStr(ym) {
+      const [y, m] = (ym || '').split('-').map(Number);
+      if (!y || !m) return ym;
+      const d = new Date(y, m - 2, 1);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    }
+
+    function emptyBlock(msg, tab) {
+      return `<p class="empty-state-msg">${msg}</p>
+      <div class="prev-month-block">
+        <p class="empty-state-hint">Data bulan ini kosong, coba cek bulan sebelumnya.</p>
+        <button type="button" class="prev-month-btn" data-tab="${tab}">Lihat Bulan Lalu</button>
+      </div>`;
+    }
+
     function statusZoom(s) {
       if (s === 'hadir') return badge('Hadir', 'badge-success');
       if (s === 'terlambat') return badge('Terlambat', 'badge-warn');
@@ -347,7 +374,7 @@
         const d = await api('santri.kondisi.zoom', { bulan: state.bulan, page: state.zoom.page });
         const banner = buildVisitBanner(d.statusDijenguk, d.statusKeluar, d.pelanggaranBulanIni, d.kunjunganCatatan);
         if (!d.items.length) {
-          area.innerHTML = banner + '<p class="empty-state">Tidak ada data zoom.</p>';
+          area.innerHTML = banner + emptyBlock('Tidak ada data zoom.', 'zoom');
           return;
         }
         const html = d.items.map(item => {
@@ -379,7 +406,7 @@
       pagiEl.innerHTML = '';
       try {
         const d = await api('santri.kondisi.pelanggaran', { bulan: state.bulan, page: state.pelanggaran.page });
-        if (!d.items.length) { area.innerHTML = '<p class="empty-state">Tidak ada pelanggaran.</p>'; return; }
+        if (!d.items.length) { area.innerHTML = emptyBlock('Tidak ada pelanggaran.', 'pelanggaran'); return; }
         const rows = d.items.map(item => `
           <tr>
             <td>${item.tanggal || '-'}</td>
@@ -408,7 +435,7 @@
       pagiEl.innerHTML = '';
       try {
         const d = await api('santri.kondisi.pulang', { bulan: state.bulan, page: state.pulang.page });
-        if (!d.items.length) { area.innerHTML = '<p class="empty-state">Tidak ada data izin pulang.</p>'; return; }
+        if (!d.items.length) { area.innerHTML = emptyBlock('Tidak ada data izin pulang.', 'pulang'); return; }
         const rows = d.items.map(item => `
           <tr>
             <td>${item.tanggalIzin || '-'}</td>
@@ -435,7 +462,7 @@
       pagiEl.innerHTML = '';
       try {
         const d = await api('santri.kondisi.sakit', { bulan: state.bulan, page: state.sakit.page });
-        if (!d.items.length) { area.innerHTML = '<p class="empty-state">Tidak ada data sakit.</p>'; return; }
+        if (!d.items.length) { area.innerHTML = emptyBlock('Tidak ada data sakit.', 'sakit'); return; }
         const rows = d.items.map(item => `
           <tr>
             <td>${item.tanggalMulai || '-'}</td>
@@ -472,6 +499,17 @@
       state.bulan = e.target.value;
       state.zoom.page = 1; state.pelanggaran.page = 1; state.pulang.page = 1; state.sakit.page = 1;
       loadActiveTab();
+    });
+
+    document.addEventListener('click', e => {
+      const btn = e.target.closest('.prev-month-btn');
+      if (!btn) return;
+      const tab = btn.dataset.tab;
+      const prev = prevMonthStr(state.bulan || document.getElementById('bulanInput').value);
+      state.bulan = prev;
+      document.getElementById('bulanInput').value = prev;
+      state[tab].page = 1;
+      loaders[tab]();
     });
 
     window.addEventListener('DOMContentLoaded', async () => {

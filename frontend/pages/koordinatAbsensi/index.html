@@ -732,7 +732,7 @@
 
     // ── Events ────────────────────────────────────────────────────────────────
     document.getElementById('btnTambahLokasi').addEventListener('click', function () { openLokasiDialog(null); });
-    document.getElementById('searchLokasi').addEventListener('input', function () { state.lokasiQ = this.value; state.lokasiPage = 1; renderLokasiList(); });
+    document.getElementById('searchLokasi').addEventListener('input', PSUI.debounce(function () { state.lokasiQ = this.value; state.lokasiPage = 1; renderLokasiList(); }, PSUI.AUTOSAVE_DEBOUNCE_MS));
     document.getElementById('btnLokasiSimpan').addEventListener('click', saveLokasiDialog);
     document.getElementById('btnLokasiCancel').addEventListener('click', closeLokasiDialog);
     document.getElementById('btnLokasiClose').addEventListener('click', closeLokasiDialog);
@@ -755,7 +755,7 @@
     });
 
     document.getElementById('btnTambahAturan').addEventListener('click', function () { openAturanDialog(null); });
-    document.getElementById('searchAturan').addEventListener('input', function () { state.aturanQ = this.value; state.aturanPage = 1; renderAturanList(); });
+    document.getElementById('searchAturan').addEventListener('input', PSUI.debounce(function () { state.aturanQ = this.value; state.aturanPage = 1; renderAturanList(); }, PSUI.AUTOSAVE_DEBOUNCE_MS));
     document.getElementById('btnAturanSimpan').addEventListener('click', saveAturanDialog);
     document.getElementById('btnAturanCancel').addEventListener('click', closeAturanDialog);
     document.getElementById('btnAturanClose').addEventListener('click', closeAturanDialog);

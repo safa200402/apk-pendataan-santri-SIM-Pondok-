@@ -402,12 +402,6 @@
       <section class="panel nav" id="nav"></section>
       <div class="content-stack">
         <section class="notice info" id="notice"></section>
-        <section class="issue-panel">
-          <h2>Masalah Terkait</h2>
-          <p>Temuan audit yang relevan dengan pengurus dan penugasan akan muncul di sini.</p>
-          <div class="issue-summary" id="issueSummary">Belum ada data audit.</div>
-          <ul class="issue-warning-list" id="issueList"></ul>
-        </section>
         <section class="panel">
           <div class="section-head">
             <h2>Daftar pengurus</h2>
@@ -802,16 +796,6 @@ Musyrif</button>
       dirty: false,
       parsed: false
     };
-    const ISSUE_GROUP_CONFIG = {
-      pengurus_without_jabatan: true,
-      halaqoh_without_pengampu: true,
-      kelas_without_pengajar: true,
-      regu_without_pembina: true,
-      invalid_references: {
-        filter: item => ['pengampu', 'pengajar', 'pembina'].includes(item.field),
-        successText: 'Tidak ada referensi pengampu, pengajar, atau pembina yang hilang.'
-      }
-    };
     const uiState = {
       currentNoticeId: '',
       noticeCounter: 0,
@@ -1045,8 +1029,6 @@ Musyrif</button>
       return json.data;
     }
 
-    const issuePanelController = createIssuePanelController(api, { issueConfig: ISSUE_GROUP_CONFIG });
-
     function buildPaginationList(page, totalPages) {
       const maxNumbers = 10;
       if (totalPages <= maxNumbers) {
@@ -1209,7 +1191,7 @@ Musyrif</button>
       `, count > 0);
     }
 
-    async function handleBulkToggle(active) {
+    async function handleBulkToggle(active, btn) {
       const ids = getSelectedIds();
       if (!ids.length) {
         showNotice('Pilih minimal satu pengurus.', 'error');
@@ -1217,17 +1199,18 @@ Musyrif</button>
       }
       const yes = confirm(`${active ? 'Aktifkan' : 'Nonaktifkan'} ${ids.length} pengurus terpilih?`);
       if (!yes) return;
+      if (btn) btn.disabled = true;
       try {
         await api('bulk.toggle', { sheetKey: DATASET_KEY, ids, active }, 'POST');
         clearSelectedIds();
         await loadData();
-        await issuePanelController.load();
       } catch (error) {
         showNotice(error.message || 'Gagal memproses aksi massal.', 'error');
+        if (btn) btn.disabled = false;
       }
     }
 
-    async function handleBulkFreeze() {
+    async function handleBulkFreeze(btn) {
       const ids = getSelectedIds();
       if (!ids.length) {
         showNotice('Pilih minimal satu pengurus.', 'error');
@@ -1235,17 +1218,18 @@ Musyrif</button>
       }
       const yes = confirm(`Bekukan ${ids.length} pengurus terpilih?`);
       if (!yes) return;
+      if (btn) btn.disabled = true;
       try {
         await api('bulk.setStatus', { sheetKey: DATASET_KEY, ids, status: 'dibekukan' }, 'POST');
         clearSelectedIds();
         await loadData();
-        await issuePanelController.load();
       } catch (error) {
         showNotice(error.message || 'Gagal memproses aksi massal.', 'error');
+        if (btn) btn.disabled = false;
       }
     }
 
-    async function handleBulkDelete() {
+    async function handleBulkDelete(btn) {
       const ids = getSelectedIds();
       if (!ids.length) {
         showNotice('Pilih minimal satu pengurus.', 'error');
@@ -1253,13 +1237,14 @@ Musyrif</button>
       }
       const yes = confirm(`Hapus permanen ${ids.length} pengurus terpilih?`);
       if (!yes) return;
+      if (btn) btn.disabled = true;
       try {
         await api('bulk.delete', { sheetKey: DATASET_KEY, ids }, 'POST');
         clearSelectedIds();
         await loadData();
-        await issuePanelController.load();
       } catch (error) {
         showNotice(error.message || 'Gagal menghapus data terpilih.', 'error');
+        if (btn) btn.disabled = false;
       }
     }
 
@@ -1285,6 +1270,8 @@ Musyrif</button>
         return;
       }
       if (!confirm('HAPUS SEMUA pengurus secara permanen (kecuali akun yang dilindungi)? Tindakan ini tidak dapat dibatalkan.')) return;
+      const btn = document.getElementById('deleteAllButton');
+      btn.disabled = true;
       try {
         showNotice('Memuat daftar pengurus...', 'info');
         const data = await api('pengurus.list', { page: 1, pageSize: 100000 });
@@ -1296,10 +1283,11 @@ Musyrif</button>
         }
         await api('bulk.delete', { sheetKey: DATASET_KEY, ids }, 'POST');
         await loadData();
-        await issuePanelController.load();
         showNotice(`${ids.length} pengurus berhasil dihapus. Akun Super Admin tetap dipertahankan.`, 'info');
       } catch (error) {
         showNotice(error.message || 'Gagal menghapus semua pengurus.', 'error');
+      } finally {
+        btn.disabled = false;
       }
     }
 
@@ -1311,6 +1299,8 @@ Musyrif</button>
       const file = event.target.files && event.target.files[0];
       event.target.value = '';
       if (!file) return;
+      const importBtn = document.getElementById('importExcelButton');
+      importBtn.disabled = true;
       showNotice('Memproses import Excel pengurus...', 'info');
       try {
         await window.PSExcel.importDataset(api, DATASET_KEY, file, {
@@ -1319,10 +1309,11 @@ Musyrif</button>
           }
         });
         await loadData();
-        await issuePanelController.load();
         showNotice('Import Excel pengurus selesai.', 'info');
       } catch (error) {
         showNotice(error.message || 'Gagal import Excel.', 'error');
+      } finally {
+        importBtn.disabled = false;
       }
     }
 
@@ -1630,7 +1621,6 @@ Musyrif</button>
       quickImportState.busy = false;
       if (successCount) {
         await loadData();
-        await issuePanelController.load();
       }
       const remainingEntries = invalidEntries.concat(failedEntries);
       if (remainingEntries.length) {
@@ -2032,13 +2022,16 @@ Musyrif</button>
       } else if (pendingPhotoState.useDefault) {
         record.use_default_photo = 'true';
       }
+      const btn = event.submitter;
+      if (btn) btn.disabled = true;
       try {
         await api('pengurus.save', { record: { ...record, jabatanIds, primaryJabatanId, jabatanPeran } }, 'POST');
         document.getElementById('dialog').close();
         await loadData();
-        await issuePanelController.load();
       } catch (error) {
         showNotice(error.message || 'Gagal menyimpan pengurus.', 'error');
+      } finally {
+        if (btn) btn.disabled = false;
       }
     }
 
@@ -2155,6 +2148,8 @@ Musyrif</button>
 
     async function clearTtdDlgSaved() {
       if (!confirm(`Hapus tanda tangan ${ttdDlgState.pengurusName}?`)) return;
+      const btn = document.getElementById('ttdDlgClearSavedBtn');
+      if (btn) btn.disabled = true;
       try {
         await api('pengurus.ttd.save', { id: ttdDlgState.pengurusId, ttd: '' }, 'POST');
         await loadData();
@@ -2162,6 +2157,8 @@ Musyrif</button>
         showTtdDlgNotice('TTD dihapus.', 'success');
       } catch (e) {
         showTtdDlgNotice(e.message || 'Gagal menghapus TTD.', 'error');
+      } finally {
+        if (btn) btn.disabled = false;
       }
     }
 
@@ -2198,7 +2195,7 @@ Musyrif</button>
       reader.readAsDataURL(file);
     }
 
-    async function toggleItem(id) {
+    async function toggleItem(id, btn) {
       const item = state.items.find(entry => entry.id === id);
       if (!item) return;
       if (item.protectedAccount) {
@@ -2208,16 +2205,17 @@ Musyrif</button>
       const nextActive = !item.active;
       const yes = confirm(`${nextActive ? 'Aktifkan' : 'Nonaktifkan'} pengurus "${item.name}"?`);
       if (!yes) return;
+      if (btn) btn.disabled = true;
       try {
         await api('pengurus.toggle', { id, active: nextActive }, 'POST');
         await loadData();
-        await issuePanelController.load();
       } catch (error) {
         showNotice(error.message || 'Gagal mengubah status pengurus.', 'error');
+        if (btn) btn.disabled = false;
       }
     }
 
-    async function toggleFrozenItem(id) {
+    async function toggleFrozenItem(id, btn) {
       const item = state.items.find(entry => entry.id === id);
       if (!item) return;
       if (item.primaryProtectedAccount) {
@@ -2236,10 +2234,10 @@ Musyrif</button>
           : `Bekukan pengurus "${item.name}"?`
       );
       if (!yes) return;
+      if (btn) btn.disabled = true;
       try {
         await api('pengurus.save', { record: { id, status: nextStatus } }, 'POST');
         await loadData();
-        await issuePanelController.load();
         showNotice(
           currentStatusKey === 'dibekukan'
             ? `Status normal ${item.name} dipulihkan.`
@@ -2248,10 +2246,11 @@ Musyrif</button>
         );
       } catch (error) {
         showNotice(error.message || 'Gagal mengubah status dibekukan pengurus.', 'error');
+        if (btn) btn.disabled = false;
       }
     }
 
-    async function deleteItem(id) {
+    async function deleteItem(id, btn) {
       const item = state.items.find(entry => entry.id === id);
       if (!item) return;
       if (item.protectedAccount) {
@@ -2260,6 +2259,7 @@ Musyrif</button>
       }
       const yes = confirm(`Hapus permanen pengurus "${item.name}"?`);
       if (!yes) return;
+      if (btn) btn.disabled = true;
       try {
         await api('bulk.delete', { sheetKey: DATASET_KEY, ids: [id] }, 'POST');
         const current = getStoredSession();
@@ -2270,9 +2270,9 @@ Musyrif</button>
         }
         showNotice(`Pengurus "${item.name}" dihapus permanen.`, 'info');
         await loadData();
-        await issuePanelController.load();
       } catch (error) {
         showNotice(error.message || 'Gagal menghapus pengurus.', 'error');
+        if (btn) btn.disabled = false;
       }
     }
 
@@ -2292,7 +2292,6 @@ Musyrif</button>
       document.getElementById('addButton').addEventListener('click', () => openDialog());
       document.getElementById('refreshButton').addEventListener('click', async () => {
         await loadData();
-        await issuePanelController.load();
       });
       document.getElementById('toggleExpandButton').addEventListener('click', toggleExpandedList);
       document.getElementById('toolbarCollapseToggle').addEventListener('click', toggleActionToolbar);
@@ -2309,7 +2308,7 @@ Musyrif</button>
       document.getElementById('form').addEventListener('submit', saveForm);
       document.getElementById('dialogPhotoInput').addEventListener('change', handleDialogPhotoChange);
       document.getElementById('dialogPhotoResetBtn').addEventListener('click', resetDialogPhoto);
-      document.getElementById('searchInput').addEventListener('input', () => { state.page = 1; loadData(); });
+      document.getElementById('searchInput').addEventListener('input', PSUI.debounce(() => { state.page = 1; loadData(); }, PSUI.AUTOSAVE_DEBOUNCE_MS));
       document.getElementById('statusFilter').addEventListener('change', () => { state.page = 1; loadData(); });
       document.getElementById('genderFilter').addEventListener('change', () => { state.page = 1; loadData(); });
       document.getElementById('sortSelect').addEventListener('change', () => { state.page = 1; loadData(); });
@@ -2387,13 +2386,13 @@ Musyrif</button>
         return;
       }
       if (freezeId) {
-        toggleFrozenItem(freezeId);
+        toggleFrozenItem(freezeId, actionButton);
       }
       if (toggleId) {
-        toggleItem(toggleId);
+        toggleItem(toggleId, actionButton);
       }
       if (deleteId) {
-        deleteItem(deleteId);
+        deleteItem(deleteId, actionButton);
       }
       if (ttdId) {
         openTtdDialog(ttdId);
@@ -2428,10 +2427,10 @@ Musyrif</button>
       const { id } = event.target;
       if (id === 'selectVisibleButton') selectVisibleItems();
       if (id === 'clearSelectedButton') clearSelectedIds();
-      if (id === 'bulkActivateButton') handleBulkToggle(true);
-      if (id === 'bulkFreezeButton') handleBulkFreeze();
-      if (id === 'bulkDeactivateButton') handleBulkToggle(false);
-      if (id === 'bulkDeleteButton') handleBulkDelete();
+      if (id === 'bulkActivateButton') handleBulkToggle(true, event.target);
+      if (id === 'bulkFreezeButton') handleBulkFreeze(event.target);
+      if (id === 'bulkDeactivateButton') handleBulkToggle(false, event.target);
+      if (id === 'bulkDeleteButton') handleBulkDelete(event.target);
     });
     window.addEventListener('load', async () => {
       if (window.PSAccess && window.PSAccess.redirectIfForbidden(getStoredSession(), currentPage)) {
@@ -2443,7 +2442,6 @@ Musyrif</button>
       syncActionToolbar();
       syncExpandToggleButton();
       await loadData();
-      await issuePanelController.load();
     });
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});

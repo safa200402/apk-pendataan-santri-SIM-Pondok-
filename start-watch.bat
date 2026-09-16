@@ -11,7 +11,7 @@ for /f "usebackq delims=" %%I in (`powershell -NoProfile -ExecutionPolicy Bypass
 if not defined LAN_IP set "LAN_IP=127.0.0.1"
 
 echo.
-echo Menjalankan backend versi LAN...
+echo Menjalankan server versi LAN [MODE WATCH - auto-restart saat file berubah]...
 echo Backend + frontend statis bisa diakses dari:
 echo   http://localhost:%PORT%
 echo   http://%LAN_IP%:%PORT%

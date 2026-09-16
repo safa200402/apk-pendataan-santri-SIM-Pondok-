@@ -1,0 +1,18 @@
+.card {
+  background: var(--color-surface);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-lg);
+  max-width: 480px;
+}
+
+.title {
+  margin: 0 0 var(--spacing-sm);
+  font-size: 16px;
+}
+
+.note {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 13px;
+}

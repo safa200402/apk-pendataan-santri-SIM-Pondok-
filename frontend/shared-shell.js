@@ -1180,6 +1180,7 @@
     bindPwaInstall();
     syncMaintenanceBanner(options);
     syncAnnouncementPopup(options);
+    ensureAuditTabBar_(session);
     syncAbsensiHalaqohAudit(options);
     syncAuditBawahanWidget(options);
     syncSurveyQueue(options);
@@ -1308,7 +1309,7 @@
           'background:' + theme.bg, 'color:' + theme.ink, 'font-size:16px', 'line-height:1.6'
         ].join(';')
       : [
-          'position:fixed', 'right:16px', 'bottom:16px', 'z-index:9998',
+          'position:fixed', 'right:16px', 'bottom:calc(var(--shell-tabbar-space, 76px) + 16px)', 'z-index:9998',
           'max-width:360px', 'width:calc(100% - 32px)', 'cursor:pointer',
           'max-height:calc(100vh - 32px)', 'overflow-y:auto', 'box-sizing:border-box',
           'background:' + theme.bg, 'color:' + theme.ink, 'border-radius:14px',
@@ -1316,6 +1317,16 @@
           'border:1px solid ' + theme.border, 'font-size:13px', 'line-height:1.5'
         ].join(';');
     var quickBtnStyle = 'border:1px solid ' + theme.border + ';background:transparent;color:' + theme.ink + ';border-radius:999px;padding:5px 12px;font-size:12px;cursor:pointer;';
+    // Waktu tunggu (detik) sebelum popup boleh ditutup. > 0 = tampilkan hitung mundur & blokir
+    // penutupan (tombol x / klik di luar / Esc) + tombol Kirim Respon sampai habis. Lihat wiring
+    // interval & gating di closeAndAdvance / handler Kirim Respon di bawah.
+    var waitSeconds = parseInt(item.waitSeconds, 10);
+    if (!isFinite(waitSeconds) || waitSeconds < 1) waitSeconds = 0;
+    var waitRemaining = waitSeconds;
+    var waitActive = waitSeconds > 0;
+    var waitHtml = waitSeconds > 0
+      ? '<div id="_announcementWaitNote" style="margin-top:10px;font-size:11px;font-weight:700;color:' + theme.ink + ';background:' + theme.surface + ';border:1px solid ' + theme.border + ';border-radius:8px;padding:6px 10px;' + (fullscreen ? 'text-align:center;' : '') + '">&#9203;&ensp;Popup ini bisa ditutup dalam <span id="_announcementWaitCount">' + waitSeconds + '</span> detik</div>'
+      : '';
     var mediaHtml = '';
     if (item.media && item.media.length) {
       mediaHtml = '<div id="_announcementMediaArea" style="margin-top:10px;display:grid;gap:10px;' + (fullscreen ? 'max-width:480px;width:100%;' : '') + '">' +
@@ -1369,8 +1380,24 @@
     }
     // Kalau wajibRespon: panel langsung terbuka (tidak perlu toggle) + hint peringatan,
     // krn popup TIDAK BISA ditutup sebelum kirim respon -- lihat gating di closeAndAdvance.
+    // responRules (opsional, dari server) = syarat tambahan isi respon; ditampilkan sbg baris
+    // syarat & dicek client-side sebelum kirim (server tetap gate asli di pengumuman.respond).
+    var responRules = (item.wajibRespon && item.responRules) ? item.responRules : {};
+    var responRulesHintParts = [];
+    if (responRules.wajibQuick) responRulesHintParts.push('pilih respon cepat');
+    if (responRules.wajibAngka) {
+      var _av = 'jawaban berupa angka';
+      if (responRules.angkaMin != null && responRules.angkaMaks != null) _av += ' (' + responRules.angkaMin + '–' + responRules.angkaMaks + ')';
+      else if (responRules.angkaMin != null) _av += ' (min ' + responRules.angkaMin + ')';
+      else if (responRules.angkaMaks != null) _av += ' (maks ' + responRules.angkaMaks + ')';
+      responRulesHintParts.push(_av);
+    }
+    if (responRules.minKata) responRulesHintParts.push('min ' + responRules.minKata + ' kata');
+    if (responRules.minKarakter) responRulesHintParts.push('min ' + responRules.minKarakter + ' karakter');
     var wajibHint = item.wajibRespon
-      ? '<div style="font-size:11px;font-weight:700;margin-bottom:8px;' + (fullscreen ? 'text-align:right;' : '') + '">&#9888;&ensp;Wajib direspon dulu sebelum popup ini bisa ditutup</div>'
+      ? '<div style="font-size:11px;font-weight:700;margin-bottom:8px;' + (fullscreen ? 'text-align:right;' : '') + '">&#9888;&ensp;Wajib direspon dulu sebelum popup ini bisa ditutup'
+        + (responRulesHintParts.length ? '<br><span style="font-weight:400;">Syarat: ' + escapeHtml(responRulesHintParts.join(', ')) + '</span>' : '')
+        + '</div>'
       : '';
     var responHtml =
       '<div id="_announcementResponArea" style="' + (fullscreen ? 'text-align:right;' : 'margin-top:12px;text-align:left;') + '">' +
@@ -1395,6 +1422,7 @@
         '</div>' +
         '<div style="flex:1 1 auto;overflow-y:auto;box-sizing:border-box;padding:24px 20px;display:flex;flex-direction:column;align-items:center;text-align:center;">' +
           '<div style="white-space:pre-wrap;max-width:640px;">' + escapeHtml(item.message) + '</div>' +
+          waitHtml +
           mediaHtml +
           (_announcementQueue.length ? '<div style="margin-top:8px;font-size:11px;color:' + theme.hint + ';">Masih ada ' + _announcementQueue.length + ' pengumuman lain</div>' : '') +
         '</div>' +
@@ -1405,6 +1433,7 @@
       popup.innerHTML =
         '<strong style="font-size:14px;display:block;">' + escapeHtml(item.title) + '</strong>' +
         '<div style="margin-top:8px;white-space:pre-wrap;">' + escapeHtml(item.message) + '</div>' +
+        waitHtml +
         mediaHtml +
         (_announcementQueue.length ? '<div style="margin-top:8px;font-size:11px;color:' + theme.hint + ';">Masih ada ' + _announcementQueue.length + ' pengumuman lain</div>' : '') +
         responHtml;
@@ -1414,6 +1443,30 @@
 
     var responArea = popup.querySelector('#_announcementResponArea');
     responArea.addEventListener('click', function (event) { event.stopPropagation(); });
+
+    // Hitung mundur waktu tunggu: selagi jalan, tombol Kirim Respon dinonaktifkan & closeAndAdvance
+    // menolak menutup (lihat guard di bawah). Begitu habis, note dihapus & tombol diaktifkan lagi.
+    // Berbasis DEADLINE (Date.now() + N detik), bukan akumulasi tick -- kalau tab di-background /
+    // device lambat sehingga interval melambat, wait tetap ~N detik wall-clock (tidak molor), dan
+    // begitu tab kembali aktif langsung ke-unlock dalam <=250ms tanpa nunggu tick penuh.
+    var waitTimer = null;
+    if (waitActive) {
+      var waitSendBtn = popup.querySelector('#_announcementResponSend');
+      if (waitSendBtn) waitSendBtn.disabled = true;
+      var waitDeadline = Date.now() + waitSeconds * 1000;
+      waitTimer = global.setInterval(function () {
+        waitRemaining = Math.max(0, Math.ceil((waitDeadline - Date.now()) / 1000));
+        var countEl = popup.querySelector('#_announcementWaitCount');
+        if (waitRemaining > 0) { if (countEl) countEl.textContent = waitRemaining; return; }
+        global.clearInterval(waitTimer);
+        waitTimer = null;
+        waitActive = false;
+        var noteEl = popup.querySelector('#_announcementWaitNote');
+        if (noteEl) noteEl.remove();
+        if (waitSendBtn) waitSendBtn.disabled = false;
+      }, 250);
+    }
+
     var mediaArea = popup.querySelector('#_announcementMediaArea');
     if (mediaArea) {
       mediaArea.addEventListener('click', function (event) { event.stopPropagation(); });
@@ -1564,6 +1617,10 @@
       var statusEl = popup.querySelector('#_announcementResponStatus');
       var noteEl = popup.querySelector('#_announcementResponNote');
       var note = noteEl.value.trim();
+      if (waitActive) {
+        showAnnouncementVideoWarning_('Tunggu ' + Math.max(1, waitRemaining) + ' detik lagi sebelum bisa mengirim respon.');
+        return;
+      }
       if (unfinishedRequiredVideoCount > 0) {
         showAnnouncementVideoWarning_('Anda wajib menonton video sampai habis dulu sebelum bisa mengirim respon.');
         var pendingVideoForRespon = mediaArea && mediaArea.querySelector('video[data-media-index]:not([data-watched])');
@@ -1572,6 +1629,30 @@
       }
       if (!note) {
         statusEl.textContent = 'Isi teks respon dulu, tidak cukup cuma pilih respon cepat.';
+        statusEl.style.color = '#a55a52';
+        return;
+      }
+      // Cek aturan tambahan lebih dulu (feedback instan); server tetap validasi ulang.
+      var responRuleError = null;
+      if (item.wajibRespon) {
+        if (responRules.wajibQuick && !selectedQuick) {
+          responRuleError = 'Pilih dulu salah satu respon cepat (Sudah Paham / Ada Pertanyaan).';
+        } else if (responRules.wajibAngka) {
+          var numVal = Number(note.replace(',', '.'));
+          if (!isFinite(numVal)) responRuleError = 'Respon harus berupa angka.';
+          else if (responRules.angkaMin != null && numVal < responRules.angkaMin) responRuleError = 'Respon minimal harus bernilai ' + responRules.angkaMin + '.';
+          else if (responRules.angkaMaks != null && numVal > responRules.angkaMaks) responRuleError = 'Respon maksimal harus bernilai ' + responRules.angkaMaks + '.';
+        }
+        if (!responRuleError && responRules.minKata) {
+          var wc = note.split(/\s+/).filter(Boolean).length;
+          if (wc < responRules.minKata) responRuleError = 'Respon minimal ' + responRules.minKata + ' kata (baru ' + wc + ' kata).';
+        }
+        if (!responRuleError && responRules.minKarakter && note.length < responRules.minKarakter) {
+          responRuleError = 'Respon minimal ' + responRules.minKarakter + ' karakter (baru ' + note.length + ' karakter).';
+        }
+      }
+      if (responRuleError) {
+        statusEl.textContent = responRuleError;
         statusEl.style.color = '#a55a52';
         return;
       }
@@ -1600,6 +1681,12 @@
     var closed = false;
     function closeAndAdvance() {
       if (closed) return;
+      if (waitActive) {
+        // Waktu tunggu belum habis -- jangan tutup, cuma kasih peringatan (hitung mundur live-nya
+        // sudah kelihatan di dalam popup).
+        showAnnouncementVideoWarning_('Tunggu ' + Math.max(1, waitRemaining) + ' detik lagi sebelum pengumuman ini bisa ditutup.');
+        return;
+      }
       if (unfinishedRequiredVideoCount > 0) {
         // Ada video wajib yg belum ditonton sampai 'ended' -- jangan tutup, kasih peringatan +
         // scroll & sorot videonya.
@@ -1621,6 +1708,7 @@
         return;
       }
       closed = true;
+      if (waitTimer) { global.clearInterval(waitTimer); waitTimer = null; }
       popup.remove();
       fetch('/api', {
         method: 'POST',
@@ -1972,6 +2060,439 @@
     card.querySelector('#_auditDetailCloseBtn').addEventListener('click', closeAuditDetailDialog_);
   }
 
+  // ── Tab bar audit (pengganti popup yg dulu langsung lenyap saat &times; diklik) ──────────
+  // Selalu tampil di semua halaman (keputusan user 2026-08-29), 2 tab: "Audit Diri" (kiri,
+  // data absensi.owed, popup showAuditPopup) & "Audit Bawahan" (kanan, data auditBawahan.list,
+  // popup showAuditBawahanPopup_). Popup kartu tetap muncul OTOMATIS spt sebelumnya kalau ada
+  // item & belum pernah ditutup manual di sesi browser ini -- begitu user klik &times;, popup
+  // itu collapse jadi tab (state disimpan sessionStorage per AUDIT_*_COLLAPSE_KEY_, supaya
+  // TIDAK auto-muncul lagi di halaman lain selama sesi yg sama, tapi tab tetap kelihatan +
+  // ada badge jumlah). Klik tab men-toggle popup buka/tutup pakai data yg sudah di-fetch
+  // (_auditTabState_), tanpa fetch ulang ke server. TIDAK mengubah checkAuditLock() di
+  // Jurnal SDM -- itu fungsi terpisah yang fetch sendiri & tidak bergantung pada popup ini.
+  var AUDIT_SELF_COLLAPSE_KEY_ = 'ps_audit_self_collapsed';
+  var AUDIT_BAWAHAN_COLLAPSE_KEY_ = 'ps_audit_bawahan_collapsed';
+  var _auditTabState_ = {
+    self: { session: null, items: null },
+    bawahan: { items: null }
+  };
+
+  function getAuditCollapsed_(key) {
+    try { return global.sessionStorage.getItem(key) === '1'; } catch (e) { return false; }
+  }
+  function setAuditCollapsed_(key, collapsed) {
+    try { global.sessionStorage.setItem(key, collapsed ? '1' : '0'); } catch (e) {}
+  }
+  function setAuditTabActive_(btnId, active) {
+    var btn = global.document.getElementById(btnId);
+    if (btn) btn.classList.toggle('is-active', active);
+  }
+
+  // Font Awesome tidak di-<link> di tiap halaman (cuma sebagian) -- inject sekali di sini
+  // supaya ikon fa-* (mis. tombol Beranda di tab bar audit) tampil di SEMUA halaman.
+  function ensureFontAwesome_() {
+    if (global.document.querySelector('link[data-ps-fontawesome], link[href*="fontawesome"], link[href*="font-awesome"]')) return;
+    var link = global.document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = '/vendor/fontawesome/css/all.min.css';
+    link.setAttribute('data-ps-fontawesome', '');
+    global.document.head.appendChild(link);
+  }
+
+  function ensureAuditTabBar_(session) {
+    ensureFontAwesome_();
+    var bar = global.document.getElementById('_auditTabBar');
+    if (bar) return bar;
+    bar = global.document.createElement('div');
+    bar.id = '_auditTabBar';
+    bar.className = 'shell-audit-tabbar';
+    // Link "Dokumen & Catatan" (pages/catatanku) -- hanya untuk pengurus (santri di-bounce
+    // oleh PAGE_RULES). Ditaruh di samping tombol Beranda, diapit 2 tab audit. Ikut disembunyikan
+    // kalau addon Catatanku dimatikan lewat Kelola Addons -- tab ini icon TETAP (bukan lewat
+    // PAGE_RULES/menu biasa), jadi kalau tidak dicek manual di sini dia akan tetap muncul &
+    // begitu diklik cuma nampilin pesan error "fitur dinonaktifkan" di dalam popup-nya.
+    var isPengurus = !!(session && session.role === 'pengurus');
+    var catatankuAddonActive = !(session && session.permissions && session.permissions.addonsActive && session.permissions.addonsActive.catatanku === false);
+    var onCatatan = /\/pages\/catatanku\/?($|[?#])/.test(global.location.pathname + global.location.search);
+    var catatanSlot = (isPengurus && catatankuAddonActive)
+      ? '<div class="shell-audit-slot"><a href="/pages/catatanku/" id="_shellTabCatatan" class="shell-audit-link' + (onCatatan ? ' is-current' : '') + '" aria-label="Dokumen &amp; Catatan" title="Dokumen &amp; Catatan"' + (onCatatan ? ' aria-current="page"' : '') + '><i class="fa-solid fa-file-pen" aria-hidden="true"></i></a></div>'
+      : '';
+    // Tiap elemen dibungkus .shell-audit-slot (tinggi seragam = tinggi bar) supaya tombol
+    // Beranda yg 'protrude' tidak menarik tinggi baris & semua slot rata.
+    bar.innerHTML =
+      '<div class="shell-audit-slot"><button type="button" id="_auditTabSelf" class="shell-audit-tab" title="Audit Diri" aria-label="Audit Diri" disabled><span><i class="fa-solid fa-clipboard-user" aria-hidden="true"></i></span></button></div>' +
+      '<div class="shell-audit-slot"><a href="/pages/beranda/" id="_auditTabHome" class="shell-audit-home" aria-label="Beranda" title="Beranda"><i class="fa-solid fa-house" aria-hidden="true"></i></a></div>' +
+      catatanSlot +
+      '<div class="shell-audit-slot"><button type="button" id="_auditTabBawahan" class="shell-audit-tab" title="Audit Bawahan" aria-label="Audit Bawahan" disabled><span><i class="fa-solid fa-users" aria-hidden="true"></i></span></button></div>';
+    global.document.body.appendChild(bar);
+    bar.querySelector('#_auditTabSelf').addEventListener('click', toggleAuditSelfPopup_);
+    bar.querySelector('#_auditTabBawahan').addEventListener('click', toggleAuditBawahanPopup_);
+    var catatanLink = bar.querySelector('#_shellTabCatatan');
+    if (catatanLink) {
+      // Klik = buka popup baca-saja (href dibiarkan utuh utk buka-di-tab-baru / fallback).
+      catatanLink.addEventListener('click', function (e) {
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
+        e.preventDefault();
+        toggleCatatanReaderPopup_(session);
+      });
+    }
+    return bar;
+  }
+
+  function updateAuditTab_(btnId, opts) {
+    var btn = global.document.getElementById(btnId);
+    if (!btn) return;
+    btn.disabled = false;
+    btn.style.background = opts.bg;
+    btn.style.color = opts.ink;
+    btn.innerHTML = '<span>' + opts.label + '</span><span class="shell-audit-tab-badge" style="background:' + opts.ink + ';color:' + opts.bg + ';">' + opts.count + '</span>';
+  }
+
+  // Hanya boleh ada SATU popup tab bar di layar (Audit Diri / Audit Bawahan / Dokumen &
+  // Catatan). Dipanggil di jalur "buka" tiap popup (BUKAN jalur auto-show audit saat load).
+  // "Cuma disembunyikan": TIDAK set collapsed & TIDAK ubah badge tab -- popup audit tetap
+  // bisa auto-muncul lagi di halaman berikutnya kalau memang masih ada yang belum beres.
+  function closeOtherShellPopups_(keepId) {
+    if (keepId !== '_auditPopup') {
+      var p1 = global.document.getElementById('_auditPopup');
+      if (p1) { p1.remove(); setAuditTabActive_('_auditTabSelf', false); }
+    }
+    if (keepId !== '_auditBawahanPopup') {
+      var p2 = global.document.getElementById('_auditBawahanPopup');
+      if (p2) { p2.remove(); setAuditTabActive_('_auditTabBawahan', false); }
+    }
+    if (keepId !== '_catatanReaderPopup' && global.document.getElementById('_catatanReaderPopup')) {
+      closeCatatanReaderPopup_();
+    }
+  }
+
+  function toggleAuditSelfPopup_() {
+    var existing = global.document.getElementById('_auditPopup');
+    if (existing) {
+      existing.remove();
+      setAuditCollapsed_(AUDIT_SELF_COLLAPSE_KEY_, true);
+      setAuditTabActive_('_auditTabSelf', false);
+      return;
+    }
+    var state = _auditTabState_.self;
+    if (!state.items || !state.items.length) return;
+    setAuditCollapsed_(AUDIT_SELF_COLLAPSE_KEY_, false);
+    closeOtherShellPopups_('_auditPopup');
+    renderAuditPopup_(state.session, state.items);
+  }
+
+  function toggleAuditBawahanPopup_() {
+    var existing = global.document.getElementById('_auditBawahanPopup');
+    if (existing) {
+      existing.remove();
+      setAuditCollapsed_(AUDIT_BAWAHAN_COLLAPSE_KEY_, true);
+      setAuditTabActive_('_auditTabBawahan', false);
+      return;
+    }
+    var state = _auditTabState_.bawahan;
+    if (!state.items || !state.items.length) return;
+    setAuditCollapsed_(AUDIT_BAWAHAN_COLLAPSE_KEY_, false);
+    closeOtherShellPopups_('_auditBawahanPopup');
+    renderAuditBawahanPopup_(state.items);
+  }
+
+  // ── Popup baca-saja "Dokumen & Catatan" (tombol #_shellTabCatatan di tab bar) ───────────
+  // Klik tab -> popup full-width: daftar dokumen yang boleh DIBACA user (milik sendiri +
+  // dibagikan ke dia; = tab '' di catatan.list, tanpa Sampah). Pagination client-side
+  // 10/hal di kaki popup. Klik kartu -> render isi dokumen READ-ONLY di popup yang sama,
+  // tombol "< Daftar" untuk balik. Tombol "Buka halaman" di header -> ke /pages/catatanku/
+  // (deep-link ?doc= kalau sedang membuka 1 dokumen). Tidak ada editing di sini.
+  var CATATAN_READER_PAGE_SIZE_ = 10;
+  var _catatanReader_ = { items: null, page: 1, view: 'list', docId: null, session: null, esc: null, prevHtmlOverflow: '' };
+
+  function catatanReaderToken_(session) {
+    if (session && session.token) return session.token;
+    try { return global.localStorage.getItem('ps_token') || ''; } catch (e) { return ''; }
+  }
+
+  function catatanReaderApi_(session, action, payload) {
+    var token = catatanReaderToken_(session);
+    return fetch('/api?action=' + encodeURIComponent(action) + '&token=' + encodeURIComponent(token), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload || {})
+    }).then(function (r) { return r.json(); }).then(function (json) {
+      if (!json || !json.ok) throw new Error((json && json.error && json.error.message) || 'Permintaan gagal.');
+      return json.data;
+    });
+  }
+
+  // Lazy-load quill.js (bukan cuma CSS-nya) supaya isi dokumen di-render pakai Quill
+  // beneran (theme 'snow', readOnly) -- bukan dump HTML mentah ke <div class="ql-editor">.
+  // Dump mentah gagal utk elemen yg CSS-nya scoped ".ql-snow .ql-editor ..." (blockquote,
+  // code-block, dll) karena butuh .ql-editor BERSARANG di dalam ancestor .ql-snow, bukan
+  // 1 elemen yg pegang kedua class sekaligus. Cuma di-load pas popup pertama kali dibuka
+  // (bukan bareng shell) krn fitur ini cuma dipakai kalau user beneran klik ikonnya.
+  var _catatanQuillLoadPromise_ = null;
+  function ensureQuillScript_() {
+    if (global.Quill) return global.Promise.resolve();
+    if (_catatanQuillLoadPromise_) return _catatanQuillLoadPromise_;
+    _catatanQuillLoadPromise_ = new global.Promise(function (resolve, reject) {
+      var script = global.document.createElement('script');
+      script.src = '/vendor/quill/quill.js';
+      script.onload = function () { resolve(); };
+      script.onerror = function () { _catatanQuillLoadPromise_ = null; reject(new Error('Gagal memuat Quill.')); };
+      global.document.head.appendChild(script);
+    });
+    return _catatanQuillLoadPromise_;
+  }
+
+  function ensureCatatanReaderCss_() {
+    if (!global.document.getElementById('_catatanReaderQuillCss')) {
+      var l = global.document.createElement('link');
+      l.rel = 'stylesheet';
+      l.id = '_catatanReaderQuillCss';
+      l.href = '/vendor/quill/quill.snow.css';
+      global.document.head.appendChild(l);
+    }
+    if (global.document.getElementById('_catatanReaderCss')) return;
+    var st = global.document.createElement('style');
+    st.id = '_catatanReaderCss';
+    st.textContent = [
+      '#_catatanReaderPopup{position:fixed;left:5px;right:5px;top:5px;bottom:calc(var(--shell-tabbar-space,76px) + 5px);z-index:calc(var(--shell-z-header,9720) + 3);display:flex;flex-direction:column;background:#f7efe0;color:#3a3128;border-top:2px solid #4b2c20;box-shadow:0 -10px 44px rgba(0,0,0,0.34);box-sizing:border-box;font-size:13px;overflow:hidden}',
+      '#_catatanReaderPopup .crp-head{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid rgba(91,73,57,0.18);background:rgba(246,238,222,0.92)}',
+      '#_catatanReaderPopup .crp-head strong{flex:1;min-width:0;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
+      '#_catatanReaderPopup .crp-head button{border:1px solid rgba(91,73,57,0.35);background:#fff;color:#3a3128;border-radius:9px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer;box-shadow:none;flex:0 0 auto;line-height:1.2}',
+      '#_catatanReaderPopup .crp-head button.crp-x{border:none;background:transparent;font-size:20px;padding:0 4px}',
+      '#_catatanReaderPopup .crp-search{flex:0 0 auto;padding:10px 14px;border-bottom:1px solid rgba(91,73,57,0.18);background:rgba(246,238,222,0.6)}',
+      '#_catatanReaderPopup .crp-search input{width:100%;box-sizing:border-box;padding:8px 10px;font-size:12.5px;border:1px solid rgba(91,73,57,0.35);border-radius:9px;background:#fff;color:#3a3128}',
+      '#_catatanReaderPopup .crp-body{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 14px}',
+      '#_catatanReaderPopup .crp-foot{flex:0 0 auto;display:flex;align-items:center;justify-content:center;gap:12px;padding:8px 14px;border-top:1px solid rgba(91,73,57,0.18);background:rgba(246,238,222,0.92)}',
+      '#_catatanReaderPopup .crp-foot button{border:1px solid rgba(91,73,57,0.35);background:#fff;color:#3a3128;border-radius:9px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;box-shadow:none}',
+      '#_catatanReaderPopup .crp-foot button:disabled{opacity:0.4;cursor:default}',
+      '#_catatanReaderPopup .crp-foot span{font-size:11.5px;font-weight:700;color:#7b6a58;white-space:nowrap}',
+      // Border/shadow/radius/background niru kartu "card minimal-list-card" di daftarSantri &
+      // catatanku (lihat shared-ui.css) -- disamakan lewat nilai literal (bukan class .card)
+      // krn popup ini muncul di halaman mana pun & tak boleh bergantung shared-ui.css kebetulan
+      // sudah/belum di-load. Interaksinya TETAP 1x klik langsung buka (bukan expand dulu).
+      '#_catatanReaderPopup .crp-card{border-width:3px;border-style:solid;border-color:#4b2c20;border-radius:24px;background:rgba(255,248,230,0.96);box-shadow:5px 5px 0 #4b2c20;padding:12px 14px;margin-bottom:14px;cursor:pointer}',
+      // Warna dibedakan per jenis dokumen (niru catatanku): teks biasa biru muda, tabel hijau.
+      '#_catatanReaderPopup .crp-card.doc-type-quill{background:#ddeeff;border-color:rgba(70,130,180,0.25)}',
+      '#_catatanReaderPopup .crp-card.doc-type-table{background:#dcf3dc;border-color:rgba(94,140,90,0.35)}',
+      '#_catatanReaderPopup .crp-card h4{margin:0 0 4px;font-family:Georgia,"Playfair Display",serif;font-size:15.5px;line-height:1.3;color:#2a2118;word-break:break-word}',
+      '#_catatanReaderPopup .crp-meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}',
+      '#_catatanReaderPopup .crp-chip{font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:999px;background:rgba(91,73,57,0.1);color:#5b4939}',
+      '#_catatanReaderPopup .crp-chip.owner{background:rgba(79,122,82,0.16);color:#3c6340}',
+      '#_catatanReaderPopup .crp-chip.edit{background:rgba(185,118,80,0.18);color:#8a4a2c}',
+      '#_catatanReaderPopup .crp-chip.view{background:rgba(78,143,192,0.16);color:#2f6a8f}',
+      '#_catatanReaderPopup .crp-empty{padding:34px 14px;text-align:center;color:#7b6a58;line-height:1.6}',
+      '#_catatanReaderPopup .crp-reader-title{max-width:820px;margin:0 auto 4px;font-family:Georgia,serif;font-size:19px;font-weight:700;color:#2a2118;word-break:break-word}',
+      '#_catatanReaderPopup .crp-reader-meta{max-width:820px;margin:0 auto 12px;font-size:11.5px;color:#7b6a58}',
+      '#_catatanReaderPopup .crp-reader{max-width:820px;margin:0 auto;background:#fffdf6;border:1px solid rgba(91,73,57,0.18);border-radius:12px;overflow:auto}',
+      '#_catatanReaderPopup .crp-reader.is-table{max-width:none}',   /* dokumen tabel: pakai lebar penuh popup */
+      '#_catatanReaderPopup .crp-reader .ql-editor{padding:18px 20px 40px}',
+      '#_catatanReaderPopup .crp-reader.is-table .ql-editor{padding:12px 14px 24px}',
+      '#_catatanReaderPopup .crp-reader .ql-editor img{max-width:100%;height:auto}',
+      /* tabel dibiarkan selebar aslinya -> .crp-reader yang scroll horizontal kalau kolom banyak */
+      '#_catatanReaderPopup .crp-reader table{border-collapse:collapse;max-width:none;font-size:12.5px;margin:2px 0}',
+      '#_catatanReaderPopup .crp-reader td,#_catatanReaderPopup .crp-reader th{border:1px solid rgba(91,73,57,0.4);padding:5px 8px;white-space:nowrap}',
+      // Laptop + sidebar kebuka: geser tepi kiri popup ke kanan setelah sidebar (tepi kanan
+      // tetap mepet layar) -- persis spt .shell-audit-tabbar / #_auditPopup. Mobile: drawer =
+      // overlay (tidak makan layout), jadi di-reset ke left:0.
+      'body.page-shell.sidebar-open #_catatanReaderPopup{left:var(--shell-sidebar-width,304px)}',
+      '@media (max-width:960px){body.page-shell.sidebar-open #_catatanReaderPopup{left:0}}'
+    ].join('\n');
+    global.document.head.appendChild(st);
+  }
+
+  function setCatatanTabActive_(active) {
+    var a = global.document.getElementById('_shellTabCatatan');
+    if (a) a.classList.toggle('is-current', !!active);
+  }
+
+  function catatanReaderDate_(iso) {
+    var d = new Date(iso);
+    return isNaN(d.getTime()) ? '' : d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+
+  function closeCatatanReaderPopup_() {
+    var el = global.document.getElementById('_catatanReaderPopup');
+    if (el) el.remove();
+    if (_catatanReader_.esc) {
+      global.document.removeEventListener('keydown', _catatanReader_.esc);
+      _catatanReader_.esc = null;
+    }
+    try { global.document.documentElement.style.overflow = _catatanReader_.prevHtmlOverflow || ''; } catch (e) {}
+    var onCatatan = /\/pages\/catatanku\/?($|[?#])/.test(global.location.pathname + global.location.search);
+    setCatatanTabActive_(onCatatan);
+  }
+
+  function toggleCatatanReaderPopup_(session) {
+    if (global.document.getElementById('_catatanReaderPopup')) { closeCatatanReaderPopup_(); return; }
+    openCatatanReaderPopup_(session);
+  }
+
+  function openCatatanReaderPopup_(session) {
+    ensureCatatanReaderCss_();
+    closeOtherShellPopups_('_catatanReaderPopup');
+    _catatanReader_ = {
+      items: null, page: 1, view: 'list', docId: null, session: session, esc: null, search: '',
+      prevHtmlOverflow: (global.document.documentElement.style.overflow || '')
+    };
+    var popup = global.document.createElement('div');
+    popup.id = '_catatanReaderPopup';
+    popup.innerHTML =
+      '<div class="crp-head">' +
+        '<button type="button" class="crp-back" hidden>&#8249;&ensp;Daftar</button>' +
+        '<strong>Dokumen &amp; Catatan</strong>' +
+        '<button type="button" class="crp-open" title="Buka halaman penuh">Buka halaman</button>' +
+        '<button type="button" class="crp-x" aria-label="Tutup">&times;</button>' +
+      '</div>' +
+      '<div class="crp-search"><input type="search" class="crp-search-input" placeholder="Cari nama atau isi dokumen..."></div>' +
+      '<div class="crp-body"><div class="crp-empty">Memuat...</div></div>' +
+      '<div class="crp-foot" hidden></div>';
+    global.document.body.appendChild(popup);
+    try { global.document.documentElement.style.overflow = 'hidden'; } catch (e) {}
+    setCatatanTabActive_(true);
+
+    popup.querySelector('.crp-x').addEventListener('click', closeCatatanReaderPopup_);
+    popup.querySelector('.crp-back').addEventListener('click', function () { renderCatatanReaderList_(); });
+    popup.querySelector('.crp-search-input').addEventListener('input', function (e) {
+      _catatanReader_.search = e.target.value;
+      _catatanReader_.page = 1;
+      renderCatatanReaderList_();
+    });
+    popup.querySelector('.crp-open').addEventListener('click', function () {
+      var url = '/pages/catatanku/';
+      if (_catatanReader_.view === 'reader' && _catatanReader_.docId) {
+        url += '?doc=' + encodeURIComponent(_catatanReader_.docId);
+      }
+      global.location.href = url;
+    });
+    _catatanReader_.esc = function (e) { if (e.key === 'Escape') closeCatatanReaderPopup_(); };
+    global.document.addEventListener('keydown', _catatanReader_.esc);
+
+    catatanReaderApi_(session, 'catatan.list', { tab: '', q: '' })
+      .then(function (data) {
+        if (!global.document.getElementById('_catatanReaderPopup')) return;
+        _catatanReader_.items = (data && data.items) || [];
+        renderCatatanReaderList_();
+      })
+      .catch(function (err) {
+        var body = popup.querySelector('.crp-body');
+        if (body) body.innerHTML = '<div class="crp-empty">' + escapeHtml(err.message || 'Gagal memuat dokumen.') + '</div>';
+      });
+  }
+
+  function renderCatatanReaderList_() {
+    var popup = global.document.getElementById('_catatanReaderPopup');
+    if (!popup) return;
+    _catatanReader_.view = 'list';
+    _catatanReader_.docId = null;
+    popup.querySelector('.crp-back').hidden = true;
+    popup.querySelector('.crp-search').hidden = false;
+    popup.querySelector('.crp-head strong').textContent = 'Dokumen & Catatan';
+    var body = popup.querySelector('.crp-body');
+    var foot = popup.querySelector('.crp-foot');
+    var allItems = _catatanReader_.items || [];
+    var q = (_catatanReader_.search || '').trim().toLowerCase();
+    var items = !q ? allItems : allItems.filter(function (d) {
+      var hay = ((d.title || '') + ' ' + (d.excerpt || '') + ' ' + (d.ownerName || '')).toLowerCase();
+      return hay.indexOf(q) !== -1;
+    });
+    if (!items.length) {
+      body.innerHTML = '<div class="crp-empty">' + (allItems.length ? 'Tidak ada dokumen yang cocok dengan pencarian.' : 'Belum ada dokumen yang bisa Anda baca.') + '</div>';
+      foot.hidden = true;
+      return;
+    }
+    var pageCount = Math.max(1, Math.ceil(items.length / CATATAN_READER_PAGE_SIZE_));
+    if (_catatanReader_.page > pageCount) _catatanReader_.page = pageCount;
+    if (_catatanReader_.page < 1) _catatanReader_.page = 1;
+    var start = (_catatanReader_.page - 1) * CATATAN_READER_PAGE_SIZE_;
+    var slice = items.slice(start, start + CATATAN_READER_PAGE_SIZE_);
+    body.scrollTop = 0;
+    body.innerHTML = slice.map(function (d) {
+      var chips = [];
+      if (d.isOwner) chips.push('<span class="crp-chip owner">Pemilik</span>');
+      else chips.push('<span class="crp-chip ' + (d.canEdit ? 'edit' : 'view') + '">' + escapeHtml(d.myAccessLabel || (d.canEdit ? 'Bisa edit' : 'Lihat saja')) + '</span>');
+      if (!d.isOwner && d.ownerName) chips.push('<span class="crp-chip">oleh ' + escapeHtml(d.ownerName) + '</span>');
+      var when = catatanReaderDate_(d.updatedAt);
+      if (when) chips.push('<span class="crp-chip">' + escapeHtml(when) + '</span>');
+      var typeClass = d.docType === 'table' ? 'doc-type-table' : 'doc-type-quill';
+      return '<div class="crp-card ' + typeClass + '" data-id="' + escapeHtml(d.id) + '">' +
+          '<h4>' + escapeHtml(d.title || 'Tanpa Judul') + '</h4>' +
+          '<div class="crp-meta">' + chips.join('') + '</div>' +
+        '</div>';
+    }).join('');
+    body.querySelectorAll('.crp-card').forEach(function (card) {
+      card.addEventListener('click', function () { openCatatanReaderDoc_(card.getAttribute('data-id')); });
+    });
+    foot.hidden = false;
+    foot.innerHTML =
+      '<button type="button" class="crp-prev"' + (_catatanReader_.page <= 1 ? ' disabled' : '') + '>&#8249;&ensp;Sebelumnya</button>' +
+      '<span>Hal ' + _catatanReader_.page + ' / ' + pageCount + ' &bull; ' + items.length + ' dok</span>' +
+      '<button type="button" class="crp-next"' + (_catatanReader_.page >= pageCount ? ' disabled' : '') + '>Berikutnya&ensp;&#8250;</button>';
+    foot.querySelector('.crp-prev').addEventListener('click', function () {
+      if (_catatanReader_.page > 1) { _catatanReader_.page -= 1; renderCatatanReaderList_(); }
+    });
+    foot.querySelector('.crp-next').addEventListener('click', function () {
+      if (_catatanReader_.page < pageCount) { _catatanReader_.page += 1; renderCatatanReaderList_(); }
+    });
+  }
+
+  function openCatatanReaderDoc_(id) {
+    var popup = global.document.getElementById('_catatanReaderPopup');
+    if (!popup || !id) return;
+    _catatanReader_.view = 'reader';
+    _catatanReader_.docId = id;
+    popup.querySelector('.crp-back').hidden = false;
+    popup.querySelector('.crp-search').hidden = true;
+    var body = popup.querySelector('.crp-body');
+    popup.querySelector('.crp-foot').hidden = true;
+    body.scrollTop = 0;
+    body.innerHTML = '<div class="crp-empty">Memuat dokumen...</div>';
+    catatanReaderApi_(_catatanReader_.session, 'catatan.get', { id: id })
+      .then(function (data) {
+        if (!global.document.getElementById('_catatanReaderPopup') || _catatanReader_.docId !== id) return;
+        var title = data.title || 'Tanpa Judul';
+        popup.querySelector('.crp-head strong').textContent = title;
+        var access = data.access || {};
+        var meta = [access.isOwner ? 'Pemilik' : (access.canEdit ? 'Bisa edit' : 'Lihat saja')];
+        if (!access.isOwner && data.ownerName) meta.push('pemilik: ' + data.ownerName);
+        var when = catatanReaderDate_(data.updatedAt);
+        if (when) meta.push('diperbarui ' + when);
+        var isTable = data.docType === 'table' || /<table[\s>]/i.test(data.html || '');
+        body.innerHTML =
+          '<div class="crp-reader-title">' + escapeHtml(title) + '</div>' +
+          '<div class="crp-reader-meta">' + escapeHtml(meta.join(' · ')) + (isTable ? ' · tabel' : '') + '</div>' +
+          '<div class="crp-reader' + (isTable ? ' is-table' : '') + '"></div>';
+        var host = body.querySelector('.crp-reader');
+        // Dokumen tabel dirender apa adanya (bukan konten Quill -- diedit lewat table editor
+        // terpisah di halaman penuh), sisanya dirender pakai Quill beneran (lihat catatan di
+        // ensureQuillScript_) supaya blockquote/code-block/dll tampil sesuai aslinya.
+        if (isTable) {
+          host.innerHTML = '<div class="ql-editor ql-snow">' + (data.html || '<p><em>(kosong)</em></p>') + '</div>';
+          return;
+        }
+        var quillHost = global.document.createElement('div');
+        host.appendChild(quillHost);
+        ensureQuillScript_().then(function () {
+          if (!global.document.getElementById('_catatanReaderPopup') || _catatanReader_.docId !== id) return;
+          var q = new global.Quill(quillHost, { theme: 'snow', readOnly: true, modules: { toolbar: false } });
+          var ok = false;
+          if (data.delta) {
+            try {
+              var d = JSON.parse(data.delta);
+              if (d && Array.isArray(d.ops) && d.ops.length) { q.setContents({ ops: d.ops }, 'silent'); ok = true; }
+            } catch (e) { ok = false; }
+          }
+          if (!ok && data.html) q.clipboard.dangerouslyPasteHTML(0, data.html, 'silent');
+        }).catch(function () {
+          if (!global.document.getElementById('_catatanReaderPopup') || _catatanReader_.docId !== id) return;
+          host.innerHTML = '<div class="ql-editor ql-snow">' + (data.html || '<p><em>(kosong)</em></p>') + '</div>';
+        });
+      })
+      .catch(function (err) {
+        if (!global.document.getElementById('_catatanReaderPopup') || _catatanReader_.docId !== id) return;
+        body.innerHTML = '<div class="crp-empty">' + escapeHtml(err.message || 'Gagal membuka dokumen.') + '</div>';
+      });
+  }
+
   function syncAbsensiHalaqohAudit(options) {
     var session = resolveSession(options || {});
     var token = (session && session.token) || '';
@@ -1988,19 +2509,35 @@
 
   // Satu kartu berisi SEMUA item sekaligus (halaqoh + kelas digabung dalam satu daftar),
   // bukan antrean bergantian -- supaya di layar cuma pernah ada 1 popup, titik.
+  // Selalu update tab "Audit Diri" di _auditTabBar dulu (badge muncul walau popup sedang
+  // collapse), baru cek AUDIT_SELF_COLLAPSE_KEY_ -- kalau user pernah nutup manual di sesi
+  // ini, popup TIDAK auto-muncul lagi (beda dari perilaku lama yg selalu muncul tiap halaman).
   function showAuditPopup(session, items) {
-    if (global.document.getElementById('_auditPopup')) return;
-
     // Kalau SATU-SATUNYA item yang tersisa adalah pengingat "belum isi jurnal hari ini"
     // (blocksJurnal: false, lihat collectJurnalSdmGapItem_ di backend) -- artinya semua
     // audit yang benar-benar "melanggar" sudah beres -- popup tampil hijau (pengingat
     // santai), bukan merah (pelanggaran), supaya tidak terkesan sama seriusnya.
     var isOnlyGentleReminder = items.length > 0 && items.every(function (item) { return item.blocksJurnal === false; });
+    _auditTabState_.self = { session: session, items: items };
+    updateAuditTab_('_auditTabSelf', {
+      count: items.length,
+      label: '<i class="fa-solid ' + (isOnlyGentleReminder ? 'fa-clipboard-user' : 'fa-warning') + '" aria-hidden="true"></i>',
+      bg: isOnlyGentleReminder ? ANNOUNCEMENT_THEMES.hijau.bg : ANNOUNCEMENT_THEMES.merah.bg,
+      ink: isOnlyGentleReminder ? ANNOUNCEMENT_THEMES.hijau.ink : ANNOUNCEMENT_THEMES.merah.ink
+    });
+    if (getAuditCollapsed_(AUDIT_SELF_COLLAPSE_KEY_)) return;
+    renderAuditPopup_(session, items);
+  }
+
+  function renderAuditPopup_(session, items) {
+    if (global.document.getElementById('_auditPopup')) return;
+
+    var isOnlyGentleReminder = items.length > 0 && items.every(function (item) { return item.blocksJurnal === false; });
     var theme = isOnlyGentleReminder ? ANNOUNCEMENT_THEMES.hijau : ANNOUNCEMENT_THEMES.merah;
     var popup = global.document.createElement('div');
     popup.id = '_auditPopup';
     popup.style.cssText = [
-      'position:fixed', 'left:16px', 'bottom:16px', 'z-index:9998',
+      'position:fixed', 'left:16px', 'bottom:calc(var(--shell-tabbar-space, 76px) + 16px)', 'z-index:var(--shell-z-header, 9720)',
       'max-width:360px', 'width:calc(100% - 32px)',
       'max-height:calc(100vh - 32px)', 'overflow-y:auto', 'box-sizing:border-box',
       'background:' + theme.bg, 'color:' + theme.ink, 'border-radius:14px',
@@ -2035,6 +2572,7 @@
       '<div style="margin-top:4px;">' + rowsHtml + '</div>';
 
     global.document.body.appendChild(popup);
+    setAuditTabActive_('_auditTabSelf', true);
 
     popup.querySelectorAll('._auditDetailBtn').forEach(function (btn) {
       btn.addEventListener('click', function () {
@@ -2079,6 +2617,8 @@
     });
     popup.querySelector('#_auditCloseBtn').addEventListener('click', function () {
       popup.remove();
+      setAuditCollapsed_(AUDIT_SELF_COLLAPSE_KEY_, true);
+      setAuditTabActive_('_auditTabSelf', false);
     });
   }
 
@@ -2211,15 +2751,30 @@
   // pecah jadi daftar nama bawahan (keputusan user 2026-08-05, awalnya popup ini langsung
   // 1 baris per bawahan -- terlalu panjang kalau bawahannya banyak).
   function showAuditBawahanPopup_(items) {
-    if (global.document.getElementById('_auditBawahanPopup')) return;
     var visibleItems = items.filter(function (item) { return (item.bawahan || []).length; });
+    _auditTabState_.bawahan = { items: visibleItems };
+    if (!visibleItems.length) return;
+
+    var anyWarn = visibleItems.some(function (item) { return !!item.hasWarn; });
+    updateAuditTab_('_auditTabBawahan', {
+      count: visibleItems.length,
+      label: '<i class="fa-solid ' + (anyWarn ? 'fa-warning' : 'fa-users') + '" aria-hidden="true"></i>',
+      bg: ANNOUNCEMENT_THEMES.biru.bg,
+      ink: ANNOUNCEMENT_THEMES.biru.ink
+    });
+    if (getAuditCollapsed_(AUDIT_BAWAHAN_COLLAPSE_KEY_)) return;
+    renderAuditBawahanPopup_(visibleItems);
+  }
+
+  function renderAuditBawahanPopup_(visibleItems) {
+    if (global.document.getElementById('_auditBawahanPopup')) return;
     if (!visibleItems.length) return;
 
     var theme = ANNOUNCEMENT_THEMES.biru;
     var popup = global.document.createElement('div');
     popup.id = '_auditBawahanPopup';
     popup.style.cssText = [
-      'position:fixed', 'right:16px', 'bottom:16px', 'z-index:9998',
+      'position:fixed', 'right:16px', 'bottom:calc(var(--shell-tabbar-space, 76px) + 16px)', 'z-index:var(--shell-z-header, 9720)',
       'max-width:360px', 'width:calc(100% - 32px)',
       'max-height:calc(100vh - 32px)', 'overflow-y:auto', 'box-sizing:border-box',
       'background:' + theme.bg, 'color:' + theme.ink, 'border-radius:14px',
@@ -2233,7 +2788,7 @@
       return '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 0;' + (index ? 'border-top:1px solid ' + theme.border + ';' : '') + '">' +
           '<div style="min-width:0;">' +
             '<div style="font-weight:700;">' + titleText + '</div>' +
-            '<div style="font-size:11px;color:' + theme.hint + ';margin-top:2px;">' + count + ' ' + escapeHtml(item.target || 'bawahan') + ' belum menyelesaikan tugas</div>' +
+            '<div style="font-size:11px;color:' + theme.hint + ';margin-top:2px;">' + count + ' ' + escapeHtml(item.target || 'bawahan') + ' ' + escapeHtml(item.summaryLabel || 'belum menyelesaikan tugas') + '</div>' +
           '</div>' +
           '<button type="button" class="_auditBawahanDetailBtn" data-index="' + index + '" aria-label="Rincian" title="Rincian" style="border:1px solid ' + theme.border + ';border-radius:8px;background:transparent;color:' + theme.ink + ';padding:6px 10px;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0;">&#8505;</button>' +
         '</div>';
@@ -2253,6 +2808,7 @@
       '<div style="margin-top:4px;">' + rowsHtml + '</div>' + legendHtml;
 
     global.document.body.appendChild(popup);
+    setAuditTabActive_('_auditTabBawahan', true);
 
     popup.querySelectorAll('._auditBawahanDetailBtn').forEach(function (btn) {
       btn.addEventListener('click', function () {
@@ -2261,6 +2817,8 @@
     });
     popup.querySelector('#_auditBawahanCloseBtn').addEventListener('click', function () {
       popup.remove();
+      setAuditCollapsed_(AUDIT_BAWAHAN_COLLAPSE_KEY_, true);
+      setAuditTabActive_('_auditTabBawahan', false);
     });
   }
 
@@ -2279,10 +2837,20 @@
     overlay.style.cssText = 'position:fixed;inset:0;z-index:10001;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;';
 
     var bawahanList = item.bawahan || [];
+    // Baris nama TIDAK lagi seluruh baris yg diklik -- diganti 1 tombol bulat kecil ikon FA
+    // (chevron) di kanan sbg satu-satunya pemicu buka rincian per-kelas/halaqoh (keputusan
+    // user 2026-08-29). Teks jumlah TETAP ada (cuma kata "bolong"-nya yg dibuang, mis. "hari
+    // bolong" -> "hari") -- item.unitLabel sendiri TIDAK diubah (dipakai jg di
+    // showAuditBawahanDetailDialog_ level-3 yg sengaja dibiarkan apa adanya), jadi buangnya
+    // cuma di teks yg ditampilkan di sini, bukan di sumber datanya.
     var rowsHtml = bawahanList.map(function (b, index) {
-      return '<div class="_auditBawahanNameRow" data-index="' + index + '" style="display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px dashed rgba(41,23,15,0.12);cursor:pointer;">' +
+      var unitNoBolong = (item.unitLabel || 'hari bolong').replace(/\s*bolong\s*/i, ' ').replace(/\s+/g, ' ').trim();
+      return '<div class="_auditBawahanNameRow" style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px dashed rgba(41,23,15,0.12);">' +
         '<span>' + auditBawahanWarningIcon_(b.hasWarn) + escapeHtml(b.pengurusName || '(tidak diketahui)') + '</span>' +
-        '<span style="color:#a55a52;font-weight:700;flex-shrink:0;">' + Number(b.totalMissing || 0) + ' ' + escapeHtml(item.unitLabel || 'hari bolong') + '</span>' +
+        '<span style="display:flex;align-items:center;gap:8px;flex-shrink:0;">' +
+          '<span style="color:#a55a52;font-weight:700;">' + Number(b.totalMissing || 0) + ' ' + escapeHtml(unitNoBolong) + '</span>' +
+          '<button type="button" class="_auditBawahanNameDetailBtn" data-index="' + index + '" aria-label="Rincian" title="Rincian" style="flex-shrink:0;width:26px;height:26px;border-radius:999px;border:1px solid rgba(41,23,15,0.25);background:transparent;color:#2b2620;font-size:11px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;"><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>' +
+        '</span>' +
       '</div>';
     }).join('');
 
@@ -2293,7 +2861,7 @@
         '<strong style="font-size:15px;text-transform:uppercase;letter-spacing:0.03em;">' + auditBawahanWarningIcon_(item.hasWarn) + escapeHtml(item.title || item.kind) + (item.roleLabel ? ' (' + escapeHtml(item.roleLabel) + ')' : '') + '</strong>' +
         '<button type="button" id="_auditBawahanNamesCloseBtn" aria-label="Tutup" style="border:none;background:transparent;font-size:20px;line-height:1;cursor:pointer;padding:0 2px;">&times;</button>' +
       '</div>' +
-      '<div style="font-size:12px;color:#7b6a58;margin-top:4px;">' + escapeHtml(item.target || '') + ' &middot; klik nama untuk lihat rincian per-kelas.</div>' +
+      '<div style="font-size:12px;color:#7b6a58;margin-top:4px;">' + escapeHtml(item.target || '') + ' &middot; klik ikon untuk lihat rincian per-kelas.</div>' +
       '<div style="margin-top:10px;">' + (rowsHtml || '<div style="padding:12px 0;color:#7b6a58;font-size:12.5px;">Tidak ada yang bermasalah.</div>') + '</div>';
 
     overlay.appendChild(card);
@@ -2301,9 +2869,9 @@
 
     overlay.addEventListener('click', function (e) { if (e.target === overlay) closeAuditBawahanNamesDialog_(); });
     card.querySelector('#_auditBawahanNamesCloseBtn').addEventListener('click', closeAuditBawahanNamesDialog_);
-    card.querySelectorAll('._auditBawahanNameRow').forEach(function (row) {
-      row.addEventListener('click', function () {
-        showAuditBawahanDetailDialog_(item, bawahanList[Number(row.dataset.index)]);
+    card.querySelectorAll('._auditBawahanNameDetailBtn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        showAuditBawahanDetailDialog_(item, bawahanList[Number(btn.dataset.index)]);
       });
     });
   }

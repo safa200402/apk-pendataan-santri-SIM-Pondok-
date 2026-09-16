@@ -333,7 +333,9 @@
   <script src="../../shared-nav.js"></script>
   <script src="../../shared-shell.js"></script>
   <script>
+    const API_BASE = window.location.origin + '/api';
     const STORAGE = { apiBase: 'ps_api_base', token: 'ps_token', session: 'ps_session' };
+    localStorage.setItem(STORAGE.apiBase, API_BASE);
 
     const today = new Date();
     const state = {
@@ -456,11 +458,14 @@
       } catch(e) { return str; }
     }
 
+    // Format tanggal ringkas utk "Acara Mendatang" -- tahun SELALU ditampilkan (keputusan
+    // user 2026-08-31). Sebelumnya tahun cuma muncul kalau beda dari tahun sekarang, tapi
+    // begitu kalender terisi penuh utk tahun berjalan jadi tidak ada tahun sama sekali.
     function formatDateShort(str) {
       if (!str) return '';
       try {
         const [y, m, d] = str.split('-').map(Number);
-        return new Date(y, m - 1, d).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+        return new Date(y, m - 1, d).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
       } catch(e) { return str; }
     }
 
@@ -686,7 +691,7 @@
       if (window.jspdf) return;
       await new Promise((resolve, reject) => {
         const s = document.createElement('script');
-        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+        s.src = '../../vendor/jspdf/jspdf.umd.min.js';
         s.onload = resolve;
         s.onerror = () => reject(new Error('Gagal memuat library PDF. Periksa koneksi.'));
         document.head.appendChild(s);

@@ -1,0 +1,1547 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#9e2f22">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="../../../shared-ui.css">
+  <link rel="stylesheet" href="../../../shared-shell.css">
+  <link rel="stylesheet" href="../../../vendor/quill/quill.snow.css">
+  <link rel="stylesheet" href="../../../vendor/fontawesome/css/all.min.css">
+  <script src="../../../shared-ui.js"></script>
+  <script src="../../../vendor/howler/howler.min.js"></script>
+  <title>Quiz Digital Santri</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap');
+    :root {
+      --paper: #f6efe0; --ink: #4d4034; --muted: rgba(0,0,0,0.55);
+      --line: rgba(0,0,0,0.09); --accent: #9e2f22;
+      --success: #4a6b48; --danger: #8b3a35; --warning: #7a5a00;
+      --shadow: 0 12px 36px rgba(87,67,51,0.15); --radius: 16px;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; }
+    h1, h2, h3 { margin: 0; }
+    p { margin: 0; line-height: 1.6; }
+    .nav a, button { font-weight: 800 !important; text-transform: uppercase; }
+    .panel { padding: 18px; }
+    button, input, select, textarea { font: inherit; }
+    button { padding: 11px 16px; font-weight: 700; cursor: pointer; border-radius: 10px; }
+    .muted { color: var(--muted); font-size: 12.5px; }
+    .primary { background: var(--accent); color: #fff; border: none; }
+    .secondary { background: transparent; border: 2px solid rgba(0,0,0,0.12); color: var(--ink); }
+    .empty-state { padding: 34px 18px; text-align: center; color: var(--muted); font-size: 13px; }
+
+    /* shared-ui.css: .notice { display:none } — override lokal spt daftarSantri, biar toast kelihatan */
+    .notice.show { display: block !important; }
+    .quiz-grid { display: grid; gap: 10px; margin-top: 14px; }
+    .quiz-card { border: 1px solid var(--line); border-left: 5px solid var(--q-bar, var(--line)); border-radius: var(--radius); padding: 16px; background: #fff; box-shadow: var(--shadow); display: grid; gap: 8px; }
+    .quiz-card h3 { font-size: 15px; }
+    .qc-meta { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; font-size: 10.5px; font-weight: 800; border-radius: 999px; background: rgba(158,47,34,0.10); color: var(--accent); text-transform: uppercase; letter-spacing: .03em; }
+    .chip.g { background: rgba(74,107,72,0.14); color: var(--success); }
+    .chip.w { background: rgba(122,90,0,0.14); color: var(--warning); }
+    .chip.mut { background: rgba(0,0,0,0.06); color: var(--muted); }
+    .qc-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+    .qc-actions button { padding: 9px 16px; font-size: 12px; }
+
+    /* ── Pilih kelas + folder ─────────────────────────────────── */
+    .quiz-nav { display: grid; gap: 8px; margin-top: 14px; }
+    .quiz-nav-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+    .quiz-nav-bar button { padding: 8px 12px; font-size: 11px; min-height: 0; }
+    /* "Cari quiz" (mode telusuri folder) — panel + field ala filter kelas (#filtersPanel),
+       tapi rata kiri & lebar field dibatasi (bukan meregang 100%). */
+    #quizFilters.filters { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; padding: 10px 12px; }
+    #quizFilters.filters label { display: grid; gap: 4px; margin: 0; min-width: 0; width: min(260px, 100%); font-size: 12px; line-height: 1.25; font-weight: 600; }
+    #quizFilters.filters input { width: 100%; min-width: 0; min-height: 36px; padding: 8px 10px; border-radius: 10px; font-size: 13px; }
+    /* Breadcrumb — CSS disamakan 1:1 dengan .folder-crumbs di pages/quizDigital.
+       !important dipakai spt di sana: mengalahkan gaya tombol retro shared-ui
+       (html body :is(button,…){ border/box-shadow/radius/background } yg lebih spesifik). */
+    .crumbs { display: flex !important; flex-wrap: wrap !important; align-items: center !important; gap: 4px !important; font-size: 12px !important; }
+    .crumbs button { padding: 4px 8px !important; font-size: 11.5px !important; min-height: 0 !important; background: transparent !important; border: none !important; box-shadow: none !important; color: var(--accent) !important; text-transform: none !important; }
+    .crumbs button:disabled { color: var(--ink) !important; font-weight: 800 !important; cursor: default !important; }
+    .crumbs .sep { color: var(--muted) !important; }
+    /* ── Kartu kelas: UI & UX disamakan dengan pages/quizDigital (kartu collapse minimal-list-card
+         ala editKelas — buka detail lewat header, tombol "Buka" yang masuk ke isi kelas). ── */
+    #quizGrid.kelas-picker-grid { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); align-items: start; }
+    @media (max-width: 960px) { #quizGrid.kelas-picker-grid { grid-template-columns: 1fr; } }
+    #quizGrid.kelas-picker-grid .card.minimal-list-card { padding: 0; box-shadow: var(--shadow); }
+    #quizGrid.kelas-picker-grid .minimal-list-card.row-ikhwan  { background: #ddeeff; border-color: rgba(70,130,180,0.25); }
+    #quizGrid.kelas-picker-grid .minimal-list-card.row-akhowat { background: #ffe4f0; border-color: rgba(200,100,140,0.25); }
+    #quizGrid.kelas-picker-grid .minimal-list-card.row-campur  { background: #f5f0e8; border-color: rgba(181,132,57,0.2); }
+    .pill { display: inline-flex; align-items: center; padding: 7px 11px; font-size: 12px; font-weight: 700; border-radius: 999px; background: rgba(0,0,0,0.06); color: var(--ink); }
+    .pill.gender-ikhwan { background: rgba(87, 107, 149, 0.14); color: #576b95; }
+    .pill.gender-akhowat { background: rgba(185, 118, 80, 0.14); color: #9e2f22; }
+    .pill.gender-campur { background: rgba(181, 132, 57, 0.14); color: var(--warning); }
+    .pill.gender-none { background: rgba(123, 106, 88, 0.14); color: var(--muted); }
+    .kelas-title-row { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+    .kelas-context-label { font-size: 12px; line-height: 1.45; color: var(--muted); }
+    .kelas-jenis-tag { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; color: #6a4a2f; background: rgba(185, 118, 80, 0.16); border: 1px solid rgba(185, 118, 80, 0.3); line-height: 1.2; white-space: nowrap; }
+    .kelas-jam-tag { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; color: #576b95; background: rgba(87, 107, 149, 0.14); border: 1px solid rgba(87, 107, 149, 0.3); line-height: 1.2; white-space: nowrap; }
+
+    /* Pagination daftar kelas — UI/UX 1:1 dengan komponen .paging-host di pages/quizDigital:
+       tombol angka = .secondary.page-btn (gaya tombol retro shared-ui, bukan pill datar),
+       ringkasan "Halaman X dari Y | total N kelas". Jangan override .page-numbers button. */
+    .paging-host { display: grid; gap: 8px; margin: 16px 0; }
+    .paging-host:empty, .paging-host.is-empty { display: none; }
+    .paging-host .page-center { display: grid; gap: 8px; justify-items: center; }
+    .paging-host .page-numbers { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+    .paging-host .page-summary { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+    /* ── Item folder + quiz = kartu collapse minimal-list-card, PERSIS quizDigital (guru) ── */
+    #quizGrid .minimal-list-card.qi-card { border-left: 4px solid var(--qi-bar, var(--muted)) !important; background: var(--fc-tint, rgba(255,248,230,0.96)) !important; border-color: var(--fc-border, var(--line)) !important; }
+    .qi-card .minimal-list-card-title-row { display: flex !important; align-items: center !important; gap: 8px !important; flex-wrap: wrap !important; }
+    .qi-card .minimal-list-card-name { font-size: 14px !important; font-weight: 800 !important; line-height: 1.25 !important; }
+    .qi-card .minimal-list-card-hint { text-transform: none !important; letter-spacing: normal !important; }
+    .qi-card .qi-icon { font-size: 15px !important; flex-shrink: 0 !important; color: var(--qi-bar, var(--muted)) !important; }
+    .qi-card .frc-path { color: var(--muted) !important; font-weight: 600 !important; }
+    .qi-card .minimal-list-card-toggle { min-width: 64px !important; }
+    /* Tombol aksi di panel detail kartu quiz (Mulai / Kerjakan lagi / Lanjutkan / Lihat hasil):
+       kompak — samakan dgn .quiz-actions button di pages/quizDigital. */
+    .qi-card .minimal-list-card-actions { display: flex !important; gap: 6px !important; flex-wrap: wrap !important; justify-content: flex-end !important; }
+    .qi-card .minimal-list-card-actions button {
+      padding: 7px 11px !important; font-size: 11px !important;
+      min-height: 0 !important; line-height: 1.2 !important;
+    }
+    .qi-folder, .qi-folder .minimal-list-card-main { cursor: pointer !important; }
+    /* Item quiz: area judul (klik = buka detail) ikut jadi pointer spt kartu folder. */
+    .qi-card .minimal-list-card-main[data-qtoggle] { cursor: pointer !important; }
+    .qi-card:hover { filter: brightness(1.03) !important; }
+    .quiz-paging { display: flex; justify-content: center; margin-top: 4px; }
+    .quiz-paging .page-center { display: grid; gap: 6px; justify-items: center; }
+    .quiz-paging .page-numbers { display: flex; gap: 6px; flex-wrap: wrap; }
+    .quiz-paging .page-numbers button { padding: 6px 11px; font-size: 12px; border-radius: 8px; background: rgba(255,255,255,0.8); border: 1px solid var(--line); color: var(--ink); }
+    .quiz-paging .page-numbers button.active { background: var(--accent); color: #fff; }
+    .quiz-paging .page-summary { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+
+    /* ── Runner: full-screen, frame & gaya SAMA seperti #kelasQuizDialog di quizDigital ── */
+    #runnerDialog {
+      width: 100%; max-width: 100%; height: 100%; max-height: 100%;
+      margin: 0; padding: 0; border: none; border-radius: 0;
+      background: var(--paper); overflow: hidden; position: relative;
+    }
+    #runnerDialog::backdrop { background: rgba(41, 23, 15, 0.45); backdrop-filter: blur(4px); }
+    #runnerDialog .kq-shell { height: 100%; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; }
+    #runnerDialog .kq-head {
+      padding: 18px 22px 14px; border-bottom: 1px solid var(--line);
+      background: rgba(255, 251, 243, 0.9);
+      display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    }
+    #runnerDialog .kq-head-left { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 8px; }
+    #runnerDialog .kq-head-left h3 { margin: 0; }
+    #runnerDialog .kq-head-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+    #runnerDialog .kq-body { padding: 18px 22px; overflow: auto; }
+    #runnerDialog .kq-body-inner { max-width: 780px; margin: 0 auto; }
+    #runnerDialog .kq-foot {
+      padding: 14px 22px; border-top: 1px solid var(--line);
+      background: rgba(255, 251, 243, 0.9);
+    }
+    #runnerDialog .kq-foot-inner { max-width: 780px; margin: 0 auto; }
+    #runnerDialog .kq-close {
+      width: 44px; min-width: 44px; height: 44px; padding: 0; border-radius: 999px;
+      border: none; background: transparent; font-size: 22px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    #runnerDialog .kq-close:hover { background: rgba(0, 0, 0, 0.08); }
+    #runnerTitle { font-size: 14px; text-transform: uppercase; }
+    .timer { font-weight: 800; font-size: 16px; padding: 5px 14px; border-radius: 999px; background: rgba(0,0,0,0.06); }
+    .timer.low { background: rgba(139,58,53,0.15); color: var(--danger); }
+    .runner-status { font-size: 12px; color: var(--muted); font-weight: 700; margin: 0; }
+    .track { height: 6px; border-radius: 999px; background: rgba(0,0,0,0.08); overflow: hidden; margin-bottom: 4px; }
+    .track > i { display: block; height: 100%; background: var(--accent); transition: width .25s; }
+    .progress-dots { display: flex; gap: 6px; flex-wrap: wrap; margin: 10px 0; }
+    .progress-dots span { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-size: 10px; font-weight: 800; background: rgba(0,0,0,0.07); color: var(--muted); cursor: pointer; }
+    .progress-dots span.done { background: var(--accent); color: #fff; }
+    .progress-dots span.current { outline: 3px solid rgba(158,47,34,0.35); }
+    #runnerBody { padding-top: 4px; }
+    .q-text { font-size: 16px; font-weight: 700; margin: 8px 0 16px; line-height: 1.5; }
+    .opt { display: flex; align-items: flex-start; gap: 10px; padding: 14px 16px; border: 2px solid rgba(0,0,0,0.12); border-radius: 12px; margin-bottom: 10px; cursor: pointer; font-size: 14px; }
+    .opt.sel { border-color: var(--accent); background: rgba(158,47,34,0.06); }
+    .opt input { margin-top: 3px; width: auto; }
+    .opt.correct { border-color: var(--success); background: rgba(74,107,72,0.08); }
+    .opt.wrong { border-color: var(--danger); background: rgba(139,58,53,0.08); }
+    .short-input { width: 100%; padding: 14px 16px; border: 2px solid rgba(0,0,0,0.12); border-radius: 12px; font-size: 15px; }
+    /* Isian Bank Kata / Susun Kalimat */
+    .wb-sentence { font-size: 16px; line-height: 2.1; margin: 8px 0 14px; }
+    .wb-slot { display: inline-flex; align-items: center; justify-content: center; min-width: 62px; min-height: 34px; padding: 3px 12px; margin: 0 2px; border: 2px dashed rgba(0,0,0,0.28); border-radius: 10px; background: #fff; font-size: 14px; font-weight: 700; cursor: pointer; vertical-align: middle; }
+    .wb-slot.filled { border-style: solid; border-color: var(--accent); background: rgba(158,47,34,0.06); }
+    .wb-slot.sel { outline: 3px solid rgba(158,47,34,0.3); }
+    .wb-slot.ok { border-color: var(--success); background: rgba(74,107,72,0.1); }
+    .wb-slot.no { border-color: var(--danger); background: rgba(139,58,53,0.1); }
+    .wb-slot:disabled { cursor: default; }
+    .sent-built { min-height: 46px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 12px; border: 2px solid rgba(0,0,0,0.12); border-radius: 12px; margin: 8px 0 14px; background: #fff; }
+    .sent-built-chip { padding: 8px 14px; border: 2px solid var(--accent); border-radius: 999px; background: rgba(158,47,34,0.07); font-size: 14px; font-weight: 700; cursor: pointer; }
+    .wb-bank { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+    .wb-chip { padding: 9px 15px; border: 2px solid rgba(0,0,0,0.16); border-radius: 999px; background: #fff; font-size: 14px; font-weight: 700; cursor: pointer; }
+    .wb-chip:hover { border-color: var(--accent); }
+    /* Halaman Materi — bacaan (HTML dari editor Quill guru), tak ada input jawaban */
+    .materi-content { text-align: left; border: 1px solid var(--line); border-radius: 12px; background: #fff; margin-top: 6px; }
+    .materi-content .ql-editor { padding: 12px 14px; line-height: 1.75; font-size: 14.5px; min-height: 0; }
+    .materi-content .ql-editor img { max-width: 100%; height: auto; }
+    .progress-dots span.materi-dot { background: rgba(122,90,0,0.16); color: var(--warning); }
+    .progress-dots span.materi-dot.done { background: var(--warning); color: #fff; }
+    .progress-dots span.materi-dot i { font-size: 10px; }
+    .feedback { margin-top: 16px; padding: 13px 16px; border-radius: 12px; font-size: 13.5px; line-height: 1.55; }
+    .feedback.ok { background: rgba(74,107,72,0.12); }
+    .feedback.no { background: rgba(139,58,53,0.12); }
+    .runner-nav { display: flex; gap: 10px; justify-content: space-between; flex-wrap: wrap; }
+    .runner-nav .spacer { flex: 1; }
+    .runner-nav button { padding: 13px 22px; font-size: 13px; }
+
+    #resultDialog .dialog-body { text-align: center; }
+    .result-score { font-size: 44px; font-weight: 800; color: var(--accent); line-height: 1.1; }
+    .rev-list { margin-top: 12px; text-align: left; }
+    .rev-q { border-top: 1px dashed var(--line); padding-top: 10px; margin-top: 10px; font-size: 13px; display: grid; gap: 4px; text-align: left; }
+    .rev-q.is-wrong { border-left: 3px solid var(--danger); padding-left: 10px; border-top-color: rgba(139,58,53,0.35); }
+    .rev-q .ok { color: var(--success); font-weight: 700; }
+    .rev-q .no { color: var(--danger); font-weight: 700; }
+    .rev-correct { color: var(--success); font-size: 12.5px; }
+    .rev-your { font-size: 12.5px; }
+    details.rev-expl { margin-top: 2px; }
+    details.rev-expl > summary { cursor: pointer; font-size: 12px; font-weight: 700; color: var(--accent); list-style: none; display: inline-flex; align-items: center; gap: 6px; user-select: none; }
+    details.rev-expl > summary::-webkit-details-marker { display: none; }
+    details.rev-expl > summary::before { content: '\25B8'; display: inline-block; transition: transform .15s ease; }
+    details.rev-expl[open] > summary::before { transform: rotate(90deg); }
+    details.rev-expl > .rev-expl-body { margin-top: 6px; font-size: 12.5px; color: var(--muted); line-height: 1.55; }
+    #resultDialog.ps-floating-dialog { width: min(560px, 94vw); }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <script src="../../../shared-nav.js"></script>
+  <script src="../../../shared-access.js"></script>
+  <script src="../../../shared-shell.js"></script>
+  <header class="app-header">
+    <div class="header-left">
+      <button class="drawer-toggle" id="navToggle" type="button" aria-label="Toggle sidebar">Menu</button>
+      <div class="header-brand">Pendataan Santri</div>
+      <div class="header-page">Quiz Digital</div>
+    </div>
+    <div class="header-right">
+      <span class="header-chip" id="headerRole">Santri</span>
+    </div>
+  </header>
+  <div class="drawer-backdrop" id="navBackdrop"></div>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+  <main>
+    <div class="app-layout">
+      <section class="panel nav" id="nav"></section>
+      <div class="content-stack">
+        <section class="panel">
+          <h2 style="font-size:15px;font-weight:800;text-transform:uppercase;letter-spacing:0.05em;">Quiz Digital</h2>
+          <p class="muted" style="margin-top:4px;">Quiz &amp; ujian dari kelas siang kamu. Pilih kelas dulu, lalu telusuri folder-nya. <strong>Drill</strong> = latihan: soal yang salah diulang terus sampai semua benar. <strong>Examination</strong> = ujian (dinilai). Kalau kamu keluar di tengah pengerjaan, sesinya tersimpan — nanti tinggal <em>Lanjutkan</em>.</p>
+          <div class="filters hidden" id="filtersPanel" style="margin-top:14px;">
+            <label>Cari kelas
+              <input type="search" id="kelasSearch" placeholder="Nama kelas / jam / pengajar…">
+            </label>
+            <label>Gender
+              <select id="genderFilter">
+                <option value="">Semua</option>
+                <option value="Ikhwan">Ikhwan</option>
+                <option value="Akhowat">Akhowat</option>
+                <option value="Campur">Campur</option>
+                <option value="Tidak ada">Tidak ada</option>
+              </select>
+            </label>
+            <label>Jam
+              <select id="jamFilter">
+                <option value="">Semua jam</option>
+                <option value="-">-</option>
+                <option value="Jam 1">Jam 1</option>
+                <option value="Jam 2">Jam 2</option>
+                <option value="Jam 3">Jam 3</option>
+                <option value="Jam 4">Jam 4</option>
+                <option value="Jam 5">Jam 5</option>
+                <option value="Jam 6">Jam 6</option>
+                <option value="Jam 7">Jam 7</option>
+                <option value="Jam 8">Jam 8</option>
+                <option value="Jam 9">Jam 9</option>
+                <option value="Jam 10">Jam 10</option>
+                <option value="Jam 11">Jam 11</option>
+              </select>
+            </label>
+            <label>Urutkan
+              <select id="sortSelect">
+                <option value="name_asc" selected>Nama A-Z</option>
+                <option value="name_desc">Nama Z-A</option>
+                <option value="jam_asc">Jam A-Z</option>
+                <option value="jam_desc">Jam Z-A</option>
+                <option value="gender_asc">Gender Ikhwan-Akhowat</option>
+                <option value="gender_desc">Gender Akhowat-Ikhwan</option>
+                <option value="santri_desc">Murid terbanyak</option>
+                <option value="santri_asc">Murid tersedikit</option>
+              </select>
+            </label>
+            <label>Jumlah per halaman
+              <select id="pageSizeSelect">
+                <option value="10">10</option>
+                <option value="12" selected>12</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </label>
+          </div>
+          <div class="quiz-nav hidden" id="quizNav">
+            <div class="filters" id="quizFilters">
+              <label>Cari quiz
+                <input type="search" id="quizSearch" placeholder="Nama quiz / folder di kelas ini…">
+              </label>
+            </div>
+            <div class="quiz-nav-bar" id="quizNavBar"></div>
+          </div>
+          <div class="paging-host" id="kelasPaginationTop"></div>
+          <div class="quiz-grid" id="quizGrid"><div class="empty-state">Memuat…</div></div>
+          <div class="paging-host" id="kelasPaginationBottom"></div>
+          <div class="quiz-paging" id="quizPaging"></div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <!-- Struktur & gaya disamakan dengan #kelasQuizDialog di pages/quizDigital: shell 3 zona
+       (kq-head / kq-body / kq-foot), header paper + tombol tutup bulat, backdrop coklat blur.
+       data-ps-floating-dialog-enhanced: opt-out enhance shared-ui (punya .kq-close sendiri;
+       pola sama seperti #kelasQuizDialog). aria-label "Tutup" pada .kq-close supaya tombol
+       back HP/Esc juga lewat konfirmasi "keluar (sesi tersimpan)" yang sama. -->
+  <dialog id="runnerDialog" data-ps-floating-dialog-enhanced="true">
+    <div class="kq-shell">
+      <div class="kq-head">
+        <div class="kq-head-left">
+          <h3 id="runnerTitle">Quiz</h3>
+          <div class="runner-status" id="runnerStatus"></div>
+        </div>
+        <div class="kq-head-right">
+          <div id="runnerTimer" class="timer hidden">--:--</div>
+          <button class="kq-close" type="button" id="btnSoundToggle" aria-label="Suara" title="Nyalakan / matikan suara"><i class="fa-solid fa-volume-high"></i></button>
+          <button class="kq-close" type="button" id="btnExitRunner" aria-label="Tutup" title="Keluar (sesi tersimpan, bisa dilanjutkan)">&#x2715;</button>
+        </div>
+      </div>
+      <div class="kq-body">
+        <div class="kq-body-inner">
+          <div class="track"><i id="runnerTrack" style="width:0%"></i></div>
+          <div class="progress-dots" id="progressDots"></div>
+          <div id="runnerBody"></div>
+        </div>
+      </div>
+      <div class="kq-foot">
+        <div class="kq-foot-inner">
+          <div class="runner-nav" id="runnerNav"></div>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog class="ps-floating-dialog" id="resultDialog">
+    <div class="dialog-body ps-dialog-shell" style="display:block;">
+      <h3 id="resTitle" style="text-transform:uppercase;font-size:14px;margin:0 0 10px;">Hasil</h3>
+      <div id="resBody"></div>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:16px;">
+        <button class="primary" type="button" id="btnResClose">Selesai</button>
+      </div>
+    </div>
+  </dialog>
+
+  <script>
+    const API_BASE = window.location.origin + '/api';
+    const STORAGE = { token: 'ps_token', session: 'ps_session' };
+    function getToken() { return localStorage.getItem(STORAGE.token) || ''; }
+    function getStoredSession() { try { return JSON.parse(localStorage.getItem(STORAGE.session) || 'null'); } catch (_) { return null; } }
+    function toParams(d) { const p = new URLSearchParams(); Object.entries(d).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') p.append(k, typeof v === 'object' ? JSON.stringify(v) : String(v)); }); return p; }
+    async function api(d) { const r = await fetch(API_BASE + '?' + toParams({ ...d, token: getToken() })); const j = await r.json(); if (!j.ok) throw new Error(j.error && j.error.message || 'Error'); return j.data; }
+    async function apiPost(d) { const r = await fetch(API_BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...d, token: getToken() }) }); const j = await r.json(); if (!j.ok) throw new Error(j.error && j.error.message || 'Error'); return j.data; }
+    // apiPost dengan batas waktu — kalau jaringan menggantung, request dibatalkan & dianggap gagal
+    // (dipakai runner drill/submit supaya tombol tidak "stuck" saat sinyal hilang).
+    async function apiPostT(d, ms) {
+      const ctrl = new AbortController();
+      const to = setTimeout(() => ctrl.abort(), ms || 15000);
+      try {
+        const r = await fetch(API_BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...d, token: getToken() }), signal: ctrl.signal });
+        const j = await r.json();
+        if (!j.ok) throw new Error(j.error && j.error.message || 'Error');
+        return j.data;
+      } finally { clearTimeout(to); }
+    }
+    function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+    // Toast kanan-atas: #noticeStack tetap di <body>, showPopover() → top layer (di atas dialog modal).
+    // Jangan pindahkan ke dalam dialog (bikin popover lepas dari top layer / ke-clip).
+    function showNotice(text, type) {
+      const stack = document.getElementById('noticeStack');
+      if (stack.parentNode !== document.body) document.body.prepend(stack);
+      const el = document.createElement('section');
+      el.className = 'notice show ' + (type || 'info'); el.textContent = text;
+      el.addEventListener('click', () => el.remove());
+      setTimeout(() => el.remove(), type === 'error' ? 9000 : 4500);
+      stack.prepend(el);
+      if (stack.matches(':popover-open')) stack.hidePopover();
+      try { stack.showPopover(); } catch (_) {}
+    }
+    function shuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+
+    // ── Efek suara: klik tombol (Howler.js) + ucapan "benar"/"salah" (Web Speech API) ──
+    const SOUND = {
+      on: (() => { try { return localStorage.getItem('quizSoundOff') !== '1'; } catch (_) { return true; } })(),
+      click: null, voice: null
+    };
+    try { SOUND.click = (typeof Howl !== 'undefined') ? new Howl({ src: ['../../../audio/klik.wav'], volume: 0.4, preload: true }) : null; }
+    catch (_) { SOUND.click = null; }
+
+    function pickIdVoice() {
+      try {
+        const vs = window.speechSynthesis.getVoices() || [];
+        SOUND.voice = vs.find(v => /^id(\b|-|_)/i.test(v.lang || '')) || vs.find(v => /indonesi/i.test(v.name || '')) || null;
+      } catch (_) { SOUND.voice = null; }
+    }
+    if ('speechSynthesis' in window) {
+      pickIdVoice();
+      try { window.speechSynthesis.addEventListener('voiceschanged', pickIdVoice); } catch (_) {}
+    }
+
+    function playClick() {
+      if (!SOUND.on || !SOUND.click) return;
+      try { SOUND.click.play(); } catch (_) {}
+    }
+    function speak(text) {
+      if (!SOUND.on || !('speechSynthesis' in window)) return;
+      duckBgAudio();
+      try {
+        window.speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = 'id-ID';
+        if (SOUND.voice) u.voice = SOUND.voice;
+        u.rate = 1; u.pitch = 1; u.volume = 1;
+        window.speechSynthesis.speak(u);
+      } catch (_) {}
+    }
+    // Sekali di awal: "hangatkan" mesin TTS dalam gesture pertama (perlu utk iOS/Safari).
+    let ttsWarmed = false;
+    function warmTts() {
+      if (ttsWarmed || !('speechSynthesis' in window)) return;
+      ttsWarmed = true;
+      try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; u.lang = 'id-ID'; window.speechSynthesis.speak(u); } catch (_) {}
+    }
+    document.addEventListener('pointerdown', warmTts, { once: true, capture: true });
+    // Bunyi klik utk SEMUA tombol + dot progres (capture: tetap bunyi walau handler stopPropagation).
+    document.addEventListener('click', (ev) => {
+      if (ev.target.closest('button, .progress-dots span')) playClick();
+    }, true);
+
+    function renderSoundToggle() {
+      const b = document.getElementById('btnSoundToggle');
+      if (!b) return;
+      b.innerHTML = SOUND.on ? '<i class="fa-solid fa-volume-high"></i>' : '<i class="fa-solid fa-volume-xmark"></i>';
+      b.setAttribute('aria-label', SOUND.on ? 'Matikan suara' : 'Nyalakan suara');
+    }
+    document.getElementById('btnSoundToggle').addEventListener('click', () => {
+      SOUND.on = !SOUND.on;
+      try { localStorage.setItem('quizSoundOff', SOUND.on ? '0' : '1'); } catch (_) {}
+      if (!SOUND.on) {
+        try { window.speechSynthesis.cancel(); } catch (_) {}
+        stopBgAudio();
+      } else if (R.runner && R.runner.bgAudioUrl) {
+        startBgAudio(R.runner.bgAudioUrl, R.runner.bgAudioLoop);
+      } else if (R.doc && R.doc.bgAudioUrl) {
+        startBgAudio(R.doc.bgAudioUrl, R.doc.bgAudioLoop);
+      }
+      renderSoundToggle();
+    });
+    renderSoundToggle();
+
+    const R = { items: [], browseItems: [], kelasList: [], crumbs: [], currentKelasId: '', currentFolderId: '', q: '',
+                kelasPage: 1, kelasPageSize: 12, expandedKelasIds: new Set(),
+                kelasSearch: '', kelasGender: '', kelasJam: '', kelasSort: 'name_asc',
+                browsePage: 1, browseTotal: 0, browseTotalPages: 1, openQuizIds: new Set(), runner: null, timerId: null, searchTimer: null,
+                bgAudio: null, bgDuckTimer: null, doc: null };
+    const GENDER_ORDER = { 'Ikhwan': 0, 'Akhowat': 1, 'Campur': 2, 'Tidak ada': 3 };
+    const BG_AUDIO_VOL = 0.35, BG_AUDIO_DUCK_VOL = 0.08;
+
+    // ── Suara latar quiz (per-quiz, dari config guru) ──────────────────────────
+    function startBgAudio(url, loop) {
+      stopBgAudio();
+      if (!url || !SOUND.on || typeof Howl === 'undefined') return;
+      try {
+        R.bgAudio = new Howl({ src: [url.charAt(0) === '/' ? url : '/' + url], loop: !!loop, volume: BG_AUDIO_VOL, html5: true });
+        R.bgAudio.play();
+      } catch (_) { R.bgAudio = null; }
+    }
+    function stopBgAudio() {
+      if (R.bgDuckTimer) { clearTimeout(R.bgDuckTimer); R.bgDuckTimer = null; }
+      if (R.bgAudio) { try { R.bgAudio.stop(); R.bgAudio.unload(); } catch (_) {} R.bgAudio = null; }
+    }
+    function duckBgAudio() {
+      if (!R.bgAudio) return;
+      try { R.bgAudio.volume(BG_AUDIO_DUCK_VOL); } catch (_) {}
+      if (R.bgDuckTimer) clearTimeout(R.bgDuckTimer);
+      R.bgDuckTimer = setTimeout(() => { if (R.bgAudio) { try { R.bgAudio.volume(BG_AUDIO_VOL); } catch (_) {} } }, 1400);
+    }
+
+    // Palet warna folder — token (server: QUIZ_FOLDER_COLORS_) -> {solid, tint, border}.
+    const FOLDER_COLORS = {
+      '':     { solid: '#7b6a58', tint: 'rgba(123,106,88,0.10)', border: 'rgba(123,106,88,0.3)' },
+      slate:  { solid: '#5b6b7f', tint: '#eceff2', border: 'rgba(91,107,127,0.4)' },
+      red:    { solid: '#b23b32', tint: '#f7e9e7', border: 'rgba(178,59,50,0.4)' },
+      orange: { solid: '#c15a1b', tint: '#f8ece1', border: 'rgba(193,90,27,0.4)' },
+      amber:  { solid: '#a5790f', tint: '#f5eedb', border: 'rgba(165,121,15,0.4)' },
+      green:  { solid: '#3a7d44', tint: '#e8f1e9', border: 'rgba(58,125,68,0.4)' },
+      teal:   { solid: '#1f7a70', tint: '#e2f0ee', border: 'rgba(31,122,112,0.4)' },
+      blue:   { solid: '#3563a8', tint: '#e7edf7', border: 'rgba(53,99,168,0.4)' },
+      violet: { solid: '#6b4aa0', tint: '#eee9f5', border: 'rgba(107,74,160,0.4)' },
+      pink:   { solid: '#b34a7d', tint: '#f7e9f0', border: 'rgba(179,74,125,0.4)' },
+      brown:  { solid: '#8a5a3c', tint: '#f1e9e2', border: 'rgba(138,90,60,0.4)' }
+    };
+    function fColor(tok) { return FOLDER_COLORS[tok] || FOLDER_COLORS['']; }
+    function fChipStyle(tok) { const c = fColor(tok); return `--fc-solid:${c.solid};--fc-tint:${c.tint};--fc-border:${c.border}`; }
+    function sqPageList(page, totalPages, max = 9) {
+      if (totalPages <= max) return Array.from({ length: totalPages }, (_, i) => i + 1);
+      const mid = max - 2, out = [1];
+      let s = Math.max(2, page - Math.floor(mid / 2)), e = s + mid - 1;
+      if (e > totalPages - 1) { e = totalPages - 1; s = e - mid + 1; }
+      if (s > 2) out.push('...');
+      for (let v = s; v <= e; v++) out.push(v);
+      if (e < totalPages - 1) out.push('...');
+      out.push(totalPages);
+      return out;
+    }
+
+    // ── Fetch bertahap: daftar kelas dulu; lalu 1 tingkat folder+quiz per kelas (dipaginasi). ──
+    async function loadList() {
+      return R.currentKelasId ? loadKelasBrowse(R.currentKelasId) : loadKelasList();
+    }
+    async function loadKelasList() {
+      const grid = document.getElementById('quizGrid');
+      document.getElementById('quizPaging').innerHTML = '';
+      try {
+        const d = await api({ action: 'quiz.santri.list' });
+        R.kelasList = d.kelasList || [];
+        R.items = []; R.browseItems = []; R.kelasPage = 1;
+        renderKelasPicker();
+      } catch (e) {
+        grid.innerHTML = `<div class="empty-state">${esc(e.message)}</div>`;
+        grid.classList.remove('kelas-picker-grid');
+        clearKelasPagination();
+        document.getElementById('quizNav').classList.add('hidden');
+        document.getElementById('filtersPanel').classList.add('hidden');
+      }
+    }
+    async function loadKelasBrowse(kelasId) {
+      const grid = document.getElementById('quizGrid');
+      grid.innerHTML = '<div class="empty-state">Memuat…</div>';
+      try {
+        const d = await api({ action: 'quiz.santri.browse', kelasId, folderId: R.currentFolderId, q: R.q, page: R.browsePage, pageSize: 12 });
+        R.browseItems = d.items || [];
+        R.items = R.browseItems.filter(it => it.kind === 'quiz');
+        R.openQuizIds = new Set();
+        R.crumbs = d.crumbs || [];
+        R.browseTotal = d.total || 0;
+        R.browseTotalPages = d.totalPages || 1;
+        R.browsePage = d.page || 1;
+        R.currentKelasId = kelasId;
+        if (d.kelasNama && !R.kelasList.some(k => k.id === kelasId)) R.kelasList.push({ id: kelasId, nama: d.kelasNama });
+        renderKelasView();
+      } catch (e) {
+        R.currentKelasId = ''; R.currentFolderId = ''; R.q = ''; R.browsePage = 1;
+        showNotice(e.message, 'error');
+        loadKelasList();
+      }
+    }
+    // ── Helper gender kelas — port dari pages/quizDigital (tampilan kartu identik) ──
+    function normalizeGenderGroupLabel(value) {
+      const text = String(value == null ? '' : value).trim().toLowerCase().replace(/\s+/g, ' ');
+      if (!text || text === '-' || text === 'tidak ada' || text === 'tidakada' || text === 'none' || text === 'n/a' || text === 'n a') return 'Tidak ada';
+      if (['ikhwan', 'putra', 'l', 'lk', 'laki laki', 'laki-laki', 'male'].includes(text)) return 'Ikhwan';
+      if (['akhowat', 'akhawat', 'akhwat', 'putri', 'p', 'pr', 'perempuan', 'female'].includes(text)) return 'Akhowat';
+      if (['campur', 'mixed', 'mix', 'gabung', 'bersama', 'umum'].includes(text)) return 'Campur';
+      return 'Tidak ada';
+    }
+    function getGenderGroupPillClass(value) {
+      const label = normalizeGenderGroupLabel(value);
+      if (label === 'Ikhwan') return 'gender-ikhwan';
+      if (label === 'Akhowat') return 'gender-akhowat';
+      if (label === 'Campur') return 'gender-campur';
+      return 'gender-none';
+    }
+    function getGenderGroupCardClass(value) {
+      const label = normalizeGenderGroupLabel(value);
+      if (label === 'Ikhwan') return 'row-ikhwan';
+      if (label === 'Akhowat') return 'row-akhowat';
+      if (label === 'Campur') return 'row-campur';
+      return '';
+    }
+    function buildGenderGroupPill(value) {
+      const label = normalizeGenderGroupLabel(value);
+      return `<span class="pill ${getGenderGroupPillClass(label)}">${esc(label)}</span>`;
+    }
+    function formatKelasContextLabel(value) {
+      const text = String(value == null ? '' : value).replace(/\s+/g, ' ').trim();
+      if (!text) return '';
+      return text.length > 48 ? `${text.slice(0, 48).trim()}...` : text;
+    }
+
+    // Kartu kelas default TERTUTUP (judul + tag jam/jenis); klik header (data-collapse) buka/tutup
+    // detail; tombol "Buka" yang masuk ke isi kelas. Pola & interaksi = kartu kelas quizDigital.
+    function isKelasExpanded(id) { return R.expandedKelasIds.has(id); }
+    function toggleKelasExpanded(id) {
+      if (!id) return;
+      if (R.expandedKelasIds.has(id)) R.expandedKelasIds.delete(id);
+      else R.expandedKelasIds.add(id);
+      renderKelasPicker();
+    }
+
+    // Pagination bernomor — markup & gaya 1:1 dengan renderKelasPagination di pages/quizDigital
+    // (tombol .secondary.page-btn, list maks 10, ringkasan "Halaman X dari Y | total N kelas").
+    // minimumCount:0 → tetap tampil walau 1 kelas. `total` = jumlah kelas SETELAH difilter.
+    function syncKelasPagination(total) {
+      total = total || 0;
+      const totalPages = Math.max(1, Math.ceil(total / R.kelasPageSize));
+      const markup = total ? `
+        <div class="page-center">
+          <div class="page-numbers">
+            ${sqPageList(R.kelasPage, totalPages, 10).map(item => item === '...'
+              ? '<span class="page-summary">...</span>'
+              : `<button class="secondary page-btn ${item === R.kelasPage ? 'active' : ''}" type="button" data-kelaspage="${item}">${item}</button>`).join('')}
+          </div>
+          <div class="page-summary">Halaman ${R.kelasPage} dari ${totalPages} | total ${total} kelas</div>
+        </div>` : '';
+      window.PSUI.syncPaginationHosts({ markup, visibleCount: total, totalCount: total, minimumCount: 0, topId: 'kelasPaginationTop', bottomId: 'kelasPaginationBottom' });
+    }
+    function clearKelasPagination() {
+      window.PSUI.syncPaginationHosts({ markup: '', visibleCount: 0, totalCount: 0, minimumCount: 0, topId: 'kelasPaginationTop', bottomId: 'kelasPaginationBottom' });
+    }
+
+    // Filter + urut daftar kelas (client-side — daftar kelas santri kecil). Filter/urut yang
+    // relevan dari pages/quizDigital; "Tahun Ajaran" & "Status" tak disertakan (santri hanya
+    // pernah melihat kelas AKTIF di TA aktif).
+    function getVisibleKelas() {
+      let list = (R.kelasList || []).slice();
+      const q = R.kelasSearch.trim().toLowerCase();
+      if (q) {
+        list = list.filter(k => [k.nama, k.jam, k.jenis, k.description,
+          (k.pengajarLabels || []).join(' '), (k.badalLabels || []).join(' ')]
+          .join(' ').toLowerCase().includes(q));
+      }
+      if (R.kelasGender) list = list.filter(k => normalizeGenderGroupLabel(k.genderGroup) === R.kelasGender);
+      if (R.kelasJam) list = list.filter(k => R.kelasJam === '-' ? (!k.jam || k.jam === '-') : k.jam === R.kelasJam);
+      const byName = (a, b) => (a.nama || '').localeCompare(b.nama || '', 'id');
+      const byJam = (a, b) => (a.jam || '').localeCompare(b.jam || '', 'id', { numeric: true });
+      const gOrd = k => GENDER_ORDER[normalizeGenderGroupLabel(k.genderGroup)];
+      list.sort((a, b) => {
+        switch (R.kelasSort) {
+          case 'name_desc': return byName(b, a);
+          case 'jam_asc': return byJam(a, b) || byName(a, b);
+          case 'jam_desc': return byJam(b, a) || byName(a, b);
+          case 'gender_asc': return (gOrd(a) - gOrd(b)) || byName(a, b);
+          case 'gender_desc': return (gOrd(b) - gOrd(a)) || byName(a, b);
+          case 'santri_desc': return ((b.santriCount || 0) - (a.santriCount || 0)) || byName(a, b);
+          case 'santri_asc': return ((a.santriCount || 0) - (b.santriCount || 0)) || byName(a, b);
+          default: return byName(a, b);
+        }
+      });
+      return list;
+    }
+
+    function renderKelasPicker() {
+      document.getElementById('quizNav').classList.add('hidden');
+      document.getElementById('quizPaging').innerHTML = '';
+      const hasKelas = !!(R.kelasList || []).length;
+      document.getElementById('filtersPanel').classList.toggle('hidden', !hasKelas);
+      const grid = document.getElementById('quizGrid');
+      grid.classList.add('kelas-picker-grid');
+      if (!hasKelas) {
+        grid.classList.remove('kelas-picker-grid');
+        grid.innerHTML = '<div class="empty-state">Belum ada quiz untuk kamu saat ini.</div>';
+        clearKelasPagination();
+        return;
+      }
+      const list = getVisibleKelas();
+      const totalPages = Math.max(1, Math.ceil(list.length / R.kelasPageSize));
+      if (R.kelasPage > totalPages) R.kelasPage = totalPages;
+      if (R.kelasPage < 1) R.kelasPage = 1;
+      const start = (R.kelasPage - 1) * R.kelasPageSize;
+      const pageItems = list.slice(start, start + R.kelasPageSize);
+      if (!pageItems.length) {
+        grid.classList.remove('kelas-picker-grid');
+        grid.innerHTML = '<div class="empty-state">Tidak ada kelas yang cocok dengan filter.</div>';
+        syncKelasPagination(0);
+        return;
+      }
+      grid.innerHTML = pageItems.map(k => {
+        const genderLabel = normalizeGenderGroupLabel(k.genderGroup);
+        const ctx = formatKelasContextLabel(k.description);
+        const expanded = isKelasExpanded(k.id);
+        const guru = (k.pengajarLabels || []).filter(Boolean);
+        const badal = (k.badalLabels || []).filter(Boolean);
+        const hintBits = [`${k.quizCount || 0} quiz`];
+        if (k.inProgressCount) hintBits.push(`${k.inProgressCount} sedang dikerjakan`);
+        if (k.readyCount) hintBits.push(`${k.readyCount} baru`);
+        return `
+        <article class="card minimal-list-card ${expanded ? 'is-expanded' : ''} ${getGenderGroupCardClass(k.genderGroup)}" data-kelas-id="${esc(k.id)}">
+          <div class="minimal-list-card-head">
+            <div class="minimal-list-card-main" data-collapse="${esc(k.id)}" role="button" tabindex="0" aria-expanded="${expanded ? 'true' : 'false'}" aria-label="${expanded ? 'Tutup detail kelas' : 'Lihat detail kelas'} ${esc(k.nama || '-')}">
+              <div class="kelas-title-row">
+                <strong class="minimal-list-card-name">${esc(k.nama || '-')}</strong>
+                ${k.jam ? `<span class="kelas-jam-tag">${esc(k.jam)}</span>` : ''}
+                ${k.jenis ? `<span class="kelas-jenis-tag">${esc(k.jenis)}</span>` : ''}
+                ${ctx ? `<span class="kelas-context-label">(${esc(ctx)})</span>` : ''}
+              </div>
+              <span class="minimal-list-card-hint">${hintBits.map(esc).join(' &nbsp;·&nbsp; ')}</span>
+            </div>
+            <button class="secondary minimal-list-card-toggle" type="button" data-kelas="${esc(k.id)}" aria-label="Buka kelas ${esc(k.nama || '-')}">Buka</button>
+          </div>
+          <div class="minimal-list-card-detail">
+            <div class="minimal-list-card-summary">
+              <p>Jam: ${esc(k.jam || '-')}</p>
+              <p>Jenis kelas: ${esc(k.jenis || 'Tanpa keterangan jenis')}</p>
+              <p>Kategori gender: ${esc(genderLabel)}</p>
+              <p>${esc(k.description || 'Tanpa deskripsi.')}</p>
+              <p>Guru: ${esc(guru.join(', ') || '-')}</p>
+              ${badal.length ? `<p>Guru badal: ${esc(badal.join(', '))}</p>` : ''}
+            </div>
+            <div class="minimal-list-card-meta">
+              ${buildGenderGroupPill(genderLabel)}
+              <span class="pill">${k.quizCount || 0} quiz</span>
+              ${k.inProgressCount ? `<span class="pill">${k.inProgressCount} sedang dikerjakan</span>` : ''}
+              ${k.readyCount ? `<span class="pill">${k.readyCount} baru</span>` : ''}
+              ${k.santriCount ? `<span class="pill">Murid ${k.santriCount}</span>` : ''}
+            </div>
+          </div>
+        </article>`;
+      }).join('');
+      syncKelasPagination(list.length);
+    }
+    // Kartu folder = PERSIS quizDigital (guru), cuma tanpa tombol pensil Edit (santri tak boleh edit).
+    function renderFolderRow(f) {
+      const solid = fColor(f.color).solid;
+      const pathTxt = (f.path && f.path.length) ? f.path.map(p => esc(p.name)).join(' / ') + ' / ' : '';
+      return `<article class="card minimal-list-card qi-card qi-folder" data-fopen="${esc(f.id)}" role="button" tabindex="0" style="${fChipStyle(f.color)};--qi-bar:${solid}" aria-label="Buka folder ${esc(f.name)}">
+        <div class="minimal-list-card-head">
+          <div class="minimal-list-card-main">
+            <div class="minimal-list-card-title-row">
+              <i class="fa-solid fa-folder qi-icon"></i>
+              <strong class="minimal-list-card-name">${pathTxt ? `<span class="frc-path">${pathTxt}</span>` : ''}${esc(f.name)}</strong>
+              <span class="chip">Folder</span>
+            </div>
+            <span class="minimal-list-card-hint">${f.quizCount} quiz${f.subfolderCount ? ' · ' + f.subfolderCount + ' sub-folder' : ''}</span>
+          </div>
+          <button class="secondary minimal-list-card-toggle" type="button" data-fopen="${esc(f.id)}">Buka</button>
+        </div>
+      </article>`;
+    }
+    function renderKelasView() {
+      const kelas = R.kelasList.find(k => k.id === R.currentKelasId) || { nama: '' };
+      document.getElementById('quizNav').classList.remove('hidden');
+      document.getElementById('filtersPanel').classList.add('hidden');
+      document.getElementById('quizGrid').classList.remove('kelas-picker-grid');
+      clearKelasPagination();
+      let crumbs = `<button type="button" data-fnav="__root" ${R.currentFolderId || R.q ? '' : 'disabled'}>${esc(kelas.nama)}</button>`;
+      if (R.q) {
+        crumbs += `<span class="sep">/</span><button type="button" disabled><i class="fa-solid fa-magnifying-glass"></i>&nbsp;Hasil</button>`;
+      } else {
+        (R.crumbs || []).forEach((c, i) => {
+          const last = i === R.crumbs.length - 1;
+          crumbs += `<span class="sep">/</span><button type="button" data-fnav="${esc(c.id)}" ${last ? 'disabled' : ''}>${esc(c.name)}</button>`;
+        });
+      }
+      document.getElementById('quizNavBar').innerHTML = `<button class="secondary" type="button" data-fnav="__kelas" aria-label="Kembali ke daftar kelas" title="Kembali"><i class="fa-solid fa-arrow-left"></i></button><div class="crumbs">${crumbs}</div>`;
+      const search = document.getElementById('quizSearch');
+      if (search.value !== R.q) search.value = R.q;
+
+      const grid = document.getElementById('quizGrid');
+      grid.innerHTML = R.browseItems.length
+        ? R.browseItems.map(it => it.kind === 'folder' ? renderFolderRow(it) : renderCard(it)).join('')
+        : `<div class="empty-state">${R.q ? 'Tak ada quiz / folder yang cocok.' : 'Belum ada quiz di sini.'}</div>`;
+
+      const ph = document.getElementById('quizPaging');
+      ph.innerHTML = (R.browseTotalPages > 1)
+        ? `<div class="page-center"><div class="page-numbers">${sqPageList(R.browsePage, R.browseTotalPages).map(it => it === '...' ? '<span class="page-summary">...</span>' : `<button type="button" class="${it === R.browsePage ? 'active' : ''}" data-sqpage="${it}">${it}</button>`).join('')}</div><div class="page-summary">Halaman ${R.browsePage} dari ${R.browseTotalPages} &middot; ${R.browseTotal} item</div></div>`
+        : '';
+    }
+    // Item quiz = kartu collapse minimal-list-card PERSIS quizDigital (guru). Default tertutup;
+    // tombol utama (Mulai/Lanjutkan/Lihat hasil) TETAP di baris kepala biar santri bisa mulai
+    // tanpa expand. Klik area judul -> buka detail (deskripsi + chip lengkap + semua tombol).
+    function renderDokCard(q) {
+      const open = R.openQuizIds.has(q.id);
+      const bar = fColor(q.color).solid;
+      const cardStyle = fChipStyle(q.color);
+      const tipeChip = '<span class="chip">Dokumen</span>';
+      const status = q.notYetOpen ? '<span class="chip w">Belum dibuka</span>'
+        : q.closed ? '<span class="chip mut">Sudah ditutup</span>'
+        : q.alreadyRead ? '<span class="chip g">Sudah dibaca</span>'
+        : (q.hasInProgress ? '<span class="chip w">Sedang dibaca</span>' : '<span class="chip w">Belum dibaca</span>');
+      const canRead = !q.notYetOpen && !q.closed;
+      const btnLabel = q.alreadyRead ? 'Baca lagi' : (q.hasInProgress ? 'Lanjutkan baca' : 'Baca');
+      const win = [q.openAt ? 'buka ' + q.openAt.replace('T', ' ') : '', q.closeAt ? 'tutup ' + q.closeAt.replace('T', ' ') : ''].filter(Boolean).join(' · ');
+      const hint = `${q.slideCount || 0} slide${win ? ' · ' + win : ''}`;
+      const readBtn = canRead ? `<button class="primary" type="button" data-act="readdoc" data-id="${esc(q.id)}">${btnLabel}</button>` : '';
+      const headBtn = readBtn ? `<button class="primary minimal-list-card-toggle" type="button" data-act="readdoc" data-id="${esc(q.id)}">${btnLabel}</button>` : '';
+      return `<article class="card minimal-list-card qi-card ${open ? 'is-expanded' : ''}" data-qid="${esc(q.id)}" style="${cardStyle};--qi-bar:${bar}">
+        <div class="minimal-list-card-head">
+          <div class="minimal-list-card-main" data-qtoggle="${esc(q.id)}" role="button" tabindex="0" aria-expanded="${open ? 'true' : 'false'}" aria-label="${open ? 'Tutup detail' : 'Buka detail'} ${esc(q.title)}">
+            <div class="minimal-list-card-title-row">
+              <i class="fa-solid fa-book-open qi-icon"></i>
+              <strong class="minimal-list-card-name">${esc(q.title)}</strong>
+              ${tipeChip}${status}
+            </div>
+            <span class="minimal-list-card-hint">${esc(hint)}</span>
+          </div>
+          ${headBtn}
+        </div>
+        <div class="minimal-list-card-detail">
+          ${q.description ? `<div class="minimal-list-card-summary"><p>${esc(q.description)}</p></div>` : ''}
+          <div class="minimal-list-card-meta">
+            ${tipeChip}${status}
+            <span class="chip">${q.slideCount || 0} slide</span>
+            ${win ? `<span class="chip w">${esc(win)}</span>` : ''}
+          </div>
+          <div class="muted">Bacaan berslide — tiap slide ada timer minimum sebelum bisa lanjut. Setelah tamat sekali, boleh dibuka bebas.</div>
+          <div class="toolbar minimal-list-card-actions">${readBtn || '<span class="muted">—</span>'}</div>
+        </div>
+      </article>`;
+    }
+    function renderCard(q) {
+      if (q.tipe === 'dokumen') return renderDokCard(q);
+      const open = R.openQuizIds.has(q.id);
+      const bar = fColor(q.color).solid;
+      const cardStyle = fChipStyle(q.color);
+      const tipeIcon = q.tipe === 'examination' ? 'fa-file-pen' : 'fa-dumbbell';
+      const tipeChip = `<span class="chip">${q.tipe === 'examination' ? 'Examination' : 'Drill'}</span>`;
+      const status = q.notYetOpen ? '<span class="chip w">Belum dibuka</span>'
+        : q.closed ? '<span class="chip mut">Sudah ditutup</span>'
+        : q.hasInProgress ? '<span class="chip w">Sedang dikerjakan</span>'
+        : (q.attemptsLeft === 0 ? '<span class="chip mut">Kesempatan habis</span>' : '<span class="chip g">Bisa dikerjakan</span>');
+      const canStart = !q.notYetOpen && !q.closed && q.attemptsLeft !== 0;
+      const startLabel = q.hasInProgress ? 'Lanjutkan' : (q.doneCount ? 'Kerjakan lagi' : 'Mulai');
+      const startBtn = (q.hasInProgress || canStart) ? `<button class="primary" type="button" data-act="start" data-id="${esc(q.id)}">${startLabel}</button>` : '';
+      const reviewBtn = q.canReview ? `<button class="secondary" type="button" data-act="review" data-id="${esc(q.id)}">Lihat hasil</button>` : '';
+      const headBtn = startBtn
+        ? `<button class="primary minimal-list-card-toggle" type="button" data-act="start" data-id="${esc(q.id)}">${startLabel}</button>`
+        : (reviewBtn ? `<button class="secondary minimal-list-card-toggle" type="button" data-act="review" data-id="${esc(q.id)}">Lihat hasil</button>` : '');
+      const attemptTxt = q.tipe === 'drill' ? 'Latihan · boleh diulang'
+        : (q.attemptsLeft === -1 ? 'Percobaan bebas' : `${q.attemptsLeft} percobaan tersisa`);
+      const win = [q.openAt ? 'buka ' + q.openAt.replace('T', ' ') : '', q.closeAt ? 'tutup ' + q.closeAt.replace('T', ' ') : ''].filter(Boolean).join(' · ');
+      const scoreLine = q.scoreVisible && q.bestScore != null
+        ? ` · ${q.tipe === 'drill' ? 'benar (percobaan 1): ' : 'skor terbaik: '}${q.bestScore}`
+        : (!q.scoreVisible && q.doneCount ? ' · menunggu guru merilis hasil' : '');
+      const hint = `${q.questionCount} soal${q.materiCount ? ' · ' + q.materiCount + ' materi' : ''}${q.timeLimitMinutes ? ' · ' + q.timeLimitMinutes + ' menit' : ''} · ${attemptTxt}${scoreLine}`;
+      return `<article class="card minimal-list-card qi-card ${open ? 'is-expanded' : ''}" data-qid="${esc(q.id)}" style="${cardStyle};--qi-bar:${bar}">
+        <div class="minimal-list-card-head">
+          <div class="minimal-list-card-main" data-qtoggle="${esc(q.id)}" role="button" tabindex="0" aria-expanded="${open ? 'true' : 'false'}" aria-label="${open ? 'Tutup detail' : 'Buka detail'} ${esc(q.title)}">
+            <div class="minimal-list-card-title-row">
+              <i class="fa-solid ${tipeIcon} qi-icon"></i>
+              <strong class="minimal-list-card-name">${esc(q.title)}</strong>
+              ${tipeChip}${status}
+            </div>
+            <span class="minimal-list-card-hint">${esc(hint)}</span>
+          </div>
+          ${headBtn}
+        </div>
+        <div class="minimal-list-card-detail">
+          ${q.description ? `<div class="minimal-list-card-summary"><p>${esc(q.description)}</p></div>` : ''}
+          <div class="minimal-list-card-meta">
+            ${tipeChip}${status}
+            <span class="chip">${q.questionCount} soal</span>
+            ${q.materiCount ? `<span class="chip w">${q.materiCount} materi</span>` : ''}
+            ${q.timeLimitMinutes ? `<span class="chip w">${q.timeLimitMinutes} menit</span>` : ''}
+            ${win ? `<span class="chip w">${esc(win)}</span>` : ''}
+          </div>
+          <div class="muted">${esc(attemptTxt)}${scoreLine}</div>
+          <div class="toolbar minimal-list-card-actions">${(startBtn + reviewBtn) || '<span class="muted">—</span>'}</div>
+        </div>
+      </article>`;
+    }
+    function toggleQuizOpen(id) {
+      if (R.openQuizIds.has(id)) R.openQuizIds.delete(id); else R.openQuizIds.add(id);
+      const el = document.querySelector(`.qi-card[data-qid="${CSS.escape(id)}"]`);
+      if (el) {
+        const o = R.openQuizIds.has(id);
+        el.classList.toggle('is-expanded', o);
+        el.querySelector('.minimal-list-card-main').setAttribute('aria-expanded', o ? 'true' : 'false');
+      }
+    }
+    document.getElementById('quizGrid').addEventListener('click', (ev) => {
+      const act = ev.target.closest('button[data-act]');
+      if (act) {
+        if (act.dataset.act === 'start') startQuiz(act.dataset.id, act);
+        else if (act.dataset.act === 'review') reviewQuiz(act.dataset.id);
+        else if (act.dataset.act === 'readdoc') startDoc(act.dataset.id);
+        return;
+      }
+      const fopen = ev.target.closest('[data-fopen]');
+      if (fopen) { R.currentFolderId = fopen.getAttribute('data-fopen'); R.q = ''; R.browsePage = 1; loadKelasBrowse(R.currentKelasId); return; }
+      const kcard = ev.target.closest('button[data-kelas]');
+      if (kcard) { R.currentFolderId = ''; R.q = ''; R.browsePage = 1; loadKelasBrowse(kcard.getAttribute('data-kelas')); return; }
+      const khead = ev.target.closest('.minimal-list-card-main[data-collapse]');
+      if (khead) { toggleKelasExpanded(khead.getAttribute('data-collapse')); return; }
+      const head = ev.target.closest('.minimal-list-card-main[data-qtoggle]');
+      if (head) { toggleQuizOpen(head.getAttribute('data-qtoggle')); }
+    });
+    document.getElementById('quizGrid').addEventListener('keydown', (ev) => {
+      if (ev.key !== 'Enter' && ev.key !== ' ') return;
+      if (ev.target.closest('button')) return;
+      const fcard = ev.target.closest('.qi-folder[data-fopen]');
+      if (fcard) { ev.preventDefault(); R.currentFolderId = fcard.getAttribute('data-fopen'); R.q = ''; R.browsePage = 1; loadKelasBrowse(R.currentKelasId); return; }
+      const khead = ev.target.closest('.minimal-list-card-main[data-collapse]');
+      if (khead) { ev.preventDefault(); toggleKelasExpanded(khead.getAttribute('data-collapse')); return; }
+      const head = ev.target.closest('.minimal-list-card-main[data-qtoggle]');
+      if (head) { ev.preventDefault(); toggleQuizOpen(head.getAttribute('data-qtoggle')); }
+    });
+    document.getElementById('quizNav').addEventListener('click', (ev) => {
+      const b = ev.target.closest('button[data-fnav]'); if (!b) return;
+      const v = b.getAttribute('data-fnav');
+      if (v === '__kelas') { R.currentKelasId = ''; R.currentFolderId = ''; R.q = ''; R.browsePage = 1; loadKelasList(); return; }
+      R.currentFolderId = (v === '__root') ? '' : v;
+      R.q = ''; R.browsePage = 1;
+      loadKelasBrowse(R.currentKelasId);
+    });
+    document.getElementById('quizSearch').addEventListener('input', (ev) => {
+      clearTimeout(R.searchTimer);
+      R.searchTimer = setTimeout(() => {
+        R.q = ev.target.value.trim(); R.browsePage = 1;
+        loadKelasBrowse(R.currentKelasId);
+      }, 320);
+    });
+    document.getElementById('quizPaging').addEventListener('click', (ev) => {
+      const b = ev.target.closest('button[data-sqpage]'); if (!b) return;
+      const n = Number(b.getAttribute('data-sqpage'));
+      if (!n || n === R.browsePage) return;
+      R.browsePage = n;
+      loadKelasBrowse(R.currentKelasId);
+    });
+    // ── Filter daftar kelas (client-side, mirip pages/quizDigital) ──
+    document.getElementById('kelasSearch').addEventListener('input', PSUI.debounce((ev) => {
+      R.kelasSearch = ev.target.value; R.kelasPage = 1; renderKelasPicker();
+    }, PSUI.AUTOSAVE_DEBOUNCE_MS));
+    document.getElementById('genderFilter').addEventListener('change', (ev) => {
+      R.kelasGender = ev.target.value; R.kelasPage = 1; renderKelasPicker();
+    });
+    document.getElementById('jamFilter').addEventListener('change', (ev) => {
+      R.kelasJam = ev.target.value; R.kelasPage = 1; renderKelasPicker();
+    });
+    document.getElementById('sortSelect').addEventListener('change', (ev) => {
+      R.kelasSort = ev.target.value; R.kelasPage = 1; renderKelasPicker();
+    });
+    document.getElementById('pageSizeSelect').addEventListener('change', (ev) => {
+      R.kelasPageSize = Number(ev.target.value) || 12; R.kelasPage = 1; renderKelasPicker();
+    });
+    // Pagination daftar kelas (client-side) — kedua host (atas & bawah), pola quizDigital.
+    ['kelasPaginationTop', 'kelasPaginationBottom'].forEach((hostId) => {
+      document.getElementById(hostId).addEventListener('click', (ev) => {
+        const b = ev.target.closest('button[data-kelaspage]'); if (!b) return;
+        const n = Number(b.getAttribute('data-kelaspage'));
+        if (!n || n === R.kelasPage) return;
+        R.kelasPage = n;
+        renderKelasPicker();
+        try { document.getElementById('quizGrid').scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (_) {}
+      });
+    });
+
+    // ── Runner ────────────────────────────────────────────────
+    function guardUnload(on) {
+      window.onbeforeunload = on ? (e) => { e.preventDefault(); e.returnValue = ''; return ''; } : null;
+    }
+    async function startQuiz(quizId, btn) {
+      if (btn) btn.disabled = true;
+      let d;
+      try { d = await apiPost({ action: 'quiz.santri.start', id: quizId }); }
+      catch (e) { showNotice(e.message, 'error'); if (btn) btn.disabled = false; return; }
+      const meta = R.items.find(x => x.id === quizId) || {};
+      const timed = d.tipe === 'examination' && d.timeLimitMinutes;
+      const rn = R.runner = {
+        quizId, attemptId: d.attemptId, tipe: d.tipe,
+        allowBack: d.allowBack, reshuffleEachRound: d.reshuffleEachRound !== false,
+        title: meta.title || 'Quiz',
+        questions: d.questions || [],
+        deadline: timed ? (Date.now() + (d.startedEpoch + d.timeLimitMinutes * 60000 - d.serverEpoch)) : 0,
+        answers: {}, idx: 0,
+        queue: [], feedback: null, checked: false,
+        busy: false, submitting: false,
+        bgAudioUrl: d.bgAudioUrl || '', bgAudioLoop: d.bgAudioLoop !== false
+      };
+      if (rn.tipe === 'drill') {
+        const mastered = new Set((d.savedAnswers || []).filter(a => a.correct).map(a => a.questionId));
+        // Halaman Materi ('materi') tak dihitung ke total & tak pernah "mastered" — muncul sekali di antrean.
+        rn.total = rn.questions.filter(q => q.type !== 'materi').length;
+        rn.queue = rn.questions.filter(q => q.type === 'materi' || !mastered.has(q.id)).map(q => ({ q, opts: (q.options || []).slice(), bank: (q.bank || []).slice() }));
+        if (rn.reshuffleEachRound) rn.queue.forEach(it => { if (it.q.type === 'mc') it.opts = shuffle(it.opts); else if (wbIsWord(it.q)) it.bank = shuffle(it.bank); });
+        if (!rn.queue.length) { guardUnload(false); await submitRunner(false); return; }
+      } else {
+        (d.savedAnswers || []).forEach(a => { rn.answers[a.questionId] = a.answer; });
+        // Start baru: mulai dari step 0 supaya Halaman Materi pembuka ikut terbaca.
+        // Resume (sudah ada jawaban tersimpan): lompat ke soal pertama yang belum dijawab.
+        const hasProgress = (d.savedAnswers || []).some(a => a.answer !== undefined && a.answer !== '');
+        const firstUn = rn.questions.findIndex(q => q.type !== 'materi' && (rn.answers[q.id] === undefined || rn.answers[q.id] === ''));
+        rn.idx = hasProgress && firstUn >= 0 ? firstUn : 0;
+      }
+      document.getElementById('runnerTitle').textContent = rn.title;
+      guardUnload(true);
+      document.getElementById('runnerDialog').showModal();
+      startBgAudio(rn.bgAudioUrl, rn.bgAudioLoop);
+      startTimer();
+      renderRunner();
+    }
+
+    // ── Dokumen (bacaan berslide + timer per slide) ─────────────────────────
+    async function startDoc(quizId) {
+      let d;
+      try { d = await api({ action: 'quiz.santri.doc.get', id: quizId }); }
+      catch (e) { showNotice(e.message, 'error'); return; }
+      const dc = R.doc = {
+        quizId, slides: d.slides || [],
+        idx: Math.min(Math.max(0, (d.slides || []).length - 1), Math.max(0, d.currentSlide || 0)),
+        alreadyRead: !!d.alreadyRead, cleared: new Set(), title: d.title || 'Dokumen',
+        bgAudioUrl: d.bgAudioUrl || '', bgAudioLoop: d.bgAudioLoop !== false, timer: null, deadline: 0
+      };
+      if (!dc.slides.length) { R.doc = null; showNotice('Dokumen ini belum punya slide.', 'error'); return; }
+      document.getElementById('runnerTitle').textContent = dc.title;
+      document.getElementById('runnerTimer').classList.add('hidden');
+      document.getElementById('runnerDialog').showModal();
+      startBgAudio(dc.bgAudioUrl, dc.bgAudioLoop);
+      renderDoc();
+    }
+    function docFreeNav() { return !!(R.doc && R.doc.alreadyRead); }
+    function renderDoc() {
+      const dc = R.doc; if (!dc) return;
+      const total = dc.slides.length;
+      const slide = dc.slides[dc.idx];
+      const free = docFreeNav();
+      document.getElementById('runnerStatus').textContent = `Slide ${dc.idx + 1} dari ${total}${free ? ' · sudah pernah tamat — bebas' : ''}`;
+      document.getElementById('runnerTrack').style.width = Math.round(dc.idx / total * 100) + '%';
+      document.getElementById('progressDots').innerHTML = dc.slides.map((s, i) => {
+        const reachable = free || i <= dc.idx || dc.cleared.has(i);
+        const doneCls = (free || i < dc.idx || dc.cleared.has(i)) ? 'done' : '';
+        return `<span class="${doneCls} ${i === dc.idx ? 'current' : ''}" data-i="${i}"${reachable ? '' : ' style="opacity:.35;pointer-events:none"'}>${i + 1}</span>`;
+      }).join('');
+      document.getElementById('runnerBody').innerHTML =
+        `${slide.text ? `<div class="q-text">${esc(slide.text)}</div>` : ''}<div class="materi-content ql-snow"><div class="ql-editor">${slide.html || ''}</div></div>`;
+      const last = dc.idx === total - 1;
+      const back = dc.idx > 0 ? '<button class="secondary" data-dnav="prev">Sebelumnya</button>' : '';
+      const needTimer = !free && !dc.cleared.has(dc.idx);
+      let fwd;
+      if (needTimer) {
+        if (!dc.deadline) dc.deadline = Date.now() + (slide.seconds || 15) * 1000;
+        const left = Math.max(0, Math.ceil((dc.deadline - Date.now()) / 1000));
+        fwd = `<button class="primary" data-dnav="${last ? 'finish' : 'next'}" ${left > 0 ? 'disabled' : ''}>${left > 0 ? `Tunggu ${left}s…` : (last ? 'Selesai' : 'Lanjut')}</button>`;
+        startDocTick();
+      } else {
+        if (dc.timer) { clearInterval(dc.timer); dc.timer = null; }
+        fwd = `<button class="primary" data-dnav="${last ? 'finish' : 'next'}">${last ? 'Selesai' : 'Lanjut'}</button>`;
+      }
+      document.getElementById('runnerNav').innerHTML = `${back}<span class="spacer"></span>${fwd}`;
+    }
+    function startDocTick() {
+      const dc = R.doc; if (!dc || dc.timer) return;
+      dc.timer = setInterval(() => {
+        const d2 = R.doc;
+        if (!d2) { clearInterval(dc.timer); return; }
+        const left = Math.max(0, Math.ceil((d2.deadline - Date.now()) / 1000));
+        if (left <= 0) {
+          d2.cleared.add(d2.idx);
+          clearInterval(d2.timer); d2.timer = null; d2.deadline = 0;
+          renderDoc();
+        } else {
+          const btn = document.querySelector('#runnerNav button[data-dnav]');
+          if (btn) btn.textContent = `Tunggu ${left}s…`;
+        }
+      }, 250);
+    }
+    function docGoto(i) {
+      const dc = R.doc; if (!dc) return;
+      i = Math.max(0, Math.min(dc.slides.length - 1, i));
+      if (i === dc.idx) return;
+      if (dc.timer) { clearInterval(dc.timer); dc.timer = null; }
+      dc.idx = i; dc.deadline = 0;
+      saveDocProgress(false);
+      renderDoc();
+    }
+    function saveDocProgress(finished) {
+      const dc = R.doc; if (!dc) return Promise.resolve();
+      return apiPost({ action: 'quiz.santri.doc.progress', id: dc.quizId, slide: dc.idx, finished: finished ? 1 : 0 })
+        .then(r => { if (r && r.alreadyRead) dc.alreadyRead = true; })
+        .catch(() => {});
+    }
+    function closeDoc() {
+      const dc = R.doc;
+      if (dc && dc.timer) { clearInterval(dc.timer); dc.timer = null; }
+      stopBgAudio();
+      document.getElementById('runnerDialog').close();
+      R.doc = null;
+    }
+    async function docFinish() {
+      const dc = R.doc; if (!dc) return;
+      await saveDocProgress(true);
+      closeDoc();
+      showNotice('Selesai membaca dokumen.');
+      await loadList();
+    }
+    document.getElementById('runnerNav').addEventListener('click', (ev) => {
+      const b = ev.target.closest('button[data-dnav]'); if (!b || !R.doc) return;
+      const dc = R.doc;
+      if (b.dataset.dnav === 'prev') docGoto(dc.idx - 1);
+      else if (b.dataset.dnav === 'next') docGoto(dc.idx + 1);
+      else if (b.dataset.dnav === 'finish') docFinish();
+    });
+
+    function startTimer() {
+      const el = document.getElementById('runnerTimer');
+      if (R.timerId) { clearInterval(R.timerId); R.timerId = null; }
+      if (!R.runner.deadline) { el.classList.add('hidden'); return; }
+      el.classList.remove('hidden');
+      const tick = () => {
+        const left = Math.max(0, Math.round((R.runner.deadline - Date.now()) / 1000));
+        el.textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+        el.classList.toggle('low', left <= 60);
+        if (left <= 0) { clearInterval(R.timerId); R.timerId = null; showNotice('Waktu habis — jawaban dikumpulkan otomatis.', 'error'); submitRunner(true); }
+      };
+      tick();
+      R.timerId = setInterval(tick, 1000);
+    }
+
+    function renderRunner() {
+      return R.runner && R.runner.tipe === 'drill' ? renderDrill() : renderExam();
+    }
+
+    // ── Isian Bank Kata / Susun Kalimat — UI kartu kata (dipakai drill & exam) ──
+    function wbIsWord(q) { return q && (q.type === 'wordbank' || q.type === 'sentence'); }
+    function wbCurrentQ() {
+      const rn = R.runner; if (!rn) return null;
+      return rn.tipe === 'drill' ? (rn.queue[0] && rn.queue[0].q) : rn.questions[rn.idx];
+    }
+    function wbState(q) {
+      const rn = R.runner;
+      rn.wbState = rn.wbState || {};
+      if (rn.wbState[q.id]) return rn.wbState[q.id];
+      const st = { slots: q.type === 'wordbank' ? new Array(q.gapCount || 0).fill(null) : [], order: [], selSlot: 0 };
+      const saved = rn.tipe === 'drill' ? '' : rn.answers[q.id];
+      if (saved) {
+        try {
+          const arr = JSON.parse(saved);
+          if (Array.isArray(arr)) {
+            if (q.type === 'wordbank') {
+              arr.forEach((w, i) => { if (i < st.slots.length && w) { const bi = wbFreeBankIdx(q, st, w); if (bi >= 0) st.slots[i] = { bi, text: q.bank[bi] }; } });
+              const nx = st.slots.findIndex(x => !x); st.selSlot = nx >= 0 ? nx : 0;
+            } else {
+              arr.forEach(w => { const bi = wbFreeBankIdx(q, st, w); if (bi >= 0) st.order.push(bi); });
+            }
+          }
+        } catch (_) {}
+      }
+      rn.wbState[q.id] = st;
+      return st;
+    }
+    function wbUsed(q, st) {
+      const s = new Set();
+      if (q.type === 'wordbank') st.slots.forEach(x => { if (x) s.add(x.bi); });
+      else st.order.forEach(bi => s.add(bi));
+      return s;
+    }
+    function wbFreeBankIdx(q, st, word) {
+      const used = wbUsed(q, st);
+      const w = String(word || '').toLowerCase().replace(/\s+/g, ' ').trim();
+      for (let bi = 0; bi < (q.bank || []).length; bi++) {
+        if (used.has(bi)) continue;
+        if (String(q.bank[bi] || '').toLowerCase().replace(/\s+/g, ' ').trim() === w) return bi;
+      }
+      return -1;
+    }
+    function wbAnswerArr(q, st) {
+      return q.type === 'wordbank'
+        ? st.slots.map(x => x ? x.text : '')
+        : st.order.map(bi => q.bank[bi]);
+    }
+    function wbSync(q, st) {
+      const rn = R.runner;
+      if (rn.tipe === 'drill') return;
+      const arr = wbAnswerArr(q, st);
+      const val = arr.some(x => x) ? JSON.stringify(arr) : '';
+      rn.answers[q.id] = val;
+      if (val) apiPost({ action: 'quiz.santri.answer', attemptId: rn.attemptId, questionId: q.id, answer: val }).catch(() => {});
+    }
+    // Render HTML kartu-kata. `q` di sini boleh q hasil clone dgn bank yg sudah di-reshuffle (drill).
+    function wbRender(q, opts) {
+      opts = opts || {};
+      const dis = opts.disabled ? 'disabled' : '';
+      const st = wbState(q);
+      const used = wbUsed(q, st);
+      const bankHtml = '<div class="wb-bank">' + (q.bank || []).map((w, bi) =>
+        used.has(bi) ? '' : `<button type="button" class="wb-chip" data-bi="${bi}" ${dis}>${esc(w)}</button>`).join('') + '</div>';
+      if (q.type === 'wordbank') {
+        let s = '<div class="wb-sentence">';
+        (q.segments || []).forEach((seg, k) => {
+          s += esc(seg);
+          if (k < (q.gapCount || 0)) {
+            const slot = st.slots[k];
+            const sel = (!opts.disabled && st.selSlot === k) ? ' sel' : '';
+            s += `<button type="button" class="wb-slot${slot ? ' filled' : ''}${sel}" data-slot="${k}" ${dis}>${slot ? esc(slot.text) : '&nbsp;____&nbsp;'}</button>`;
+          }
+        });
+        s += '</div>';
+        return s + bankHtml;
+      }
+      let s = q.prompt ? `<div class="q-text">${esc(q.prompt)}</div>` : '';
+      s += '<div class="sent-built">' + (st.order.length
+        ? st.order.map((bi, pos) => `<button type="button" class="sent-built-chip" data-pos="${pos}" ${dis}>${esc(q.bank[bi])}</button>`).join('')
+        : '<span class="muted">Ketuk kata di bawah untuk menyusun kalimat…</span>') + '</div>';
+      return s + bankHtml;
+    }
+    function wbLabel(t) { return t === 'wordbank' ? 'Isian bank kata' : 'Susun kalimat'; }
+
+    document.getElementById('runnerBody').addEventListener('click', (ev) => {
+      const rn = R.runner; if (!rn) return;
+      const btn = ev.target.closest('.wb-slot, .wb-chip, .sent-built-chip'); if (!btn) return;
+      if (rn.checked) return;   // drill: terkunci setelah dicek
+      let q = wbCurrentQ(); if (!wbIsWord(q)) return;
+      if (rn.tipe === 'drill' && rn.queue[0] && rn.queue[0].bank) q = Object.assign({}, q, { bank: rn.queue[0].bank });
+      const st = wbState(q);
+      if (btn.classList.contains('wb-slot')) {
+        const k = +btn.dataset.slot;
+        if (st.slots[k]) st.slots[k] = null;
+        st.selSlot = k;
+      } else if (btn.classList.contains('wb-chip')) {
+        const bi = +btn.dataset.bi;
+        if (q.type === 'wordbank') {
+          let k = st.selSlot;
+          if (k == null || k < 0 || k >= st.slots.length || st.slots[k]) k = st.slots.findIndex(x => !x);
+          if (k < 0) return;
+          st.slots[k] = { bi, text: q.bank[bi] };
+          const nx = st.slots.findIndex(x => !x); st.selSlot = nx >= 0 ? nx : k;
+        } else {
+          st.order.push(bi);
+        }
+      } else if (btn.classList.contains('sent-built-chip')) {
+        st.order.splice(+btn.dataset.pos, 1);
+      }
+      wbSync(q, st);
+      renderRunner();
+    });
+
+    // ── Drill (antrean ala Survey) ───────────────────────────
+    function renderDrill() {
+      const rn = R.runner;
+      const dots = document.getElementById('progressDots');
+      dots.innerHTML = '';
+      const realRemaining = rn.queue.filter(it => it.q.type !== 'materi').length;
+      const done = rn.total - realRemaining;
+      document.getElementById('runnerTrack').style.width = (rn.total ? Math.round(done / rn.total * 100) : 0) + '%';
+      const head = rn.queue[0];
+      const body = document.getElementById('runnerBody');
+      const nav = document.getElementById('runnerNav');
+      if (!head) { body.innerHTML = ''; nav.innerHTML = ''; return; }
+      const q = head.q;
+      if (q.type === 'materi') {
+        document.getElementById('runnerStatus').textContent = `Materi · benar ${done}/${rn.total}`;
+        body.innerHTML = `<div class="muted">Materi</div>${q.text ? `<div class="q-text">${esc(q.text)}</div>` : ''}<div class="materi-content ql-snow"><div class="ql-editor">${q.html || ''}</div></div>`;
+        const onlyLeft = rn.queue.length === 1;
+        nav.innerHTML = `<span class="spacer"></span><button class="primary" data-nav="materi-cont" ${rn.busy ? 'disabled' : ''}>${rn.busy ? 'Menyimpan…' : (onlyLeft ? 'Selesai' : 'Lanjut')}</button>`;
+        return;
+      }
+      document.getElementById('runnerStatus').textContent = `Latihan · benar ${done}/${rn.total} · sisa ${realRemaining} soal`;
+      const kindLbl = q.type === 'mc' ? 'Pilihan ganda' : q.type === 'short' ? 'Isian singkat' : wbLabel(q.type);
+      let inner = `<div class="muted">${kindLbl}</div>`;
+      if (q.type === 'mc' || q.type === 'short') inner += `<div class="q-text">${esc(q.text)}</div>`;
+      if (q.type === 'mc') {
+        inner += head.opts.map((o, oi) => {
+          let cls = 'opt';
+          if (rn.checked && rn.feedback) {
+            if (rn.feedback.correct && o === rn.pickedText) cls += ' correct';
+            else if (!rn.feedback.correct && o === rn.pickedText) cls += ' wrong';
+            else if (!rn.feedback.correct && rn.feedback.correctText && o === rn.feedback.correctText) cls += ' correct';
+          } else if (o === rn.pickedText) cls += ' sel';
+          return `<label class="${cls}"><input type="radio" name="opt" value="${oi}" ${o === rn.pickedText ? 'checked' : ''} ${rn.checked ? 'disabled' : ''}> <span>${esc(o)}</span></label>`;
+        }).join('');
+      } else if (q.type === 'short') {
+        inner += `<input class="short-input" type="text" id="shortInput" placeholder="Ketik jawabanmu…" value="${esc(rn.pickedText || '')}" ${rn.checked ? 'disabled' : ''}>`;
+      } else {
+        inner += wbRender(Object.assign({}, q, { bank: head.bank || q.bank }), { disabled: rn.checked });
+      }
+      if (rn.checked && rn.feedback) {
+        inner += `<div class="feedback ${rn.feedback.correct ? 'ok' : 'no'}">
+          <strong>${rn.feedback.correct ? 'Benar!' : 'Belum tepat.'}</strong>
+          ${!rn.feedback.correct && rn.feedback.correctText ? ` Jawaban benar: <strong>${esc(rn.feedback.correctText)}</strong>.` : ''}
+          ${rn.feedback.explanation ? `<br>${esc(rn.feedback.explanation)}` : ''}
+        </div>`;
+      }
+      body.innerHTML = inner;
+      const lastRemaining = rn.queue.length === 1 && rn.feedback && rn.feedback.correct;
+      nav.innerHTML = `<span class="spacer"></span>` + (!rn.checked
+        ? `<button class="primary" data-nav="check" ${rn.busy ? 'disabled' : ''}>${rn.busy ? 'Memeriksa…' : 'Cek Jawaban'}</button>`
+        : `<button class="primary" data-nav="cont" ${rn.busy ? 'disabled' : ''}>${rn.busy ? 'Menyimpan…' : (lastRemaining ? 'Selesai' : 'Lanjut')}</button>`);
+    }
+
+    // ── Examination ─────────────────────────────────────────
+    function renderExam() {
+      const rn = R.runner;
+      const steps = rn.questions;                       // termasuk Halaman Materi
+      const realQs = steps.filter(qq => qq.type !== 'materi');
+      const total = realQs.length;                      // hanya soal yang dinilai
+      // Nomor tampilan tiap step: null utk materi, hitungan berjalan utk soal.
+      let rc = 0;
+      const numByStep = steps.map(qq => (qq.type === 'materi' ? null : (++rc)));
+      const q = steps[rn.idx];
+      const dots = document.getElementById('progressDots');
+      dots.innerHTML = steps.map((qq, i) => {
+        if (qq.type === 'materi') return `<span class="materi-dot done ${i === rn.idx ? 'current' : ''}" data-i="${i}" title="Materi"><i class="fa-solid fa-book-open"></i></span>`;
+        const v = rn.answers[qq.id];
+        return `<span class="${v !== undefined && v !== '' ? 'done' : ''} ${i === rn.idx ? 'current' : ''}" data-i="${i}">${numByStep[i]}</span>`;
+      }).join('');
+      const answered = realQs.filter(qq => { const v = rn.answers[qq.id]; return v !== undefined && v !== ''; }).length;
+      document.getElementById('runnerStatus').textContent = q.type === 'materi'
+        ? `Materi · terjawab ${answered}/${total}`
+        : `Soal ${numByStep[rn.idx]} dari ${total} · terjawab ${answered}/${total}`;
+      document.getElementById('runnerTrack').style.width = Math.round((rn.idx) / steps.length * 100) + '%';
+      const cur = rn.answers[q.id];
+      let inner;
+      if (q.type === 'materi') {
+        inner = `<div class="muted">Materi</div>${q.text ? `<div class="q-text">${esc(q.text)}</div>` : ''}<div class="materi-content ql-snow"><div class="ql-editor">${q.html || ''}</div></div>`;
+      } else if (q.type === 'wordbank' || q.type === 'sentence') {
+        inner = `<div class="muted">${wbLabel(q.type)} · ${q.points} poin</div>` + wbRender(q, { disabled: false });
+      } else {
+        inner = `<div class="muted">${q.type === 'mc' ? 'Pilihan ganda' : 'Isian singkat'} · ${q.points} poin</div><div class="q-text">${esc(q.text)}</div>`;
+        if (q.type === 'mc') {
+          inner += q.options.map((o, oi) =>
+            `<label class="opt ${String(cur) === String(oi) ? 'sel' : ''}"><input type="radio" name="opt" value="${oi}" ${String(cur) === String(oi) ? 'checked' : ''}> <span>${esc(o)}</span></label>`
+          ).join('');
+        } else {
+          inner += `<input class="short-input" type="text" id="shortInput" placeholder="Ketik jawabanmu…" value="${esc(cur || '')}">`;
+        }
+      }
+      document.getElementById('runnerBody').innerHTML = inner;
+      const last = rn.idx === steps.length - 1;
+      const dis = rn.busy ? 'disabled' : '';
+      let btns = '';
+      if (rn.allowBack && rn.idx > 0) btns += `<button class="secondary" data-nav="prev" ${dis}>Sebelumnya</button>`;
+      btns += `<span class="spacer"></span>`;
+      btns += last
+        ? `<button class="primary" data-nav="submit" ${dis}>${rn.busy ? 'Mengumpulkan…' : 'Kumpulkan'}</button>`
+        : `<button class="primary" data-nav="next" ${dis}>Berikutnya</button>`;
+      document.getElementById('runnerNav').innerHTML = btns;
+    }
+
+    function readAnswerEl() {
+      const sel = document.querySelector('#runnerBody input[name="opt"]:checked');
+      const inp = document.getElementById('shortInput');
+      return { mcIdx: sel ? sel.value : undefined, mcText: sel ? sel.closest('.opt').querySelector('span').textContent : undefined, short: inp ? inp.value.trim() : undefined };
+    }
+
+    document.getElementById('runnerBody').addEventListener('change', (ev) => {
+      const rn = R.runner; if (!rn) return;
+      if (ev.target.name === 'opt') {
+        const txt = ev.target.closest('.opt').querySelector('span').textContent;
+        if (rn.tipe === 'drill') { rn.pickedText = txt; }
+        else if (rn.questions[rn.idx].type !== 'materi') { rn.answers[rn.questions[rn.idx].id] = ev.target.value; }
+      }
+    });
+    document.getElementById('runnerBody').addEventListener('input', (ev) => {
+      const rn = R.runner; if (!rn || ev.target.id !== 'shortInput') return;
+      if (rn.tipe === 'drill') rn.pickedText = ev.target.value;
+      else rn.answers[rn.questions[rn.idx].id] = ev.target.value.trim();
+    });
+
+    document.getElementById('progressDots').addEventListener('click', (ev) => {
+      const s = ev.target.closest('span[data-i]'); if (!s) return;
+      if (R.doc) {
+        const i = +s.dataset.i;
+        if (docFreeNav() || i <= R.doc.idx || R.doc.cleared.has(i)) docGoto(i);
+        return;
+      }
+      if (!R.runner || R.runner.tipe === 'drill') return;
+      persistExam();
+      R.runner.idx = +s.dataset.i;
+      renderRunner();
+    });
+
+    document.getElementById('runnerNav').addEventListener('click', async (ev) => {
+      const b = ev.target.closest('button[data-nav]'); if (!b) return;
+      const rn = R.runner; const nav = b.dataset.nav;
+      if (!rn || rn.busy) return;   // ada request jawaban/submit yg masih jalan — abaikan tap ekstra
+      if (nav === 'prev') { persistExam(); rn.idx--; renderRunner(); return; }
+      if (nav === 'next') { persistExam(); rn.idx++; renderRunner(); return; }
+      if (nav === 'submit') { persistExam(); await submitRunner(false); return; }
+      if (nav === 'materi-cont') {
+        // Materi terakhir → kumpulkan; JANGAN buang dari antrean dulu supaya tombol "Selesai"
+        // tetap ada kalau submit gagal (jaringan).
+        if (rn.queue.length === 1) { await submitRunner(false); return; }
+        // Drill: Halaman Materi tak dicek/diulang — cukup keluarkan dari antrean.
+        rn.queue.shift();
+        rn.checked = false; rn.feedback = null; rn.pickedText = undefined;
+        renderRunner();
+        return;
+      }
+      if (nav === 'check') {
+        const a = readAnswerEl();
+        const head = rn.queue[0]; const q = head.q;
+        const isMc = q.type === 'mc';
+        const isWord = wbIsWord(q);
+        let sendPayload;
+        if (isWord) {
+          const qq = Object.assign({}, q, { bank: head.bank || q.bank });
+          const st = wbState(qq);
+          const arr = wbAnswerArr(qq, st);
+          const need = q.type === 'wordbank' ? (q.gapCount || 0) : (q.tokenCount || 0);
+          const got = q.type === 'wordbank' ? arr.filter(Boolean).length : arr.length;
+          if (got < need) { showNotice(q.type === 'wordbank' ? 'Isi semua rumpang dulu.' : 'Susun semua kata dulu.', 'error'); return; }
+          rn.pickedText = arr.join(' ');
+          sendPayload = { action: 'quiz.santri.answer', attemptId: rn.attemptId, questionId: q.id, answer: JSON.stringify(arr) };
+        } else {
+          if (isMc && a.mcText === undefined) { showNotice('Pilih salah satu jawaban dulu.', 'error'); return; }
+          if (!isMc && !a.short) { showNotice('Isi jawaban dulu.', 'error'); return; }
+          rn.pickedText = isMc ? a.mcText : a.short;
+          sendPayload = isMc
+            ? { action: 'quiz.santri.answer', attemptId: rn.attemptId, questionId: q.id, answerText: a.mcText }
+            : { action: 'quiz.santri.answer', attemptId: rn.attemptId, questionId: q.id, answer: a.short };
+        }
+        const forQid = q.id;                 // stempel: respons harus utk soal yg SEDANG tampil
+        rn.busy = true; renderRunner();       // kunci tombol → "Memeriksa…"
+        let res;
+        try {
+          res = await apiPostT(sendPayload, 15000);
+        } catch (e) {
+          rn.busy = false;
+          if (R.runner === rn) renderRunner();   // tombol balik ke "Cek Jawaban", pilihan tetap
+          showNotice('Jaringan bermasalah — tekan Cek Jawaban lagi.', 'error');
+          return;
+        }
+        rn.busy = false;
+        // Buang respons basi: runner sudah ganti / soal di depan bukan yg tadi / sudah ter-cek.
+        if (!R.runner || R.runner !== rn || rn.checked || !rn.queue[0] || rn.queue[0].q.id !== forQid) {
+          if (R.runner === rn) renderRunner();
+          return;
+        }
+        rn.checked = true;
+        rn.feedback = { correct: res.correct, correctText: res.correctAnswerText, explanation: res.explanation };
+        speak(res.correct ? 'benar' : 'salah');
+        renderRunner();
+        return;
+      }
+      if (nav === 'cont') {
+        const wrong = rn.feedback && !rn.feedback.correct;
+        // Soal terakhir & sudah benar → kumpulkan. Antrean + rn.checked/feedback dibiarkan
+        // supaya kalau submit GAGAL, tombol "Selesai" masih ada untuk dicoba lagi.
+        if (rn.queue.length === 1 && !wrong) { await submitRunner(false); return; }
+        const head = rn.queue.shift();
+        if (wrong) {
+          if (rn.reshuffleEachRound && head.q.type === 'mc') head.opts = shuffle(head.opts);
+          if (wbIsWord(head.q)) {
+            if (rn.wbState) delete rn.wbState[head.q.id];   // reset kartu terisi utk ronde berikutnya
+            if (rn.reshuffleEachRound) head.bank = shuffle(head.bank || (head.q.bank || []).slice());
+          }
+          rn.queue.push(head);
+        }
+        rn.checked = false; rn.feedback = null; rn.pickedText = undefined;
+        if (!rn.queue.length) { await submitRunner(false); return; }
+        renderRunner();
+        return;
+      }
+    });
+
+    function persistExam() {
+      const rn = R.runner; if (!rn || rn.tipe === 'drill') return;
+      const q = rn.questions[rn.idx];
+      if (q.type === 'materi') return;
+      if (wbIsWord(q)) { wbSync(q, wbState(q)); return; }   // sudah disimpan tiap ketuk kartu
+      const a = readAnswerEl();
+      const v = q.type === 'mc' ? a.mcIdx : a.short;
+      if (v !== undefined && v !== '') {
+        rn.answers[q.id] = v;
+        apiPost({ action: 'quiz.santri.answer', attemptId: rn.attemptId, questionId: q.id, answer: v }).catch(() => {});
+      }
+    }
+
+    async function submitRunner(auto) {
+      const rn = R.runner; if (!rn || rn.busy) return;   // cegah dobel-submit (tap ganda / timer bentrok)
+      if (rn.tipe === 'examination' && !auto) {
+        const un = rn.questions.filter(q => q.type !== 'materi' && (rn.answers[q.id] === undefined || rn.answers[q.id] === '')).length;
+        if (un && !confirm(`Masih ada ${un} soal belum dijawab. Kumpulkan sekarang?`)) return;
+      }
+      const answers = rn.tipe === 'examination'
+        ? rn.questions.filter(q => q.type !== 'materi').map(q => ({ questionId: q.id, answer: rn.answers[q.id] === undefined ? '' : rn.answers[q.id] }))
+        : [];
+      rn.busy = true; renderRunner();     // kunci tombol nav selama pengumpulan
+      let res;
+      try { res = await apiPostT({ action: 'quiz.santri.submit', attemptId: rn.attemptId, answers }, 20000); }
+      catch (e) {
+        rn.busy = false;
+        if (R.runner === rn) renderRunner();
+        showNotice(auto ? 'Gagal mengumpulkan otomatis — jaringan bermasalah, coba kumpulkan manual.' : 'Gagal mengumpulkan — jaringan bermasalah. Coba lagi.', 'error');
+        return;
+      }
+      if (R.timerId) { clearInterval(R.timerId); R.timerId = null; }
+      stopBgAudio();
+      guardUnload(false);
+      const wasActive = R.runner === rn;
+      R.runner = null;
+      if (wasActive) document.getElementById('runnerDialog').close();
+      showResult(res, res.title || 'Quiz');
+      await loadList();
+    }
+
+    document.getElementById('btnExitRunner').addEventListener('click', () => {
+      if (R.doc) { saveDocProgress(false); closeDoc(); loadList(); return; }
+      if (!confirm('Keluar dari pengerjaan? Sesi tersimpan — timer tetap jalan kalau ada batas waktu, dan kamu bisa lanjutkan nanti.')) return;
+      if (R.timerId) { clearInterval(R.timerId); R.timerId = null; }
+      stopBgAudio();
+      guardUnload(false);
+      document.getElementById('runnerDialog').close();
+      R.runner = null;
+      loadList();
+    });
+    document.getElementById('runnerDialog').addEventListener('cancel', (ev) => { ev.preventDefault(); document.getElementById('btnExitRunner').click(); });
+
+    // ── Result ────────────────────────────────────────────────
+    function showResult(res, title) {
+      document.getElementById('resTitle').textContent = 'Hasil: ' + title;
+      let html = '';
+      if (res.scoreVisible) {
+        html += `<div class="result-score">${res.finalScore}</div>`;
+        html += res.drill
+          ? `<div class="muted">Benar ${res.correctCount} dari ${res.totalCount} pada percobaan pertama · latihan (tidak dinilai)</div>`
+          : `<div class="muted">${res.correctCount} dari ${res.totalCount} benar</div>`;
+      } else {
+        html += `<div style="font-size:14px;font-weight:700;">Jawaban terkumpul.</div><div class="muted">Skor akan tampil setelah guru merilis hasil.</div>`;
+      }
+      if (res.answersVisible && (res.perQuestion || []).length) {
+        html += '<div class="rev-list">' + res.perQuestion.map(pq => {
+          const wrong = !pq.correct;
+          const status = res.drill
+            ? (wrong ? '<span class="no">&#10008; sempat salah</span>' : '<span class="ok">&#10004; benar sejak awal</span>')
+            : (wrong ? '<span class="no">&#10008; salah</span>' : '<span class="ok">&#10004; benar</span>');
+          let yourLine = '';
+          if (!res.drill) {
+            yourLine = `<div class="rev-your">Jawabanmu: <em>${esc(pq.yourAnswerText || '(kosong)')}</em> ${pq.correct ? '<span class="ok">&#10004;</span>' : '<span class="no">&#10008;</span>'}</div>`;
+          } else if (wrong && pq.yourAnswerText) {
+            yourLine = `<div class="rev-your">Jawaban pertamamu: <em>${esc(pq.yourAnswerText)}</em> <span class="no">&#10008;</span></div>`;
+          }
+          const correctLine = (wrong && pq.correctAnswerText)
+            ? `<div class="rev-correct">Jawaban benar: <strong>${esc(pq.correctAnswerText)}</strong></div>` : '';
+          const explBlock = pq.explanation
+            ? `<details class="rev-expl"><summary>Penjelasan</summary><div class="rev-expl-body">${esc(pq.explanation)}</div></details>` : '';
+          return `<div class="rev-q ${wrong ? 'is-wrong' : ''}">
+            <div><strong>${esc(pq.text)}</strong></div>
+            <div>${status}</div>
+            ${yourLine}
+            ${correctLine}
+            ${explBlock}
+          </div>`;
+        }).join('') + '</div>';
+      }
+      document.getElementById('resBody').innerHTML = html;
+      document.getElementById('resultDialog').showModal();
+    }
+    document.getElementById('btnResClose').addEventListener('click', () => document.getElementById('resultDialog').close());
+
+    async function reviewQuiz(quizId) {
+      try {
+        const res = await api({ action: 'quiz.santri.result', id: quizId });
+        showResult(res, res.title || 'Quiz');
+      } catch (e) { showNotice(e.message, 'error'); }
+    }
+
+    window.addEventListener('DOMContentLoaded', async () => {
+      const session = getStoredSession();
+      if (window.PSAccess && window.PSAccess.redirectIfForbidden(session, 'quizSantri.html')) return;
+      if (window.PSShell) window.PSShell.mount({ currentPage: 'quizSantri.html', session, getStoredSession, storageKey: STORAGE.session });
+      await loadList();
+    });
+  </script>
+</body>
+</html>

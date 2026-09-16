@@ -209,6 +209,14 @@
               </select>
             </label>
             <label>
+              Jenis Kelamin
+              <select id="filterGender">
+                <option value="">Semua</option>
+                <option value="male">Laki-laki</option>
+                <option value="female">Perempuan</option>
+              </select>
+            </label>
+            <label>
               Urutkan
               <select id="filterSort">
                 <option value="updated">Terbaru Diperbarui</option>
@@ -472,7 +480,7 @@
     const API_BASE = window.location.origin + '/api';
     const STORAGE = { apiBase: 'ps_api_base', token: 'ps_token', session: 'ps_session' };
     localStorage.setItem(STORAGE.apiBase, API_BASE);
-    const state = { items: [], refs: { santri: [], tahunAjaran: [] }, page: 1, pageSize: 10, total: 0, stats: { izin:0, kembali:0, terlambat:0 }, filters: { dariTanggal: '', sampaiTanggal: '', tahunAjaranId: '', status: '', q: '', sortBy: 'updated' }, expandedIds: new Set() };
+    const state = { items: [], refs: { santri: [], tahunAjaran: [] }, page: 1, pageSize: 10, total: 0, stats: { izin:0, kembali:0, terlambat:0 }, filters: { dariTanggal: '', sampaiTanggal: '', tahunAjaranId: '', status: '', gender: '', q: '', sortBy: 'updated' }, expandedIds: new Set() };
     let canManage = false;
     let canDelete = false;
     const uiState = { currentNoticeId: '', noticeCounter: 0, noticeShownAt: 0, pendingNotice: null };
@@ -545,7 +553,7 @@
     async function loadRekap() {
       const f = state.filters;
       try {
-        const d = await api({ action:'izin.pulang.list', page:state.page, pageSize:state.pageSize, dariTanggal:f.dariTanggal, sampaiTanggal:f.sampaiTanggal, tahunAjaranId:f.tahunAjaranId, status:f.status, q:f.q, sortBy:f.sortBy });
+        const d = await api({ action:'izin.pulang.list', page:state.page, pageSize:state.pageSize, dariTanggal:f.dariTanggal, sampaiTanggal:f.sampaiTanggal, tahunAjaranId:f.tahunAjaranId, status:f.status, gender:f.gender, q:f.q, sortBy:f.sortBy });
         state.items = d.items || []; state.total = d.total || 0; state.stats = d.stats || { izin:0, kembali:0, terlambat:0 };
         renderRekap(); renderPaging(); updateStats();
       } catch (e) { showNotice(e.message,'error'); }
@@ -568,8 +576,8 @@
       list.querySelectorAll('.btn-kembali').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); openKembaliDialog(b.dataset.id); }));
       list.querySelectorAll('.btn-edit-iz').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); openEditDialog(b.dataset.id); }));
       list.querySelectorAll('.btn-history-iz').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); showEditHistory(b.dataset.id); }));
-      list.querySelectorAll('.btn-batalkan-iz').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); batalkanIzinItem(b.dataset.id); }));
-      list.querySelectorAll('.btn-pulihkan-iz').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); pulihkanIzinItem(b.dataset.id); }));
+      list.querySelectorAll('.btn-batalkan-iz').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); batalkanIzinItem(b.dataset.id, b); }));
+      list.querySelectorAll('.btn-pulihkan-iz').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); pulihkanIzinItem(b.dataset.id, b); }));
       list.querySelectorAll('.btn-hapus-iz').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); openHapusIzinDialog(b.dataset.id); }));
     }
     function normGender(raw) {
@@ -834,6 +842,9 @@
       if (!santriId) { showNotice('Pilih santri terlebih dahulu.','error'); return; }
       const tanggalIzin = document.getElementById('inputTanggalIzin').value;
       if (!tanggalIzin) { showNotice('Tanggal izin wajib diisi.','error'); return; }
+      if (!document.getElementById('inputJamIzin').value) { showNotice('Jam izin wajib diisi.','error'); return; }
+      const tanggalKembaliRencana = document.getElementById('inputTanggalKembali').value;
+      if (tanggalKembaliRencana && !document.getElementById('inputJamKembali').value) { showNotice('Jam rencana kembali wajib diisi kalau tanggal rencana kembali sudah diisi.','error'); return; }
       const btn = document.getElementById('btnSubmit'); btn.disabled = true;
       try {
         const saved = await apiPost({ action:'izin.pulang.save', santri_id:santriId, tanggal_izin:tanggalIzin, jam_izin:document.getElementById('inputJamIzin').value, tanggal_kembali_rencana:document.getElementById('inputTanggalKembali').value, jam_kembali_rencana:document.getElementById('inputJamKembali').value, keperluan:document.getElementById('inputKeperluan').value.trim(), izin_oleh:document.getElementById('inputIzinOleh').value.trim(), catatan:document.getElementById('inputCatatan').value.trim(), tahun_ajaran_id:document.getElementById('inputTahunAjaran').value });
@@ -878,25 +889,28 @@
       const id = document.getElementById('kembaliId').value;
       const tanggal = document.getElementById('kembaliTanggal').value;
       if (!tanggal) { showNotice('Tanggal kembali wajib diisi.','error'); return; }
+      if (!document.getElementById('kembaliJam').value) { showNotice('Jam kembali wajib diisi.','error'); return; }
       const btn = document.getElementById('btnKembaliSubmit'); btn.disabled = true;
       try { await apiPost({ action:'izin.pulang.setStatus', id, status:'Sudah Kembali', tanggal_kembali_aktual:tanggal, jam_kembali_aktual:document.getElementById('kembaliJam').value, catatan:document.getElementById('kembaliCatatan').value.trim() }); document.getElementById('kembaliDialog').close(); showNotice('Santri ditandai sudah kembali.'); await loadRekap(); }
       catch (e) { showNotice(e.message,'error'); } finally { btn.disabled = false; }
     });
 
     // Batalkan (tidak menghapus data secara permanen, hanya menandai flag "Dihapus" — status Izin/Sudah Kembali tetap tersimpan)
-    async function batalkanIzinItem(id) {
+    async function batalkanIzinItem(id, btn) {
       const item = state.items.find(i => i.id === id); if (!item) return;
       if (!confirm(`Tandai catatan izin pulang "${item.santriNama}" sebagai Dihapus? Data tidak dihapus permanen dari sistem, hanya ditandai "Dihapus" (masih bisa dilihat lewat filter status, dan bisa dipulihkan lagi kalau perlu).`)) return;
+      if (btn) btn.disabled = true;
       try { await apiPost({ action:'izin.pulang.setDeleted', id, deleted:'1' }); showNotice('Data ditandai dihapus.'); await loadRekap(); }
-      catch (e) { showNotice(e.message,'error'); }
+      catch (e) { showNotice(e.message,'error'); if (btn) btn.disabled = false; }
     }
 
     // Pulihkan (kembalikan data yang sebelumnya ditandai "Dihapus")
-    async function pulihkanIzinItem(id) {
+    async function pulihkanIzinItem(id, btn) {
       const item = state.items.find(i => i.id === id); if (!item) return;
       if (!confirm(`Pulihkan catatan izin pulang "${item.santriNama}"? Data akan muncul lagi sebagai data aktif.`)) return;
+      if (btn) btn.disabled = true;
       try { await apiPost({ action:'izin.pulang.setDeleted', id, deleted:'0' }); showNotice('Data berhasil dipulihkan.'); await loadRekap(); }
-      catch (e) { showNotice(e.message,'error'); }
+      catch (e) { showNotice(e.message,'error'); if (btn) btn.disabled = false; }
     }
 
     // Hapus permanen (khusus Super Admin, wajib ketik HAPUS)
@@ -992,6 +1006,11 @@
       const id = document.getElementById('editId').value;
       const tanggalIzin = document.getElementById('editTanggalIzin').value;
       if (!tanggalIzin) { showNotice('Tanggal izin wajib diisi.','error'); return; }
+      if (!document.getElementById('editJamIzin').value) { showNotice('Jam izin wajib diisi.','error'); return; }
+      const editTanggalRencana = document.getElementById('editTanggalRencana').value;
+      if (editTanggalRencana && !document.getElementById('editJamRencana').value) { showNotice('Jam rencana kembali wajib diisi kalau tanggal rencana kembali sudah diisi.','error'); return; }
+      const editTanggalAktual = document.getElementById('editTanggalAktual').value;
+      if (editTanggalAktual && !document.getElementById('editJamAktual').value) { showNotice('Jam kembali aktual wajib diisi kalau tanggal kembali aktual sudah diisi.','error'); return; }
       const btn = document.getElementById('btnEditSubmit'); btn.disabled = true;
       try {
         await apiPost({ action:'izin.pulang.update', id, tanggal_izin:tanggalIzin, jam_izin:document.getElementById('editJamIzin').value, tanggal_kembali_rencana:document.getElementById('editTanggalRencana').value, jam_kembali_rencana:document.getElementById('editJamRencana').value, tanggal_kembali_aktual:document.getElementById('editTanggalAktual').value, jam_kembali_aktual:document.getElementById('editJamAktual').value, status:document.getElementById('editStatus').value, keperluan:document.getElementById('editKeperluan').value.trim(), izin_oleh:document.getElementById('editIzinOleh').value.trim(), catatan:document.getElementById('editCatatan').value.trim(), hukuman_keterlambatan:document.getElementById('editHukuman').value.trim() });
@@ -1029,11 +1048,10 @@
     document.getElementById('tabBar').addEventListener('click', e => { const b = e.target.closest('.tab-btn'); if (b) switchTab(b.dataset.tab); });
 
     // Filters
-    let ft = null;
-    ['filterTahunAjaran','filterStatus','filterSort'].forEach(id => document.getElementById(id).addEventListener('change', () => { state.page=1; applyFilters(); }));
+    ['filterTahunAjaran','filterStatus','filterGender','filterSort'].forEach(id => document.getElementById(id).addEventListener('change', () => { state.page=1; applyFilters(); }));
     ['filterDariTanggal','filterSampaiTanggal'].forEach(id => document.getElementById(id).addEventListener('change', () => { setActivePeriod(''); state.page=1; applyFilters(); }));
-    document.getElementById('filterQ').addEventListener('input', () => { clearTimeout(ft); ft = setTimeout(() => { state.page=1; applyFilters(); }, 350); });
-    function applyFilters() { state.filters.dariTanggal = document.getElementById('filterDariTanggal').value; state.filters.sampaiTanggal = document.getElementById('filterSampaiTanggal').value; state.filters.tahunAjaranId = document.getElementById('filterTahunAjaran').value; state.filters.status = document.getElementById('filterStatus').value; state.filters.q = document.getElementById('filterQ').value; state.filters.sortBy = document.getElementById('filterSort').value; loadRekap(); }
+    document.getElementById('filterQ').addEventListener('input', PSUI.debounce(() => { state.page=1; applyFilters(); }, PSUI.AUTOSAVE_DEBOUNCE_MS));
+    function applyFilters() { state.filters.dariTanggal = document.getElementById('filterDariTanggal').value; state.filters.sampaiTanggal = document.getElementById('filterSampaiTanggal').value; state.filters.tahunAjaranId = document.getElementById('filterTahunAjaran').value; state.filters.status = document.getElementById('filterStatus').value; state.filters.gender = document.getElementById('filterGender').value; state.filters.q = document.getElementById('filterQ').value; state.filters.sortBy = document.getElementById('filterSort').value; loadRekap(); }
 
     document.addEventListener('click', event => {
       const page = event.target.getAttribute('data-page');
@@ -1139,7 +1157,7 @@
       const pageSize = 200;
       let page = 1, all = [], total = Infinity;
       while (all.length < total && page <= 25) {
-        const d = await api({ action:'izin.pulang.list', page, pageSize, dariTanggal:f.dariTanggal, sampaiTanggal:f.sampaiTanggal, tahunAjaranId:f.tahunAjaranId, status:f.status, q:f.q, sortBy:f.sortBy });
+        const d = await api({ action:'izin.pulang.list', page, pageSize, dariTanggal:f.dariTanggal, sampaiTanggal:f.sampaiTanggal, tahunAjaranId:f.tahunAjaranId, status:f.status, gender:f.gender, q:f.q, sortBy:f.sortBy });
         all = all.concat(d.items || []);
         total = d.total || 0;
         page += 1;
@@ -1227,11 +1245,12 @@
     document.getElementById('btnImportExcel').addEventListener('click', () => document.getElementById('importExcelInput').click());
     document.getElementById('importExcelInput').addEventListener('change', async function() {
       const file = this.files && this.files[0]; this.value = ''; if (!file) return;
+      const importBtn = document.getElementById('btnImportExcel'); importBtn.disabled = true;
       showNotice('Memproses import...','info');
       try {
         await window.PSExcel.importDataset(apiExcel, DATASET_KEY, file, { onProgress(done, total) { showNotice(`Import ${done}/${total}...`,'info'); } });
         showNotice('Import selesai.'); await loadRekap();
-      } catch (e) { showNotice(e.message || 'Gagal import.','error'); }
+      } catch (e) { showNotice(e.message || 'Gagal import.','error'); } finally { importBtn.disabled = false; }
     });
 
     // Kamera WebRTC
@@ -1270,6 +1289,7 @@
         errEl.className = 'notice error'; errEl.textContent = 'Kamera belum siap.'; errEl.style.display = '';
         return;
       }
+      const captureBtn = document.getElementById('izBtnCapture'); if (captureBtn) captureBtn.disabled = true;
       canvas.width = video.videoWidth; canvas.height = video.videoHeight;
       const ctx = canvas.getContext('2d');
       if (_izCamFacing === 'user') { ctx.translate(canvas.width, 0); ctx.scale(-1, 1); }
@@ -1298,6 +1318,7 @@
     function openIzCam(context) {
       _izCamContext = context;
       _izCamFacing = 'environment';
+      const captureBtn = document.getElementById('izBtnCapture'); if (captureBtn) captureBtn.disabled = false;
       document.getElementById('izCamDialog').showModal();
       startIzCam();
     }

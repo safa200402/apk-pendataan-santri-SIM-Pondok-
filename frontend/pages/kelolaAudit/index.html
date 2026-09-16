@@ -97,6 +97,20 @@
             <div class="cutoff-hint">Berlaku untuk audit backlog harian/pekanan (absensi halaqoh/kelas/regu, hafalan, perkembangan, tasmi') di halaman ini maupun di "Kelola Audit Bawahan" &amp; broadcast WhatsApp-nya. Isi <strong>0</strong> = sampai hari ini, <strong>1</strong> = sampai kemarin (default), <strong>5</strong> = sampai 5 hari sebelum hari ini, dst. Tidak berlaku untuk Audit Jurnal SDM (selalu hari ini) maupun Audit Nilai Ujian Wajib/keanggotaan santri (tidak berbasis tanggal).</div>
           </div>
 
+          <div class="card cutoff-panel">
+            <label for="dibekukanKenaAudit">Santri berstatus <strong>Dibekukan</strong> tetap kena audit per-santri</label>
+            <input type="checkbox" id="dibekukanKenaAudit" style="width:18px;height:18px;accent-color:var(--accent);">
+            <span id="dibekukanKenaAuditLabel" style="font-size:12.5px;font-weight:700;color:var(--muted);"></span>
+            <div class="cutoff-hint"><strong>OFF (default):</strong> santri Dibekukan dikecualikan dari audit hafalan harian, perkembangan santri, setoran tasmi', dan nilai ujian wajib &mdash; pengampu/pembina tidak ditagih untuk mereka. <strong>ON:</strong> santri Dibekukan ikut ditagih seperti santri aktif. Tidak memengaruhi audit absensi halaqoh/kelas/regu maupun 3 audit keanggotaan santri (yang punya pengaturan "santri dibekukan wajib&hellip;" tersendiri di kartunya).</div>
+          </div>
+
+          <div class="card cutoff-panel">
+            <label style="width:100%;">Jenis kelas siang yang diaudit</label>
+            <div id="kelasJenisOptions" style="display:flex;flex-wrap:wrap;gap:10px 16px;width:100%;"></div>
+            <button class="secondary" id="btnSaveKelasJenis" type="button">Simpan</button>
+            <div class="cutoff-hint">Kosongkan semua centang = <strong>semua jenis kelas siang diaudit</strong> (default). Kalau dicentang sebagian, HANYA kelas dengan jenis yang dicentang yang kena audit Absensi Kelas, Materi Silabus Kelas, Nilai Ujian Wajib, DAN dihitung ke aturan "Santri Aktif Tidak Tepat 3 Kelas Siang" &mdash; kelas jenis lain dilewati total oleh keempatnya (di halaman ini maupun "Kelola Audit Bawahan").</div>
+          </div>
+
           <div class="filters" id="filtersPanel">
             <label>
               Cari nama audit
@@ -211,6 +225,22 @@
     // pewarnaan biru, lalu label teks "(Penting)", akhirnya simbol saja).
     const AUDIT_NEW_KINDS = new Set(['akademikKelas', 'akademikHalaqoh', 'akademikRegu']);
 
+    // Sama persis dgn datalist #jenisKelasOptions di editKelas -- "" mewakili kelas yg
+    // kolom jenis-nya dikosongkan ("Tanpa keterangan jenis").
+    const KELAS_JENIS_OPTIONS = [
+      { value: '', label: 'Tanpa keterangan jenis' },
+      { value: 'Ekstrakurikuler', label: 'Ekstrakurikuler' },
+      { value: 'Kelas Pagi', label: 'Kelas Pagi' },
+      { value: 'Kelas Siang', label: 'Kelas Siang' },
+      { value: 'Bimbel', label: 'Bimbel' },
+      { value: 'Tahfizh', label: 'Tahfizh' },
+      { value: 'Tahsin', label: 'Tahsin' },
+      { value: 'Privat', label: 'Privat' },
+      { value: 'Kelas Online', label: 'Kelas Online' },
+      { value: 'Kelas Khusus', label: 'Kelas Khusus' },
+      { value: 'Kelas Hybrid', label: 'Kelas Hybrid' }
+    ];
+
     let auditSettings = {
       halaqohActive: true, halaqohBlocksJurnal: true,
       kelasActive: true, kelasBlocksJurnal: true,
@@ -225,6 +255,8 @@
       nilaiWajibActive: true, nilaiWajibBlocksJurnal: true,
       silabusActive: true, silabusBlocksJurnal: true,
       auditCutoffOffsetDays: 1,
+      dibekukanKenaAudit: false,
+      kelasJenisAudited: [],
       setBy: '', setAt: ''
     };
 
@@ -289,15 +321,59 @@
         showNotice('Nilai harus angka antara 0 dan 3650.', 'error');
         return;
       }
+      const btn = document.getElementById('btnSaveCutoffOffset'); btn.disabled = true;
       try {
         auditSettings = await apiPost({ action: 'audit.settings.set', audit_cutoff_offset_days: value });
         showNotice('Batas cutoff audit disimpan.');
         renderCutoffPanel();
-      } catch (e) { showNotice(e.message, 'error'); }
+      } catch (e) { showNotice(e.message, 'error'); } finally { btn.disabled = false; }
+    }
+
+    function renderDibekukanPanel() {
+      const manage = canManage();
+      const cb = document.getElementById('dibekukanKenaAudit');
+      const on = !!auditSettings.dibekukanKenaAudit;
+      cb.checked = on;
+      cb.disabled = !manage;
+      document.getElementById('dibekukanKenaAuditLabel').textContent = on ? '→ ikut ditagih seperti santri aktif' : '→ dikecualikan (default)';
+    }
+
+    async function saveDibekukanKenaAudit(checked) {
+      const cb = document.getElementById('dibekukanKenaAudit'); cb.disabled = true;
+      try {
+        auditSettings = await apiPost({ action: 'audit.settings.set', dibekukan_kena_audit: checked });
+        showNotice(checked ? 'Santri Dibekukan sekarang ikut kena audit per-santri.' : 'Santri Dibekukan dikecualikan dari audit per-santri.');
+        renderDibekukanPanel();
+      } catch (e) { showNotice(e.message, 'error'); renderDibekukanPanel(); }
+    }
+
+    function renderKelasJenisPanel() {
+      const manage = canManage();
+      const box = document.getElementById('kelasJenisOptions');
+      const checkedSet = new Set(auditSettings.kelasJenisAudited || []);
+      box.innerHTML = KELAS_JENIS_OPTIONS.map((opt, i) => `
+        <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:var(--ink);cursor:pointer;">
+          <input type="checkbox" class="chk-kelas-jenis" id="kelasJenis-${i}" value="${esc(opt.value)}" ${checkedSet.has(opt.value) ? 'checked' : ''} ${manage ? '' : 'disabled'} style="width:16px;height:16px;accent-color:var(--accent);">
+          ${esc(opt.label)}
+        </label>
+      `).join('');
+      document.getElementById('btnSaveKelasJenis').style.display = manage ? '' : 'none';
+    }
+
+    async function saveKelasJenisAudited() {
+      const checked = Array.from(document.querySelectorAll('.chk-kelas-jenis:checked')).map(c => c.value);
+      const btn = document.getElementById('btnSaveKelasJenis'); btn.disabled = true;
+      try {
+        auditSettings = await apiPost({ action: 'audit.settings.set', kelas_jenis_audited: checked });
+        showNotice(checked.length ? 'Jenis kelas yang diaudit disimpan.' : 'Disimpan: semua jenis kelas siang diaudit.');
+        renderKelasJenisPanel();
+      } catch (e) { showNotice(e.message, 'error'); renderKelasJenisPanel(); } finally { btn.disabled = false; }
     }
 
     function renderAuditList() {
       renderCutoffPanel();
+      renderDibekukanPanel();
+      renderKelasJenisPanel();
       const list = document.getElementById('auditList');
       const manage = canManage();
       const filtered = getFilteredAuditKinds();
@@ -342,10 +418,10 @@
           </div>` : ''}
         </div>`;
       }).join('');
-      list.querySelectorAll('.btn-toggle-audit').forEach(b => b.addEventListener('click', () => toggleAudit(b.dataset.key, b.dataset.active === '1')));
-      list.querySelectorAll('.btn-save-number').forEach(b => b.addEventListener('click', () => saveNumberField(b.dataset.key)));
-      list.querySelectorAll('.chk-blocks-jurnal').forEach(c => c.addEventListener('change', () => toggleBlocksJurnal(c.dataset.key, c.checked)));
-      list.querySelectorAll('.chk-bool-field').forEach(c => c.addEventListener('change', () => toggleBoolField(c.dataset.key, c.checked)));
+      list.querySelectorAll('.btn-toggle-audit').forEach(b => b.addEventListener('click', () => toggleAudit(b.dataset.key, b.dataset.active === '1', b)));
+      list.querySelectorAll('.btn-save-number').forEach(b => b.addEventListener('click', () => saveNumberField(b.dataset.key, b)));
+      list.querySelectorAll('.chk-blocks-jurnal').forEach(c => c.addEventListener('change', () => toggleBlocksJurnal(c.dataset.key, c.checked, c)));
+      list.querySelectorAll('.chk-bool-field').forEach(c => c.addEventListener('change', () => toggleBoolField(c.dataset.key, c.checked, c)));
     }
 
     async function loadAuditSettings() {
@@ -353,19 +429,21 @@
       renderAuditList();
     }
 
-    async function toggleAudit(key, active) {
+    async function toggleAudit(key, active, btn) {
       const kind = AUDIT_KINDS.find(k => k.key === key);
       if (!kind) return;
+      if (btn) btn.disabled = true;
       try {
         auditSettings = await apiPost({ action: 'audit.settings.set', [kind.payloadKey]: !active });
         showNotice(active ? `${kind.title} dinonaktifkan.` : `${kind.title} diaktifkan.`);
         renderAuditList();
-      } catch (e) { showNotice(e.message, 'error'); }
+      } catch (e) { showNotice(e.message, 'error'); if (btn) btn.disabled = false; }
     }
 
-    async function toggleBlocksJurnal(key, checked) {
+    async function toggleBlocksJurnal(key, checked, cb) {
       const kind = AUDIT_KINDS.find(k => k.key === key);
       if (!kind) return;
+      if (cb) cb.disabled = true;
       try {
         auditSettings = await apiPost({ action: 'audit.settings.set', [kind.blocksJurnalPayloadKey]: checked });
         showNotice(checked ? `${kind.title}: sekarang memblokir akses Jurnal SDM kalau ada item.` : `${kind.title}: tidak lagi memblokir akses Jurnal SDM.`);
@@ -373,9 +451,10 @@
       } catch (e) { showNotice(e.message, 'error'); renderAuditList(); }
     }
 
-    async function toggleBoolField(key, checked) {
+    async function toggleBoolField(key, checked, cb) {
       const kind = AUDIT_KINDS.find(k => k.key === key);
       if (!kind || !kind.boolField) return;
+      if (cb) cb.disabled = true;
       try {
         auditSettings = await apiPost({ action: 'audit.settings.set', [kind.boolField.payloadKey]: checked });
         showNotice(`${kind.title}: pengaturan disimpan.`);
@@ -383,7 +462,7 @@
       } catch (e) { showNotice(e.message, 'error'); renderAuditList(); }
     }
 
-    async function saveNumberField(key) {
+    async function saveNumberField(key, btn) {
       const kind = AUDIT_KINDS.find(k => k.key === key);
       if (!kind || !kind.numberField) return;
       const input = document.getElementById(`num-${key}`);
@@ -392,11 +471,12 @@
         showNotice(`Nilai harus angka antara ${kind.numberField.min} dan ${kind.numberField.max}.`, 'error');
         return;
       }
+      if (btn) btn.disabled = true;
       try {
         auditSettings = await apiPost({ action: 'audit.settings.set', [kind.numberField.payloadKey]: value });
         showNotice(`${kind.title}: pengaturan disimpan.`);
         renderAuditList();
-      } catch (e) { showNotice(e.message, 'error'); }
+      } catch (e) { showNotice(e.message, 'error'); if (btn) btn.disabled = false; }
     }
 
     function applyFilterAndReset(fn) {
@@ -405,9 +485,11 @@
 
     function initFilters() {
       document.getElementById('btnSaveCutoffOffset').addEventListener('click', saveCutoffOffset);
+      document.getElementById('dibekukanKenaAudit').addEventListener('change', e => saveDibekukanKenaAudit(e.target.checked));
+      document.getElementById('btnSaveKelasJenis').addEventListener('click', saveKelasJenisAudited);
       const targetSelect = document.getElementById('filterTarget');
       targetSelect.insertAdjacentHTML('beforeend', AUDIT_TARGETS.map(t => `<option value="${esc(t)}">${esc(t)}</option>`).join(''));
-      document.getElementById('filterNama').addEventListener('input', applyFilterAndReset(e => { auditFilters.nama = e.target.value; }));
+      document.getElementById('filterNama').addEventListener('input', PSUI.debounce(applyFilterAndReset(e => { auditFilters.nama = e.target.value; }), PSUI.AUTOSAVE_DEBOUNCE_MS));
       targetSelect.addEventListener('change', applyFilterAndReset(e => { auditFilters.target = e.target.value; }));
       document.getElementById('filterStatus').addEventListener('change', applyFilterAndReset(e => { auditFilters.status = e.target.value; }));
       document.getElementById('filterKategori').addEventListener('change', applyFilterAndReset(e => { auditFilters.kategori = e.target.value; }));

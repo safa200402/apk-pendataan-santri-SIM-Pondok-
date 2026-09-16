@@ -369,9 +369,10 @@
       <div class="duplicate-dialog-head ps-dialog-header">
         <div>
           <h3 class="dialog-title">Atur Nilai Wajib</h3>
-          <p class="dialog-sub" id="nwDlgSub">Berlaku untuk SEMUA kelas. Tetapkan nama nilai yang wajib ada + tanggal + batas terlambat pengumpulan.</p>
+          <p class="dialog-sub" id="nwDlgSub">Berlaku untuk SEMUA kelas pada tahun ajaran yang dipilih di bawah. Tetapkan nama nilai yang wajib ada + tanggal + batas terlambat pengumpulan.</p>
         </div>
       </div>
+      <label>Tahun ajaran <select id="nwTahunSelect"></select></label>
       <div id="nwList" style="max-height:200px;overflow:auto;border:1px solid rgba(0,0,0,.1);border-radius:8px;padding:8px;"></div>
       <div class="row-fields">
         <label>Nama nilai wajib <input type="text" id="nwJenis" placeholder="mis. ujian-1, ujian-2, uas, akhlak, absensi"></label>
@@ -386,7 +387,7 @@
       </div>
     </div>
   </dialog>
-  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+  <script src="../../vendor/xlsx/xlsx.full.min.js"></script>
   <script src="../../shared-access.js"></script>
   <script src="../../shared-nav.js"></script>
   <script src="../../shared-shell.js"></script>
@@ -427,6 +428,7 @@
       pageSize: 15,
       tahunList: [],
       selectedTahun: '',
+      nwSelectedTa: '',
       searchQuery: '',
       statusFilter: 'active',
       genderFilter: '',
@@ -659,6 +661,7 @@
         state.tahunList = data.items || [];
         const activeTa = state.tahunList.find(t => t.isAktif) || state.tahunList[0];
         state.selectedTahun = activeTa?.id || '';
+        if (!state.nwSelectedTa) state.nwSelectedTa = activeTa?.id || '';
         const sel = document.getElementById('tahunSelect');
         sel.innerHTML = `<option value="">— Semua tahun —</option>` + state.tahunList.map(t =>
           `<option value="${t.id}" ${t.id === state.selectedTahun ? 'selected' : ''}>${t.namaDisplay || t.nama || t.id}</option>`
@@ -1166,6 +1169,8 @@
 
     async function executeDeleteSession(id) {
       const dlg = document.getElementById('deleteConfirmDlg');
+      const btn = document.getElementById('deleteConfirmBtn');
+      btn.disabled = true;
       try {
         await api('nilaiup.session.delete', { id }, 'POST');
         dlg.close();
@@ -1173,6 +1178,7 @@
         await reloadNilai();
       } catch (err) {
         showNotice(err.message || 'Gagal menghapus.', 'error');
+        btn.disabled = false;
       }
     }
 
@@ -1206,6 +1212,8 @@
       const nd = state.nilaiData;
       if (!nd) { showNotice('Buka kelas terlebih dahulu.', 'error'); return; }
       const { kelas, upSessions, fixedColumns } = nd;
+      const uploadBtn = document.getElementById('uploadExcelBtn');
+      if (uploadBtn) uploadBtn.disabled = true;
 
       showNotice('Membaca file...', '');
       try {
@@ -1267,6 +1275,8 @@
         showNotice(`${saved} kolom nilai berhasil diimpor.`, 'success');
       } catch (err) {
         showNotice(err.message || 'Gagal membaca file.', 'error');
+      } finally {
+        if (uploadBtn) uploadBtn.disabled = false;
       }
     }
 
@@ -1340,23 +1350,34 @@
       return `<span class="nw-badge ${s.cls}">${s.icon} ${s.text}</span>`;
     }
 
-    async function loadNilaiWajibStatus() {
+    function nwActiveTaId() {
+      const t = (state.tahunList || []).find(x => x.isAktif) || (state.tahunList || [])[0];
+      return t ? t.id : '';
+    }
+    function nwCurrentTaId() {
+      return state.nwSelectedTa || nwActiveTaId();
+    }
+
+    async function loadNilaiWajibStatus(taId) {
       try {
-        const data = await nwApi('list');
+        const ta = taId || nwCurrentTaId();
+        const data = await nwApi('list', ta ? { taId: ta } : {});
         const items = data.items || [];
         const toolbar = document.getElementById('nilaiWajibToolbar');
         const summaryEl = document.getElementById('nilaiWajibSummary');
         toolbar.style.display = state.canEditNilai ? 'flex' : (items.length ? 'flex' : 'none');
-        if (!items.length) { summaryEl.innerHTML = '<em>Tidak ada nilai wajib diatur.</em>'; return items; }
+        const taLabel = data.tahunAjaran?.nama ? ` <span style="opacity:.6">· TA ${data.tahunAjaran.nama}</span>` : '';
+        if (!items.length) { summaryEl.innerHTML = '<em>Tidak ada nilai wajib diatur.</em>' + taLabel; return items; }
         const lengkap = items.filter(i => i.completeness?.status === 'lengkap').length;
         const belum = items.filter(i => i.completeness?.status === 'belum').length;
         const terlambat = items.filter(i => i.completeness?.status === 'terlambat').length;
-        summaryEl.innerHTML = `📊 ${lengkap} lengkap · ${belum} belum · <span style="color:#c0392b;font-weight:700">${terlambat} terlambat</span>`;
+        summaryEl.innerHTML = `📊 ${lengkap} lengkap · ${belum} belum · <span style="color:#c0392b;font-weight:700">${terlambat} terlambat</span>` + taLabel;
         return items;
       } catch (e) { return []; }
     }
 
     let nwEditingId = null;
+    let nwTaSelectBound = false;
 
     function resetNilaiWajibForm() {
       nwEditingId = null;
@@ -1366,14 +1387,40 @@
       document.querySelectorAll('.nw-item.is-editing').forEach(el => el.classList.remove('is-editing'));
     }
 
+    function nwPopulateTaSelect() {
+      const sel = document.getElementById('nwTahunSelect');
+      if (!sel) return;
+      const list = state.tahunList || [];
+      if (!state.nwSelectedTa || !list.some(t => t.id === state.nwSelectedTa)) {
+        state.nwSelectedTa = nwActiveTaId() || (list[0] ? list[0].id : '');
+      }
+      sel.innerHTML = list.map(t =>
+        `<option value="${t.id}">${(t.namaDisplay || t.nama || t.id)}${t.isAktif ? ' (aktif)' : ''}</option>`
+      ).join('');
+      sel.value = state.nwSelectedTa;
+      if (!nwTaSelectBound) {
+        nwTaSelectBound = true;
+        sel.addEventListener('change', () => {
+          state.nwSelectedTa = sel.value;
+          resetNilaiWajibForm();
+          renderNilaiWajibList();
+        });
+      }
+    }
+
     async function openNilaiWajibDialog() {
       const dlg = document.getElementById('nilaiWajibDlg');
+      resetNilaiWajibForm();
+      nwPopulateTaSelect();
+      if (!dlg.open) dlg.showModal();
+      await renderNilaiWajibList();
+    }
+
+    async function renderNilaiWajibList() {
       const listEl = document.getElementById('nwList');
       listEl.innerHTML = '<p style="opacity:.5;padding:8px">Memuat...</p>';
-      resetNilaiWajibForm();
-      dlg.showModal();
-      const items = await loadNilaiWajibStatus();
-      if (!items.length) { listEl.innerHTML = '<p style="opacity:.5;padding:8px">Belum ada aturan nilai wajib. Tambahkan di bawah.</p>'; return; }
+      const items = await loadNilaiWajibStatus(nwCurrentTaId());
+      if (!items.length) { listEl.innerHTML = '<p style="opacity:.5;padding:8px">Belum ada aturan nilai wajib untuk tahun ajaran ini. Tambahkan di bawah.</p>'; return; }
       listEl.innerHTML = items.map(it => {
         const c = it.completeness || {};
         const displayName = it.jenis === 'ujian' ? `Ujian-${it.sesi || 1}` : (it.jenis.charAt(0).toUpperCase() + it.jenis.slice(1));
@@ -1389,8 +1436,8 @@
         </div>`;
       }).join('');
       listEl.querySelectorAll('[data-nw-del]').forEach(b => b.addEventListener('click', async () => {
-        if (!confirm('Hapus aturan nilai wajib ini? Berlaku untuk semua kelas.')) return;
-        try { await nwApi('delete', { id: b.dataset.nwDel }, 'POST'); await openNilaiWajibDialog(); }
+        if (!confirm('Hapus aturan nilai wajib ini? Berlaku untuk semua kelas di tahun ajaran ini.')) return;
+        try { await nwApi('delete', { id: b.dataset.nwDel }, 'POST'); resetNilaiWajibForm(); await renderNilaiWajibList(); }
         catch (e) { showNotice(e.message, 'error'); }
       }));
       listEl.querySelectorAll('[data-nw-edit]').forEach(b => b.addEventListener('click', () => {
@@ -1416,16 +1463,20 @@
       const tanggal = document.getElementById('nwTanggal').value;
       const maxTerlambat = document.getElementById('nwMax').value;
       const catatan = document.getElementById('nwCatatan').value.trim();
+      const taId = nwCurrentTaId();
+      const wasEditing = !!nwEditingId;
+      if (!taId) { showNotice('Pilih tahun ajaran dulu.', 'error'); return; }
       if (!jenis) { showNotice('Nama nilai wajib harus diisi.', 'error'); return; }
       if (!tanggal) { showNotice('Tanggal ujian wajib diisi.', 'error'); return; }
       if (!maxTerlambat) { showNotice('Tanggal maksimal terlambat wajib diisi.', 'error'); return; }
       btn.disabled = true; btn.textContent = 'Menyimpan...';
       try {
-        const payload = { jenis, tanggal, maxTerlambat, catatan };
+        const payload = { jenis, tanggal, maxTerlambat, catatan, taId };
         if (nwEditingId) payload.id = nwEditingId;
         await nwApi('save', payload, 'POST');
-        showNotice(nwEditingId ? 'Aturan nilai wajib diperbarui.' : 'Aturan nilai wajib disimpan.', 'success');
-        await openNilaiWajibDialog();
+        showNotice(wasEditing ? 'Aturan nilai wajib diperbarui.' : 'Aturan nilai wajib disimpan.', 'success');
+        resetNilaiWajibForm();
+        await renderNilaiWajibList();
       } catch (e) { showNotice(e.message, 'error'); }
       finally { btn.disabled = false; btn.textContent = nwEditingId ? 'Simpan Perubahan' : 'Simpan Aturan'; }
     }
@@ -1499,11 +1550,11 @@
         const totalPages = Math.ceil(filtered.length / state.pageSize);
         if (p >= 1 && p <= totalPages) { state.page = p; renderDashboard(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
       });
-      document.getElementById('searchInput').addEventListener('input', function () {
+      document.getElementById('searchInput').addEventListener('input', PSUI.debounce(function () {
         state.searchQuery = this.value.trim();
         state.page = 1;
         renderDashboard();
-      });
+      }, PSUI.AUTOSAVE_DEBOUNCE_MS));
       document.getElementById('statusFilter').addEventListener('change', function () {
         state.statusFilter = this.value;
         state.page = 1;

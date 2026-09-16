@@ -739,7 +739,7 @@
       document.getElementById(targetId).innerHTML = items.map((item, index) => `
         <label data-item-index="${index}">
           <input type="checkbox" value="${item.id}" ${selected.has(item.id) ? 'checked' : ''}>
-          <span>${escapeHtml(item.name)}${checklistMetaHtml(item)}</span>
+          <span>${escapeHtml(item.name)}${checklistMetaHtml(item)}</span>${item.namaLain ? `<span aria-hidden="true" style="display:none">${escapeHtml(item.namaLain)}</span>` : ''}
         </label>
       `).join('');
       updateChecklistHint(targetId);
@@ -957,16 +957,18 @@
       };
     }
 
-    async function handleBulkToggle(active) {
+    async function handleBulkToggle(active, btn) {
       const ids = getSelectedIds();
       if (!ids.length) return showNotice('Pilih minimal satu halaqoh tasmi\'.', 'error');
       if (!confirm(`${active ? 'Aktifkan' : 'Nonaktifkan'} ${ids.length} halaqoh tasmi' terpilih?`)) return;
+      if (btn) btn.disabled = true;
       try {
         await api('bulk.toggle', { sheetKey: DATASET_KEY, ids, active }, 'POST');
         clearSelectedIds();
         await loadData();
       } catch (error) {
         showNotice(error.message || 'Gagal memproses aksi massal.', 'error');
+        if (btn) btn.disabled = false;
       }
     }
 
@@ -1337,6 +1339,50 @@
       document.getElementById('dialog').showModal();
     }
 
+    // Peringatan santri dibekukan di roster: dialog overlay konfirmasi SEBELUM simpan.
+    // Santri NONAKTIF tidak dicek di sini -- endpoint `references` cuma mengirim santri
+    // aktif + dibekukan, jadi santri nonaktif tak pernah muncul di checklist & otomatis
+    // terlepas dari roster saat simpan (keputusan user 2026-08-31).
+    function pickFrozenSantriFromChecklist(santriIds) {
+      const picked = new Set(santriIds || []);
+      return (state.refs.santri || []).filter(s => picked.has(s.id) && s.statusLabel === 'Dibekukan');
+    }
+
+    function confirmFrozenSantriBeforeSave(frozenList) {
+      return new Promise(resolve => {
+        let dlg = document.getElementById('frozenSantriDialog');
+        if (!dlg) {
+          dlg = document.createElement('dialog');
+          dlg.id = 'frozenSantriDialog';
+          // data-no-history: dialog konfirmasi transien yang dibuka DI ATAS dialog edit --
+          // jangan ikut mekanisme history dialog bersama (shared-ui.js), kalau tidak klik
+          // Batal akan men-history.back() dan menutup dialog edit di belakangnya juga.
+          dlg.setAttribute('data-no-history', 'true');
+          dlg.style.cssText = 'border:none;border-radius:16px;padding:0;max-width:460px;width:94vw;box-shadow:0 20px 60px rgba(0,0,0,0.3);color:#3a2f25;';
+          document.body.appendChild(dlg);
+        }
+        const rows = frozenList.map(s => `<li>${escapeHtml(s.name)}${s.noInduk ? ` <span style="color:#8a7f72;">&middot; NIS ${escapeHtml(s.noInduk)}</span>` : ''}</li>`).join('');
+        dlg.innerHTML = `<div style="padding:22px;display:grid;gap:12px;font-family:inherit;">
+          <h3 style="margin:0;color:var(--warning,#b26a00);">Ada santri dibekukan</h3>
+          <div style="font-size:13.5px;line-height:1.6;">
+            <strong>${frozenList.length}</strong> santri berstatus <strong>Dibekukan</strong> ikut tercentang di halaqoh tasmi&#39; ini:
+            <ul style="margin:8px 0 0;padding-left:20px;">${rows}</ul>
+            <br>Santri dibekukan boleh tetap berada di kelompok. Lanjutkan simpan?
+          </div>
+          <div style="display:flex;gap:10px;justify-content:flex-end;">
+            <button class="secondary" type="button" id="frozenSantriCancel">Batal</button>
+            <button class="primary" type="button" id="frozenSantriOk">Ya, simpan tetap</button>
+          </div>
+        </div>`;
+        dlg.showModal();
+        let settled = false;
+        const finish = (val) => { if (settled) return; settled = true; try { dlg.close(); } catch (e) {} resolve(val); };
+        dlg.querySelector('#frozenSantriCancel').onclick = () => finish(false);
+        dlg.querySelector('#frozenSantriOk').onclick = () => finish(true);
+        dlg.addEventListener('close', () => finish(false), { once: true });
+      });
+    }
+
     async function saveForm(event) {
       event.preventDefault();
       const form = event.currentTarget;
@@ -1357,30 +1403,38 @@
         document.getElementById('dialogTahunAjaran').focus();
         return;
       }
+      const frozenPicked = pickFrozenSantriFromChecklist(record.santriIds);
+      if (frozenPicked.length && !(await confirmFrozenSantriBeforeSave(frozenPicked))) return;
+      const btn = event.submitter;
+      if (btn) btn.disabled = true;
       try {
         await api('halaqohTasmi.save', { record }, 'POST');
         document.getElementById('dialog').close();
         await loadData();
       } catch (error) {
         showNotice(error.message || 'Gagal menyimpan halaqoh tasmi\'.', 'error');
+      } finally {
+        if (btn) btn.disabled = false;
       }
     }
 
-    async function toggleItem(id) {
+    async function toggleItem(id, btn) {
       const item = state.items.find(entry => entry.id === id);
       if (!item) return;
       const nextActive = !item.active;
       const yes = confirm(`${nextActive ? 'Aktifkan' : 'Nonaktifkan'} halaqoh tasmi' "${item.name}"?`);
       if (!yes) return;
+      if (btn) btn.disabled = true;
       try {
         await api('halaqohTasmi.toggle', { id, active: nextActive }, 'POST');
         await loadData();
       } catch (error) {
         showNotice(error.message || 'Gagal mengubah status halaqoh tasmi\'.', 'error');
+        if (btn) btn.disabled = false;
       }
     }
 
-    async function deleteItem(id) {
+    async function deleteItem(id, btn) {
       if (!canDeleteRecords()) {
         showNotice('Hanya Super Admin yang bisa menghapus halaqoh tasmi\'.', 'error');
         return;
@@ -1389,16 +1443,18 @@
       if (!item) return;
       const yes = confirm(`Hapus halaqoh tasmi' "${item.name}"? Data dipindah ke sampah, masih bisa dipulihkan Super Admin selama belum dihapus permanen.`);
       if (!yes) return;
+      if (btn) btn.disabled = true;
       try {
         await api('halaqohTasmi.delete', { id }, 'POST');
         showNotice(`Halaqoh tasmi' "${item.name}" dipindahkan ke sampah.`, 'info');
         await loadData();
       } catch (error) {
         showNotice(error.message || 'Gagal menghapus halaqoh tasmi\'.', 'error');
+        if (btn) btn.disabled = false;
       }
     }
 
-    async function restoreItem(id) {
+    async function restoreItem(id, btn) {
       if (!canDeleteRecords()) {
         showNotice('Hanya Super Admin (dengan scope Super Admin) yang bisa memulihkan halaqoh tasmi\'.', 'error');
         return;
@@ -1407,12 +1463,14 @@
       if (!item) return;
       const yes = confirm(`Pulihkan halaqoh tasmi' "${item.name}" dari sampah?`);
       if (!yes) return;
+      if (btn) btn.disabled = true;
       try {
         await api('halaqohTasmi.restore', { id }, 'POST');
         showNotice(`Halaqoh tasmi' "${item.name}" dipulihkan.`, 'info');
         await loadData();
       } catch (error) {
         showNotice(error.message || 'Gagal memulihkan halaqoh tasmi\'.', 'error');
+        if (btn) btn.disabled = false;
       }
     }
 
@@ -1446,7 +1504,7 @@
       });
       document.getElementById('toggleExpandButton').addEventListener('click', toggleExpandedList);
       document.getElementById('tahunAjaranFilter').addEventListener('change', event => { state.page = 1; state.tahunAjaranFilter = event.target.value; loadData(); });
-      document.getElementById('searchInput').addEventListener('input', () => { state.page = 1; loadData(); });
+      document.getElementById('searchInput').addEventListener('input', PSUI.debounce(() => { state.page = 1; loadData(); }, PSUI.AUTOSAVE_DEBOUNCE_MS));
       document.getElementById('statusFilter').addEventListener('change', () => { state.page = 1; loadData(); });
       document.getElementById('deletedFilter').addEventListener('change', () => { state.page = 1; loadData(); });
       document.getElementById('genderFilter').addEventListener('change', () => { state.page = 1; loadData(); });
@@ -1488,15 +1546,15 @@
         return;
       }
       if (toggleId) {
-        toggleItem(toggleId);
+        toggleItem(toggleId, actionButton);
         return;
       }
       if (deleteId) {
-        deleteItem(deleteId);
+        deleteItem(deleteId, actionButton);
         return;
       }
       if (restoreId) {
-        restoreItem(restoreId);
+        restoreItem(restoreId, actionButton);
         return;
       }
       if (purgeId) {
@@ -1523,8 +1581,8 @@
       const { id } = event.target;
       if (id === 'selectVisibleButton') selectVisibleItems();
       if (id === 'clearSelectedButton') clearSelectedIds();
-      if (id === 'bulkActivateButton') handleBulkToggle(true);
-      if (id === 'bulkDeactivateButton') handleBulkToggle(false);
+      if (id === 'bulkActivateButton') handleBulkToggle(true, event.target);
+      if (id === 'bulkDeactivateButton') handleBulkToggle(false, event.target);
       if (id === 'bulkTahunAjaranButton') bulkSetTahunAjaran();
       if (id === 'bulkDeleteButton') handleBulkDelete();
     });

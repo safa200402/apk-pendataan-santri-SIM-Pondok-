@@ -8,7 +8,7 @@
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="../../shared-ui.css">
   <link rel="stylesheet" href="../../shared-shell.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+  <link rel="stylesheet" href="../../vendor/fontawesome/css/all.min.css">
   <script src="../../shared-ui.js"></script>
   <title>Deskripsi Raport</title>
   <style>
@@ -269,11 +269,13 @@
     async function saveDeskripsi() {
       if (!canManageDeskripsiScoped()) { dlgNotice('dlgNotice', 'Mudir hanya bisa melihat deskripsi santri, tidak bisa menyimpan perubahan.', 'error'); return; }
       const teks = document.getElementById('dsText').value.trim();
+      const btn = document.getElementById('dsSaveBtn');
+      btn.disabled = true;
       try {
         await api('deskripsi.save', { santriId: state.activeSantri.id, reguId: state.activeRegu.id, tahunAjaranId: state.tahunAjaranId, teks }, 'POST');
         state.activeSantri.teks = teks;
         dlgNotice('dlgNotice', 'Deskripsi disimpan.', 'success');
-      } catch (e) { dlgNotice('dlgNotice', e.message, 'error'); }
+      } catch (e) { dlgNotice('dlgNotice', e.message, 'error'); } finally { btn.disabled = false; }
     }
 
     /* ── Templates ── */
@@ -289,7 +291,7 @@
         <div class="tpl-row">
           <div class="th"><strong>${escapeHtml(t.judul)}</strong>
             <span><button class="ico-btn" onclick="editTpl('${escapeHtml(t.id)}')"><i class="fa-solid fa-pen"></i></button>
-            <button class="ico-btn del" onclick="deleteTpl('${escapeHtml(t.id)}')"><i class="fa-solid fa-trash"></i></button></span>
+            <button class="ico-btn del" onclick="deleteTpl('${escapeHtml(t.id)}', this)"><i class="fa-solid fa-trash"></i></button></span>
           </div>
           <div class="tb">${escapeHtml(t.teks)}</div>
         </div>`).join('');
@@ -302,13 +304,16 @@
       const judul = document.getElementById('tplJudul').value.trim();
       const teks = document.getElementById('tplTeks').value.trim();
       if (!judul || !teks) { dlgNotice('tplNotice', 'Judul & isi wajib diisi.', 'error'); return; }
+      const btn = document.getElementById('tplSaveBtn');
+      btn.disabled = true;
       try { await api('deskripsi.template.save', { id, judul, teks }, 'POST'); await loadTemplates(); renderTplList(); resetTplForm(); dlgNotice('tplNotice', 'Template disimpan.', 'success'); }
-      catch (e) { dlgNotice('tplNotice', e.message, 'error'); }
+      catch (e) { dlgNotice('tplNotice', e.message, 'error'); } finally { btn.disabled = false; }
     }
-    async function deleteTpl(id) {
+    async function deleteTpl(id, btn) {
       if (!canManageDeskripsiTemplateScoped()) { dlgNotice('tplNotice', 'Mudir hanya bisa melihat template deskripsi, tidak bisa menghapus.', 'error'); return; }
       if (!confirm('Hapus template ini?')) return;
-      try { await api('deskripsi.template.delete', { id }, 'POST'); await loadTemplates(); renderTplList(); } catch (e) { dlgNotice('tplNotice', e.message, 'error'); }
+      if (btn) btn.disabled = true;
+      try { await api('deskripsi.template.delete', { id }, 'POST'); await loadTemplates(); renderTplList(); } catch (e) { dlgNotice('tplNotice', e.message, 'error'); if (btn) btn.disabled = false; }
     }
 
     function renderTa() {

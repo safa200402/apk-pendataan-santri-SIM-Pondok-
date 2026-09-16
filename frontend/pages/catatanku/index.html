@@ -1,0 +1,2146 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#9e2f22">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="../../shared-ui.css">
+  <script src="../../shared-ui.js"></script>
+  <title>Dokumen &amp; Catatan</title>
+  <link rel="stylesheet" href="../../shared-shell.css">
+  <link rel="stylesheet" href="../../vendor/quill/quill.snow.css">
+  <script src="../../vendor/quill/quill.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700&display=swap');
+    :root {
+      --paper: #f6efe0;
+      --ink: #4d4034;
+      --muted: #7b6a58;
+      --line: rgba(91, 73, 57, 0.15);
+      --accent: #b97650;
+      --success: #4f7a52;
+      --danger: #a55a52;
+      --warning: #b58439;
+      --shadow: 0 18px 45px rgba(87, 67, 51, 0.18);
+      --radius: 22px;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; }
+    .panel { padding: 22px; }
+    h1, h2, h3 { margin: 0 0 10px; }
+    h2, h3 { text-transform: uppercase; }
+    p { margin: 0; line-height: 1.6; }
+    /* Semua link di halaman ini tanpa garis bawah (termasuk di isi dokumen Quill & saat hover).
+       !important supaya menang atas quill.snow.css (.ql-editor a) & default browser. */
+    a, a:hover, a:focus, a:visited { text-decoration: none !important; }
+    button, input, select, textarea { font: inherit; }
+    button { padding: 11px 16px; font-weight: 700; cursor: pointer; border-radius: 12px; }
+    input, select, textarea { width: 100%; padding: 12px 13px; outline: none; border-radius: 12px; }
+    label { display: grid; gap: 6px; font-size: 13px; font-weight: 600; }
+
+    .section-head { margin-bottom: 4px; }
+    .section-head p { color: var(--muted); font-size: 13.5px; }
+
+    .toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; align-items: center; }
+    .toolbar .grow { flex: 1; min-width: 180px; }
+
+    /* Tabs */
+    .doc-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; justify-content: center; }
+    .doc-tab {
+      padding: 8px 15px; font-size: 12.5px; font-weight: 700; border-radius: 999px;
+      border: 1.6px solid var(--line); background: rgba(0,0,0,0.03); color: var(--ink);
+      text-transform: none; letter-spacing: 0.01em;
+    }
+    .doc-tab.is-active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+    /* Card list */
+    .doc-list { display: grid; gap: 12px; margin-top: 18px; }
+    .paging-host { display: grid; gap: 8px; margin: 16px 0; }
+    .page-center { display: grid; gap: 8px; justify-items: center; }
+    .page-numbers { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+    .page-summary { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+    /* Kartu dokumen niru struktur & tampilan kartu santri di daftarSantri (class "card
+       minimal-list-card" -- border/shadow/radius/warna & layout head+detail datang dari
+       shared-ui.css). Sisanya (chip warna, excerpt) tetap dipakai lokal di sini. */
+    .minimal-list-card-main { cursor: pointer; }
+    .doc-excerpt { color: var(--muted); font-size: 13px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
+    #descInput { resize: vertical; min-height: 96px; }
+    .doc-chip {
+      display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 999px;
+      background: rgba(91,73,57,0.09); font-weight: 700; font-size: 11.5px; color: var(--muted);
+    }
+    .doc-chip.owner { background: rgba(79,122,82,0.16); color: #3c6340; }
+    .doc-chip.editable { background: rgba(185,118,80,0.18); color: #8a4a2c; }
+    .doc-chip.view { background: rgba(78,143,192,0.16); color: #2f6a8f; }
+    .doc-chip.shared { background: rgba(139,100,194,0.16); color: #5a3ea0; }
+    .doc-chip.tabel { background: rgba(94,140,90,0.18); color: #3c6340; }
+    /* Warna kartu dibedakan per jenis dokumen: dokumen teks biasa (quill) biru muda,
+       dokumen tabel hijau -- niru pola warna gender di kartu santri (row-male/row-female). */
+    .minimal-list-card.doc-type-quill { background: #ddeeff; border-color: rgba(70,130,180,0.25); }
+    .minimal-list-card.doc-type-table { background: #dcf3dc; border-color: rgba(94,140,90,0.35); }
+
+    .empty-state { padding: 40px 16px; text-align: center; color: var(--muted); font-size: 14px; line-height: 1.7; }
+    .trash-note {
+      margin: 0 0 12px; padding: 9px 13px; border-radius: 10px; font-size: 12.5px; line-height: 1.6;
+      color: #8a4a2c; background: rgba(185,118,80,0.12); border: 1px solid rgba(185,118,80,0.28);
+    }
+    .doc-chip.expiry { background: rgba(165,90,82,0.15); color: var(--danger); }
+
+    /* Notice bar */
+    section.notice { display: none; }
+
+    /* ============ Editor dialog ============ */
+    #editorDialog.ps-floating-dialog {
+      /* JANGAN lebih tinggi dari viewport: dialog modal di-tengah-kan, jadi kalau > 100vh
+         bagian atasnya (topbar + toolbar Quill) kepotong di atas layar & tak bisa di-scroll balik. */
+      width: 125vw !important; min-width: 125vw !important; max-width: 125vw !important;
+      height: 125vh !important; min-height: 125vh !important; max-height: 125vh !important;
+      inset: 0 !important;
+      margin: auto !important;
+      padding: 0 !important;
+      border: 0 !important;
+      border-radius: 14px;
+      background: #fffdf6;
+      overflow: hidden;
+      box-sizing: border-box;
+    }
+    @media (max-width: 640px) {
+      #editorDialog.ps-floating-dialog {
+        width: 100vw !important;
+        min-width: 97% !important;
+        max-width: 100vw !important;
+        height: 100vh !important;
+        min-height: 100vh !important;
+        max-height: 100vh !important;
+        height: 103vh !important;
+        min-height: 121vh !important;
+        max-height: 100dvh !important;
+        border-radius: 0;
+      }
+    }
+    .editor-shell { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+    .editor-topbar {
+      display: flex; align-items: center; gap: 10px; padding: 12px 16px;
+      border-bottom: 1px solid var(--line); background: rgba(246,238,222,0.7); flex-wrap: wrap;
+    }
+    .editor-title-input {
+      flex: 1; min-width: 160px; border: 1px solid transparent; background: transparent;
+      font-family: 'Playfair Display', Georgia, serif; font-size: 19px; font-weight: 700; padding: 6px 8px;
+    }
+    .editor-title-input:focus { border-color: var(--line); background: #fff; border-radius: 10px; }
+    .editor-title-input:disabled { color: var(--ink); opacity: 1; }
+    .editor-status {
+      font-size: 11.5px; font-weight: 700; color: var(--muted); white-space: nowrap;
+      padding: 5px 10px; border-radius: 999px; background: rgba(91,73,57,0.08); cursor: default;
+    }
+    .editor-status.saving { color: var(--warning); }
+    .editor-status.pending { color: var(--muted); }
+    .editor-status.saved { color: var(--success); }
+    .editor-status.failed { color: var(--danger); background: rgba(165,90,82,0.14); cursor: pointer; }
+    .editor-topbar-actions { display: flex; gap: 7px; flex-wrap: wrap; }
+    .editor-topbar-actions button {
+      padding: 8px 13px; font-size: 12px; border-radius: 10px;
+      border: 1.4px solid var(--line); background: rgba(255,255,255,0.75); color: var(--ink);
+    }
+    .editor-topbar-actions button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+    .editor-readonly-banner {
+      padding: 8px 16px; font-size: 12px; font-weight: 700; color: #2f6a8f;
+      background: rgba(78,143,192,0.14); border-bottom: 1px solid var(--line);
+    }
+    .editor-info-banner[hidden] { display: none; }
+    .editor-info-banner {
+      display: flex; align-items: flex-start; gap: 8px;
+      padding: 7px 14px; font-size: 11.5px; font-weight: 600; line-height: 1.45;
+      color: #8a5a1c; background: rgba(181,132,57,0.16); border-bottom: 1px solid var(--line);
+    }
+    .editor-info-banner span { flex: 1; }
+    .editor-info-banner button {
+      flex: 0 0 auto; border: none; background: transparent; color: inherit;
+      font-size: 15px; line-height: 1; padding: 0 2px; cursor: pointer; border-radius: 6px;
+    }
+
+    .editor-quill-wrap[hidden] { display: none; }
+    .editor-quill-wrap { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+    /* Toolbar: scroll sebenarnya ada di dalam .ql-editor, bukan di ancestor toolbar, jadi
+       position:sticky tak berguna di sini & malah bikin glitch stacking pas dialog dibuka-tutup.
+       Cukup jadi baris flex pertama yang tidak menyusut. */
+    .editor-quill-wrap .ql-toolbar.ql-snow {
+      border: none; border-bottom: 1px solid var(--line); background: rgba(246,238,222,0.92);
+      position: relative; z-index: 2; flex: 0 0 auto;
+    }
+    /* Reset bayangan retro bawaan shared-ui (html body :is(button,...) { box-shadow: 5px 5px 0 })
+       yang bocor ke tiap tombol ikon toolbar. */
+    .editor-quill-wrap .ql-toolbar button,
+    .editor-quill-wrap .ql-toolbar .ql-picker-label { box-shadow: none; border-radius: 4px; }
+    .editor-quill-wrap .ql-toolbar .ql-picker-options { box-shadow: 0 6px 18px rgba(87,67,51,0.22); border-radius: 8px; z-index: 20; }
+    /* overflow:visible supaya popup Link/Video (.ql-tooltip, anak .ql-container) tidak terpotong
+       waktu kursor di dekat tepi atas. Scroll teks tetap ditangani .ql-editor sendiri. */
+    .editor-quill-wrap .ql-container.ql-snow { border: none; flex: 1; min-height: 0; overflow: visible; font-size: 15.5px; }
+    .editor-quill-wrap .ql-editor { max-width: min(1400px, 94%); line-height: 1.75; min-height: 100%; }
+    .editor-quill-wrap .ql-editor img { max-width: 100%; height: auto; border-radius: 6px; }
+    .editor-shell.is-readonly .ql-toolbar { display: none; }
+    .editor-shell.is-readonly .ql-container.ql-snow { border-top: none; }
+
+    /* ===== Editor tabel (jspreadsheet) ===== */
+    #tableEditorWrap[hidden] { display: none; }
+    #tableEditorWrap { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+    .table-bg-toolbar {
+      display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+      padding: 7px 12px; border-bottom: 1px solid var(--line); background: rgba(246,238,222,0.9); flex: 0 0 auto;
+    }
+    .table-bg-toolbar .tbt-label { font-size: 11.5px; font-weight: 700; color: var(--muted); margin-right: 2px; }
+    .table-bg-toolbar .tbt-sw {
+      width: 22px; height: 22px; min-width: 22px; border: 1.5px solid rgba(0,0,0,0.28);
+      border-radius: 6px; padding: 0; cursor: pointer; box-shadow: none;
+    }
+    .table-bg-toolbar input[type="color"] {
+      width: 36px; height: 26px; padding: 0; border: 1px solid var(--line); border-radius: 6px; background: none; cursor: pointer;
+    }
+    .table-bg-toolbar button {
+      padding: 5px 10px; font-size: 11.5px; font-weight: 700; border-radius: 8px;
+      border: 1.4px solid var(--line); background: rgba(255,255,255,0.85); color: var(--ink); box-shadow: none;
+    }
+    .table-bg-toolbar button:disabled { opacity: 0.38; cursor: default; }
+    .editor-shell.is-readonly .table-bg-toolbar { display: none; }
+    .table-bg-toolbar .tbt-div { width: 1px; align-self: stretch; min-height: 18px; background: var(--line); margin: 0 3px; }
+    .table-bg-toolbar button b, .table-bg-toolbar button i, .table-bg-toolbar button u { font-size: 12px; }
+    /* scroll grid (kolom/baris banyak) ditangani di sini; tableOverflow jspreadsheet dimatikan */
+    #tableGridHost { flex: 1; min-height: 0; overflow: auto; padding: 8px 10px 40px; }
+    #tableGridHost .jexcel_container { display: inline-block; position: relative; }
+    /* header baris & kolom-index BEKU via CSS position:sticky (bukan tableOverflow jspreadsheet,
+       yang merusak seleksi) -- aman karena murni visual, tak menyentuh logika jspreadsheet */
+    #tableGridHost table.jexcel > thead td { position: sticky; top: 0; z-index: 3; background: #f3f3f3; }
+    #tableGridHost table.jexcel > tbody td.jexcel_row { position: sticky; left: 0; z-index: 2; background: #f3f3f3; }
+    #tableGridHost table.jexcel > thead td:first-child { left: 0; z-index: 4; }
+    /* contextmenu jspreadsheet ada DI DALAM #tableEditor (bukan body), aman di dialog modal */
+    #tableEditorWrap .jexcel_contextmenu, #tableEditorWrap .jcontextmenu { z-index: 30 !important; box-shadow: 0 10px 30px rgba(0,0,0,0.28); }
+
+    /* ============ Generic dialogs — ikut pola shared-ui (spt tahunAjaran / editKaldik) ============ */
+    .dialog-body { padding: 22px; display: grid; gap: 14px; max-height: 90vh; overflow: auto; }
+    .dialog-body h3 { margin: 0; }
+    .dialog-body .hint { font-size: 12px; color: var(--muted); }
+    /* backdrop lebih terang supaya dialog yang bertumpuk (mis. Riwayat / Bagikan dibuka dari
+       dalam editor) tidak menumpuk jadi hitam pekat */
+    html body dialog.ps-floating-dialog::backdrop { background: rgba(38, 28, 20, 0.55); }
+
+    /* Share dialog */
+    .share-block { display: grid; gap: 8px; padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: rgba(255,255,255,0.5); }
+    .share-add-row { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: end; }
+    .share-add-row .edit-toggle { display: flex; align-items: center; gap: 6px; font-size: 12px; white-space: nowrap; }
+    .share-add-row .edit-toggle input { width: auto; }
+    .share-add-row button { white-space: nowrap; background: rgba(0,0,0,0.05); border: 1px solid var(--line); color: var(--ink); }
+    @media (max-width: 520px) { .share-add-row { grid-template-columns: 1fr; } }
+    .share-entries { display: grid; gap: 8px; }
+    .share-entry {
+      display: flex; align-items: center; gap: 10px; padding: 9px 12px;
+      border: 1px solid var(--line); border-radius: 12px; background: #fff;
+    }
+    .share-entry .se-label { flex: 1; min-width: 0; font-weight: 600; font-size: 13px; word-break: break-word; }
+    .share-entry .se-kind { font-size: 15px; }
+    .share-entry .se-edit { display: flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 700; color: var(--muted); white-space: nowrap; }
+    .share-entry .se-edit input { width: auto; }
+    .share-entry .se-remove { border: none; background: rgba(165,90,82,0.14); color: var(--danger); border-radius: 8px; padding: 4px 9px; font-size: 13px; }
+    .share-empty { font-size: 12.5px; color: var(--muted); font-style: italic; }
+
+    /* Versions dialog */
+    .ver-list { display: grid; gap: 10px; }
+    .ver-row { display: flex; gap: 12px; padding: 12px; border: 1px solid var(--line); border-radius: 14px; background: rgba(255,255,255,0.55); }
+    .ver-main { flex: 1; min-width: 0; display: grid; gap: 3px; }
+    .ver-main strong { font-size: 13.5px; }
+    .ver-jab { font-size: 11.5px; color: var(--muted); }
+    .ver-meta { font-size: 11.5px; color: var(--muted); }
+    .ver-excerpt { font-size: 12px; color: var(--ink); opacity: 0.75; margin-top: 3px; max-height: 42px; overflow: hidden; }
+    .ver-actions { display: flex; flex-direction: column; gap: 6px; }
+    .ver-actions button { padding: 6px 11px; font-size: 11.5px; border: 1.3px solid var(--line); background: #fff; color: var(--ink); border-radius: 9px; }
+    .ver-badge { align-self: flex-start; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--success); background: rgba(79,122,82,0.16); padding: 2px 7px; border-radius: 6px; }
+
+    .doc-readonly { border: 1px solid var(--line); border-radius: 12px; padding: 16px; background: #fff; max-height: 60vh; overflow: auto; }
+    .doc-readonly.ql-editor { line-height: 1.7; }
+    .doc-readonly table.ctk-table { border-collapse: collapse; font-size: 12.5px; }
+    .doc-readonly table.ctk-table td { border: 1px solid #999; padding: 4px 8px; white-space: nowrap; }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-left">
+      <button class="drawer-toggle" id="navToggle" type="button" aria-label="Toggle sidebar">Menu</button>
+      <div class="header-brand">Pendataan Santri</div>
+      <div class="header-page">Dokumen &amp; Catatan</div>
+    </div>
+    <div class="header-right">
+      <span class="header-chip" id="headerRole">Pengurus</span>
+    </div>
+  </header>
+  <div class="drawer-backdrop" id="navBackdrop"></div>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+
+  <main>
+    <div class="app-layout">
+      <section class="panel nav" id="nav"></section>
+      <div class="content-stack">
+        <section class="notice info" id="notice"></section>
+        <section class="panel">
+          <div class="section-head">
+            <h2>Dokumen &amp; Catatan</h2>
+            <p>Tulis dokumen atau catatan pribadi dengan editor lengkap. Setiap dokumen hanya bisa dibuka pemiliknya, kecuali dibagikan ke orang atau jabatan tertentu. Hanya Mudir, Admin, dan Super Admin yang dapat membuat dokumen baru.</p>
+          </div>
+
+          <div class="toolbar">
+            <button class="primary" id="newDocBtn" type="button">+ Dokumen Baru</button>
+            <button class="secondary" id="refreshBtn" type="button">Muat ulang</button>
+            <input class="grow" id="searchInput" type="search" placeholder="Cari judul, isi, atau nama pemilik...">
+            <label>Jumlah per halaman
+              <select id="pageSizeSelect">
+                <option value="10">10</option>
+                <option value="25" selected>25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="doc-tabs" id="tabBar">
+            <button class="doc-tab is-active" type="button" data-tab="">Semua</button>
+            <button class="doc-tab" type="button" data-tab="mine">Milik Saya</button>
+            <button class="doc-tab" type="button" data-tab="shared">Dibagikan ke Saya</button>
+            <button class="doc-tab" type="button" data-tab="all" id="tabAll" hidden>Semua Dokumen</button>
+            <button class="doc-tab" type="button" data-tab="trash">Sampah</button>
+          </div>
+
+          <div class="paging-host" id="paginationTop"></div>
+          <div class="doc-list" id="list">
+            <p class="empty-state">Memuat dokumen...</p>
+          </div>
+          <div class="paging-host" id="paginationBottom"></div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <div id="dialogRoot">
+    <!-- Editor — dialog besar khusus, tata letaknya diatur sendiri (opt-out enhancement shared-ui
+         supaya .editor-topbar tidak dipaksa jadi header sticky 148px + tombol ✕ mengambang) -->
+    <dialog class="ps-floating-dialog" id="editorDialog" data-no-history="true" data-ps-floating-dialog-enhanced="true">
+      <div class="editor-shell" id="editorShell">
+        <div class="editor-topbar">
+          <input class="editor-title-input" id="editorTitle" type="text" maxlength="200" placeholder="Judul dokumen">
+          <span class="editor-status saved" id="editorStatus">Tersimpan</span>
+          <div class="editor-topbar-actions">
+            <button type="button" id="editorCopyLinkBtn" hidden title="Salin tautan langsung ke dokumen ini">Salin Tautan</button>
+            <button type="button" id="editorShareBtn" hidden>Bagikan</button>
+            <button type="button" id="editorVersionsBtn">Riwayat</button>
+            <button type="button" id="editorPrintBtn">Cetak / PDF</button>
+            <button type="button" id="editorCloseBtn" class="primary">Tutup</button>
+          </div>
+        </div>
+        <div class="editor-readonly-banner" id="editorReadonlyBanner" hidden>Mode hanya-baca — Anda tidak memiliki izin mengedit dokumen ini.</div>
+        <div class="editor-info-banner" id="editorInfoBanner" hidden>
+          <span>Halaman ini <strong>tidak diperbarui otomatis (bukan realtime)</strong>. Perubahan orang lain baru terlihat setelah Anda tutup &amp; buka lagi dokumen. Pastikan hanya <strong>satu orang</strong> yang membuka &amp; mengedit dokumen ini dalam satu waktu — kalau tidak, penyimpanan terakhir akan menimpa perubahan yang lain.</span>
+          <button type="button" id="editorInfoDismiss" aria-label="Tutup info" title="Jangan tampilkan lagi">&times;</button>
+        </div>
+        <div class="editor-quill-wrap" id="editorQuillWrap">
+          <div id="quillEditor"></div>
+        </div>
+        <div id="tableEditorWrap" hidden>
+          <div class="table-bg-toolbar" id="tableBgToolbar">
+            <button type="button" id="tblUndo" title="Urungkan (Ctrl+Z)">↶</button>
+            <button type="button" id="tblRedo" title="Ulangi (Ctrl+Y)">↷</button>
+            <span class="tbt-div"></span>
+            <button type="button" id="tblBold" title="Tebal"><b>B</b></button>
+            <button type="button" id="tblItalic" title="Miring"><i>I</i></button>
+            <button type="button" id="tblUnder" title="Garis bawah"><u>U</u></button>
+            <span class="tbt-div"></span>
+            <button type="button" id="tblAlignL" title="Rata kiri">◧</button>
+            <button type="button" id="tblAlignC" title="Rata tengah">▤</button>
+            <button type="button" id="tblAlignR" title="Rata kanan">◨</button>
+            <span class="tbt-div"></span>
+            <span class="tbt-label">Huruf:</span>
+            <input type="color" id="tblFontColor" value="#333333" title="Warna huruf">
+            <button type="button" id="tblFontColorApply">Set</button>
+            <span class="tbt-div"></span>
+            <span class="tbt-label">Sel:</span>
+            <span id="tableSwatches"></span>
+            <input type="color" id="tableBgColor" value="#ffe08a" title="Warna kustom">
+            <button type="button" id="tableBgApply">Terapkan</button>
+            <button type="button" id="tableBgClear">Hapus</button>
+            <span class="tbt-div"></span>
+            <button type="button" id="tblMerge" title="Gabung sel terpilih">Gabung</button>
+            <button type="button" id="tblUnmerge" title="Pisah gabungan">Pisah</button>
+            <span class="tbt-div"></span>
+            <button type="button" id="tblCsv" title="Unduh sebagai CSV">⬇ CSV</button>
+          </div>
+          <div id="tableGridHost"><div id="tableEditor"></div></div>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- Share -->
+    <dialog class="ps-floating-dialog" id="shareDialog" data-no-history="true">
+      <div class="dialog-body ps-dialog-shell">
+        <div class="ps-dialog-header">
+          <div>
+            <h3>Bagikan Dokumen</h3>
+            <p class="hint" id="shareDocTitle"></p>
+          </div>
+        </div>
+
+        <label>
+          Semua pengurus
+          <select id="shareEveryone">
+            <option value="none">Tidak dibagikan ke semua</option>
+            <option value="view">Semua pengurus boleh melihat</option>
+            <option value="edit">Semua pengurus boleh mengedit</option>
+          </select>
+        </label>
+
+        <div class="share-block">
+          <strong style="font-size:13px;">Tambah orang tertentu</strong>
+          <div class="share-add-row">
+            <label style="gap:4px;">
+              Nama pengurus
+              <input id="shareUserInput" list="shareUserList" placeholder="Ketik nama...">
+              <datalist id="shareUserList"></datalist>
+            </label>
+            <label class="edit-toggle"><input type="checkbox" id="shareUserEdit"> boleh edit</label>
+            <button type="button" id="shareAddUserBtn">Tambah</button>
+          </div>
+        </div>
+
+        <div class="share-block">
+          <strong style="font-size:13px;">Tambah jabatan</strong>
+          <div class="share-add-row">
+            <label style="gap:4px;">
+              Jabatan
+              <select id="shareJabatanInput"><option value="">Pilih jabatan...</option></select>
+            </label>
+            <label class="edit-toggle"><input type="checkbox" id="shareJabatanEdit"> boleh edit</label>
+            <button type="button" id="shareAddJabatanBtn">Tambah</button>
+          </div>
+        </div>
+
+        <div>
+          <strong style="font-size:13px;">Sudah dibagikan ke</strong>
+          <div class="share-entries" id="shareEntryList" style="margin-top:8px;"></div>
+        </div>
+
+        <div class="toolbar ps-dialog-footer">
+          <button class="primary" type="button" id="shareSaveBtn">Simpan Berbagi</button>
+          <button class="secondary" type="button" id="shareCancelBtn">Batal</button>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- Versions -->
+    <dialog class="ps-floating-dialog" id="versionsDialog" data-no-history="true">
+      <div class="dialog-body ps-dialog-shell">
+        <div class="ps-dialog-header">
+          <div>
+            <h3>Riwayat Versi</h3>
+            <p class="hint">Setiap penyimpanan otomatis membuat titik versi. Anda dapat melihat atau memulihkan versi lama.</p>
+          </div>
+        </div>
+        <div class="ver-list" id="versionList"></div>
+        <div class="toolbar ps-dialog-footer">
+          <button class="secondary" type="button" id="versionsCloseBtn">Tutup</button>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- Version preview -->
+    <dialog class="ps-floating-dialog" id="versionPreviewDialog" data-no-history="true">
+      <div class="dialog-body ps-dialog-shell">
+        <div class="ps-dialog-header">
+          <div>
+            <h3 id="versionPreviewTitle">Pratinjau Versi</h3>
+            <p class="hint" id="versionPreviewMeta"></p>
+          </div>
+        </div>
+        <div class="doc-readonly ql-editor ql-snow" id="versionPreviewBody"></div>
+        <div class="toolbar ps-dialog-footer">
+          <button class="primary" type="button" id="versionPreviewRestoreBtn" hidden>Pulihkan versi ini</button>
+          <button class="secondary" type="button" id="versionPreviewCloseBtn">Tutup</button>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- Rename -->
+    <dialog class="ps-floating-dialog" id="renameDialog" data-no-history="true">
+      <form class="dialog-body ps-dialog-shell" id="renameForm" method="dialog">
+        <div class="ps-dialog-header">
+          <div><h3>Ubah Nama Dokumen</h3></div>
+        </div>
+        <label>
+          Nama baru
+          <input id="renameInput" type="text" maxlength="200" required>
+        </label>
+        <div class="toolbar ps-dialog-footer">
+          <button class="primary" type="submit">Simpan</button>
+          <button class="secondary" type="button" id="renameCancelBtn">Batal</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="ps-floating-dialog" id="descDialog" data-no-history="true">
+      <form class="dialog-body ps-dialog-shell" id="descForm" method="dialog">
+        <div class="ps-dialog-header">
+          <div>
+            <h3>Deskripsi Dokumen</h3>
+            <p class="hint">Ringkasan singkat yang tampil langsung di daftar dokumen. Teks biasa — bukan editor berformat. Kosongkan untuk menghapus deskripsi.</p>
+          </div>
+        </div>
+        <label>
+          Deskripsi
+          <textarea id="descInput" rows="5" maxlength="2000" placeholder="Tulis ringkasan singkat dokumen ini..."></textarea>
+        </label>
+        <div class="toolbar ps-dialog-footer">
+          <button class="primary" type="submit">Simpan</button>
+          <button class="secondary" type="button" id="descCancelBtn">Batal</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- Generic confirm -->
+    <dialog class="ps-floating-dialog" id="confirmDialog" data-no-history="true">
+      <div class="dialog-body ps-dialog-shell">
+        <div class="ps-dialog-header">
+          <div>
+            <h3 id="confirmTitle">Konfirmasi</h3>
+            <p class="hint" id="confirmMessage"></p>
+          </div>
+        </div>
+        <label id="confirmTextWrap" hidden>
+          <span id="confirmTextLabel">Ketik teks konfirmasi</span>
+          <input id="confirmTextInput" type="text" autocomplete="off">
+        </label>
+        <div class="toolbar ps-dialog-footer">
+          <button class="danger" type="button" id="confirmOkBtn">Ya</button>
+          <button class="secondary" type="button" id="confirmCancelBtn">Batal</button>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- Pilih jenis dokumen baru -->
+    <dialog class="ps-floating-dialog" id="newTypeDialog" data-no-history="true">
+      <div class="dialog-body ps-dialog-shell">
+        <div class="ps-dialog-header">
+          <div>
+            <h3>Dokumen Baru</h3>
+            <p class="hint">Pilih jenis dokumen. Jenis tidak bisa diubah setelah dibuat.</p>
+          </div>
+        </div>
+        <div style="display:grid;gap:10px;">
+          <button class="primary" type="button" id="newTypeText" style="text-align:left;line-height:1.4;">📝 &nbsp;<strong>Teks</strong> — tulisan bebas dengan format (editor Quill)</button>
+          <button class="primary" type="button" id="newTypeTable" style="text-align:left;line-height:1.4;">▦ &nbsp;<strong>Tabel</strong> — grid sel ala spreadsheet, bisa warnai sel</button>
+        </div>
+        <div class="toolbar ps-dialog-footer">
+          <button class="secondary" type="button" id="newTypeCancel">Batal</button>
+        </div>
+      </div>
+    </dialog>
+  </div>
+
+  <script src="../../shared-access.js"></script>
+  <script src="../../shared-nav.js"></script>
+  <script src="../../shared-shell.js"></script>
+  <script>
+    const API_BASE = window.location.origin + '/api';
+    const STORAGE = { apiBase: 'ps_api_base', token: 'ps_token', session: 'ps_session' };
+    localStorage.setItem(STORAGE.apiBase, API_BASE);
+
+    const state = { tab: '', canCreate: false, isSuper: false, items: [], searchTimer: null, expandedIds: new Set(), page: 1, pageSize: 25, total: 0, totalPages: 1 };
+    const uiState = { currentNoticeId: '', noticeCounter: 0, noticeShownAt: 0, pendingNotice: null };
+    let shareRefs = null;               // { users:[{id,name,jabatan}], jabatan:[name] }
+    let shareUserByLabel = {};          // label -> id
+
+    const editorState = {
+      docId: null, title: '', canEdit: false, isOwner: false, isSuper: false,
+      docType: 'quill', jss: null, tableSel: null, tableHist: null,   // jss = instance jspreadsheet (dokumen jenis 'table')
+      quill: null, dirty: false, saveTimer: null, savedAt: '', everyone: '', shares: [], loading: false,
+      isNew: false            // dokumen baru dibuat sesi ini — dibuang otomatis kalau ditutup masih kosong
+    };
+    const NEW_DOC_TITLE = 'Dokumen Baru';
+    const AUTOSAVE_DEBOUNCE_MS = 1000;  // simpan otomatis 1 detik setelah berhenti mengetik
+    let shareState = { docId: null, everyone: 'none', entries: [] };
+    let versionsState = { docId: null, canEdit: false };
+    let confirmHandler = null;
+
+    function escapeHtml(s) {
+      return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+    function getApiBase() { return localStorage.getItem(STORAGE.apiBase) || ''; }
+    function getToken() { return localStorage.getItem(STORAGE.token) || ''; }
+    function getStoredSession() { try { return JSON.parse(localStorage.getItem(STORAGE.session) || 'null'); } catch (e) { return null; } }
+    function clearSession() { localStorage.removeItem(STORAGE.token); localStorage.removeItem(STORAGE.session); }
+
+    const REALTIME_NOTICE_KEY = 'ps_catatan_realtime_notice_dismissed';
+    function isRealtimeNoticeDismissed() { try { return localStorage.getItem(REALTIME_NOTICE_KEY) === '1'; } catch (e) { return false; } }
+    function dismissRealtimeNotice() {
+      try { localStorage.setItem(REALTIME_NOTICE_KEY, '1'); } catch (e) {}
+      const b = document.getElementById('editorInfoBanner');
+      if (b) b.hidden = true;
+    }
+
+    function scopedSession() {
+      const s = getStoredSession();
+      return (window.PSAccess && typeof window.PSAccess.getScopedSession === 'function')
+        ? window.PSAccess.getScopedSession(s) : s;
+    }
+    function canCreateClient() {
+      const p = (scopedSession() || {}).permissions || {};
+      return !!(p.isSuperAdmin || p.isAdmin || p.isMudir);
+    }
+
+    /* ---------- notices ---------- */
+    function createNoticeElement(text, type) {
+      const el = document.createElement('section');
+      el.className = 'notice show ' + (type || 'info');
+      el.dataset.noticeId = 'n-' + Date.now() + '-' + (uiState.noticeCounter += 1);
+      el.textContent = text;
+      function dismiss() {
+        if (!el.parentNode) return;
+        el.classList.add('notice-dismissing');
+        setTimeout(() => { el.remove(); }, 220);
+      }
+      el.addEventListener('click', dismiss);
+      setTimeout(dismiss, type === 'error' ? 9000 : 4500);
+      return el;
+    }
+    function showNotice(text, type) {
+      if (uiState.pendingNotice) { clearTimeout(uiState.pendingNotice); uiState.pendingNotice = null; }
+      const elapsed = Date.now() - uiState.noticeShownAt;
+      if (elapsed < 1200 && uiState.currentNoticeId) {
+        uiState.pendingNotice = setTimeout(() => { uiState.pendingNotice = null; showNotice(text, type); }, 1400 - elapsed);
+        return;
+      }
+      clearNotice();
+      const el = createNoticeElement(text, type);
+      const stack = document.getElementById('noticeStack');
+      stack.prepend(el);
+      uiState.currentNoticeId = el.dataset.noticeId;
+      uiState.noticeShownAt = Date.now();
+      if (stack.matches(':popover-open')) stack.hidePopover();
+      stack.showPopover();
+    }
+    function clearNotice() {
+      if (uiState.pendingNotice) { clearTimeout(uiState.pendingNotice); uiState.pendingNotice = null; }
+      if (!uiState.currentNoticeId) return;
+      const el = document.querySelector('[data-notice-id="' + uiState.currentNoticeId + '"]');
+      if (el) el.remove();
+      uiState.currentNoticeId = '';
+    }
+
+    /* ---------- api ---------- */
+    async function api(action, payload, method) {
+      const apiBase = getApiBase();
+      const token = getToken();
+      if (!apiBase || !token) { clearSession(); window.location.replace('/pages/login/'); throw new Error('Sesi tidak ditemukan.'); }
+      payload = payload || {};
+      method = method || 'POST';
+      if (method === 'GET') {
+        const params = new URLSearchParams(Object.assign({ action, token }, payload));
+        const res = await fetch(apiBase + '?' + params.toString());
+        const json = await res.json();
+        if (!json.ok) throw new Error(json.error && json.error.message ? json.error.message : 'Permintaan gagal.');
+        return json.data;
+      }
+      const res = await fetch(apiBase + '?action=' + encodeURIComponent(action) + '&token=' + encodeURIComponent(token), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error && json.error.message ? json.error.message : 'Permintaan gagal.');
+      return json.data;
+    }
+
+    /* ---------- formatting helpers ---------- */
+    function fmtWhen(iso) {
+      if (!iso) return '';
+      const d = new Date(iso); if (isNaN(d.getTime())) return '';
+      const min = Math.floor((Date.now() - d.getTime()) / 60000);
+      if (min < 1) return 'baru saja';
+      if (min < 60) return min + ' mnt lalu';
+      const hr = Math.floor(min / 60);
+      if (hr < 24) return hr + ' jam lalu';
+      const day = Math.floor(hr / 24);
+      if (day < 7) return day + ' hr lalu';
+      return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+    }
+    function fmtDateTime(iso) {
+      const d = new Date(iso);
+      return isNaN(d.getTime()) ? '' : d.toLocaleString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    }
+    function fmtSize(n) {
+      n = Number(n) || 0;
+      if (n < 1024) return n + ' B';
+      if (n < 1048576) return (n / 1024).toFixed(1) + ' KB';
+      return (n / 1048576).toFixed(2) + ' MB';
+    }
+
+    /* ---------- list ---------- */
+    async function loadList(opts) {
+      opts = opts || {};
+      const listEl = document.getElementById('list');
+      if (!opts.silent) listEl.innerHTML = '<p class="empty-state">Memuat dokumen...</p>';
+      try {
+        const data = await api('catatan.list', { tab: state.tab, q: document.getElementById('searchInput').value.trim() });
+        state.items = data.items || [];
+        state.canCreate = !!data.canCreate;
+        state.isSuper = !!data.isSuperAdmin;
+        document.getElementById('tabAll').hidden = !state.isSuper;
+        applyCreateLock();
+        renderCards();
+      } catch (err) {
+        if (!opts.silent) listEl.innerHTML = '<p class="empty-state">Gagal memuat: ' + escapeHtml(err.message) + '</p>';
+        else showNotice(err.message, 'error');
+      }
+    }
+
+    function applyCreateLock() {
+      const btn = document.getElementById('newDocBtn');
+      const allowed = state.canCreate || canCreateClient();
+      if (window.PSUI && typeof window.PSUI.applyPermissionLock === 'function') {
+        window.PSUI.applyPermissionLock(btn, allowed,
+          'Hanya Mudir, Admin, dan Super Admin yang dapat membuat dokumen. Anda tetap bisa membuka dokumen yang dibagikan kepada Anda.');
+      } else {
+        btn.disabled = !allowed;
+      }
+    }
+
+    // Sisa hari sebelum dokumen di Sampah dihapus permanen otomatis (server: 30 hari sejak deletedAt).
+    function trashDaysLeft(iso) {
+      if (!iso) return null;
+      const t = new Date(iso).getTime();
+      if (isNaN(t)) return null;
+      return 30 - Math.floor((Date.now() - t) / 86400000);
+    }
+
+    function buildPaginationList(page, totalPages) {
+      const maxNumbers = 10;
+      if (totalPages <= maxNumbers) return Array.from({ length: totalPages }, (_, index) => index + 1);
+      const middleSlots = maxNumbers - 2;
+      const pages = [1];
+      let start = Math.max(2, page - Math.floor(middleSlots / 2));
+      let end = start + middleSlots - 1;
+      if (end > totalPages - 1) {
+        end = totalPages - 1;
+        start = end - middleSlots + 1;
+      }
+      if (start > 2) pages.push('...');
+      for (let value = start; value <= end; value += 1) pages.push(value);
+      if (end < totalPages - 1) pages.push('...');
+      pages.push(totalPages);
+      return pages;
+    }
+
+    function renderPagination() {
+      const markup = state.total
+        ? `
+          <div class="page-center">
+            <div class="page-numbers">
+              ${buildPaginationList(state.page, state.totalPages).map(item => (
+                item === '...'
+                  ? '<span class="page-summary">...</span>'
+                  : `<button class="secondary page-btn ${item === state.page ? 'active' : ''}" type="button" data-page="${item}">${item}</button>`
+              )).join('')}
+            </div>
+            <div class="page-summary">Halaman ${state.page} dari ${state.totalPages} | total ${state.total} data</div>
+          </div>
+        `
+        : '';
+      window.PSUI.syncPaginationHosts({ markup, visibleCount: state.items.length, totalCount: state.total, topId: 'paginationTop', bottomId: 'paginationBottom' });
+    }
+
+    function renderCards() {
+      const listEl = document.getElementById('list');
+      const inTrash = state.tab === 'trash';
+      const trashNote = inTrash
+        ? '<p class="trash-note">Dokumen di Sampah dihapus permanen otomatis setelah 30 hari. Pulihkan sebelum itu bila masih dibutuhkan.</p>'
+        : '';
+      if (!state.items.length) {
+        let msg = 'Belum ada dokumen di sini.';
+        if (state.tab === 'mine') msg = 'Anda belum membuat dokumen. Klik "+ Dokumen Baru".';
+        else if (state.tab === 'shared') msg = 'Belum ada dokumen yang dibagikan kepada Anda.';
+        else if (inTrash) msg = 'Sampah kosong.';
+        listEl.innerHTML = trashNote + '<p class="empty-state">' + msg + '</p>';
+        state.total = 0;
+        state.totalPages = 1;
+        renderPagination();
+        return;
+      }
+      const presentIds = new Set(state.items.map(function (x) { return x.id; }));
+      state.expandedIds.forEach(function (id) { if (!presentIds.has(id)) state.expandedIds.delete(id); });
+      state.total = state.items.length;
+      state.totalPages = Math.max(1, Math.ceil(state.total / state.pageSize));
+      if (state.page > state.totalPages) state.page = state.totalPages;
+      if (state.page < 1) state.page = 1;
+      const pageItems = state.items.slice((state.page - 1) * state.pageSize, state.page * state.pageSize);
+      listEl.innerHTML = trashNote + pageItems.map(function (d) {
+        const chips = [];
+        if (d.docType === 'table') chips.push('<span class="doc-chip tabel">▦ Tabel</span>');
+        if (d.isOwner) chips.push('<span class="doc-chip owner">Pemilik</span>');
+        else chips.push('<span class="doc-chip ' + (d.canEdit ? 'editable' : 'view') + '">' + escapeHtml(d.myAccessLabel) + '</span>');
+        if (!d.isOwner && d.ownerName) chips.push('<span class="doc-chip">oleh ' + escapeHtml(d.ownerName) + '</span>');
+        if (d.isOwner && d.shareSummary && d.shareSummary !== 'Pribadi') chips.push('<span class="doc-chip shared">' + escapeHtml(d.shareSummary) + '</span>');
+        if (d.isOwner && d.shareSummary === 'Pribadi') chips.push('<span class="doc-chip">Pribadi</span>');
+        chips.push('<span class="doc-chip">' + escapeHtml(fmtWhen(d.updatedAt)) + '</span>');
+        if (inTrash) {
+          const left = trashDaysLeft(d.deletedAt);
+          if (left !== null) {
+            chips.push('<span class="doc-chip expiry">' + (left > 1 ? 'dihapus permanen ' + left + ' hr lagi'
+              : (left === 1 ? 'dihapus permanen besok' : 'segera dihapus permanen')) + '</span>');
+          }
+        }
+
+        const acts = [];
+        if (!inTrash && d.restricted) {
+          // Super Admin melihat dokumen yang tidak dibagikan kepadanya: hanya boleh menghapus (moderasi), tidak boleh membuka isi.
+          acts.push('<button class="danger" data-act="delete" data-id="' + d.id + '">Hapus</button>');
+        } else if (!inTrash) {
+          acts.push('<button class="primary" data-act="open" data-id="' + d.id + '">Buka</button>');
+          acts.push('<button data-act="versions" data-id="' + d.id + '">Riwayat</button>');
+          if (d.canEdit) acts.push('<button data-act="description" data-id="' + d.id + '">Deskripsi</button>');
+          if (d.isOwner) {
+            acts.push('<button data-act="share" data-id="' + d.id + '">Bagikan</button>');
+            acts.push('<button data-act="rename" data-id="' + d.id + '">Ubah Nama</button>');
+          }
+          if (d.isOwner || (state.isSuper && !d.isOwner)) {
+            acts.push('<button class="danger" data-act="delete" data-id="' + d.id + '">Hapus</button>');
+          }
+        } else {
+          acts.push('<button class="primary" data-act="restore" data-id="' + d.id + '">Pulihkan</button>');
+          if (state.isSuper) acts.push('<button class="danger" data-act="purge" data-id="' + d.id + '">Hapus Permanen</button>');
+        }
+
+        const star = d.isOwner && !inTrash
+          ? '<button class="' + (d.pinned ? 'primary' : 'secondary') + ' minimal-list-card-toggle" type="button" data-act="pin" data-id="' + d.id + '" title="Sematkan dokumen ini di bagian atas daftar">' + (d.pinned ? 'Batal Sematkan' : 'Sematkan') + '</button>'
+          : '';
+        const quickOpen = (!inTrash && !d.restricted)
+          ? '<button class="secondary minimal-list-card-toggle" type="button" data-act="open" data-id="' + d.id + '" title="Buka dokumen ' + escapeHtml(d.title) + '">Buka</button>'
+          : '';
+        const tableBadge = d.docType === 'table' ? '<span style="display:inline-flex;align-items:center;padding:3px 9px;border-radius:99px;font-size:11.5px;font-weight:700;background:rgba(94,140,90,0.18);color:#3c6340;">Tabel</span>' : '';
+
+        const hintParts = [d.isOwner ? 'Pemilik' : (d.canEdit ? 'Bisa diedit' : 'Lihat saja')];
+        if (!d.isOwner && d.ownerName) hintParts.push('oleh ' + d.ownerName);
+        hintParts.push('diperbarui ' + fmtWhen(d.updatedAt));
+        if (inTrash) {
+          const left = trashDaysLeft(d.deletedAt);
+          if (left !== null) hintParts.push(left > 1 ? 'dihapus permanen ' + left + ' hr lagi' : (left === 1 ? 'dihapus permanen besok' : 'segera dihapus permanen'));
+        }
+
+        let excerptP = '';
+        if (d.excerpt) excerptP = '<p class="doc-excerpt">' + escapeHtml(d.excerpt) + '</p>';
+        else if (d.restricted) excerptP = '<p class="doc-excerpt">(isi tidak ditampilkan — Anda bukan pemilik dan dokumen tidak dibagikan ke Anda)</p>';
+        const summaryParts = [];
+        if (d.description) summaryParts.push('<p><strong>Deskripsi:</strong> ' + escapeHtml(d.description) + '</p>');
+        if (excerptP) summaryParts.push(excerptP);
+        const summaryHtml = summaryParts.length ? '<div class="minimal-list-card-summary">' + summaryParts.join('') + '</div>' : '';
+
+        const expanded = state.expandedIds.has(d.id);
+        const typeClass = d.docType === 'table' ? 'doc-type-table' : 'doc-type-quill';
+        return '<article class="doc-card card minimal-list-card ' + typeClass + (expanded ? ' is-expanded' : '') + '">' +
+          '<div class="minimal-list-card-head">' +
+            '<div class="minimal-list-card-main" data-act="toggle" data-id="' + d.id + '">' +
+              '<div class="minimal-list-card-title-row">' + tableBadge + '<strong class="minimal-list-card-name">' + escapeHtml(d.title) + '</strong></div>' +
+              '<span class="minimal-list-card-hint">' + escapeHtml(hintParts.join(' · ')) + '</span>' +
+            '</div>' +
+            quickOpen + star +
+          '</div>' +
+          '<div class="minimal-list-card-detail">' +
+            '<div class="minimal-list-card-meta">' + chips.join('') + '</div>' +
+            summaryHtml +
+            '<div class="toolbar minimal-list-card-actions">' + acts.join('') + '</div>' +
+          '</div>' +
+        '</article>';
+      }).join('');
+      renderPagination();
+    }
+
+    /* ---------- editor ---------- */
+    function ensureQuill() {
+      if (editorState.quill) return editorState.quill;
+      // Quill 2 tak menyediakan ikon Undo/Redo bawaan -- daftarkan sendiri sekali.
+      const quillIcons = Quill.import('ui/icons');
+      quillIcons['undo'] = '<svg viewbox="0 0 18 18"><polygon class="ql-fill ql-stroke" points="6 10 4 12 2 10 6 10"></polygon><path class="ql-stroke" d="M8.09,13.91A4.6,4.6,0,0,0,9,14,5,5,0,1,0,4,9"></path></svg>';
+      quillIcons['redo'] = '<svg viewbox="0 0 18 18"><polygon class="ql-fill ql-stroke" points="12 10 14 12 16 10 12 10"></polygon><path class="ql-stroke" d="M9.91,13.91A4.6,4.6,0,0,1,9,14a5,5,0,1,1,5-5"></path></svg>';
+      const q = new Quill('#quillEditor', {
+        theme: 'snow',
+        placeholder: 'Mulai menulis...',
+        modules: {
+          // userOnly: hanya ketikan sendiri yang bisa di-undo; pemuatan dokumen ('silent')
+          // tak pernah masuk stack. history.clear() dipanggil tiap ganti dokumen (setEditorContent).
+          history: { delay: 1000, maxStack: 200, userOnly: true },
+          toolbar: {
+            container: [
+              ['undo', 'redo'],
+              [{ header: [1, 2, 3, 4, 5, 6, false] }],
+              [{ font: [] }],
+              [{ size: ['small', false, 'large', 'huge'] }],
+              ['bold', 'italic', 'underline', 'strike'],
+              [{ color: [] }, { background: [] }],
+              [{ script: 'sub' }, { script: 'super' }],
+              ['blockquote', 'code-block'],
+              [{ list: 'ordered' }, { list: 'bullet' }, { list: 'check' }],
+              [{ indent: '-1' }, { indent: '+1' }],
+              [{ align: [] }, { direction: 'rtl' }],
+              ['link', 'image', 'video'],
+              ['clean']
+            ],
+            handlers: {
+              image: quillImageHandler,
+              undo: function () { this.quill.history.undo(); },
+              redo: function () { this.quill.history.redo(); }
+            }
+          }
+        }
+      });
+      // Cegah tombol toolbar mencuri fokus dari editor. Tanpa ini: klik tombol -> editor blur ->
+      // sebagian browser melepas seleksi teks -> toolbar kehilangan state .ql-active, sehingga
+      // bold/italic perlu 2x klik untuk dimatikan (klik 1 malah memasang ulang). preventDefault
+      // di mousedown menjaga seleksi tetap utuh; event 'click' tetap jalan normal.
+      const toolbarModule = q.getModule('toolbar');
+      if (toolbarModule && toolbarModule.container) {
+        toolbarModule.container.addEventListener('mousedown', function (e) {
+          if (e.target.closest('button')) e.preventDefault();
+        });
+      }
+
+      q.on('text-change', function (delta, old, source) {
+        if (source === 'user') scheduleSave();
+      });
+      editorState.quill = q;
+      return q;
+    }
+
+    function clearEditor() {
+      editorState.quill.setContents({ ops: [{ insert: '\n' }] }, 'silent');
+    }
+    function setEditorContent(deltaStr, html) {
+      const q = editorState.quill;
+      let ok = false;
+      if (deltaStr) {
+        try {
+          const d = JSON.parse(deltaStr);
+          if (d && Array.isArray(d.ops) && d.ops.length) { q.setContents({ ops: d.ops }, 'silent'); ok = true; }
+        } catch (e) { ok = false; }
+      }
+      if (!ok) {
+        clearEditor();
+        if (html) q.clipboard.dangerouslyPasteHTML(0, html, 'silent');
+      }
+      // Instance Quill dipakai ulang lintas dokumen -- buang stack undo/redo dokumen sebelumnya
+      // supaya Undo tidak "menembus" ke isi dokumen yang tadi dibuka.
+      if (q.history) q.history.clear();
+    }
+
+    function quillImageHandler() {
+      if (!editorState.canEdit) return;
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/png,image/jpeg,image/webp,image/gif';
+      input.onchange = async function () {
+        const file = input.files && input.files[0];
+        if (!file) return;
+        if (file.size > 8 * 1024 * 1024) { showNotice('Ukuran gambar maksimal 8 MB.', 'error'); return; }
+        const q = editorState.quill;
+        const range = q.getSelection(true);
+        setEditorStatus('saving', 'Mengunggah gambar...');
+        try {
+          const url = await uploadImage(file);
+          q.insertEmbed(range.index, 'image', url, 'user');
+          q.setSelection(range.index + 1, 0, 'user');
+          scheduleSave();
+        } catch (err) {
+          showNotice(err.message || 'Gagal mengunggah gambar.', 'error');
+          setEditorStatus(editorState.dirty ? 'pending' : 'saved');
+        }
+      };
+      input.click();
+    }
+
+    async function uploadImage(file) {
+      const url = getApiBase() + '/catatan/upload-image?id=' + encodeURIComponent(editorState.docId) +
+        '&token=' + encodeURIComponent(getToken()) +
+        '&filename=' + encodeURIComponent(file.name || 'gambar');
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': file.type || 'application/octet-stream' },
+        body: file
+      });
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error && json.error.message ? json.error.message : 'Upload gagal.');
+      return json.data.url;
+    }
+
+    /* ---------- editor tabel (jspreadsheet CE) ---------- */
+    const TABLE_SWATCHES = ['#ffd6d6', '#ffe8b3', '#fff7b0', '#d6f0c8', '#cfe8f5', '#e2d6f5', '#e9e2d2', '#ffffff'];
+    let _jssLoadPromise = null;
+    function ensureJspreadsheet() {
+      if (window.jspreadsheet) return Promise.resolve();
+      if (_jssLoadPromise) return _jssLoadPromise;
+      _jssLoadPromise = (function () {
+        function addCss(href) { const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = href; document.head.appendChild(l); }
+        function addJs(src) {
+          return new Promise(function (res, rej) {
+            const s = document.createElement('script'); s.src = src;
+            s.onload = function () { res(); };
+            s.onerror = function () { rej(new Error('Gagal memuat ' + src)); };
+            document.head.appendChild(s);
+          });
+        }
+        addCss('../../vendor/jsuites/jsuites.css');
+        addCss('../../vendor/jspreadsheet/jspreadsheet.css');
+        return addJs('../../vendor/jsuites/jsuites.js')
+          .then(function () { return addJs('../../vendor/jspreadsheet/jspreadsheet.js'); })
+          .then(function () { if (!window.jspreadsheet) throw new Error('jspreadsheet tidak termuat.'); });
+      })();
+      _jssLoadPromise.catch(function () { _jssLoadPromise = null; });
+      return _jssLoadPromise;
+    }
+
+    function colLetter(n) {
+      let s = ''; n = Number(n);
+      while (n >= 0) { s = String.fromCharCode(65 + (n % 26)) + s; n = Math.floor(n / 26) - 1; }
+      return s;
+    }
+    function cellName(x, y) { return colLetter(x) + (Number(y) + 1); }
+    function cellToXY(cn) {
+      const m = /^([A-Z]+)(\d+)$/.exec(String(cn).toUpperCase());
+      if (!m) return null;
+      let x = 0;
+      for (let i = 0; i < m[1].length; i++) x = x * 26 + (m[1].charCodeAt(i) - 64);
+      return { x: x - 1, y: parseInt(m[2], 10) - 1 };
+    }
+
+    function serializeTable(jss) {
+      const data = normalizeGrid(jss.getData());
+      let style = {};
+      try { style = jss.getStyle() || {}; } catch (e) { style = {}; }
+      const merge = editorState.tableMerges || {};   // metadata sendiri, bukan jss.getMerge() (bisa korup)
+      let cols = [];
+      try { const cfg = jss.getConfig ? jss.getConfig() : {}; cols = (cfg.columns || []).map(function (c) { return { width: c.width }; }); } catch (e) { cols = []; }
+      const rows = data.length || 1;
+      const ncol = (data[0] && data[0].length) || cols.length || 4;
+      return JSON.stringify({ v: 1, data: data, style: style, merge: merge, columns: cols, dims: [Math.max(ncol, 1), Math.max(rows, 1)] });
+    }
+
+    function renderTableHtml(jss) {
+      const data = normalizeGrid(jss.getData());
+      let style = {};
+      try { style = jss.getStyle() || {}; } catch (e) { style = {}; }
+      const merge = editorState.tableMerges || {};
+      const origin = {}, covered = {};
+      Object.keys(merge).forEach(function (cn) {
+        const p = cellToXY(cn); if (!p) return;
+        const cs = Math.max(1, (merge[cn] && merge[cn][0]) || 1);
+        const rs = Math.max(1, (merge[cn] && merge[cn][1]) || 1);
+        origin[p.x + ',' + p.y] = { cs: cs, rs: rs };
+        for (let dx = 0; dx < cs; dx++) for (let dy = 0; dy < rs; dy++) {
+          if (dx || dy) covered[(p.x + dx) + ',' + (p.y + dy)] = true;
+        }
+      });
+      let html = '<table class="ctk-table" border="1" cellspacing="0" cellpadding="4">';
+      for (let y = 0; y < data.length; y++) {
+        html += '<tr>';
+        for (let x = 0; x < (data[y] ? data[y].length : 0); x++) {
+          if (covered[x + ',' + y]) continue;
+          const o = origin[x + ',' + y];
+          const st = style[cellName(x, y)] || '';
+          const span = o ? ((o.cs > 1 ? ' colspan="' + o.cs + '"' : '') + (o.rs > 1 ? ' rowspan="' + o.rs + '"' : '')) : '';
+          html += '<td' + span + (st ? ' style="' + escapeHtml(st) + '"' : '') + '>' +
+            escapeHtml(data[y][x] == null ? '' : String(data[y][x])) + '</td>';
+        }
+        html += '</tr>';
+      }
+      return html + '</table>';
+    }
+
+    function tableIsEmpty(jss) {
+      try {
+        return jss.getData().every(function (row) {
+          return row.every(function (c) { return c == null || String(c).trim() === ''; });
+        });
+      } catch (e) { return false; }
+    }
+
+    function destroyTableEditor() {
+      if (editorState.jss) {
+        try { editorState.jss.destroy(); }
+        catch (e) { try { window.jspreadsheet.destroy(document.getElementById('tableEditor')); } catch (e2) {} }
+        editorState.jss = null;
+      }
+      // buang & buat ulang #tableEditor supaya init berikutnya dapat container yang bersih
+      const gridHost = document.getElementById('tableGridHost');
+      if (gridHost) gridHost.innerHTML = '<div id="tableEditor"></div>';
+      editorState.tableSel = null;
+      editorState.tableMerges = null;   // di-set ulang di initTableEditor dari data yang dimuat
+      // matikan perekam snapshot yang tertunda; instance tujuannya sudah tak ada. Objek tableHist
+      // sendiri dibiarkan hidup -- tableRebuild() (Gabung/Pisah) & undo/redo memang rebuild instance.
+      if (editorState.tableHist) { clearTimeout(editorState.tableHist.timer); editorState.tableHist.timer = null; }
+    }
+
+    // pastikan grid PERSEGI (semua baris sama panjang). Data jagged (bisa muncul setelah
+    // merge/unmerge yg merusak obj.records jspreadsheet) bikin data-x/data-y meleset ->
+    // blok/seret sel tidak akurat. Normalisasi ke lebar maksimum sebelum init.
+    function normalizeGrid(data) {
+      const rows = (Array.isArray(data) && data.length) ? data : [['', '', '', '']];
+      let ncol = 1;
+      for (let i = 0; i < rows.length; i++) ncol = Math.max(ncol, Array.isArray(rows[i]) ? rows[i].length : 0);
+      return rows.map(function (r) {
+        r = Array.isArray(r) ? r.slice(0, ncol) : [];
+        while (r.length < ncol) r.push('');
+        return r.map(function (c) { return c == null ? '' : c; });
+      });
+    }
+
+    function initTableEditor(data, canEdit) {
+      destroyTableEditor();
+      let parsed = null;
+      try { parsed = data && data.delta ? JSON.parse(data.delta) : null; } catch (e) { parsed = null; }
+      const grid = normalizeGrid((parsed && Array.isArray(parsed.data) && parsed.data.length)
+        ? parsed.data
+        : [['', '', '', ''], ['', '', '', ''], ['', '', '', ''], ['', '', '', ''], ['', '', '', '']]);
+      const style = (parsed && parsed.style && typeof parsed.style === 'object') ? parsed.style : {};
+      const savedCols = (parsed && Array.isArray(parsed.columns)) ? parsed.columns : [];
+      // merge = metadata milik kita sendiri, disaring biar tak keluar batas grid
+      const rawMerge = (parsed && parsed.merge && typeof parsed.merge === 'object') ? parsed.merge : {};
+      const nrow = grid.length;
+      const ncol = grid[0].length;
+      const merge = {};
+      Object.keys(rawMerge).forEach(function (k) {
+        const p = cellToXY(k); if (!p || p.x < 0 || p.y < 0 || p.x >= ncol || p.y >= nrow) return;
+        const cs = Math.max(1, Math.min((rawMerge[k] && rawMerge[k][0]) || 1, ncol - p.x));
+        const rs = Math.max(1, Math.min((rawMerge[k] && rawMerge[k][1]) || 1, nrow - p.y));
+        if (cs > 1 || rs > 1) merge[k] = [cs, rs];
+      });
+      editorState.tableMerges = merge;
+      const columns = [];
+      for (let i = 0; i < ncol; i++) {
+        columns.push({ width: (savedCols[i] && Number(savedCols[i].width)) ? Number(savedCols[i].width) : 120 });
+      }
+      const onEdit = function () { scheduleSave(); tableHistRecord(); };
+      editorState.jss = window.jspreadsheet(document.getElementById('tableEditor'), {
+        data: grid,
+        style: style,
+        mergeCells: merge,
+        columns: columns,
+        minDimensions: [Math.max(ncol, 1), Math.max(grid.length, 1)],
+        editable: canEdit,
+        allowInsertRow: canEdit, allowInsertColumn: canEdit,
+        allowDeleteRow: canEdit, allowDeleteColumn: canEdit,
+        allowManualInsertRow: canEdit, allowManualInsertColumn: canEdit,
+        allowRenameColumn: false,
+        contextMenu: canEdit ? undefined : function () { return false; },
+        // scroll ditangani #tableGridHost (overflow:auto). tableOverflow/freezeColumns SENGAJA
+        // DIMATIKAN: mode itu di jspreadsheet v4 merusak pemetaan seleksi setelah merge/unmerge.
+        tableOverflow: false,
+        csvFileName: (document.getElementById('editorTitle').value.trim() || 'tabel'),
+        csvHeaders: true,
+        about: false,
+        onselection: function (el, x1, y1, x2, y2) { editorState.tableSel = [x1, y1, x2, y2]; },
+        onchange: onEdit,
+        onafterchanges: onEdit,
+        oninsertrow: onEdit, ondeleterow: onEdit,
+        oninsertcolumn: onEdit, ondeletecolumn: onEdit,
+        onmoverow: onEdit, onmovecolumn: onEdit,
+        onresizecolumn: onEdit, onresizerow: onEdit,
+        onundo: onEdit, onredo: onEdit,
+        onmerge: onEdit
+      });
+    }
+
+    function tableSelRange() {
+      const sel = editorState.tableSel;
+      if (!sel || sel.length < 4 || sel[0] == null) return null;
+      return {
+        x1: Math.min(sel[0], sel[2]), x2: Math.max(sel[0], sel[2]),
+        y1: Math.min(sel[1], sel[3]), y2: Math.max(sel[1], sel[3])
+      };
+    }
+    function tableEachSelCell(cb) {
+      const r = tableSelRange();
+      if (!r) { showNotice('Pilih dulu sel di tabel.', 'info'); return false; }
+      // Untuk sel yang bagian dari gabungan (merge): SELALU tulis style ke sel-asal (origin),
+      // JANGAN ke sel tersembunyi. Kalau style ditulis ke sel tersembunyi, key phantom
+      // (mis. options.style['B1']) tertinggal & bikin state korup setelah merge dilepas.
+      const done = {};
+      for (let x = r.x1; x <= r.x2; x++) for (let y = r.y1; y <= r.y2; y++) {
+        const cn = tableFindMergeOrigin(x, y) || cellName(x, y);
+        if (done[cn]) continue;
+        done[cn] = true;
+        cb(cn);
+      }
+      return true;
+    }
+    // set nilai TETAP (force) -- utk rata & warna (nilai selalu ada isinya)
+    function tableSetStyleAll(prop, value) {
+      const jss = editorState.jss;
+      if (!jss || !editorState.canEdit) return;
+      if (!tableEachSelCell(function (cn) { jss.setStyle(cn, prop, value, 1); })) return;
+      scheduleSave(); tableHistRecord();
+    }
+    // HAPUS properti style. jspreadsheet v4: setStyle(cell,prop,'') tidak berfungsi (guard `if(t&&o)`),
+    // jadi pakai bentuk objek "prop:" + flag force (arg ke-4) yang benar-benar mengosongkan.
+    function tableClearStyleAll(prop) {
+      const jss = editorState.jss;
+      if (!jss || !editorState.canEdit) return;
+      const obj = {};
+      if (!tableEachSelCell(function (cn) { obj[cn] = prop + ':'; })) return;
+      try { jss.setStyle(obj, null, null, 1); } catch (e) {}
+      scheduleSave(); tableHistRecord();
+    }
+    // B/I/U -- pakai toggle bawaan jspreadsheet: setStyle(cell,prop,val) TANPA force = kalau nilainya
+    // sudah sama, malah dikosongkan. Jadi klik kedua = balik ke normal.
+    function tableToggleStyle(prop, onValue) {
+      const jss = editorState.jss;
+      if (!jss || !editorState.canEdit) return;
+      if (!tableEachSelCell(function (cn) { jss.setStyle(cn, prop, onValue); })) return;
+      scheduleSave(); tableHistRecord();
+    }
+    function tableApplyBg(color) {
+      if (color) tableSetStyleAll('background-color', color);
+      else tableClearStyleAll('background-color');
+    }
+    // Bangun ulang grid dari snapshot logis (data+style+merge+kolom). MERGE tidak lagi lewat
+    // setMerge/removeMerge di grid yang sudah "hidup" (itu sumber semua bug: node <td> basi,
+    // key style phantom). Sekarang: merge cuma metadata `editorState.tableMerges`, dan hanya
+    // di-apply lewat opsi `mergeCells` saat jspreadsheet DIBANGUN ULANG (jalur teruji).
+    function tableRebuild() {
+      const jss = editorState.jss;
+      if (!jss) return;
+      let snap = '';
+      try { snap = serializeTable(jss); } catch (e) { return; }
+      initTableEditor({ delta: snap }, editorState.canEdit);
+    }
+    function tableRectsOverlap(a, b) {
+      return a.x1 <= b.x2 && b.x1 <= a.x2 && a.y1 <= b.y2 && b.y1 <= a.y2;
+    }
+    function tableMergeRect(k) {
+      const p = cellToXY(k); if (!p) return null;
+      const m = (editorState.tableMerges || {})[k] || [1, 1];
+      return { x1: p.x, y1: p.y, x2: p.x + Math.max(1, m[0] || 1) - 1, y2: p.y + Math.max(1, m[1] || 1) - 1 };
+    }
+    // key sel-asal (origin) merge yang menutupi (x,y) -- baca metadata sendiri, bukan jss.getMerge()
+    function tableFindMergeOrigin(x, y) {
+      const merges = editorState.tableMerges || {};
+      const keys = Object.keys(merges);
+      for (let i = 0; i < keys.length; i++) {
+        const rc = tableMergeRect(keys[i]);
+        if (rc && x >= rc.x1 && x <= rc.x2 && y >= rc.y1 && y <= rc.y2) return keys[i];
+      }
+      return null;
+    }
+    function tableMerge() {
+      if (!editorState.jss || !editorState.canEdit) return;
+      const r = tableSelRange();
+      if (!r || (r.x1 === r.x2 && r.y1 === r.y2)) { showNotice('Pilih beberapa sel dulu untuk digabung.', 'info'); return; }
+      const merges = editorState.tableMerges || {};
+      const keys = Object.keys(merges);
+      for (let i = 0; i < keys.length; i++) {
+        const rc = tableMergeRect(keys[i]);
+        if (rc && tableRectsOverlap(r, rc)) { showNotice('Area itu bertumpuk dengan gabungan lain. Pisah dulu.', 'info'); return; }
+      }
+      merges[cellName(r.x1, r.y1)] = [r.x2 - r.x1 + 1, r.y2 - r.y1 + 1];
+      editorState.tableMerges = merges;
+      tableRebuild();
+      scheduleSave();
+      tableHistRecord();
+    }
+    function tableUnmerge() {
+      if (!editorState.jss || !editorState.canEdit) return;
+      const r = tableSelRange();
+      if (!r) { showNotice('Klik dulu sel gabungan yang mau dipisah.', 'info'); return; }
+      const merges = editorState.tableMerges || {};
+      let removed = 0;
+      Object.keys(merges).forEach(function (k) {
+        const rc = tableMergeRect(k);
+        if (rc && tableRectsOverlap(r, rc)) { delete merges[k]; removed += 1; }
+      });
+      if (!removed) { showNotice('Tidak ada sel gabungan di area terpilih.', 'info'); return; }
+      editorState.tableMerges = merges;
+      tableRebuild();
+      scheduleSave();
+      tableHistRecord();
+    }
+
+    /* ---------- undo/redo tabel ----------
+       jspreadsheet menyimpan riwayat undo-nya DI DALAM instance grid. initTableEditor() selalu
+       destroy + bikin instance baru (mis. tiap Gabung/Pisah sel lewat tableRebuild), jadi riwayat
+       internal itu selalu ikut hilang. Solusi: riwayat berbasis snapshot logis (serializeTable),
+       sama seperti mekanisme merge -- tahan terhadap rebuild. */
+    function tableHistReset() {
+      let snap = '';
+      try { if (editorState.jss) snap = serializeTable(editorState.jss); } catch (e) { snap = ''; }
+      editorState.tableHist = { stack: snap ? [snap] : [], idx: snap ? 0 : -1, timer: null, applying: false };
+      updateTableUndoRedoButtons();
+    }
+    // Ambil snapshot state sekarang & dorong ke stack (buang cabang redo yang kadaluarsa).
+    function tableHistCommit() {
+      const h = editorState.tableHist;
+      if (!h || h.applying || !editorState.jss) return;
+      let snap;
+      try { snap = serializeTable(editorState.jss); } catch (e) { return; }
+      if (h.stack[h.idx] === snap) return;             // tak ada perubahan efektif
+      h.stack = h.stack.slice(0, h.idx + 1);
+      h.stack.push(snap);
+      if (h.stack.length > 80) h.stack.shift();        // batasi pemakaian memori
+      h.idx = h.stack.length - 1;
+      updateTableUndoRedoButtons();
+    }
+    // Rekam tertunda (di-coalesce) -- dipanggil dari tiap event mutasi grid.
+    function tableHistRecord() {
+      const h = editorState.tableHist;
+      if (!h || h.applying || !editorState.jss) return;
+      clearTimeout(h.timer);
+      h.timer = setTimeout(function () {
+        if (editorState.tableHist) editorState.tableHist.timer = null;
+        tableHistCommit();
+      }, 300);
+    }
+    // Paksa rekam tertunda jalan sekarang (dipakai sebelum undo/redo supaya langkah tak terlewat).
+    function tableHistFlush() {
+      const h = editorState.tableHist;
+      if (!h || !h.timer) return;
+      clearTimeout(h.timer);
+      h.timer = null;
+      tableHistCommit();
+    }
+    function tableHistApply(snap) {
+      const h = editorState.tableHist;
+      if (h) h.applying = true;
+      try { initTableEditor({ delta: snap }, editorState.canEdit); }
+      finally { if (h) h.applying = false; }
+      updateTableUndoRedoButtons();
+    }
+    function updateTableUndoRedoButtons() {
+      const h = editorState.tableHist;
+      const u = document.getElementById('tblUndo');
+      const r = document.getElementById('tblRedo');
+      if (u) u.disabled = !(h && editorState.canEdit && h.idx > 0);
+      if (r) r.disabled = !(h && editorState.canEdit && h.idx < h.stack.length - 1);
+    }
+    function tableUndo() {
+      const h = editorState.tableHist;
+      if (!editorState.jss || !editorState.canEdit || !h) return;
+      tableHistFlush();                                  // catat dulu perubahan yang masih tertunda
+      if (h.idx <= 0) return;
+      h.idx -= 1;
+      tableHistApply(h.stack[h.idx]);
+      scheduleSave();
+    }
+    function tableRedo() {
+      const h = editorState.tableHist;
+      if (!editorState.jss || !editorState.canEdit || !h) return;
+      tableHistFlush();
+      if (h.idx >= h.stack.length - 1) return;
+      h.idx += 1;
+      tableHistApply(h.stack[h.idx]);
+      scheduleSave();
+    }
+    function tableDownloadCsv() {
+      const jss = editorState.jss;
+      if (!jss) return;
+      try { jss.options.csvFileName = document.getElementById('editorTitle').value.trim() || 'tabel'; } catch (e) {}
+      try { jss.download(true); } catch (e) { showNotice(e.message || 'Gagal mengunduh CSV.', 'error'); }
+    }
+
+    function renderTableSwatches() {
+      const host = document.getElementById('tableSwatches');
+      if (!host || host.dataset.built === '1') return;
+      host.dataset.built = '1';
+      host.innerHTML = TABLE_SWATCHES.map(function (c) {
+        return '<button type="button" class="tbt-sw" data-color="' + c + '" title="' + c + '" style="background:' + c + ';"></button>';
+      }).join('');
+      host.addEventListener('click', function (e) {
+        const b = e.target.closest('[data-color]');
+        if (b) tableApplyBg(b.getAttribute('data-color'));
+      });
+    }
+
+    function setEditorStatus(kind, textOverride) {
+      const el = document.getElementById('editorStatus');
+      el.className = 'editor-status';
+      if (kind === 'saving') { el.classList.add('saving'); el.textContent = textOverride || 'Menyimpan...'; }
+      else if (kind === 'pending') { el.classList.add('pending'); el.textContent = textOverride || 'Belum disimpan'; }
+      else if (kind === 'failed') { el.classList.add('failed'); el.textContent = textOverride || 'Gagal menyimpan — klik untuk coba lagi'; }
+      else if (kind === 'readonly') { el.textContent = textOverride || 'Hanya baca'; }
+      else {
+        el.classList.add('saved');
+        el.textContent = textOverride || ('Tersimpan' + (editorState.savedAt ? ' · ' + new Date(editorState.savedAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : ''));
+      }
+    }
+
+    function getEditorHtml() {
+      const q = editorState.quill;
+      // treat "empty" editor as truly empty
+      if (q.getText().trim() === '' && q.getContents().ops.length <= 1) return '';
+      return q.root.innerHTML;
+    }
+
+    // { html, delta } untuk disimpan -- html dipakai server utk cuplikan/pratinjau/PDF,
+    // delta = konten sebenarnya (ops Quill utk 'quill'; JSON grid+style utk 'table').
+    function getEditorContentForSave() {
+      if (editorState.docType === 'table') {
+        const jss = editorState.jss;
+        return { html: jss ? renderTableHtml(jss) : '', delta: jss ? serializeTable(jss) : '' };
+      }
+      return { html: getEditorHtml(), delta: JSON.stringify(editorState.quill.getContents()) };
+    }
+
+    // Dokumen baru (dibuat sesi ini) yang belum pernah diisi DAN judulnya masih "Dokumen Baru"
+    // -> dibuang otomatis (hapus permanen, tidak ke Sampah) saat editor ditutup / halaman ditinggal.
+    // Kalau user sempat ganti judul walau isi kosong, dokumen tetap disimpan.
+    function isDiscardableNewDoc() {
+      if (!editorState.isNew || !editorState.docId || !editorState.isOwner || !editorState.canEdit) return false;
+      const titleVal = (document.getElementById('editorTitle').value || '').trim();
+      if (titleVal !== NEW_DOC_TITLE && titleVal !== '') return false;
+      if (editorState.docType === 'table') return !!editorState.jss && tableIsEmpty(editorState.jss);
+      if (!editorState.quill) return false;
+      return getEditorHtml() === '';
+    }
+
+    function scheduleSave() {
+      if (!editorState.canEdit || !editorState.docId) return;
+      editorState.dirty = true;
+      // Cuma tandai "belum disimpan" -- status "Menyimpan..." baru muncul saat request
+      // benar-benar jalan (setelah 1 detik tidak ada ketikan), bukan tiap tombol ditekan.
+      setEditorStatus('pending');
+      clearTimeout(editorState.saveTimer);
+      editorState.saveTimer = setTimeout(function () { saveEditor(false); }, AUTOSAVE_DEBOUNCE_MS);
+    }
+
+    async function saveEditor(checkpoint) {
+      if (!editorState.canEdit || !editorState.docId) return;
+      if (editorState.docType === 'table' && !editorState.jss) return;
+      clearTimeout(editorState.saveTimer);
+      setEditorStatus('saving');
+      const content = getEditorContentForSave();
+      const payload = {
+        id: editorState.docId,
+        title: document.getElementById('editorTitle').value.trim() || 'Tanpa Judul',
+        html: content.html,
+        delta: content.delta,
+        checkpoint: !!checkpoint
+      };
+      try {
+        const data = await api('catatan.saveContent', payload);
+        editorState.dirty = false;
+        editorState.savedAt = data.updatedAt || new Date().toISOString();
+        setEditorStatus('saved');
+      } catch (err) {
+        setEditorStatus('failed');
+        showNotice(err.message || 'Gagal menyimpan.', 'error');
+      }
+    }
+
+    function beaconSave() {
+      if (!editorState.docId || !editorState.canEdit) return;
+      try {
+        if (isDiscardableNewDoc()) {
+          const dp = JSON.stringify({ action: 'catatan.discardEmpty', token: getToken(), id: editorState.docId });
+          navigator.sendBeacon(getApiBase(), new Blob([dp], { type: 'application/json' }));
+          editorState.dirty = false;
+          editorState.isNew = false;
+          return;
+        }
+        if (!editorState.dirty) return;
+        if (editorState.docType === 'table' && !editorState.jss) return;
+        const content = getEditorContentForSave();
+        const payload = JSON.stringify({
+          action: 'catatan.saveContent', token: getToken(),
+          id: editorState.docId,
+          title: document.getElementById('editorTitle').value.trim() || 'Tanpa Judul',
+          html: content.html,
+          delta: content.delta,
+          checkpoint: true
+        });
+        navigator.sendBeacon(getApiBase(), new Blob([payload], { type: 'application/json' }));
+        editorState.dirty = false;
+      } catch (e) { /* best effort */ }
+    }
+
+    async function openEditor(id, opts) {
+      const dlg = document.getElementById('editorDialog');
+      const shell = document.getElementById('editorShell');
+      editorState.loading = true;
+      editorState.isNew = !!(opts && opts.isNew);
+      document.getElementById('editorCopyLinkBtn').hidden = true;   // sembunyikan sampai dokumen benar-benar termuat
+      // set dari hint dulu (biar close handler tak pakai nilai dokumen sebelumnya kalau fetch gagal);
+      // dikoreksi lagi dari respons catatan.get di bawah.
+      editorState.docType = (opts && opts.docType === 'table') ? 'table' : 'quill';
+      // Quill hanya untuk dokumen jenis 'quill' -- dokumen 'table' tidak menyentuh Quill sama sekali.
+      if (editorState.docType !== 'table') { ensureQuill(); clearEditor(); }
+      document.getElementById('editorTitle').value = '';
+      setEditorStatus('saved', 'Memuat...');
+      if (!dlg.open) dlg.showModal();
+      try {
+        const data = await api('catatan.get', { id });
+        editorState.docId = data.id;
+        editorState.title = data.title;
+        editorState.canEdit = !!(data.access && data.access.canEdit);
+        editorState.isOwner = !!(data.access && data.access.isOwner);
+        editorState.isSuper = !!(data.access && data.access.isSuperAdmin);
+        editorState.everyone = data.everyone || '';
+        editorState.shares = data.shares || [];
+        editorState.dirty = false;
+        editorState.savedAt = data.updatedAt || '';
+
+        editorState.docType = data.docType === 'table' ? 'table' : 'quill';
+        document.getElementById('editorTitle').value = data.title || '';
+        document.getElementById('editorTitle').disabled = !editorState.isOwner;
+
+        const quillWrap = document.getElementById('editorQuillWrap');
+        const tableWrap = document.getElementById('tableEditorWrap');
+        if (editorState.docType === 'table') {
+          quillWrap.hidden = true;
+          tableWrap.hidden = false;
+          renderTableSwatches();
+          setEditorStatus('saved', 'Memuat editor tabel...');
+          try {
+            await ensureJspreadsheet();
+            initTableEditor(data, editorState.canEdit);
+            tableHistReset();
+          } catch (e) {
+            showNotice(e.message || 'Gagal memuat editor tabel.', 'error');
+            dlg.close();
+            return;
+          }
+        } else {
+          tableWrap.hidden = true;
+          quillWrap.hidden = false;
+          destroyTableEditor();
+          ensureQuill();   // dokumen 'quill' (mis. deep-link tanpa hint) -- pastikan Quill siap
+          // load content: prefer delta, fall back to html
+          setEditorContent(data.delta, data.html);
+          editorState.quill.enable(editorState.canEdit);
+        }
+        shell.classList.toggle('is-readonly', !editorState.canEdit);
+        document.getElementById('editorReadonlyBanner').hidden = editorState.canEdit;
+        // Info "tidak realtime" -- hanya saat bisa mengedit & belum di-dismiss permanen.
+        document.getElementById('editorInfoBanner').hidden = !(editorState.canEdit && !isRealtimeNoticeDismissed());
+        document.getElementById('editorShareBtn').hidden = !editorState.isOwner;
+        document.getElementById('editorCopyLinkBtn').hidden = false;   // siapa pun yang bisa membuka boleh menyalin tautannya
+
+        setEditorStatus(editorState.canEdit ? 'saved' : 'readonly',
+          editorState.canEdit ? undefined : 'Hanya baca' + (data.ownerName ? ' · pemilik: ' + data.ownerName : ''));
+
+        try {
+          const u = new URL(window.location.href);
+          u.searchParams.set('doc', data.id);
+          window.history.replaceState({}, '', u);
+        } catch (e) {}
+      } catch (err) {
+        showNotice(err.message || 'Gagal membuka dokumen.', 'error');
+        dlg.close();
+      } finally {
+        editorState.loading = false;
+      }
+    }
+
+    function clearDocUrlParam() {
+      try { const x = new URL(window.location.href); x.searchParams.delete('doc'); window.history.replaceState({}, '', x); } catch (e) {}
+    }
+
+    // Tautan langsung ke dokumen yang sedang dibuka: URL halaman ini + ?doc=<id>.
+    // Pakai URL saat ini sebagai basis supaya tetap benar walau app di-host di sub-path (cPanel).
+    function currentDocLink() {
+      try {
+        const u = new URL(window.location.href);
+        u.searchParams.set('doc', editorState.docId);
+        return u.toString();
+      } catch (e) {
+        return window.location.origin + window.location.pathname + '?doc=' + encodeURIComponent(editorState.docId);
+      }
+    }
+
+    async function copyDocLink() {
+      if (editorState.loading || !editorState.docId) return;
+      const btn = document.getElementById('editorCopyLinkBtn');
+      const link = currentDocLink();
+      const feedback = function (ok) {
+        clearTimeout(btn._copyTimer);
+        btn.textContent = ok ? 'Tersalin ✓' : 'Gagal menyalin';
+        btn._copyTimer = setTimeout(function () { btn.textContent = 'Salin Tautan'; }, 2000);
+        if (ok) showNotice('Tautan dokumen disalin ke clipboard.', 'success');
+        else showNotice('Tidak bisa menyalin otomatis. Tautan: ' + link, 'error');
+      };
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(link);
+          feedback(true);
+          return;
+        }
+      } catch (e) { /* jatuh ke fallback di bawah */ }
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = link;
+        ta.setAttribute('readonly', '');
+        ta.style.position = 'fixed';
+        ta.style.top = '-1000px';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        const ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        feedback(ok);
+      } catch (e) {
+        feedback(false);
+      }
+    }
+
+    function closeEditorCleanup() {
+      clearDocUrlParam();
+      editorState.docId = null;
+      editorState.isNew = false;
+      loadList({ silent: true });
+    }
+
+    // Dipanggil dari handler 'close' editor: buang dokumen baru yang ditinggal kosong.
+    function discardEmptyNewDocOnClose() {
+      const discardId = editorState.docId;
+      editorState.isNew = false;
+      editorState.dirty = false;
+      clearTimeout(editorState.saveTimer);
+      editorState.docId = null;
+      clearDocUrlParam();
+      api('catatan.discardEmpty', { id: discardId })
+        .catch(function () {})
+        .then(function () { loadList({ silent: true }); });
+    }
+
+    /* ---------- share ---------- */
+    async function ensureShareRefs() {
+      if (shareRefs) return shareRefs;
+      shareRefs = await api('catatan.refs', {});
+      const dl = document.getElementById('shareUserList');
+      const sel = document.getElementById('shareJabatanInput');
+      shareUserByLabel = {};
+      dl.innerHTML = (shareRefs.users || []).map(function (u) {
+        const label = u.jabatan ? (u.name + ' — ' + u.jabatan) : u.name;
+        shareUserByLabel[label] = u.id;
+        shareUserByLabel[u.name] = shareUserByLabel[u.name] || u.id;
+        return '<option value="' + escapeHtml(label) + '"></option>';
+      }).join('');
+      sel.innerHTML = '<option value="">Pilih jabatan...</option>' +
+        (shareRefs.jabatan || []).map(function (j) { return '<option value="' + escapeHtml(j) + '">' + escapeHtml(j) + '</option>'; }).join('');
+      return shareRefs;
+    }
+
+    async function openShare(docId, title) {
+      try {
+        await ensureShareRefs();
+        const data = await api('catatan.share.list', { id: docId });
+        shareState = {
+          docId: docId,
+          everyone: data.everyone || 'none',
+          entries: (data.shares || []).map(function (s) {
+            return { kind: s.kind, refValue: s.refValue, refLabel: s.refLabel, canEdit: !!s.canEdit };
+          })
+        };
+        document.getElementById('shareDocTitle').textContent = title || '';
+        document.getElementById('shareEveryone').value = shareState.everyone || 'none';
+        document.getElementById('shareUserInput').value = '';
+        document.getElementById('shareUserEdit').checked = false;
+        document.getElementById('shareJabatanInput').value = '';
+        document.getElementById('shareJabatanEdit').checked = false;
+        renderShareEntries();
+        const sdlg = document.getElementById('shareDialog');
+        if (!sdlg.open) sdlg.showModal();
+      } catch (err) {
+        showNotice(err.message || 'Gagal memuat pengaturan berbagi.', 'error');
+      }
+    }
+
+    function renderShareEntries() {
+      const wrap = document.getElementById('shareEntryList');
+      if (!shareState.entries.length) {
+        wrap.innerHTML = '<div class="share-empty">Belum dibagikan ke orang atau jabatan tertentu.</div>';
+        return;
+      }
+      wrap.innerHTML = shareState.entries.map(function (e, i) {
+        return '<div class="share-entry">' +
+          '<span class="se-kind">' + (e.kind === 'jabatan' ? '🏷️' : '👤') + '</span>' +
+          '<span class="se-label">' + escapeHtml(e.refLabel) + (e.kind === 'jabatan' ? ' <small style="color:var(--muted)">(jabatan)</small>' : '') + '</span>' +
+          '<label class="se-edit"><input type="checkbox" data-edit-idx="' + i + '" ' + (e.canEdit ? 'checked' : '') + '> boleh edit</label>' +
+          '<button class="se-remove" type="button" data-remove-idx="' + i + '">&times;</button>' +
+        '</div>';
+      }).join('');
+    }
+
+    function addShareUser() {
+      const val = document.getElementById('shareUserInput').value.trim();
+      if (!val) return;
+      const id = shareUserByLabel[val];
+      if (!id) { showNotice('Nama pengurus tidak dikenali. Pilih dari daftar.', 'error'); return; }
+      if (shareState.entries.some(function (e) { return e.kind === 'user' && String(e.refValue) === String(id); })) {
+        showNotice('Orang itu sudah ada di daftar.', 'info');
+      } else {
+        const name = val.split(' — ')[0];
+        shareState.entries.push({ kind: 'user', refValue: String(id), refLabel: name, canEdit: document.getElementById('shareUserEdit').checked });
+        renderShareEntries();
+      }
+      document.getElementById('shareUserInput').value = '';
+      document.getElementById('shareUserEdit').checked = false;
+    }
+
+    function addShareJabatan() {
+      const val = document.getElementById('shareJabatanInput').value.trim();
+      if (!val) return;
+      if (shareState.entries.some(function (e) { return e.kind === 'jabatan' && e.refValue.toLowerCase() === val.toLowerCase(); })) {
+        showNotice('Jabatan itu sudah ada di daftar.', 'info');
+      } else {
+        shareState.entries.push({ kind: 'jabatan', refValue: val, refLabel: val, canEdit: document.getElementById('shareJabatanEdit').checked });
+        renderShareEntries();
+      }
+      document.getElementById('shareJabatanInput').value = '';
+      document.getElementById('shareJabatanEdit').checked = false;
+    }
+
+    async function saveShare() {
+      const everyoneSel = document.getElementById('shareEveryone').value;
+      const everyone = everyoneSel === 'none' ? '' : everyoneSel;
+      const btn = document.getElementById('shareSaveBtn');
+      btn.disabled = true;
+      try {
+        const data = await api('catatan.share.set', {
+          id: shareState.docId,
+          everyone: everyone,
+          shares: shareState.entries.map(function (e) {
+            return { kind: e.kind, refValue: e.refValue, refLabel: e.refLabel, canEdit: !!e.canEdit };
+          })
+        });
+        document.getElementById('shareDialog').close();
+        showNotice('Pengaturan berbagi disimpan.', 'success');
+        if (editorState.docId === shareState.docId) {
+          editorState.everyone = data.everyone;
+          editorState.shares = data.shares;
+        }
+        loadList({ silent: true });
+      } catch (err) {
+        showNotice(err.message || 'Gagal menyimpan berbagi.', 'error');
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    /* ---------- versions ---------- */
+    async function openVersions(docId) {
+      try {
+        const data = await api('catatan.versions', { id: docId });
+        versionsState = { docId: docId, canEdit: !!data.canEdit };
+        const wrap = document.getElementById('versionList');
+        if (!data.items.length) {
+          wrap.innerHTML = '<div class="share-empty">Belum ada versi tersimpan.</div>';
+        } else {
+          wrap.innerHTML = data.items.map(function (v) {
+            const restoreBtn = (versionsState.canEdit && !v.current)
+              ? '<button data-restore="' + v.id + '">Pulihkan</button>' : '';
+            return '<div class="ver-row">' +
+              '<div class="ver-main">' +
+                (v.current ? '<span class="ver-badge">Versi saat ini</span>' : '') +
+                '<strong>' + escapeHtml(v.editorName || 'Tidak diketahui') + '</strong>' +
+                (v.editorJabatan ? '<span class="ver-jab">' + escapeHtml(v.editorJabatan) + '</span>' : '') +
+                '<span class="ver-meta">' + escapeHtml(fmtDateTime(v.createdAt)) + ' · ' + escapeHtml(fmtSize(v.size)) + (v.note ? ' · ' + escapeHtml(v.note) : '') + '</span>' +
+                (v.excerpt ? '<div class="ver-excerpt">' + escapeHtml(v.excerpt) + '</div>' : '') +
+              '</div>' +
+              '<div class="ver-actions"><button data-view="' + v.id + '">Lihat</button>' + restoreBtn + '</div>' +
+            '</div>';
+          }).join('');
+        }
+        const vdlg = document.getElementById('versionsDialog');
+        if (!vdlg.open) vdlg.showModal();
+      } catch (err) {
+        showNotice(err.message || 'Gagal memuat riwayat versi.', 'error');
+      }
+    }
+
+    async function previewVersion(versionId) {
+      try {
+        const data = await api('catatan.version.get', { id: versionsState.docId, versionId: versionId });
+        document.getElementById('versionPreviewTitle').textContent = data.title || 'Pratinjau Versi';
+        document.getElementById('versionPreviewMeta').textContent =
+          (data.editorName ? 'oleh ' + data.editorName + ' · ' : '') + fmtDateTime(data.createdAt);
+        document.getElementById('versionPreviewBody').innerHTML = data.html || '<p><em>(kosong)</em></p>';
+        const rb = document.getElementById('versionPreviewRestoreBtn');
+        rb.hidden = !versionsState.canEdit;
+        rb.dataset.restore = versionId;
+        const pdlg = document.getElementById('versionPreviewDialog');
+        if (!pdlg.open) pdlg.showModal();
+      } catch (err) {
+        showNotice(err.message || 'Gagal memuat versi.', 'error');
+      }
+    }
+
+    async function restoreVersion(versionId) {
+      try {
+        const data = await api('catatan.version.restore', { id: versionsState.docId, versionId: versionId });
+        showNotice('Dokumen dipulihkan ke versi terpilih.', 'success');
+        document.getElementById('versionPreviewDialog').close();
+        if (editorState.docId === versionsState.docId) {
+          editorState.dirty = false;
+          if (editorState.docType === 'table') {
+            initTableEditor({ delta: data.delta }, editorState.canEdit);
+            // pulihkan versi = langkah yang bisa di-undo (bukan reset baseline)
+            if (editorState.tableHist) tableHistRecord(); else tableHistReset();
+          } else if (editorState.quill) {
+            setEditorContent(data.delta, data.html);
+          }
+          document.getElementById('editorTitle').value = data.title || '';
+          editorState.savedAt = data.updatedAt || new Date().toISOString();
+          setEditorStatus('saved');
+        }
+        openVersions(versionsState.docId);
+        loadList({ silent: true });
+      } catch (err) {
+        showNotice(err.message || 'Gagal memulihkan versi.', 'error');
+      }
+    }
+
+    /* ---------- rename / confirm ---------- */
+    function openRename(docId, title) {
+      const dlg = document.getElementById('renameDialog');
+      const input = document.getElementById('renameInput');
+      input.value = title || '';
+      dlg.dataset.docId = docId;
+      if (!dlg.open) dlg.showModal();
+      setTimeout(function () { input.focus(); input.select(); }, 40);
+    }
+    async function submitRename(ev) {
+      ev.preventDefault();
+      const dlg = document.getElementById('renameDialog');
+      const title = document.getElementById('renameInput').value.trim();
+      if (!title) return;
+      const btn = ev.submitter;
+      if (btn) btn.disabled = true;
+      try {
+        await api('catatan.rename', { id: dlg.dataset.docId, title: title });
+        dlg.close();
+        if (editorState.docId === dlg.dataset.docId) document.getElementById('editorTitle').value = title;
+        showNotice('Nama dokumen diperbarui.', 'success');
+        loadList({ silent: true });
+      } catch (err) {
+        showNotice(err.message || 'Gagal mengubah nama.', 'error');
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
+
+    function openDescription(docId, current) {
+      const dlg = document.getElementById('descDialog');
+      const ta = document.getElementById('descInput');
+      ta.value = current || '';
+      dlg.dataset.docId = docId;
+      if (!dlg.open) dlg.showModal();
+      setTimeout(function () { ta.focus(); }, 40);
+    }
+    async function submitDescription(ev) {
+      ev.preventDefault();
+      const dlg = document.getElementById('descDialog');
+      const description = document.getElementById('descInput').value.trim();
+      const btn = ev.submitter;
+      if (btn) btn.disabled = true;
+      try {
+        await api('catatan.setDescription', { id: dlg.dataset.docId, description: description });
+        dlg.close();
+        showNotice('Deskripsi diperbarui.', 'success');
+        loadList({ silent: true });
+      } catch (err) {
+        showNotice(err.message || 'Gagal menyimpan deskripsi.', 'error');
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
+
+    function openConfirm(cfg) {
+      document.getElementById('confirmTitle').textContent = cfg.title || 'Konfirmasi';
+      document.getElementById('confirmMessage').textContent = cfg.message || '';
+      const okBtn = document.getElementById('confirmOkBtn');
+      okBtn.textContent = cfg.confirmLabel || 'Ya';
+      okBtn.className = cfg.danger ? 'danger' : 'primary';
+      const wrap = document.getElementById('confirmTextWrap');
+      const input = document.getElementById('confirmTextInput');
+      input.value = '';
+      if (cfg.requireText) {
+        wrap.hidden = false;
+        document.getElementById('confirmTextLabel').textContent = 'Ketik "' + cfg.requireText + '" untuk lanjut';
+        okBtn.disabled = true;
+        input.oninput = function () { okBtn.disabled = input.value.trim().toUpperCase() !== cfg.requireText.toUpperCase(); };
+      } else {
+        wrap.hidden = true; okBtn.disabled = false; input.oninput = null;
+      }
+      confirmHandler = cfg.onConfirm || null;
+      const cdlg = document.getElementById('confirmDialog');
+      if (!cdlg.open) cdlg.showModal();
+    }
+
+    /* ---------- print ---------- */
+    function printCurrentDoc() {
+      const title = document.getElementById('editorTitle').value.trim() || 'Dokumen';
+      const w = window.open('', '_blank');
+      if (!w) { showNotice('Popup diblokir. Izinkan popup untuk mencetak.', 'error'); return; }
+      const runPrint = '<scr' + 'ipt>window.onload=function(){setTimeout(function(){window.print();},350);};</scr' + 'ipt>';
+      if (editorState.docType === 'table') {
+        const bodyHtml = editorState.jss ? renderTableHtml(editorState.jss) : '<p>(kosong)</p>';
+        w.document.write('<!DOCTYPE html><html lang="id"><head><meta charset="utf-8"><title>' + escapeHtml(title) + '</title>' +
+          '<style>body{margin:0;padding:32px;font-family:Arial,Helvetica,sans-serif;color:#1a1a1a}h1.dpt{font-size:22px;margin:0 0 18px}' +
+          'table{border-collapse:collapse;max-width:100%}td{border:1px solid #888;padding:6px 9px;font-size:13px}' +
+          '@media print{body{padding:0}}</style></head><body><h1 class="dpt">' + escapeHtml(title) + '</h1>' + bodyHtml + runPrint + '</body></html>');
+        w.document.close();
+        return;
+      }
+      const html = editorState.quill ? editorState.quill.root.innerHTML : '';
+      w.document.write('<!DOCTYPE html><html lang="id"><head><meta charset="utf-8"><title>' + escapeHtml(title) + '</title>' +
+        '<link rel="stylesheet" href="' + window.location.origin + '/vendor/quill/quill.snow.css">' +
+        '<style>body{margin:0;padding:32px;font-family:Georgia,serif;color:#1a1a1a}h1.dpt{font-size:22px;margin:0 0 18px;font-family:Georgia,serif}' +
+        '.ql-editor{padding:0;max-width:none;line-height:1.7}.ql-editor img{max-width:100%}@media print{body{padding:0}}</style>' +
+        '</head><body><h1 class="dpt">' + escapeHtml(title) + '</h1><div class="ql-editor ql-snow">' + html + '</div>' +
+        runPrint + '</body></html>');
+      w.document.close();
+    }
+
+    /* ---------- new doc ---------- */
+    function newDoc() {
+      if (!(state.canCreate || canCreateClient())) {
+        showNotice('Hanya Mudir, Admin, dan Super Admin yang dapat membuat dokumen.', 'error');
+        return;
+      }
+      const d = document.getElementById('newTypeDialog');
+      if (!d.open) d.showModal();
+    }
+
+    async function createDoc(docType) {
+      document.getElementById('newTypeDialog').close();
+      try {
+        const data = await api('catatan.create', { title: NEW_DOC_TITLE, doc_type: docType });
+        await openEditor(data.id, { isNew: true, docType: data.docType });
+        loadList({ silent: true });
+      } catch (err) {
+        showNotice(err.message || 'Gagal membuat dokumen.', 'error');
+      }
+    }
+
+    /* ---------- wiring ---------- */
+    function mountShell() {
+      return window.PSShell.mount({
+        currentPage: window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : '/pages/catatanku/',
+        session: getStoredSession(),
+        getStoredSession,
+        storageKey: STORAGE.session
+      });
+    }
+
+    function wireUp() {
+      document.getElementById('newDocBtn').addEventListener('click', newDoc);
+      document.getElementById('refreshBtn').addEventListener('click', function () { loadList(); });
+
+      document.getElementById('tabBar').addEventListener('click', function (e) {
+        const btn = e.target.closest('[data-tab]');
+        if (!btn) return;
+        state.tab = btn.getAttribute('data-tab');
+        state.expandedIds.clear();
+        state.page = 1;
+        document.querySelectorAll('#tabBar .doc-tab').forEach(function (b) { b.classList.toggle('is-active', b === btn); });
+        loadList();
+      });
+
+      document.getElementById('searchInput').addEventListener('input', PSUI.debounce(function () {
+        state.page = 1;
+        loadList({ silent: true });
+      }, PSUI.AUTOSAVE_DEBOUNCE_MS));
+
+      document.getElementById('pageSizeSelect').addEventListener('change', function (e) {
+        state.pageSize = Number(e.target.value) || 25;
+        state.page = 1;
+        renderCards();
+      });
+
+      document.addEventListener('click', function (e) {
+        const page = e.target.getAttribute && e.target.getAttribute('data-page');
+        if (!page) return;
+        const nextPage = Number(page);
+        if (!nextPage || nextPage < 1 || nextPage > state.totalPages || nextPage === state.page) return;
+        state.page = nextPage;
+        renderCards();
+      });
+
+      document.getElementById('list').addEventListener('click', function (e) {
+        const el = e.target.closest('[data-act]');
+        if (!el) return;
+        const id = el.getAttribute('data-id');
+        const act = el.getAttribute('data-act');
+        const item = state.items.find(function (x) { return x.id === id; }) || {};
+        if (act === 'toggle') {
+          if (state.expandedIds.has(id)) state.expandedIds.delete(id);
+          else state.expandedIds.add(id);
+          const card = el.closest('.doc-card');
+          if (card) card.classList.toggle('is-expanded', state.expandedIds.has(id));
+          return;
+        }
+        if (act === 'open' && item.restricted) { showNotice('Isi dokumen ini tidak dibagikan kepada Anda. Anda hanya dapat menghapusnya.', 'info'); return; }
+        if (act === 'open') openEditor(id, { docType: item.docType });
+        else if (act === 'versions') openVersions(id);
+        else if (act === 'share') openShare(id, item.title);
+        else if (act === 'rename') openRename(id, item.title);
+        else if (act === 'description') openDescription(id, item.description || '');
+        else if (act === 'pin') { el.disabled = true; api('catatan.pin', { id: id, pinned: !item.pinned }).then(function () { loadList({ silent: true }); }).catch(function (err) { showNotice(err.message, 'error'); el.disabled = false; }); }
+        else if (act === 'delete') {
+          openConfirm({
+            title: 'Pindahkan ke Sampah?',
+            message: '"' + (item.title || 'Dokumen') + '" akan dipindahkan ke Sampah. Anda dapat memulihkannya nanti, tetapi jika dibiarkan di Sampah lebih dari 30 hari akan terhapus permanen otomatis.',
+            confirmLabel: 'Ke Sampah', danger: true,
+            onConfirm: function () { api('catatan.delete', { id: id }).then(function () { showNotice('Dokumen dipindahkan ke Sampah.', 'success'); loadList(); }).catch(function (err) { showNotice(err.message, 'error'); }); }
+          });
+        }
+        else if (act === 'restore') { el.disabled = true; api('catatan.restore', { id: id }).then(function () { showNotice('Dokumen dipulihkan.', 'success'); loadList(); }).catch(function (err) { showNotice(err.message, 'error'); el.disabled = false; }); }
+        else if (act === 'purge') {
+          openConfirm({
+            title: 'Hapus permanen?',
+            message: '"' + (item.title || 'Dokumen') + '" beserta seluruh riwayat versinya akan dihapus selamanya. Tindakan ini tidak dapat dibatalkan.',
+            confirmLabel: 'Hapus Permanen', danger: true, requireText: 'HAPUS PERMANEN',
+            onConfirm: function () { api('catatan.purge', { id: id, confirm: 'HAPUS PERMANEN' }).then(function () { showNotice('Dokumen dihapus permanen.', 'success'); loadList(); }).catch(function (err) { showNotice(err.message, 'error'); }); }
+          });
+        }
+      });
+
+      // editor dialog
+      document.getElementById('editorCloseBtn').addEventListener('click', function () { document.getElementById('editorDialog').close(); });
+      document.getElementById('editorDialog').addEventListener('close', function () {
+        if (isDiscardableNewDoc()) { discardEmptyNewDocOnClose(); destroyTableEditor(); editorState.tableHist = null; return; }
+        if (editorState.dirty && editorState.canEdit) saveEditor(true);   // membaca konten scr sinkron sblm destroy
+        destroyTableEditor();
+        editorState.tableHist = null;
+        closeEditorCleanup();
+      });
+      document.getElementById('editorTitle').addEventListener('input', scheduleSave);
+      document.getElementById('editorStatus').addEventListener('click', function () {
+        if (this.classList.contains('failed')) saveEditor(true);
+      });
+      document.getElementById('editorCopyLinkBtn').addEventListener('click', copyDocLink);
+      document.getElementById('editorShareBtn').addEventListener('click', function () {
+        if (editorState.docId) openShare(editorState.docId, document.getElementById('editorTitle').value.trim());
+      });
+      document.getElementById('editorVersionsBtn').addEventListener('click', function () {
+        if (editorState.docId) openVersions(editorState.docId);
+      });
+      document.getElementById('editorPrintBtn').addEventListener('click', printCurrentDoc);
+      document.getElementById('editorInfoDismiss').addEventListener('click', dismissRealtimeNotice);
+
+      // pilih jenis dokumen baru
+      document.getElementById('newTypeText').addEventListener('click', function () { createDoc('quill'); });
+      document.getElementById('newTypeTable').addEventListener('click', function () { createDoc('table'); });
+      document.getElementById('newTypeCancel').addEventListener('click', function () { document.getElementById('newTypeDialog').close(); });
+
+      // toolbar editor tabel
+      document.getElementById('tblUndo').addEventListener('click', tableUndo);
+      document.getElementById('tblRedo').addEventListener('click', tableRedo);
+      // Rebut Ctrl+Z / Ctrl+Y sebelum handler bawaan jspreadsheet (yang pakai history internal
+      // rapuh & ikut hilang tiap rebuild). Fase capture + stopImmediatePropagation supaya listener
+      // keydown milik jspreadsheet di document tidak ikut jalan.
+      document.addEventListener('keydown', function (e) {
+        if (editorState.docType !== 'table' || !editorState.jss || !editorState.canEdit) return;
+        const wrap = document.getElementById('tableEditorWrap');
+        if (!wrap || wrap.hidden) return;
+        if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+        const k = (e.key || '').toLowerCase();
+        if (k !== 'z' && k !== 'y') return;
+        // Jangan rebut kalau fokus lagi di kolom teks lain (mis. judul dokumen / color picker).
+        // Body / dialog = fokus "lepas" setelah rebuild undo -> tetap layani biar bisa Ctrl+Z beruntun.
+        const t = e.target;
+        const inWrap = wrap.contains(t);
+        const onChrome = t === document.body || t === document.documentElement ||
+          (t.id === 'editorDialog' || t.id === 'editorShell') || (t.tagName === 'DIALOG');
+        if (!inWrap && !onChrome) return;
+        if (editorState.jss.edition) return;   // sedang mengetik di dalam sel -> biar undo teks bawaan jalan
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        if (k === 'y' || (k === 'z' && e.shiftKey)) tableRedo(); else tableUndo();
+      }, true);
+      document.getElementById('tblBold').addEventListener('click', function () { tableToggleStyle('font-weight', 'bold'); });
+      document.getElementById('tblItalic').addEventListener('click', function () { tableToggleStyle('font-style', 'italic'); });
+      document.getElementById('tblUnder').addEventListener('click', function () { tableToggleStyle('text-decoration', 'underline'); });
+      document.getElementById('tblAlignL').addEventListener('click', function () { tableSetStyleAll('text-align', 'left'); });
+      document.getElementById('tblAlignC').addEventListener('click', function () { tableSetStyleAll('text-align', 'center'); });
+      document.getElementById('tblAlignR').addEventListener('click', function () { tableSetStyleAll('text-align', 'right'); });
+      document.getElementById('tblFontColorApply').addEventListener('click', function () {
+        tableSetStyleAll('color', document.getElementById('tblFontColor').value || '');
+      });
+      document.getElementById('tableBgApply').addEventListener('click', function () {
+        tableApplyBg(document.getElementById('tableBgColor').value || '');
+      });
+      document.getElementById('tableBgClear').addEventListener('click', function () { tableApplyBg(''); });
+      document.getElementById('tblMerge').addEventListener('click', tableMerge);
+      document.getElementById('tblUnmerge').addEventListener('click', tableUnmerge);
+      document.getElementById('tblCsv').addEventListener('click', tableDownloadCsv);
+
+      // share dialog
+      document.getElementById('shareAddUserBtn').addEventListener('click', addShareUser);
+      document.getElementById('shareAddJabatanBtn').addEventListener('click', addShareJabatan);
+      document.getElementById('shareSaveBtn').addEventListener('click', saveShare);
+      document.getElementById('shareCancelBtn').addEventListener('click', function () { document.getElementById('shareDialog').close(); });
+      document.getElementById('shareEntryList').addEventListener('click', function (e) {
+        const rm = e.target.closest('[data-remove-idx]');
+        if (rm) { shareState.entries.splice(Number(rm.getAttribute('data-remove-idx')), 1); renderShareEntries(); }
+      });
+      document.getElementById('shareEntryList').addEventListener('change', function (e) {
+        const cb = e.target.closest('[data-edit-idx]');
+        if (cb) shareState.entries[Number(cb.getAttribute('data-edit-idx'))].canEdit = cb.checked;
+      });
+
+      // versions
+      document.getElementById('versionsCloseBtn').addEventListener('click', function () { document.getElementById('versionsDialog').close(); });
+      document.getElementById('versionList').addEventListener('click', function (e) {
+        const v = e.target.closest('[data-view]');
+        const r = e.target.closest('[data-restore]');
+        if (v) previewVersion(v.getAttribute('data-view'));
+        else if (r) {
+          const vid = r.getAttribute('data-restore');
+          openConfirm({ title: 'Pulihkan versi ini?', message: 'Isi dokumen saat ini akan diganti dengan versi terpilih. Versi sekarang tetap tersimpan di riwayat.', confirmLabel: 'Pulihkan', onConfirm: function () { restoreVersion(vid); } });
+        }
+      });
+      document.getElementById('versionPreviewCloseBtn').addEventListener('click', function () { document.getElementById('versionPreviewDialog').close(); });
+      document.getElementById('versionPreviewRestoreBtn').addEventListener('click', function () {
+        const vid = this.dataset.restore;
+        openConfirm({ title: 'Pulihkan versi ini?', message: 'Isi dokumen saat ini akan diganti dengan versi ini.', confirmLabel: 'Pulihkan', onConfirm: function () { restoreVersion(vid); } });
+      });
+
+      // rename
+      document.getElementById('renameForm').addEventListener('submit', submitRename);
+      document.getElementById('renameCancelBtn').addEventListener('click', function () { document.getElementById('renameDialog').close(); });
+      document.getElementById('descForm').addEventListener('submit', submitDescription);
+      document.getElementById('descCancelBtn').addEventListener('click', function () { document.getElementById('descDialog').close(); });
+
+      // confirm
+      document.getElementById('confirmCancelBtn').addEventListener('click', function () { document.getElementById('confirmDialog').close(); });
+      document.getElementById('confirmOkBtn').addEventListener('click', function () {
+        const fn = confirmHandler; confirmHandler = null;
+        document.getElementById('confirmDialog').close();
+        if (fn) fn();
+      });
+
+      // best-effort save on leave
+      window.addEventListener('beforeunload', beaconSave);
+      document.addEventListener('visibilitychange', function () {
+        // dokumen baru yang masih kosong: jangan disimpan (nanti dibuang saat editor ditutup)
+        if (document.visibilityState === 'hidden' && editorState.dirty && editorState.canEdit && !isDiscardableNewDoc()) saveEditor(true);
+      });
+    }
+
+    const initialSession = getStoredSession();
+    if (!initialSession) { clearSession(); window.location.replace('/pages/login/'); }
+    else if (!(window.PSAccess && window.PSAccess.redirectIfForbidden(initialSession, '/pages/catatanku/'))) {
+      mountShell();
+      wireUp();
+      loadList();
+      const deepDoc = new URLSearchParams(window.location.search).get('doc');
+      if (deepDoc) openEditor(deepDoc);
+    }
+  </script>
+</body>
+</html>

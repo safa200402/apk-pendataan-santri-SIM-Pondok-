@@ -177,6 +177,11 @@
           href: '/pages/editSoal/',
           label: '* Edit Soal (per 2 pekan)',
           description: 'Kelola soal ujian per kelas'
+        },
+        {
+          href: '/pages/quizDigital/',
+          label: '* Quiz Digital',
+          description: 'Buat quiz/ujian digital per kelas (drill & examination), dikerjakan santri; lihat & koreksi hasilnya'
         }
       ]
     },
@@ -299,6 +304,11 @@
       title: 'Lainnya',
       items: [
         {
+          href: '/pages/catatanku/',
+          label: 'Dokumen & Catatan',
+          description: 'Buat dokumen/catatan pribadi (editor lengkap), bagikan ke orang atau jabatan tertentu — hanya Mudir/Admin/Super Admin yang bisa membuat'
+        },
+        {
           href: '/pages/bukuDigital/',
           label: 'Perpustakaan Digital',
           description: 'Buku dan modul digital per mata pelajaran'
@@ -403,6 +413,11 @@
           label: '** Backup & Restore',
           description: 'Buat, unduh, dan hapus backup data sistem (Admin, Super Admin) — restore data khusus Super Admin'
         },
+        {
+          href: '/pages/kelolaAddons/',
+          label: '** Kelola Addons',
+          description: 'Aktif/nonaktifkan fitur opsional (Bank Soal, Jadwal Ibadah, Jam Digital, dst) beserta penjelasan konsekuensinya (Admin, Super Admin)'
+        },
       ]
     },
     {
@@ -422,6 +437,11 @@
           href: '/pages/santri/kondisiSantri/',
           label: 'Kondisi Saya',
           description: 'Zoom, pelanggaran, izin pulang, dan data sakit pribadi'
+        },
+        {
+          href: '/pages/santri/quizSantri/',
+          label: 'Quiz Digital',
+          description: 'Kerjakan quiz & ujian digital dari kelas, lihat hasilnya'
         }
       ]
     },

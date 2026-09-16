@@ -8,7 +8,7 @@
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="../../shared-ui.css">
   <link rel="stylesheet" href="../../shared-shell.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+  <link rel="stylesheet" href="../../vendor/fontawesome/css/all.min.css">
   <script src="../../shared-ui.js"></script>
   <title>Template Perkembangan</title>
   <style>
@@ -130,7 +130,7 @@
         <div class="tpl-card">
           <div class="th"><strong>${escapeHtml(t.judul)}</strong>
             <span><button class="ico-btn" onclick="editTpl('${escapeHtml(t.id)}')" title="Edit"><i class="fa-solid fa-pen"></i></button>
-            <button class="ico-btn del" onclick="deleteTpl('${escapeHtml(t.id)}')" title="Hapus"><i class="fa-solid fa-trash"></i></button></span>
+            <button class="ico-btn del" onclick="deleteTpl('${escapeHtml(t.id)}', this)" title="Hapus"><i class="fa-solid fa-trash"></i></button></span>
           </div>
           <div class="tb">${escapeHtml(t.teks)}</div>
         </div>`).join('') + '</div>';
@@ -163,11 +163,12 @@
       catch (e) { formNotice(e.message, 'error'); }
       finally { btn.disabled = false; }
     }
-    async function deleteTpl(id) {
+    async function deleteTpl(id, btn) {
       if (!canManagePerkembanganTemplateScoped()) { showNotice('Mudir hanya bisa melihat template perkembangan, tidak bisa menghapus.', 'error'); return; }
       if (!confirm('Hapus template ini?')) return;
+      if (btn) btn.disabled = true;
       try { await api('perkembangan.template.delete', { id }, 'POST'); await load(); showNotice('Template dihapus.', ''); }
-      catch (e) { showNotice(e.message, 'error'); }
+      catch (e) { showNotice(e.message, 'error'); if (btn) btn.disabled = false; }
     }
 
     window.editTpl = editTpl; window.deleteTpl = deleteTpl;

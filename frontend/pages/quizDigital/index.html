@@ -1,0 +1,2606 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#9e2f22">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="../../shared-ui.css">
+  <script src="../../shared-ui.js"></script>
+  <title>Quiz Digital</title>
+  <link rel="stylesheet" href="../../shared-shell.css">
+  <link rel="stylesheet" href="../../vendor/fontawesome/css/all.min.css">
+  <link rel="stylesheet" href="../../vendor/quill/quill.snow.css">
+  <script src="../../vendor/quill/quill.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap');
+    :root {
+      --paper: #f6efe0; --ink: #4d4034; --muted: #7b6a58;
+      --line: rgba(91,73,57,0.15); --accent: #b97650;
+      --success: #74846c; --danger: #a55a52; --warning: #b58439;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; }
+    h1, h2, h3 { margin: 0 0 10px; text-transform: uppercase; }
+    p { margin: 0; line-height: 1.6; }
+    .nav a, button { font-weight: 800 !important; text-transform: uppercase; }
+    .panel { padding: 20px; }
+    button, input, select, textarea { font: inherit; }
+    button { padding: 10px 16px; font-weight: 700; cursor: pointer; }
+    input, select, textarea { width: 100%; padding: 11px 12px; outline: none; }
+    label { display: grid; gap: 6px; font-size: 13px; font-weight: 600; }
+    .muted { color: var(--muted); font-size: 12.5px; }
+    .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 620px) { .row-2 { grid-template-columns: 1fr; } }
+    .section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .empty-state { padding: 34px 18px; text-align: center; color: var(--muted); font-size: 13px; }
+
+    /* Kartu kelas — UI & CSS sama persis dengan editKelas */
+    .list { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+    @media (max-width: 960px) { .list { grid-template-columns: 1fr; } }
+    .card { padding: 16px; }
+    .pill { display: inline-flex; padding: 7px 11px; font-size: 12px; font-weight: 700; }
+    .pill.gender-ikhwan { background: rgba(87, 107, 149, 0.14); color: #576b95; }
+    .pill.gender-akhowat { background: rgba(185, 118, 80, 0.14); color: #9e2f22; }
+    .pill.gender-campur { background: rgba(181, 132, 57, 0.14); color: var(--warning); }
+    .pill.gender-none { background: rgba(123, 106, 88, 0.14); color: var(--muted); }
+    .minimal-list-card.row-ikhwan           { background: #ddeeff; border-color: rgba(70,130,180,0.25); }
+    .minimal-list-card.row-akhowat          { background: #ffe4f0; border-color: rgba(200,100,140,0.25); }
+    .minimal-list-card.row-campur           { background: #f5f0e8; border-color: rgba(181,132,57,0.2); }
+    .minimal-list-card.row-ikhwan-inactive  { background: linear-gradient(135deg, #888 0%, #cce6ff 100%); border-color: rgba(70,130,180,0.25); }
+    .minimal-list-card.row-akhowat-inactive { background: linear-gradient(135deg, #888 0%, #ffd6e8 100%); border-color: rgba(200,100,140,0.25); }
+    .minimal-list-card.row-campur-inactive  { background: linear-gradient(135deg, #888 0%, #f5e8c8 100%); border-color: rgba(181,132,57,0.2); }
+    .kelas-title-row { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+    .kelas-context-label { font-size: 12px; line-height: 1.45; color: var(--muted); }
+    .kelas-jenis-tag { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; color: #6a4a2f; background: rgba(185, 118, 80, 0.16); border: 1px solid rgba(185, 118, 80, 0.3); line-height: 1.2; white-space: nowrap; }
+    .kelas-jam-tag { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; color: #576b95; background: rgba(87, 107, 149, 0.14); border: 1px solid rgba(87, 107, 149, 0.3); line-height: 1.2; white-space: nowrap; }
+
+    /* Pagination bernomor — cuma angka, tanpa tombol Sebelumnya/Berikutnya, rata tengah */
+    .paging-host { display: grid; gap: 8px; margin: 16px 0; }
+    .page-center { display: grid; gap: 8px; justify-items: center; }
+    .page-numbers { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+    .page-summary { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+
+    .quiz-list { display: grid; gap: 10px; margin-top: 14px; }
+    .quiz-card { padding: 14px 16px; border-radius: 14px; background: rgba(255,255,255,0.6); border: 1px solid var(--line); display: grid; gap: 8px; }
+    .quiz-card.inactive { opacity: 0.6; }
+    .quiz-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+    .quiz-title { font-weight: 800; font-size: 14px; }
+    .quiz-desc { font-size: 12.5px; color: var(--ink); white-space: pre-wrap; }
+    .quiz-meta { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; font-size: 10.5px; font-weight: 800; border-radius: 999px; background: rgba(185,118,80,0.14); color: var(--accent); text-transform: uppercase; letter-spacing: .03em; }
+    .chip.g { background: rgba(116,132,108,0.18); color: #3f5636; }
+    .chip.b { background: rgba(70,110,160,0.16); color: #385f86; }
+    .chip.w { background: rgba(181,132,57,0.18); color: #7a5a1e; }
+    .chip.d { background: rgba(165,90,82,0.16); color: #8a3f38; }
+    .quiz-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+    .quiz-actions button { padding: 7px 11px; font-size: 11px; min-height: 0; }
+    .secondary { background: rgba(255,255,255,0.7); border: 1px solid var(--line); color: var(--ink); }
+    .danger { background: var(--danger); color: #fff; }
+
+    .q-mode-tabs { display: flex; gap: 8px; }
+    .q-mode-btn { padding: 7px 12px; font-size: 11px; min-height: 0; opacity: 0.55; }
+    .q-mode-btn.active { opacity: 1; box-shadow: inset 0 -3px 0 var(--accent); }
+    .q-paging { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 4px; margin: 10px 0; }
+    .q-paging button { padding: 5px 10px; font-size: 11px; min-height: 0; }
+    .q-paging button.active { background: var(--accent); color: #fff; }
+    .q-paging .page-summary { font-size: 12px; font-weight: 700; color: var(--muted); padding: 0 4px; }
+    #quizBulkText { min-height: 300px; font-family: ui-monospace, "Cascadia Code", "Consolas", monospace; font-size: 13px; line-height: 1.7; }
+    .q-list { display: grid; gap: 12px; margin-top: 10px; }
+    .q-block { border: 1px solid var(--line); border-radius: 14px; padding: 14px; background: rgba(255,255,255,0.55); display: grid; gap: 10px; }
+    .q-block-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .q-block-head strong { font-size: 12px; text-transform: uppercase; color: var(--accent); letter-spacing: .04em; }
+    .q-type-row { display: flex; gap: 14px; align-items: center; font-size: 13px; }
+    .q-type-row label { flex-direction: row; align-items: center; gap: 6px; text-transform: none; font-weight: 600; }
+    .q-type-row input[type=radio] { width: auto; }
+    .opt-list { display: grid; gap: 8px; }
+    .opt-row { display: flex; align-items: center; gap: 8px; }
+    .opt-row input[type=radio] { width: auto; flex-shrink: 0; }
+    .opt-row input[type=text] { flex: 1; padding: 8px 10px; font-size: 13px; }
+    .opt-row input.ed-opt.is-dup { border-color: var(--danger); background: rgba(165,90,82,0.08); }
+    .opt-dup-msg { margin: 2px 0 0; font-size: 11.5px; font-weight: 700; color: var(--danger); }
+    .opt-row button, .ans-row button { flex-shrink: 0; padding: 5px 9px; font-size: 11px; min-height: 0; }
+    .ans-row { display: flex; gap: 8px; align-items: center; }
+    .ans-row input { flex: 1; padding: 8px 10px; font-size: 13px; }
+    .cfg-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 620px) { .cfg-grid { grid-template-columns: 1fr; } }
+    .cfg-check { display: flex; flex-direction: row; align-items: center; gap: 8px; text-transform: none; font-weight: 600; }
+    .cfg-check input { width: auto; }
+    .ps-dialog-footer { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
+
+    .res-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    .res-table th, .res-table td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: left; }
+    .res-table th { text-transform: uppercase; font-size: 10.5px; color: var(--muted); }
+    .res-attempt { background: rgba(255,255,255,0.5); border: 1px solid var(--line); border-radius: 12px; padding: 12px; display: grid; gap: 8px; margin-top: 8px; }
+    .res-qrow { border-top: 1px dashed var(--line); padding-top: 8px; font-size: 12.5px; display: grid; gap: 4px; }
+    .res-qrow .ans-ok { color: var(--success); font-weight: 700; }
+    .res-qrow .ans-no { color: var(--danger); font-weight: 700; }
+    .grade-btns { display: flex; gap: 6px; }
+    .grade-btns button { padding: 4px 10px; font-size: 10.5px; min-height: 0; }
+    .grade-btns button.on-ok { background: var(--success); color: #fff; }
+    .grade-btns button.on-no { background: var(--danger); color: #fff; }
+    dialog.ps-floating-dialog { width: min(760px, 96vw); }
+    .hidden { display: none !important; }
+    /* shared-ui.css menyetel .notice { display:none } — halaman lain (mis. daftarSantri) meng-override lokal. */
+    .notice.show { display: block !important; }
+
+    /* ── Folder quiz + tempat sampah ─────────────────────────── */
+    .kq-toolbar { display: flex !important; align-items: flex-end !important; justify-content: space-between !important; gap: 12px !important; flex-wrap: wrap !important; margin-bottom: 12px !important; }
+    .kq-toolbar label { max-width: 200px !important; }
+    #quizSearchWrap { max-width: 260px !important; flex: 1 1 180px !important; }
+    #btnToggleTrash { padding: 10px 14px !important; font-size: 11px !important; min-height: 0 !important; margin-left: auto !important; }
+    #btnToggleTrash.active { background: var(--danger) !important; color: #fff !important; border-color: var(--danger) !important; }
+    .folder-headbar { display: flex !important; align-items: center !important; justify-content: space-between !important; gap: 12px !important; flex-wrap: wrap !important; margin-bottom: 12px !important; }
+    .folder-crumbs { display: flex !important; flex-wrap: wrap !important; align-items: center !important; gap: 4px !important; font-size: 12px !important; }
+    .folder-crumbs button { padding: 4px 8px !important; font-size: 11.5px !important; min-height: 0 !important; background: transparent !important; border: none !important; box-shadow: none !important; color: var(--accent) !important; text-transform: none !important; }
+    .folder-crumbs button:disabled { color: var(--ink) !important; font-weight: 800 !important; cursor: default !important; }
+    .folder-crumbs .sep { color: var(--muted) !important; }
+    .folder-bar-actions { display: flex !important; gap: 8px !important; flex-wrap: wrap !important; }
+    .folder-bar-actions button { padding: 7px 12px !important; font-size: 11px !important; min-height: 0 !important; }
+    /* View "Quiz Terhapus": #folderHeadbar TETAP tampil (jangan pakai .hidden — kalah lawan
+       .folder-headbar{display:flex!important}), cuma tombol Folder/Kelola disembunyikan.
+       Selektor ber-ID biar menang atas .folder-bar-actions{display:flex!important}. */
+    #folderHeadbar.is-trash .folder-bar-actions { display: none !important; }
+    .folder-hint { font-size: 12px !important; color: var(--muted) !important; margin: 0 0 10px !important; }
+    /* Folder & quiz = kartu minimal-list-card yang SAMA (satu daftar). Folder: klik = masuk, tanpa expand.
+       Latar + border tiap kartu ikut warna-nya (folder: warna folder, quiz: warna quiz; '' = netral). */
+    #quizList .minimal-list-card.qi-card { border-left: 4px solid var(--qi-bar, var(--muted)) !important; background: var(--fc-tint, rgba(255,248,230,0.96)) !important; border-color: var(--fc-border, var(--line)) !important; }
+    .qi-card .minimal-list-card-title-row { display: flex !important; align-items: center !important; gap: 8px !important; flex-wrap: wrap !important; }
+    .qi-card .minimal-list-card-name { font-size: 14px !important; font-weight: 800 !important; line-height: 1.25 !important; }
+    .qi-card .minimal-list-card-hint { text-transform: none !important; letter-spacing: normal !important; }
+    .qi-card .qi-icon { font-size: 15px !important; flex-shrink: 0 !important; color: var(--qi-bar, var(--muted)) !important; }
+    .qi-card.qi-inactive { opacity: 0.6 !important; }
+    .qi-card .minimal-list-card-toggle { min-width: 64px !important; }
+    .qi-folder, .qi-folder .minimal-list-card-main { cursor: pointer !important; }
+    /* Item quiz: area judul (klik = buka/tutup detail) jadi pointer spt kartu folder.
+       Shared-ui cuma nyetel pointer utk [data-collapse], sedangkan quiz pakai [data-qtoggle]. */
+    .qi-card .minimal-list-card-main[data-qtoggle] { cursor: pointer !important; }
+    .qi-card:hover { filter: brightness(1.03) !important; }
+    .fc-dot { width: 12px !important; height: 12px !important; border-radius: 50% !important; flex-shrink: 0 !important; background: var(--fc-solid, var(--muted)) !important; border: 1px solid rgba(0,0,0,0.15) !important; }
+    .swatch-row { display: flex !important; flex-wrap: wrap !important; gap: 8px !important; }
+    .swatch { width: 30px !important; height: 30px !important; border-radius: 50% !important; cursor: pointer !important; border: 2px solid transparent !important; background: var(--fc-solid, #ccc) !important; padding: 0 !important; min-height: 0 !important; box-shadow: none !important; }
+    .swatch.is-sel { border-color: var(--ink) !important; box-shadow: 0 0 0 2px #fff inset !important; }
+    .ft-meta { font-size: 10.5px !important; color: var(--muted) !important; }
+    .folder-pick-list { display: grid !important; gap: 6px !important; max-height: 44vh !important; overflow: auto !important; }
+    .fb-row { display: flex !important; align-items: center !important; gap: 10px !important; padding: 10px 12px !important; border: 1px solid var(--line) !important; border-radius: 10px !important; background: rgba(255,255,255,0.7) !important; cursor: pointer !important; }
+    .fb-row:hover { background: rgba(255,255,255,0.95) !important; }
+    .fb-row.is-chosen { border-color: var(--accent) !important; background: rgba(185,118,80,0.14) !important; }
+    .fb-row .fb-name { flex: 1 !important; min-width: 0 !important; font-size: 12.5px !important; font-weight: 700 !important; text-transform: none !important; }
+    .fb-row .fb-path { color: var(--muted) !important; font-weight: 600 !important; }
+    .fb-row .fb-down { flex-shrink: 0 !important; padding: 5px 9px !important; font-size: 10.5px !important; min-height: 0 !important; }
+    #fbSearch { padding: 9px 11px !important; }
+    .quiz-card.trashed { opacity: 1 !important; border-style: dashed !important; }
+    .quiz-purge-note { font-size: 11.5px !important; color: var(--danger) !important; font-weight: 700 !important; }
+
+    /* Halaman Materi — editor Quill (toolbar sama seperti catatanku), 1 instance dipindah-pindah */
+    #materiEditorStash { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: #fff; }
+    #materiEditorStash .ql-toolbar.ql-snow { border: none; border-bottom: 1px solid var(--line); border-radius: 0; }
+    #materiEditorStash .ql-container.ql-snow { border: none; font-size: 14px; }
+    #materiEditorStash .ql-editor { min-height: 200px; max-height: 44vh; overflow-y: auto; line-height: 1.7; }
+    #materiEditorStash .ql-editor.ql-blank::before { font-style: normal; color: var(--muted); }
+    .materi-slot { margin-top: 4px; }
+
+    /* Tombol "+ Tambah Blok" -> overlay 5 pilihan (gabungan PG/Isian/Bank Kata/Susun/Materi) */
+    .q-add-dropdown { position: relative; display: inline-block; }
+    .q-add-menu {
+      /* Tombolnya nempel di ujung kanan #qAddBar (section-head pakai justify-content:space-between),
+         jadi menu dibuka ke KIRI (anchor kanan) supaya tidak kepotong/nutupin luar tepi kanan dialog. */
+      position: absolute; top: calc(100% + 6px); right: 0; z-index: 30; min-width: 190px; max-width: calc(100vw - 32px);
+      background: #fff; border: 1px solid var(--line); border-radius: 10px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14); padding: 6px; display: flex; flex-direction: column; gap: 2px;
+    }
+    .q-add-menu-item {
+      display: flex; align-items: center; gap: 8px; padding: 8px 10px; font-size: 12px;
+      background: transparent; border: none; box-shadow: none; text-align: left; min-height: 0;
+      border-radius: 6px; color: var(--ink); text-transform: none; cursor: pointer;
+    }
+    .q-add-menu-item:hover { background: rgba(185, 118, 80, 0.12); }
+
+    /* Dialog kelas full-screen — 100vw×100vh, pola sama seperti hafalanHarian */
+    #kelasQuizDialog {
+      width: 100%; max-width: 100%; height: 100%; max-height: 100%;
+      margin: 0; padding: 0; border: none; border-radius: 0;
+      background: var(--paper); overflow: hidden; position: relative;
+    }
+    #kelasQuizDialog::backdrop { background: rgba(41, 23, 15, 0.45); backdrop-filter: blur(4px); }
+    #kelasQuizDialog .kq-shell { height: 100%; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; }
+    #kelasQuizDialog .kq-head {
+      padding: 18px 22px 14px; border-bottom: 1px solid var(--line);
+      background: rgba(255, 251, 243, 0.9);
+      display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    }
+    #kelasQuizDialog .kq-head h3 { margin: 0; }
+    #kelasQuizDialog .kq-body { padding: 18px 22px; overflow: auto; }
+    #kelasQuizDialog .kq-foot {
+      padding: 14px 22px; border-top: 1px solid var(--line);
+      background: rgba(255, 251, 243, 0.9);
+      display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 10px;
+    }
+    #kelasQuizDialog .kq-close {
+      width: 44px; min-width: 44px; height: 44px; padding: 0; border-radius: 999px;
+      border: none; background: transparent; font-size: 22px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    #kelasQuizDialog .kq-close:hover { background: rgba(0, 0, 0, 0.08); }
+
+    /* Overlay "Lihat Semua" (belum mengerjakan) -- dilapiskan DI DALAM resultDialog yang sudah
+       terbuka (pola sama dgn silabusOverlay di kelasAbsensi), bukan <dialog> kedua. */
+    #notDoneOverlay {
+      position: absolute; inset: 0; z-index: 5;
+      background: rgba(35, 24, 15, 0.5);
+      display: flex; align-items: center; justify-content: center;
+      backdrop-filter: blur(3px);
+    }
+    #notDoneOverlay[hidden] { display: none; }
+    #notDonePanel {
+      position: relative; width: min(480px, 92%); max-height: 82%;
+      background: var(--paper); border: 1px solid var(--line); border-radius: 16px;
+      display: flex; flex-direction: column; overflow: hidden;
+      box-shadow: 0 20px 60px rgba(33, 23, 14, 0.28);
+    }
+    #notDonePanel .nd-head {
+      padding: 14px 16px; border-bottom: 1px solid var(--line);
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    }
+    #notDonePanel .nd-head h4 { margin: 0; font-size: 13px; }
+    #notDoneClose {
+      width: 32px; height: 32px; border: none; border-radius: 50%; padding: 0;
+      background: rgba(94, 68, 49, 0.1); font-size: 15px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    #notDoneClose:hover { background: rgba(94, 68, 49, 0.2); }
+    #notDoneBody { padding: 10px 16px; overflow: auto; flex: 1; display: grid; gap: 6px; }
+    #notDoneBody .nd-row { font-size: 12.5px; padding: 4px 0; border-bottom: 1px solid rgba(94, 68, 49, 0.08); }
+    #notDoneBody .nd-row:last-child { border-bottom: none; }
+    #notDonePagination { padding: 10px 16px; border-top: 1px solid var(--line); }
+  </style>
+</head>
+<body>
+  <script src="../../shared-nav.js"></script>
+  <script src="../../shared-access.js"></script>
+  <script src="../../shared-shell.js"></script>
+  <script src="../../vendor/xlsx/xlsx.full.min.js"></script>
+  <header class="app-header">
+    <div class="header-left">
+      <button class="drawer-toggle" id="navToggle" type="button" aria-label="Toggle sidebar">Menu</button>
+      <div class="header-brand">Pendataan Santri</div>
+      <div class="header-page">Quiz Digital</div>
+    </div>
+    <div class="header-right">
+      <span class="header-chip" id="headerRole">Pengurus</span>
+    </div>
+  </header>
+  <div class="drawer-backdrop" id="navBackdrop"></div>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+  <main>
+    <div class="app-layout">
+      <section class="panel nav" id="nav"></section>
+      <div class="content-stack">
+
+        <section class="panel">
+          <div class="section-head">
+            <div>
+              <h2>Quiz Digital</h2>
+              <p class="muted" style="margin-top:4px;">Buat quiz per kelas. <strong>Drill</strong> = latihan (feedback + penjelasan langsung, soal salah diulang sampai benar, tidak dinilai). <strong>Examination</strong> = ujian (skor 0&ndash;100). Santri mengerjakan lewat menu <em>Quiz Digital</em> di akun santri.</p>
+            </div>
+          </div>
+          <div class="filters" id="filtersPanel" style="margin-top:14px;">
+            <label>Tahun Ajaran
+              <select id="taSelect"><option value="">— Memuat… —</option></select>
+            </label>
+            <label>Cari kelas
+              <input type="search" id="kelasSearch" placeholder="Nama kelas / jam / pengajar…">
+            </label>
+            <label>Status
+              <select id="statusFilter">
+                <option value="active" selected>Aktif</option>
+                <option value="">Semua</option>
+                <option value="inactive">Nonaktif</option>
+              </select>
+            </label>
+            <label>Gender
+              <select id="genderFilter">
+                <option value="">Semua</option>
+                <option value="Ikhwan">Ikhwan</option>
+                <option value="Akhowat">Akhowat</option>
+                <option value="Campur">Campur</option>
+                <option value="Tidak ada">Tidak ada</option>
+              </select>
+            </label>
+            <label>Jam
+              <select id="jamFilter">
+                <option value="">Semua jam</option>
+                <option value="-">-</option>
+                <option value="Jam 1">Jam 1</option>
+                <option value="Jam 2">Jam 2</option>
+                <option value="Jam 3">Jam 3</option>
+                <option value="Jam 4">Jam 4</option>
+                <option value="Jam 5">Jam 5</option>
+                <option value="Jam 6">Jam 6</option>
+                <option value="Jam 7">Jam 7</option>
+                <option value="Jam 8">Jam 8</option>
+                <option value="Jam 9">Jam 9</option>
+                <option value="Jam 10">Jam 10</option>
+                <option value="Jam 11">Jam 11</option>
+              </select>
+            </label>
+            <label>Urutkan
+              <select id="sortSelect">
+                <option value="updated_desc" selected>Edit terbaru</option>
+                <option value="updated_asc">Edit terlama</option>
+                <option value="created_desc">Tambah terbaru</option>
+                <option value="created_asc">Tambah terlama</option>
+                <option value="name_asc">Nama A-Z</option>
+                <option value="name_desc">Nama Z-A</option>
+                <option value="id_asc">ID kecil-besar</option>
+                <option value="id_desc">ID besar-kecil</option>
+                <option value="jam_asc">Jam A-Z</option>
+                <option value="jam_desc">Jam Z-A</option>
+                <option value="gender_asc">Gender Ikhwan-Akhowat</option>
+                <option value="gender_desc">Gender Akhowat-Ikhwan</option>
+                <option value="santri_desc">Murid terbanyak</option>
+                <option value="santri_asc">Murid tersedikit</option>
+              </select>
+            </label>
+            <label>Jumlah per halaman
+              <select id="pageSizeSelect">
+                <option value="10">10</option>
+                <option value="12" selected>12</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </label>
+          </div>
+          <div class="paging-host" id="kelasPaginationTop"></div>
+          <div class="list" id="kelasPicker" style="margin-top:12px;"></div>
+          <div class="paging-host" id="kelasPaginationBottom"></div>
+        </section>
+
+      </div>
+    </div>
+  </main>
+
+  <!-- ── Konfirmasi generik (dipakai hapus permanen quiz — wajib ketik "HAPUS") ── -->
+  <!-- Ditaruh PALING AWAL di antara dialog: dialog ini selalu dibuka NESTED di atas
+       kelasQuizDialog (aksi Hapus ada di daftar quiz), jadi harus lebih dulu di urutan DOM
+       supaya document.querySelector('dialog[open]') (dipakai showNotice) menemukan dialog
+       teratas ini duluan, bukan kelasQuizDialog di bawahnya. -->
+  <dialog class="ps-floating-dialog" id="confirmDialog" data-no-history="true">
+    <div class="dialog-body ps-dialog-shell">
+      <div class="ps-dialog-header">
+        <div>
+          <h3 id="confirmTitle">Konfirmasi</h3>
+          <p class="muted" id="confirmMessage"></p>
+        </div>
+      </div>
+      <label id="confirmTextWrap" hidden>
+        <span id="confirmTextLabel">Ketik teks konfirmasi</span>
+        <input id="confirmTextInput" type="text" autocomplete="off">
+      </label>
+      <div class="ps-dialog-footer">
+        <button class="danger" type="button" id="confirmOkBtn">Ya</button>
+        <button class="secondary" type="button" id="confirmCancelBtn">Batal</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- ── Editor dialog ─────────────────────────────────────────── -->
+  <!-- data-no-history: dialog ini dibuka NESTED di atas kelasQuizDialog. Tanpa ini, menutup
+       lewat Simpan/Batal (bukan tombol back browser) memanggil history.back() milik shared-ui.js
+       -- popstate yg dipicu lalu menutup dialog TERATAS YANG MASIH TERBUKA (kelasQuizDialog,
+       krn editor sendiri sudah lebih dulu tertutup) sbg efek samping tak disengaja, bikin
+       SEMUA dialog ikut tertutup. Pola sama dgn semua dialog nested di pages/catatanku. -->
+  <dialog class="ps-floating-dialog" id="editorDialog" data-no-history="true">
+    <form class="dialog-body ps-dialog-shell" id="editorForm" method="dialog" style="gap:14px;">
+      <div class="ps-dialog-header"><h3 id="editorTitle">Buat Quiz</h3></div>
+      <input type="hidden" id="qId">
+      <label>Judul <span style="color:var(--danger)">*</span>
+        <input type="text" id="qTitle" placeholder="Contoh: Ulangan Harian Bab 3">
+      </label>
+      <label>Deskripsi / petunjuk (opsional)
+        <textarea id="qDesc" rows="2" placeholder="Petunjuk singkat sebelum santri mulai…"></textarea>
+      </label>
+      <div>
+        <span style="font-size:13px;font-weight:600;">Warna kartu <span class="muted">(opsional — kosong = warna default)</span></span>
+        <div class="swatch-row" id="qColorSwatches" style="margin-top:6px;"></div>
+      </div>
+      <div>
+        <span style="font-size:13px;font-weight:600;">Suara latar <span class="muted">(opsional — diputar pelan saat santri mengerjakan; MP3/M4A/OGG/WAV, maks 5 MB)</span></span>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:6px;">
+          <input type="file" id="qBgAudioFile" accept="audio/mpeg,audio/mp4,audio/x-m4a,audio/aac,audio/ogg,audio/wav,audio/webm,.mp3,.m4a,.ogg,.wav" style="max-width:230px;">
+          <label class="cfg-check" style="font-weight:600;"><input type="checkbox" id="qBgAudioLoop" checked> Putar berulang (loop)</label>
+          <button type="button" class="secondary" id="btnClearBgAudio" style="padding:6px 10px;font-size:11px;min-height:0;">Hapus suara</button>
+        </div>
+        <audio id="qBgAudioPreview" controls preload="none" style="display:none;margin-top:8px;max-width:100%;"></audio>
+        <p class="muted" id="qBgAudioStatus" style="margin-top:4px;"></p>
+      </div>
+      <div class="row-2">
+        <label>Tipe <span style="color:var(--danger)">*</span>
+          <select id="qTipe">
+            <option value="drill">Drill (latihan, tidak dinilai)</option>
+            <option value="examination">Examination (ujian, dinilai)</option>
+            <option value="dokumen">Dokumen (bacaan berslide + timer)</option>
+          </select>
+        </label>
+        <label>Status terbit
+          <select id="qPublish">
+            <option value="draft">Draft (belum tampil ke santri)</option>
+            <option value="terbit">Terbit (santri bisa mengerjakan)</option>
+            <option value="ditutup">Ditutup</option>
+          </select>
+        </label>
+      </div>
+      <div class="row-2">
+        <label>Waktu buka (opsional)
+          <input type="datetime-local" id="qOpenAt">
+        </label>
+        <label>Waktu tutup (opsional)
+          <input type="datetime-local" id="qCloseAt">
+        </label>
+      </div>
+
+      <details id="cfgExam">
+        <summary style="cursor:pointer;font-weight:800;font-size:12px;text-transform:uppercase;color:var(--accent);">Pengaturan pengerjaan</summary>
+        <div class="cfg-grid" style="margin-top:12px;">
+          <label>Maks. percobaan <span class="muted">(0 = bebas)</span>
+            <input type="number" id="cfgMaxAttempts" min="0" max="50" value="1">
+          </label>
+          <label>Batas waktu (menit) <span class="muted">(0 = tanpa batas)</span>
+            <input type="number" id="cfgTimeLimit" min="0" max="600" value="0">
+          </label>
+        </div>
+        <div class="cfg-grid" style="margin-top:10px;">
+          <label class="cfg-check"><input type="checkbox" id="cfgShuffleQ"> Acak urutan soal</label>
+          <label class="cfg-check"><input type="checkbox" id="cfgShuffleO"> Acak urutan opsi PG</label>
+          <label class="cfg-check"><input type="checkbox" id="cfgReshuffle" checked> Acak ulang tiap pengulangan / percobaan</label>
+          <label class="cfg-check"><input type="checkbox" id="cfgAllowBack" checked> Boleh kembali ke soal sebelumnya</label>
+          <label class="cfg-check"><input type="checkbox" id="cfgSertakanDibekukan"> Sertakan santri dibekukan</label>
+        </div>
+        <p class="muted" style="margin-top:6px;">"Acak ulang tiap pengulangan": di drill, tiap soal yang salah dan diulang, urutan opsinya diacak lagi (biar bukan sekadar hafal posisi). Di examination, tiap percobaan baru diacak lagi.</p>
+        <div class="cfg-grid" style="margin-top:10px;">
+          <label>Tampilkan skor
+            <select id="cfgShowResult">
+              <option value="langsung">Langsung setelah submit</option>
+              <option value="rilis">Tunggu guru rilis</option>
+            </select>
+          </label>
+          <label>Tampilkan jawaban benar &amp; penjelasan
+            <select id="cfgShowAnswers">
+              <option value="langsung">Langsung setelah submit</option>
+              <option value="rilis">Tunggu guru rilis</option>
+              <option value="tidak">Tidak ditampilkan</option>
+            </select>
+          </label>
+        </div>
+        <div style="margin-top:10px;">
+          <label class="cfg-check"><input type="checkbox" id="cfgPesertaPilih"> Batasi peserta (pilih santri tertentu)</label>
+          <div id="pesertaBox" class="hidden" style="margin-top:8px;border:1px solid var(--line);border-radius:12px;padding:10px;max-height:200px;overflow:auto;display:grid;gap:6px;background:rgba(255,255,255,0.5);"></div>
+        </div>
+        <p class="muted" style="margin-top:8px;">Drill mengabaikan batas percobaan &amp; batas waktu, selalu menampilkan jawaban + penjelasan langsung, dan soal yang salah diulang sampai benar.</p>
+      </details>
+
+      <div>
+        <div class="section-head">
+          <h3 style="margin:0;font-size:13px;" id="qSectionTitle">Soal <span style="color:var(--danger)">*</span></h3>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;" id="qAddBar">
+            <div class="q-mode-tabs" id="qModeTabs">
+              <button type="button" class="secondary q-mode-btn active" data-qmode="form">Mode Form</button>
+              <button type="button" class="secondary q-mode-btn" data-qmode="text">Mode Teks</button>
+            </div>
+            <div class="q-add-dropdown" id="qAddDropdown">
+              <div class="secondary" id="btnAddBlock" role="button" tabindex="0" style="padding:7px 12px;font-size:11px;font-weight:800;">+ Tambah Blok <i class="fa-solid fa-caret-down"></i></div>
+              <div class="q-add-menu hidden" id="qAddMenu">
+                <div class="q-add-menu-item" data-add="mc" role="button" tabindex="0"><i class="fa-solid fa-list-check"></i> Pilihan Ganda</div>
+                <div class="q-add-menu-item" data-add="short" role="button" tabindex="0"><i class="fa-solid fa-pen"></i> Isian Singkat</div>
+                <div class="q-add-menu-item" data-add="wordbank" role="button" tabindex="0"><i class="fa-solid fa-icons"></i> Isian Bank Kata</div>
+                <div class="q-add-menu-item" data-add="sentence" role="button" tabindex="0"><i class="fa-solid fa-arrow-down-a-z"></i> Susun Kalimat</div>
+                <div class="q-add-menu-item" data-add="materi" role="button" tabindex="0"><i class="fa-solid fa-book-open"></i> Halaman Materi</div>
+              </div>
+            </div>
+            <button class="secondary hidden" type="button" id="btnAddSlide" style="padding:7px 12px;font-size:11px;">+ Slide</button>
+          </div>
+        </div>
+        <p class="muted hidden" id="qDokHint" style="margin-top:6px;">Mode <strong>Dokumen</strong>: tiap slide = editor teks kaya + durasi detik. Santri harus menunggu timer tiap slide habis (sekali) sebelum bisa lanjut; setelah tamat sekali, navigasi bebas. Pengaturan skor/waktu/percobaan diabaikan — hanya <strong>Batasi peserta</strong> yang berlaku.</p>
+        <p class="muted" style="margin-top:6px;">Tiap soal wajib punya kunci jawaban + penjelasan (muncul ke santri setelah menjawab). Total nilai otomatis dinormalisasi ke 100. <strong>Isian Bank Kata</strong> = kalimat rumpang <code>[[jawaban]]</code> yang diisi santri dgn ketuk kartu kata (dinilai per-rumpang). <strong>Susun Kalimat</strong> = kartu kata teracak disusun jadi kalimat urut (benar semua atau salah). <strong>Halaman Materi</strong> = blok bacaan (teks kaya) yang santri baca lalu lanjut &mdash; tidak dijawab, tidak dinilai, dan dilewati saat pengacakan soal.</p>
+        <p class="muted" id="qTextHint" style="margin-top:6px;display:none;">Mode Teks: baris 1 = pertanyaan, baris berikutnya = opsi jawaban (tandai yang benar dengan &#9989; di akhir baris). Baris <code>PENJELASAN:</code> = penjelasan (wajib, muncul ke santri), baris <code>BOBOT:</code> = bobot poin (opsional, default 1). Pisahkan tiap soal dengan 1 baris kosong. Kalau hanya 1 baris jawaban &mdash; atau semua baris jawaban diberi &#9989; &mdash; soal jadi <strong>Isian Singkat</strong> (boleh banyak alternatif), selain itu <strong>Pilihan Ganda</strong>. Opsi pilihan ganda tidak boleh ada yang isinya sama. Mode Form &amp; Mode Teks saling sinkron saat pindah tab. <strong>Isian Bank Kata</strong>, &amp; <strong>Susun Kalimat</strong> ditulis mulai baris <code>[BANK-KATA #n]</code> / <code>[SUSUN #n]</code> lalu isinya di baris-baris berikutnya (baris <code>JUDUL:</code>, <code>PROMPT:</code>, <code>PENGECOH:</code>, <code>PENJELASAN:</code>, <code>BOBOT:</code> = metadata). <strong>Halaman Materi</strong> ditandai baris <code>[MATERI #n]</code> + <code>JUDUL:</code> saja &mdash; isi rich text-nya (format tebal/miring, gambar, embed video) <strong>tidak</strong> ditulis di sini, tapi diedit langsung lewat kartu di bawah kotak teks. Jangan pakai baris kosong di tengah isi blok (baris kosong = pemisah antar-blok).</p>
+        <div id="qFormMode">
+          <div class="q-paging" id="qEditPaging"></div>
+          <div class="q-list" id="qEditList"></div>
+        </div>
+        <div id="qTextMode" style="display:none;margin-top:10px;">
+          <textarea id="quizBulkText" rows="14" placeholder="Apa hukum mad thabi'i?&#10;Dibaca 2 harakat &#9989;&#10;Dibaca 6 harakat&#10;Boleh tidak dipanjangkan&#10;PENJELASAN: Mad thabi'i wajib dibaca 2 harakat.&#10;BOBOT: 2&#10;&#10;Sebutkan ibukota Indonesia.&#10;Jakarta &#9989;&#10;DKI Jakarta &#9989;&#10;PENJELASAN: Ibukota Republik Indonesia adalah Jakarta."></textarea>
+          <div id="qTextMateriPanel" style="margin-top:14px;"></div>
+        </div>
+      </div>
+
+      <!-- 1 instance Quill utk Halaman Materi. Awalnya "disimpan" di sini (hidden); saat blok
+           materi jadi halaman aktif di Mode Form, node ini DIPINDAHKAN ke dalam #materiSlot,
+           lalu dikembalikan ke sini sebelum #qEditList di-render ulang. Toolbar = sama persis
+           dengan pages/catatanku. -->
+      <div id="materiEditorStash" hidden>
+        <div id="materiQuillHost"></div>
+      </div>
+
+      <div class="ps-dialog-footer">
+        <button class="primary" type="submit" id="btnSaveQuiz"><i class="fa-solid fa-floppy-disk"></i>&ensp;Simpan</button>
+        <button class="secondary" type="button" id="btnCancelEdit">Batal</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- ── Results dialog ────────────────────────────────────────── -->
+  <!-- data-no-history: sama alasannya dgn editorDialog -- dialog ini jg nested di atas
+       kelasQuizDialog, harus dicegah ikut memanipulasi history saat ditutup. -->
+  <dialog class="ps-floating-dialog" id="resultDialog" data-no-history="true">
+    <div class="dialog-body ps-dialog-shell" style="gap:12px;">
+      <div class="ps-dialog-header"><h3 id="resultTitle">Hasil Quiz</h3></div>
+      <div class="section-head">
+        <input type="search" id="resSearch" placeholder="Cari nama santri…" style="max-width:240px;">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="secondary" type="button" id="btnRelease" style="font-size:11px;padding:7px 12px;"></button>
+          <button class="secondary" type="button" id="btnExportXlsx" style="font-size:11px;padding:7px 12px;"><i class="fa-solid fa-file-excel"></i>&ensp;Export Excel</button>
+        </div>
+      </div>
+      <p class="muted" id="resSummary"></p>
+      <div id="resList" style="max-height:52vh;overflow:auto;display:grid;gap:8px;"></div>
+      <div class="paging-host" id="resPaginationBottom"></div>
+      <div class="ps-dialog-footer">
+        <button class="secondary" type="button" id="btnCloseResult">Tutup</button>
+      </div>
+    </div>
+    <div id="notDoneOverlay" hidden>
+      <div id="notDonePanel">
+        <div class="nd-head">
+          <h4 id="notDoneTitle">Belum Mengerjakan</h4>
+          <button type="button" id="notDoneClose" aria-label="Tutup">&#10005;</button>
+        </div>
+        <div id="notDoneBody"></div>
+        <div id="notDonePagination"></div>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- ── Buat / ubah 1 folder ── -->
+  <dialog class="ps-floating-dialog" id="folderEditDialog" data-no-history="true">
+    <form class="dialog-body ps-dialog-shell" id="folderEditForm" method="dialog" style="gap:12px;">
+      <div class="ps-dialog-header"><h3 id="folderEditTitle">Folder Baru</h3></div>
+      <input type="hidden" id="fedId">
+      <label>Nama folder <span style="color:var(--danger)">*</span>
+        <input type="text" id="fedName" maxlength="120" placeholder="mis. Bab 3 - Mad">
+      </label>
+      <label>Folder induk
+        <button type="button" class="secondary" id="fedParentBtn" style="justify-content:flex-start;text-transform:none;font-weight:700;">Akar (tanpa induk)</button>
+      </label>
+      <div>
+        <span style="font-size:13px;font-weight:600;">Warna</span>
+        <div class="swatch-row" id="fedSwatches" style="margin-top:6px;"></div>
+      </div>
+      <div class="ps-dialog-footer">
+        <button class="primary" type="submit" id="btnFolderEditSave"><i class="fa-solid fa-floppy-disk"></i>&ensp;Simpan</button>
+        <button class="secondary" type="button" id="btnFolderEditCancel">Batal</button>
+        <button class="danger" type="button" id="btnFolderEditDelete" style="margin-left:auto;">Hapus Folder</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- ── Browser folder (pindahkan quiz / pilih induk) — FETCH per-tingkat, dipaginasi + cari ── -->
+  <dialog class="ps-floating-dialog" id="folderBrowserDialog" data-no-history="true">
+    <div class="dialog-body ps-dialog-shell" style="gap:12px;">
+      <div class="ps-dialog-header">
+        <div>
+          <h3 id="fbTitle">Pilih Folder</h3>
+          <p class="muted" id="fbInfo"></p>
+        </div>
+      </div>
+      <input type="search" id="fbSearch" placeholder="Cari nama folder di kelas ini...">
+      <div class="folder-crumbs" id="fbCrumbs"></div>
+      <div class="folder-pick-list" id="fbList"></div>
+      <div class="paging-host" id="fbPaging"></div>
+      <div class="ps-dialog-footer">
+        <button class="primary" type="button" id="fbChoose">Pilih folder ini</button>
+        <button class="secondary" type="button" id="fbCancel">Batal</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- ── Daftar quiz per kelas (full-screen 100vw×100vh) ────────── -->
+  <!-- data-ps-floating-dialog-enhanced opt-out: dialog ini sudah punya header+tombol tutup sendiri
+       (.kq-head/.kq-close). Tanpa ini, shared-ui.js auto-enhance menganggap tombol .kq-close
+       (aria-label "Tutup") sbg tombol tutup dialog lalu memaksanya position:absolute (kelas
+       .ps-dialog-close-floating) di pojok kanan-atas header -- dulu numpuk dgn tombol "Buat
+       Quiz" yg sempat ditaruh di kanan header jg (skrg dipindah ke .kq-foot bawah-kiri).
+       Pola sama dgn #editorDialog di pages/catatanku.
+       SENGAJA TIDAK diberi data-no-history: dialog ini dibuka langsung dari halaman (bukan
+       nested di atas dialog lain), jadi biarkan tetap ikut mekanisme history normal shared-ui.js
+       supaya tombol back browser/HP tetap bisa menutupnya (spt #hafalanDialog di hafalanHarian).
+       editorDialog & resultDialog yang nested DI ATAS dialog ini yang wajib data-no-history. -->
+  <dialog id="kelasQuizDialog" data-ps-floating-dialog-enhanced="true">
+    <div class="kq-shell">
+      <div class="kq-head">
+        <div style="min-width:0;">
+          <h3 id="quizPanelTitle">Quiz di kelas ini</h3>
+          <p class="muted" id="kelasInfo" style="margin-top:4px;"></p>
+        </div>
+        <button class="kq-close" type="button" id="btnCloseKelasQuiz" aria-label="Tutup">&#x2715;</button>
+      </div>
+      <div class="kq-body">
+        <div class="kq-toolbar">
+          <label id="quizStatusWrap">Status
+            <select id="quizStatusFilter">
+              <option value="active" selected>Aktif</option>
+              <option value="">Semua</option>
+              <option value="inactive">Nonaktif</option>
+            </select>
+          </label>
+          <label id="quizSearchWrap">Cari folder / quiz
+            <input type="search" id="quizBrowseSearch" placeholder="Nama folder atau quiz…">
+          </label>
+          <button class="secondary" type="button" id="btnToggleTrash"><i class="fa-solid fa-clock-rotate-left"></i>&ensp;Quiz Terhapus</button>
+        </div>
+        <div class="folder-headbar" id="folderHeadbar">
+          <div class="folder-crumbs" id="folderCrumbs"></div>
+          <div class="folder-bar-actions">
+            <button class="secondary" type="button" id="btnNewFolder"><i class="fa-solid fa-folder-plus"></i>&ensp;Folder di sini</button>
+          </div>
+        </div>
+        <p class="folder-hint hidden" id="folderHint">Belum ada folder. Klik <strong>Folder</strong> untuk mulai mengelompokkan quiz.</p>
+        <p class="muted hidden" id="trashHint" style="margin-bottom:10px;">Quiz di sini otomatis terhapus permanen 30 hari setelah dibuang. Bisa dipulihkan atau langsung dihapus permanen.</p>
+        <div class="paging-host" id="quizPaginationTop"></div>
+        <div class="quiz-list" id="quizList"></div>
+        <div class="paging-host" id="quizPaginationBottom"></div>
+      </div>
+      <div class="kq-foot">
+        <button class="secondary" type="button" id="btnImportQuiz"><i class="fa-solid fa-file-import"></i>&ensp;Import Quiz</button>
+        <input type="file" id="importQuizFile" accept="application/json,.json" hidden>
+        <button class="primary" type="button" id="btnNewQuiz"><i class="fa-solid fa-plus"></i>&ensp;Buat Quiz</button>
+      </div>
+    </div>
+  </dialog>
+
+  <script>
+    const API_BASE = window.location.origin + '/api';
+    const STORAGE = { token: 'ps_token', session: 'ps_session' };
+    function getToken() { return localStorage.getItem(STORAGE.token) || ''; }
+    function getStoredSession() { try { return JSON.parse(localStorage.getItem(STORAGE.session) || 'null'); } catch (_) { return null; } }
+    function getScopedSession() { return window.PSAccess && window.PSAccess.getScopedSession ? window.PSAccess.getScopedSession(getStoredSession()) : getStoredSession(); }
+    function isSuperAdmin() { const s = getScopedSession(); return !!(s && s.permissions && s.permissions.isSuperAdmin); }
+    function toParams(d) { const p = new URLSearchParams(); Object.entries(d).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') p.append(k, typeof v === 'object' ? JSON.stringify(v) : String(v)); }); return p; }
+    async function api(d) { const r = await fetch(API_BASE + '?' + toParams({ ...d, token: getToken() })); const j = await r.json(); if (!j.ok) throw new Error(j.error && j.error.message || 'Error'); return j.data; }
+    async function apiPost(d) { const r = await fetch(API_BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...d, token: getToken() }) }); const j = await r.json(); if (!j.ok) throw new Error(j.error && j.error.message || 'Error'); return j.data; }
+    function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
+    // Toast kanan-atas — pola sama daftarSantri: #noticeStack tetap di <body>, cukup showPopover()
+    // (popover = top layer, otomatis di ATAS dialog modal). JANGAN pindah-pindahkan ke dalam
+    // dialog (bikin popover lepas dari top layer / ke-clip → notice tak kelihatan).
+    function showNotice(text, type) {
+      const stack = document.getElementById('noticeStack');
+      if (stack.parentNode !== document.body) document.body.prepend(stack);
+      const el = document.createElement('section');
+      el.className = 'notice show ' + (type || 'info');
+      el.textContent = text;
+      el.addEventListener('click', () => el.remove());
+      setTimeout(() => el.remove(), type === 'error' ? 9000 : 4500);
+      stack.prepend(el);
+      if (stack.matches(':popover-open')) stack.hidePopover();
+      try { stack.showPopover(); } catch (_) {}
+    }
+
+    // ── Konfirmasi generik (opsional wajib ketik teks, mis. "HAPUS") — port dari catatanku ──
+    let confirmHandler = null;
+    function openConfirm(cfg) {
+      document.getElementById('confirmTitle').textContent = cfg.title || 'Konfirmasi';
+      document.getElementById('confirmMessage').textContent = cfg.message || '';
+      const okBtn = document.getElementById('confirmOkBtn');
+      okBtn.textContent = cfg.confirmLabel || 'Ya';
+      okBtn.className = cfg.danger ? 'danger' : 'primary';
+      const wrap = document.getElementById('confirmTextWrap');
+      const input = document.getElementById('confirmTextInput');
+      input.value = '';
+      if (cfg.requireText) {
+        wrap.hidden = false;
+        document.getElementById('confirmTextLabel').textContent = 'Ketik "' + cfg.requireText + '" untuk lanjut';
+        okBtn.disabled = true;
+        input.oninput = () => { okBtn.disabled = input.value.trim().toUpperCase() !== cfg.requireText.toUpperCase(); };
+      } else {
+        wrap.hidden = true; okBtn.disabled = false; input.oninput = null;
+      }
+      confirmHandler = cfg.onConfirm || null;
+      const cdlg = document.getElementById('confirmDialog');
+      if (!cdlg.open) cdlg.showModal();
+    }
+    document.getElementById('confirmCancelBtn').addEventListener('click', () => document.getElementById('confirmDialog').close());
+    document.getElementById('confirmOkBtn').addEventListener('click', () => {
+      const fn = confirmHandler; confirmHandler = null;
+      document.getElementById('confirmDialog').close();
+      if (fn) fn();
+    });
+
+    const S = {
+      taList: [], taId: '', kelasId: '', kelasObj: null,
+      kPage: 1, kPageSize: 12, kTotalPages: 1, kTotal: 0, kSearch: '', kSearchTimer: null,
+      quizzes: [], editDraft: [], roster: [], resultData: null,
+      qEditPage: 1, qMode: 'form', expandedKelasIds: new Set(),
+      resPage: 1, resPageSize: 20, resTotalPages: 1,
+      notDonePage: 1, notDonePageSize: 20, notDoneTotalPages: 1, notDoneData: null,
+      browseItems: [], crumbs: [], hasAnyFolder: false, browseSearch: '',
+      browsePage: 1, browsePageSize: 10, browseTotalPages: 1, browseTotal: 0,
+      currentFolderId: '', unfiledCount: 0, quizView: 'normal', folderColors: [],
+      openQuizIds: new Set(), editColor: '', editBgAudioUrl: ''
+    };
+
+    // Palet warna folder — token (server: QUIZ_FOLDER_COLORS_) -> {solid, tint, border}.
+    // '' / token tak dikenal -> netral. Halaman single-theme (paper terang), nilai statis.
+    const FOLDER_COLORS = {
+      '':     { solid: '#7b6a58', tint: 'rgba(123,106,88,0.12)', border: 'rgba(123,106,88,0.3)' },
+      slate:  { solid: '#5b6b7f', tint: '#eceff2', border: 'rgba(91,107,127,0.4)' },
+      red:    { solid: '#b23b32', tint: '#f7e9e7', border: 'rgba(178,59,50,0.4)' },
+      orange: { solid: '#c15a1b', tint: '#f8ece1', border: 'rgba(193,90,27,0.4)' },
+      amber:  { solid: '#a5790f', tint: '#f5eedb', border: 'rgba(165,121,15,0.4)' },
+      green:  { solid: '#3a7d44', tint: '#e8f1e9', border: 'rgba(58,125,68,0.4)' },
+      teal:   { solid: '#1f7a70', tint: '#e2f0ee', border: 'rgba(31,122,112,0.4)' },
+      blue:   { solid: '#3563a8', tint: '#e7edf7', border: 'rgba(53,99,168,0.4)' },
+      violet: { solid: '#6b4aa0', tint: '#eee9f5', border: 'rgba(107,74,160,0.4)' },
+      pink:   { solid: '#b34a7d', tint: '#f7e9f0', border: 'rgba(179,74,125,0.4)' },
+      brown:  { solid: '#8a5a3c', tint: '#f1e9e2', border: 'rgba(138,90,60,0.4)' }
+    };
+    function folderColor(tok) { return FOLDER_COLORS[tok] || FOLDER_COLORS['']; }
+    function folderChipStyle(tok) { const c = folderColor(tok); return `--fc-solid:${c.solid};--fc-tint:${c.tint};--fc-border:${c.border}`; }
+    // Tidak ada pohon folder di client. Breadcrumb dari S.crumbs (respons quiz.browse). Picker
+    // folder (pindahkan quiz / pilih induk) pakai #folderBrowserDialog yang FETCH per-tingkat
+    // (quizFolder.children, dipaginasi + bisa dicari) — aman utk ribuan folder.
+
+    // Kartu kelas default TERTUTUP (hanya judul + tag jam/jenis); klik header (data-collapse)
+    // buka/tutup ringkasan (guru/deskripsi/pil). Tombol "Kelola Quiz" (data-open) yang buka dialog.
+    function isKelasExpanded(id) { return S.expandedKelasIds.has(id); }
+    function toggleKelasExpanded(id) {
+      if (!id) return;
+      if (S.expandedKelasIds.has(id)) S.expandedKelasIds.delete(id);
+      else S.expandedKelasIds.add(id);
+      renderKelasPicker(document.getElementById('kelasPicker')._items || []);
+    }
+
+    // ── Tahun Ajaran ──────────────────────────────────────────
+    async function loadTA() {
+      try {
+        const d = await api({ action: 'tahunAjaran.list' });
+        S.taList = d.items || [];
+        const sel = document.getElementById('taSelect');
+        if (!S.taList.length) { sel.innerHTML = '<option value="">(Tidak ada tahun ajaran)</option>'; return; }
+        const aktif = S.taList.find(t => t.isAktif) || S.taList[0];
+        S.taId = aktif.id;
+        sel.innerHTML = S.taList.map(t =>
+          `<option value="${esc(t.id)}" ${t.id === S.taId ? 'selected' : ''}>${esc(t.namaDisplay || t.nama)}${t.isAktif ? ' (aktif)' : ''}</option>`).join('');
+        await loadKelasPage(1);
+      } catch (e) { showNotice(e.message, 'error'); }
+    }
+    document.getElementById('taSelect').addEventListener('change', (ev) => {
+      S.taId = ev.target.value; S.kelasId = ''; S.kelasObj = null;
+      const kq = document.getElementById('kelasQuizDialog');
+      if (kq.open) kq.close();
+      loadKelasPage(1);
+    });
+    document.getElementById('kelasSearch').addEventListener('input', PSUI.debounce((ev) => {
+      S.kSearch = ev.target.value.trim();
+      loadKelasPage(1);
+    }, PSUI.AUTOSAVE_DEBOUNCE_MS));
+    document.getElementById('statusFilter').addEventListener('change', () => loadKelasPage(1));
+    document.getElementById('genderFilter').addEventListener('change', () => loadKelasPage(1));
+    document.getElementById('jamFilter').addEventListener('change', () => loadKelasPage(1));
+    document.getElementById('sortSelect').addEventListener('change', () => loadKelasPage(1));
+    document.getElementById('pageSizeSelect').addEventListener('change', (ev) => {
+      S.kPageSize = Number(ev.target.value) || 12;
+      loadKelasPage(1);
+    });
+
+    // ── Helper gender kelas (port dari editKelas, tampilan kartu identik) ──
+    function normalizeGenderGroupLabel(value) {
+      const text = String(value == null ? '' : value).trim().toLowerCase().replace(/\s+/g, ' ');
+      if (!text || text === '-' || text === 'tidak ada' || text === 'tidakada' || text === 'none' || text === 'n/a' || text === 'n a') return 'Tidak ada';
+      if (['ikhwan', 'putra', 'l', 'lk', 'laki laki', 'laki-laki', 'male'].includes(text)) return 'Ikhwan';
+      if (['akhowat', 'akhawat', 'akhwat', 'putri', 'p', 'pr', 'perempuan', 'female'].includes(text)) return 'Akhowat';
+      if (['campur', 'mixed', 'mix', 'gabung', 'bersama', 'umum'].includes(text)) return 'Campur';
+      return 'Tidak ada';
+    }
+    function getGenderGroupPillClass(value) {
+      const label = normalizeGenderGroupLabel(value);
+      if (label === 'Ikhwan') return 'gender-ikhwan';
+      if (label === 'Akhowat') return 'gender-akhowat';
+      if (label === 'Campur') return 'gender-campur';
+      return 'gender-none';
+    }
+    function getGenderGroupCardClass(value, active) {
+      const label = normalizeGenderGroupLabel(value);
+      const inactive = !active;
+      if (label === 'Ikhwan') return inactive ? 'row-ikhwan-inactive' : 'row-ikhwan';
+      if (label === 'Akhowat') return inactive ? 'row-akhowat-inactive' : 'row-akhowat';
+      if (label === 'Campur') return inactive ? 'row-campur-inactive' : 'row-campur';
+      return '';
+    }
+    function buildGenderGroupPill(value) {
+      const label = normalizeGenderGroupLabel(value);
+      return `<span class="pill ${getGenderGroupPillClass(label)}">${esc(label)}</span>`;
+    }
+    function formatKelasContextLabel(value) {
+      const text = String(value == null ? '' : value).replace(/\s+/g, ' ').trim();
+      if (!text) return '';
+      return text.length > 48 ? `${text.slice(0, 48).trim()}...` : text;
+    }
+
+    // ── Kelas picker (server-side pagination) ──────────────────
+    async function loadKelasPage(page) {
+      S.kPage = page || 1;
+      const box = document.getElementById('kelasPicker');
+      box.innerHTML = '<div class="empty-state">Memuat kelas…</div>';
+      try {
+        const d = await api({
+          action: 'kelas.list', tahunAjaranId: S.taId,
+          status: document.getElementById('statusFilter').value,
+          genderGroup: document.getElementById('genderFilter').value,
+          jam: document.getElementById('jamFilter').value,
+          sort: document.getElementById('sortSelect').value,
+          q: S.kSearch, page: S.kPage, pageSize: S.kPageSize
+        });
+        S.kTotal = d.total || 0; S.kTotalPages = d.totalPages || 1; S.kPage = d.page || 1;
+        renderKelasPicker(d.items || []);
+      } catch (e) { box.innerHTML = `<div class="empty-state">${esc(e.message)}</div>`; }
+    }
+
+    // ── Pagination bernomor (port persis dari editKelas) ────────
+    // buildPaginationList (page,totalPages,max=10) sudah didefinisikan di bawah (dipakai jg
+    // oleh pagination editor soal), cukup dipakai ulang di sini.
+    function renderKelasPagination(visibleCount) {
+      const markup = S.kTotal ? `
+        <div class="page-center">
+          <div class="page-numbers">
+            ${buildPaginationList(S.kPage, S.kTotalPages).map(item =>
+              item === '...'
+                ? '<span class="page-summary">...</span>'
+                : `<button class="secondary page-btn ${item === S.kPage ? 'active' : ''}" type="button" data-page="${item}">${item}</button>`
+            ).join('')}
+          </div>
+          <div class="page-summary">Halaman ${S.kPage} dari ${S.kTotalPages} | total ${S.kTotal} kelas</div>
+        </div>
+      ` : '';
+      window.PSUI.syncPaginationHosts({ markup, visibleCount: visibleCount || 0, totalCount: S.kTotal, topId: 'kelasPaginationTop', bottomId: 'kelasPaginationBottom' });
+    }
+    document.addEventListener('click', (ev) => {
+      const page = ev.target.getAttribute('data-page');
+      if (!page) return;
+      const nextPage = Number(page);
+      if (!nextPage || nextPage < 1 || nextPage > S.kTotalPages || nextPage === S.kPage) return;
+      loadKelasPage(nextPage);
+    });
+    function renderKelasPicker(items) {
+      const box = document.getElementById('kelasPicker');
+      box.innerHTML = items.length ? items.map(k => {
+        const genderLabel = normalizeGenderGroupLabel(k.genderGroup);
+        const ctx = formatKelasContextLabel(k.description);
+        const expanded = isKelasExpanded(k.id);
+        return `
+        <article class="card minimal-list-card ${expanded ? 'is-expanded' : ''} ${getGenderGroupCardClass(k.genderGroup, k.active)}" data-id="${esc(k.id)}">
+          <div class="minimal-list-card-head">
+            <div class="minimal-list-card-main" data-collapse="${esc(k.id)}" role="button" tabindex="0" aria-expanded="${expanded ? 'true' : 'false'}" aria-label="${expanded ? 'Tutup detail kelas' : 'Lihat detail kelas'} ${esc(k.name || '-')}">
+              <div class="kelas-title-row">
+                <strong class="minimal-list-card-name">${esc(k.name || '-')}</strong>
+                ${k.jam ? `<span class="kelas-jam-tag">${esc(k.jam)}</span>` : ''}
+                ${k.jenis ? `<span class="kelas-jenis-tag">${esc(k.jenis)}</span>` : ''}
+                ${ctx ? `<span class="kelas-context-label">(${esc(ctx)})</span>` : ''}
+              </div>
+              <span class="minimal-list-card-hint">${esc(k.status || '-')} &nbsp;·&nbsp; Murid ${(k.santriIds || []).length} &nbsp;·&nbsp; Guru ${(k.pengajarLabels || []).length} &nbsp;·&nbsp; Badal ${(k.badalLabels || []).length}</span>
+            </div>
+            <button class="secondary minimal-list-card-toggle" type="button" data-open="${esc(k.id)}" aria-label="Kelola quiz kelas ${esc(k.name || '-')}">Kelola Quiz</button>
+          </div>
+          <div class="minimal-list-card-detail">
+            <div class="minimal-list-card-summary">
+              <p>Jam: ${esc(k.jam || '-')}</p>
+              <p>Jenis kelas: ${esc(k.jenis || 'Tanpa keterangan jenis')}</p>
+              <p>Tahun ajaran: ${esc(k.tahunAjaranNama || '—')}</p>
+              <p>Kategori gender: ${esc(genderLabel)}</p>
+              <p>${esc(k.description || 'Tanpa deskripsi.')}</p>
+              <p>Guru utama: ${esc((k.pengajarLabels || []).join(', ') || '-')}</p>
+              <p>Guru badal: ${esc((k.badalLabels || []).join(', ') || '-')}</p>
+            </div>
+            <div class="minimal-list-card-meta">
+              <span class="pill ${k.active ? '' : 'inactive'}">${esc(k.status || '-')}</span>
+              ${buildGenderGroupPill(genderLabel)}
+              <span class="pill">Guru ${(k.pengajarLabels || []).length}</span>
+              <span class="pill">Badal ${(k.badalLabels || []).length}</span>
+              <span class="pill">Murid ${(k.santriIds || []).length}</span>
+            </div>
+          </div>
+        </article>`;
+      }).join('') : '<div class="empty-state">Tidak ada kelas yang cocok.</div>';
+      box._items = items;
+      renderKelasPagination(items.length);
+    }
+    async function openKelasQuiz(k) {
+      if (!k) return;
+      S.kelasId = k.id; S.kelasObj = k;
+      S.browsePage = 1; S.currentFolderId = ''; S.quizView = 'normal'; S.browseSearch = '';
+      S.crumbs = []; S.hasAnyFolder = false; S.browseItems = []; S.quizzes = []; S.unfiledCount = 0; S.openQuizIds = new Set();
+      document.getElementById('quizBrowseSearch').value = '';
+      document.getElementById('kelasInfo').textContent = `${(k.santriIds || []).length} santri di roster · Tahun ajaran: ${k.tahunAjaranNama || '—'}`;
+      document.getElementById('quizPanelTitle').textContent = 'Quiz di kelas ' + k.name;
+      S.roster = (k.santriIds || []).map((id, i) => ({ id, nama: (k.santriLabels || [])[i] || ('#' + id) }));
+      applyQuizViewUI();
+      const dlg = document.getElementById('kelasQuizDialog');
+      if (!dlg.open) dlg.showModal();
+      await refreshQuizPanel();
+    }
+    // refresh panel = 1 halaman daftar gabungan folder+quiz (breadcrumb + hint ikut di respons-nya).
+    async function refreshQuizPanel() {
+      await loadBrowse();
+    }
+    function applyQuizViewUI() {
+      const trash = S.quizView === 'trash';
+      document.getElementById('btnToggleTrash').classList.toggle('active', trash);
+      // #folderHeadbar TETAP tampil di view "Quiz Terhapus" (layout tak lompat) — kelas .is-trash
+      // cuma menyembunyikan tombol Folder/Kelola (folder tak relevan utk daftar quiz terhapus).
+      document.getElementById('folderHeadbar').classList.remove('hidden');
+      document.getElementById('folderHeadbar').classList.toggle('is-trash', trash);
+      renderFolderBar();
+      document.getElementById('quizStatusWrap').classList.toggle('hidden', trash);
+      document.getElementById('trashHint').classList.toggle('hidden', !trash);
+      document.getElementById('btnNewQuiz').classList.toggle('hidden', trash);
+      document.getElementById('btnImportQuiz').classList.toggle('hidden', trash);
+      document.getElementById('quizPanelTitle').textContent = (trash ? 'Quiz terhapus — kelas ' : 'Quiz di kelas ') + (S.kelasObj ? S.kelasObj.name : '');
+    }
+    function setQuizView(view) {
+      S.quizView = view; S.browsePage = 1;
+      applyQuizViewUI();
+      refreshQuizPanel();
+    }
+    document.getElementById('btnToggleTrash').addEventListener('click', () => setQuizView(S.quizView === 'trash' ? 'normal' : 'trash'));
+    function pickKelasFromEvent(ev) {
+      const card = ev.target.closest('article.minimal-list-card'); if (!card) return null;
+      return (document.getElementById('kelasPicker')._items || []).find(x => x.id === card.dataset.id) || null;
+    }
+    document.getElementById('kelasPicker').addEventListener('click', (ev) => {
+      const openTrigger = ev.target.closest('[data-open]');
+      if (openTrigger) { const k = pickKelasFromEvent(ev); if (k) openKelasQuiz(k); return; }
+      const collapseTrigger = ev.target.closest('[data-collapse]');
+      if (collapseTrigger) toggleKelasExpanded(collapseTrigger.getAttribute('data-collapse'));
+    });
+    document.getElementById('kelasPicker').addEventListener('keydown', (ev) => {
+      if (ev.key !== 'Enter' && ev.key !== ' ') return;
+      const collapseTarget = ev.target.closest('[data-collapse]');
+      if (!collapseTarget) return;
+      ev.preventDefault();
+      toggleKelasExpanded(collapseTarget.getAttribute('data-collapse'));
+    });
+    document.getElementById('btnCloseKelasQuiz').addEventListener('click', () => document.getElementById('kelasQuizDialog').close());
+    function currentKelas() { return S.kelasObj; }
+
+    // ── Folder ────────────────────────────────────────────────
+    // Breadcrumb dari S.crumbs (root -> folder aktif, dari respons quiz.browse). Tak ada pohon di client.
+    function renderFolderBar() {
+      const crumbs = document.getElementById('folderCrumbs');
+      if (S.quizView === 'trash') {
+        crumbs.innerHTML = `<button type="button" disabled><i class="fa-solid fa-clock-rotate-left"></i>&nbsp;Quiz Terhapus</button>`;
+        document.getElementById('folderHint').classList.add('hidden');
+        return;
+      }
+      let html = `<button type="button" data-fnav="" ${S.currentFolderId ? '' : 'disabled'}><i class="fa-solid fa-layer-group"></i>&nbsp;Semua</button>`;
+      (S.crumbs || []).forEach((c, i) => {
+        const last = i === S.crumbs.length - 1;
+        html += `<span class="sep">/</span><button type="button" data-fnav="${esc(c.id)}" ${last ? 'disabled' : ''}>${esc(c.name)}</button>`;
+      });
+      crumbs.innerHTML = html;
+      document.getElementById('folderHint').classList.toggle('hidden', !!S.hasAnyFolder);
+    }
+    function gotoFolder(id) {
+      S.currentFolderId = id || ''; S.browsePage = 1;
+      renderFolderBar();
+      loadBrowse();
+    }
+    document.getElementById('folderCrumbs').addEventListener('click', (ev) => {
+      const b = ev.target.closest('button[data-fnav]'); if (!b) return;
+      gotoFolder(b.getAttribute('data-fnav'));
+    });
+
+    // ── Daftar gabungan (folder + quiz jadi SATU list, SATU pagination) ──
+    // Server-side pagination lintas folder+quiz: 1 halaman saja yang dikirim.
+    async function loadBrowse() {
+      const box = document.getElementById('quizList');
+      box.innerHTML = '<div class="empty-state">Memuat…</div>';
+      try {
+        const d = await api({
+          action: 'quiz.browse', kelasId: S.kelasId,
+          q: S.browseSearch,
+          status: S.quizView === 'trash' ? '' : document.getElementById('quizStatusFilter').value,
+          view: S.quizView === 'trash' ? 'trash' : '',
+          folderId: S.quizView === 'trash' ? '' : S.currentFolderId,
+          page: S.browsePage, pageSize: S.browsePageSize
+        });
+        S.browseItems = d.items || [];
+        S.quizzes = S.browseItems.filter(it => it.kind === 'quiz');   // utk lookup di handler aksi
+        S.browseTotal = d.total || 0;
+        S.browseTotalPages = d.totalPages || 1;
+        S.browsePage = d.page || 1;
+        S.unfiledCount = d.unfiledCount || 0;
+        S.crumbs = d.crumbs || [];
+        S.hasAnyFolder = !!d.hasAnyFolder;
+        renderFolderBar();
+        renderBrowse();
+      } catch (e) { box.innerHTML = `<div class="empty-state">${esc(e.message)}</div>`; }
+    }
+    document.getElementById('quizStatusFilter').addEventListener('change', () => { S.browsePage = 1; loadBrowse(); });
+    document.getElementById('quizBrowseSearch').addEventListener('input', PSUI.debounce((ev) => {
+      S.browseSearch = ev.target.value.trim();
+      S.browsePage = 1;
+      loadBrowse();
+    }, PSUI.AUTOSAVE_DEBOUNCE_MS));
+    function pubChip(st) {
+      if (st === 'terbit') return '<span class="chip g">Terbit</span>';
+      if (st === 'ditutup') return '<span class="chip d">Ditutup</span>';
+      return '<span class="chip w">Draft</span>';
+    }
+    function daysUntil(iso) {
+      if (!iso) return null;
+      const ms = new Date(iso).getTime() - Date.now();
+      return Math.max(0, Math.ceil(ms / 86400000));
+    }
+    // Item quiz = kartu collapse ala daftarSantri: baris judul (tipe + judul + status) + baris
+    // hint ringkas; klik area judul → expand detail (chip lengkap + deskripsi + tombol aksi).
+    function renderQuizItem(q) {
+      const trash = S.quizView === 'trash';
+      const open = S.openQuizIds.has(q.id);
+      const bar = trash ? 'var(--danger)' : folderColor(q.color).solid;   // warna kartu = warna quiz ('' = netral default)
+      const cardStyle = trash ? '' : folderChipStyle(q.color);            // --fc-tint/--fc-border utk latar kartu
+      const isDok = q.tipe === 'dokumen';
+      const tipeChip = isDok
+        ? '<span class="chip g">Dokumen</span>'
+        : `<span class="chip ${q.tipe === 'examination' ? 'b' : ''}">${q.tipe === 'examination' ? 'Examination' : 'Drill'}</span>`;
+      const win = [q.openAt ? 'buka ' + q.openAt.replace('T', ' ') : '', q.closeAt ? 'tutup ' + q.closeAt.replace('T', ' ') : ''].filter(Boolean).join(' · ');
+      const bodyCount = isDok ? `${q.slideCount || 0} slide` : `${q.questionCount} soal`;
+      let titleChips, hint, meta, actions, quickBtn;
+      if (trash) {
+        const left = daysUntil(q.purgeAt);
+        titleChips = tipeChip + '<span class="chip d">Di sampah</span>';
+        hint = `${q.questionCount} soal · ${q.submissionCount} selesai · dibuang ${q.deletedAt ? q.deletedAt.replace('T', ' ') : '—'}${q.deletedByName ? ' oleh ' + q.deletedByName : ''}`;
+        meta = `${tipeChip}<span class="chip">${q.questionCount} soal</span><span class="chip">${q.submissionCount} selesai</span><span class="chip d">Hapus permanen ${left == null ? 'dalam ±30' : 'dalam ' + left} hari</span>`;
+        actions = `
+          <button class="secondary" type="button" data-act="restore" data-id="${esc(q.id)}"><i class="fa-solid fa-rotate-left"></i> Pulihkan</button>
+          <button class="danger" type="button" data-act="delete" data-id="${esc(q.id)}"><i class="fa-solid fa-trash"></i> Hapus permanen</button>`;
+        quickBtn = `<button class="secondary minimal-list-card-toggle" type="button" data-act="restore" data-id="${esc(q.id)}">Pulihkan</button>`;
+      } else {
+        titleChips = tipeChip + pubChip(q.publishState) + (q.active ? '' : '<span class="chip d">Nonaktif</span>');
+        hint = isDok
+          ? `${bodyCount} · ${q.submissionCount} selesai baca${win ? ' · ' + win : ''}`
+          : `${bodyCount}${q.materiCount ? ' · ' + q.materiCount + ' materi' : ''} · ${q.submissionCount} selesai${win ? ' · ' + win : ''}${q.releasedAt ? ' · hasil dirilis' : ''}`;
+        meta = `${tipeChip}${pubChip(q.publishState)}<span class="chip">${bodyCount}</span>${(!isDok && q.materiCount) ? `<span class="chip w">${q.materiCount} materi</span>` : ''}<span class="chip">${q.submissionCount} ${isDok ? 'selesai baca' : 'selesai'}</span>${(!isDok && q.releasedAt) ? '<span class="chip g">Hasil dirilis</span>' : ''}${win ? `<span class="chip w">${esc(win)}</span>` : ''}${q.active ? '' : '<span class="chip d">Nonaktif</span>'}`;
+        actions = `
+          <button class="secondary" type="button" data-act="edit" data-id="${esc(q.id)}"><i class="fa-solid fa-pen"></i> Edit</button>
+          <button class="secondary" type="button" data-act="duplicate" data-id="${esc(q.id)}"><i class="fa-solid fa-copy"></i> Duplikat</button>
+          <button class="secondary" type="button" data-act="export" data-id="${esc(q.id)}"><i class="fa-solid fa-file-export"></i> Export</button>
+          <button class="secondary" type="button" data-act="result" data-id="${esc(q.id)}"><i class="fa-solid fa-chart-simple"></i> ${isDok ? 'Laporan Baca' : 'Hasil'}</button>
+          ${q.publishState !== 'terbit'
+            ? `<button class="secondary" type="button" data-act="publish" data-id="${esc(q.id)}" data-to="terbit"><i class="fa-solid fa-bullhorn"></i> Terbitkan</button>`
+            : `<button class="secondary" type="button" data-act="publish" data-id="${esc(q.id)}" data-to="ditutup"><i class="fa-solid fa-lock"></i> Tutup</button>`}
+          <button class="secondary" type="button" data-act="toggle" data-id="${esc(q.id)}">${q.active ? 'Nonaktifkan' : 'Aktifkan'}</button>
+          <button class="secondary" type="button" data-act="move" data-id="${esc(q.id)}"><i class="fa-solid fa-folder-open"></i> Pindahkan</button>
+          <button class="secondary" type="button" data-act="trash" data-id="${esc(q.id)}"><i class="fa-solid fa-trash-can"></i> Hapus</button>`;
+        quickBtn = `<button class="secondary minimal-list-card-toggle" type="button" data-act="edit" data-id="${esc(q.id)}">Edit</button>`;
+      }
+      const qIcon = trash ? 'fa-trash-can' : (isDok ? 'fa-book-open' : (q.tipe === 'examination' ? 'fa-file-pen' : 'fa-dumbbell'));
+      return `<article class="card minimal-list-card qi-card ${open ? 'is-expanded' : ''} ${(!trash && !q.active) ? 'qi-inactive' : ''}" data-qid="${esc(q.id)}" style="${cardStyle};--qi-bar:${bar}">
+        <div class="minimal-list-card-head">
+          <div class="minimal-list-card-main" data-qtoggle="${esc(q.id)}" role="button" tabindex="0" aria-expanded="${open ? 'true' : 'false'}" aria-label="${open ? 'Tutup detail quiz' : 'Buka detail quiz'} ${esc(q.title)}">
+            <div class="minimal-list-card-title-row">
+              <i class="fa-solid ${qIcon} qi-icon"></i>
+              <strong class="minimal-list-card-name">${esc(q.title)}</strong>
+              ${titleChips}
+            </div>
+            <span class="minimal-list-card-hint">${esc(hint)}</span>
+          </div>
+          ${quickBtn}
+        </div>
+        <div class="minimal-list-card-detail">
+          <div class="minimal-list-card-meta">${meta}</div>
+          ${(!trash && q.description) ? `<div class="minimal-list-card-summary"><p>${esc(q.description)}</p></div>` : ''}
+          <div class="toolbar minimal-list-card-actions quiz-actions">${actions}</div>
+        </div>
+      </article>`;
+    }
+    // Kartu folder = chrome PERSIS kartu quiz (minimal-list-card), TAPI tanpa expand — klik = masuk folder.
+    function renderFolderCard(f) {
+      const nk = f.subfolderCount || 0;
+      const solid = folderColor(f.color).solid;
+      return `<article class="card minimal-list-card qi-card qi-folder" data-fopen="${esc(f.id)}" role="button" tabindex="0" style="${folderChipStyle(f.color)};--qi-bar:${solid}" aria-label="Buka folder ${esc(f.name)}">
+        <div class="minimal-list-card-head">
+          <div class="minimal-list-card-main">
+            <div class="minimal-list-card-title-row">
+              <i class="fa-solid fa-folder qi-icon"></i>
+              <strong class="minimal-list-card-name">${esc(f.name)}</strong>
+              <span class="chip">Folder</span>
+            </div>
+            <span class="minimal-list-card-hint">${f.quizCount} quiz${nk ? ' · ' + nk + ' sub-folder' : ''}</span>
+          </div>
+          <button class="secondary minimal-list-card-toggle" type="button" data-fdup="${esc(f.id)}" title="Duplikat folder beserta seluruh isinya" aria-label="Duplikat folder ${esc(f.name)}"><i class="fa-solid fa-copy"></i></button>
+          <button class="secondary minimal-list-card-toggle" type="button" data-fedit="${esc(f.id)}" title="Ubah nama / pindahkan / warna folder" aria-label="Ubah folder ${esc(f.name)}"><i class="fa-solid fa-pen"></i></button>
+          <button class="secondary minimal-list-card-toggle" type="button" data-fopen="${esc(f.id)}">Buka</button>
+        </div>
+      </article>`;
+    }
+    function renderBrowse() {
+      const box = document.getElementById('quizList');
+      const trash = S.quizView === 'trash';
+      if (!S.browseItems.length) {
+        box.innerHTML = `<div class="empty-state">${
+          S.browseSearch
+          ? 'Tak ada folder / quiz yang cocok dengan pencarian.'
+          : (trash
+            ? 'Belum ada quiz terhapus.'
+            : (S.currentFolderId
+              ? 'Folder ini masih kosong. Buat quiz baru atau pindahkan quiz ke sini lewat tombol <strong>Pindahkan</strong>.'
+              : (S.hasAnyFolder ? 'Belum ada quiz di luar folder — buka folder di bawah.' : 'Belum ada quiz di kelas ini. Klik <strong>Buat Quiz</strong>.')))}</div>`;
+        renderBrowsePagination();
+        return;
+      }
+      box.innerHTML = S.browseItems.map(it => it.kind === 'folder' ? renderFolderCard(it) : renderQuizItem(it)).join('');
+      renderBrowsePagination();
+    }
+    // data-q-page: beda dr data-page (kelas) & data-res-page (hasil) supaya 3 delegasi klik global tak tabrakan.
+    function renderBrowsePagination() {
+      const total = S.browseTotal || 0;
+      const markup = total ? `
+        <div class="page-center">
+          <div class="page-numbers">
+            ${buildPaginationList(S.browsePage, S.browseTotalPages).map(item =>
+              item === '...'
+                ? '<span class="page-summary">...</span>'
+                : `<button class="secondary page-btn ${item === S.browsePage ? 'active' : ''}" type="button" data-q-page="${item}">${item}</button>`
+            ).join('')}
+          </div>
+          <div class="page-summary">Halaman ${S.browsePage} dari ${S.browseTotalPages} | total ${total} item</div>
+        </div>
+      ` : '';
+      window.PSUI.syncPaginationHosts({ markup, visibleCount: S.browseItems.length, totalCount: total, minimumCount: 0, topId: 'quizPaginationTop', bottomId: 'quizPaginationBottom' });
+    }
+    document.addEventListener('click', (ev) => {
+      const page = ev.target.getAttribute('data-q-page');
+      if (!page) return;
+      const nextPage = Number(page);
+      if (!nextPage || nextPage < 1 || nextPage > S.browseTotalPages || nextPage === S.browsePage) return;
+      S.browsePage = nextPage;
+      loadBrowse();
+    });
+    function toggleQuizOpen(id) {
+      if (S.openQuizIds.has(id)) S.openQuizIds.delete(id); else S.openQuizIds.add(id);
+      const el = document.querySelector(`.qi-card[data-qid="${CSS.escape(id)}"]`);
+      if (el) {
+        const o = S.openQuizIds.has(id);
+        el.classList.toggle('is-expanded', o);
+        el.querySelector('.minimal-list-card-main').setAttribute('aria-expanded', o ? 'true' : 'false');
+      }
+    }
+    document.getElementById('quizList').addEventListener('click', async (ev) => {
+      const fdup = ev.target.closest('[data-fdup]');
+      if (fdup) { duplicateFolder(fdup.getAttribute('data-fdup')); return; }
+      const fedit = ev.target.closest('[data-fedit]');
+      if (fedit) { openFolderEdit(fedit.getAttribute('data-fedit'), null); return; }
+      const fcard = ev.target.closest('[data-fopen]');
+      if (fcard) { gotoFolder(fcard.getAttribute('data-fopen')); return; }
+      const btn = ev.target.closest('button[data-act]');
+      if (!btn) {
+        const head = ev.target.closest('.minimal-list-card-main[data-qtoggle]');
+        if (head) toggleQuizOpen(head.getAttribute('data-qtoggle'));
+        return;
+      }
+      const id = btn.dataset.id;
+      const q = S.quizzes.find(x => x.id === id);
+      if (btn.dataset.act === 'edit') {
+        // Daftar quiz (quiz.browse) sengaja tak menyertakan isi soal (bisa s/d 500 blok/quiz) biar
+        // ringan -- ambil detail lengkapnya dulu di sini, baru buka editor.
+        try {
+          const full = await api({ action: 'quiz.get', id });
+          return openEditor(full.item);
+        } catch (e) { showNotice(e.message, 'error'); return; }
+      }
+      if (btn.dataset.act === 'duplicate') {
+        openConfirm({
+          title: 'Duplikat quiz ini?',
+          message: `Salinan "${q.title}" dibuat di folder yang sama sebagai draf (belum terbit, tanpa jawaban santri). Soal & Halaman Materi ikut tersalin.`,
+          confirmLabel: 'Duplikat',
+          onConfirm: async () => {
+            try { const r = await apiPost({ action: 'quiz.duplicate', id }); showNotice(r.message); await refreshQuizPanel(); }
+            catch (e) { showNotice(e.message, 'error'); }
+          }
+        });
+        return;
+      }
+      if (btn.dataset.act === 'export') {
+        try {
+          const full = await api({ action: 'quiz.get', id });
+          exportQuizToFile(full.item);
+        } catch (e) { showNotice(e.message, 'error'); }
+        return;
+      }
+      if (btn.dataset.act === 'result') return (q.tipe === 'dokumen') ? openDocReaders(q) : openResult(q);
+      if (btn.dataset.act === 'publish') {
+        btn.disabled = true;
+        try { const r = await apiPost({ action: 'quiz.publish', id, publishState: btn.dataset.to }); showNotice(r.message); await loadBrowse(); }
+        catch (e) { showNotice(e.message, 'error'); btn.disabled = false; }
+        return;
+      }
+      if (btn.dataset.act === 'toggle') {
+        btn.disabled = true;
+        try { const r = await apiPost({ action: 'quiz.toggle', id, active: !q.active }); showNotice(r.message); await loadBrowse(); }
+        catch (e) { showNotice(e.message, 'error'); btn.disabled = false; }
+        return;
+      }
+      if (btn.dataset.act === 'move') { openFolderPick(q); return; }
+      if (btn.dataset.act === 'trash') {
+        openConfirm({
+          title: 'Hapus quiz ini?',
+          message: `"${q.title}" akan dipindahkan ke daftar "Quiz Terhapus" kelas ini. Santri tidak akan melihatnya lagi. Otomatis terhapus permanen setelah 30 hari; bisa dipulihkan sebelum itu.`,
+          confirmLabel: 'Hapus', danger: true,
+          onConfirm: async () => {
+            try { const r = await apiPost({ action: 'quiz.trash', id }); showNotice(r.message); await refreshQuizPanel(); }
+            catch (e) { showNotice(e.message, 'error'); }
+          }
+        });
+        return;
+      }
+      if (btn.dataset.act === 'restore') {
+        btn.disabled = true;
+        try { const r = await apiPost({ action: 'quiz.restore', id }); showNotice(r.message); await refreshQuizPanel(); }
+        catch (e) { showNotice(e.message, 'error'); btn.disabled = false; }
+        return;
+      }
+      if (btn.dataset.act === 'delete') {
+        openConfirm({
+          title: 'Hapus quiz permanen?',
+          message: `"${q.title}" beserta SEMUA jawaban santri akan dihapus permanen dan tidak bisa dipulihkan.`,
+          confirmLabel: 'Hapus Permanen', danger: true, requireText: 'HAPUS',
+          onConfirm: async () => {
+            try { const r = await apiPost({ action: 'quiz.delete', id, confirm: 'HAPUS' }); showNotice(r.message); await refreshQuizPanel(); }
+            catch (e) { showNotice(e.message, 'error'); }
+          }
+        });
+      }
+    });
+    document.getElementById('quizList').addEventListener('keydown', (ev) => {
+      if (ev.key !== 'Enter' && ev.key !== ' ') return;
+      if (ev.target.closest('button')) return;   // tombol (Edit/Buka/aksi) urus klik-nya sendiri
+      const fcard = ev.target.closest('.qi-folder[data-fopen]');
+      if (fcard) { ev.preventDefault(); gotoFolder(fcard.getAttribute('data-fopen')); return; }
+      const head = ev.target.closest('.minimal-list-card-main[data-qtoggle]');
+      if (head) { ev.preventDefault(); toggleQuizOpen(head.getAttribute('data-qtoggle')); }
+    });
+
+    // ── Folder: buat / ubah / hapus / pindahkan quiz ─────────────────────────
+    function renderSwatches(host, selected) {
+      const toks = (S.folderColors && S.folderColors.length) ? S.folderColors : Object.keys(FOLDER_COLORS).filter(Boolean);
+      host.innerHTML = [''].concat(toks).map(tok =>
+        `<button type="button" class="swatch ${tok === selected ? 'is-sel' : ''}" data-tok="${esc(tok)}" style="--fc-solid:${folderColor(tok).solid}" title="${tok || 'tanpa warna'}"></button>`
+      ).join('');
+    }
+
+    // #folderBrowserDialog: picker folder yang FETCH per-tingkat (quizFolder.children), dipaginasi
+    // + bisa dicari. Aman untuk ribuan folder. Dipakai "Pindahkan quiz" & "pilih folder induk".
+    const FB = { excludeId: '', allowNone: false, noneLabel: 'Tanpa Folder', chosenId: null, chosenName: '',
+                 parentId: '', q: '', page: 1, totalPages: 1, crumbs: [], items: [], cb: null };
+    function openFolderBrowser(opts) {
+      FB.excludeId = opts.excludeId || '';
+      FB.allowNone = !!opts.allowNone;
+      FB.noneLabel = opts.noneLabel || 'Tanpa Folder';
+      FB.chosenId = (opts.initialId !== undefined && opts.initialId !== null) ? opts.initialId : null;
+      FB.chosenName = opts.initialName || '';
+      FB.parentId = ''; FB.q = ''; FB.page = 1; FB.cb = opts.onPick || null;
+      document.getElementById('fbTitle').textContent = opts.title || 'Pilih Folder';
+      document.getElementById('fbInfo').textContent = opts.info || '';
+      document.getElementById('fbSearch').value = '';
+      const dlg = document.getElementById('folderBrowserDialog');
+      if (!dlg.open) dlg.showModal();
+      loadFbPage();
+    }
+    async function loadFbPage() {
+      const list = document.getElementById('fbList');
+      list.innerHTML = '<div class="empty-state">Memuat...</div>';
+      try {
+        const d = await api({
+          action: 'quizFolder.children', kelasId: S.kelasId,
+          parentId: FB.q ? '' : FB.parentId, q: FB.q, excludeSubtreeOf: FB.excludeId,
+          page: FB.page, pageSize: 20
+        });
+        FB.items = d.items || [];
+        FB.crumbs = d.crumbs || [];
+        FB.totalPages = d.totalPages || 1;
+        FB.page = d.page || 1;
+        renderFb();
+      } catch (e) { list.innerHTML = `<div class="empty-state">${esc(e.message)}</div>`; }
+    }
+    function renderFb() {
+      const cr = document.getElementById('fbCrumbs');
+      if (FB.q) {
+        cr.innerHTML = `<button type="button" disabled><i class="fa-solid fa-magnifying-glass"></i>&nbsp;Hasil pencarian</button>`;
+      } else {
+        let h = `<button type="button" data-fbnav="" ${FB.parentId ? '' : 'disabled'}><i class="fa-solid fa-layer-group"></i>&nbsp;Akar</button>`;
+        (FB.crumbs || []).forEach((c, i) => {
+          const last = i === FB.crumbs.length - 1;
+          h += `<span class="sep">/</span><button type="button" data-fbnav="${esc(c.id)}" ${last ? 'disabled' : ''}>${esc(c.name)}</button>`;
+        });
+        cr.innerHTML = h;
+      }
+      const list = document.getElementById('fbList');
+      let html = '';
+      if (FB.allowNone && !FB.q) {
+        html += `<div class="fb-row ${FB.chosenId === '' ? 'is-chosen' : ''}" data-fbpick="" data-fbname="" role="button" tabindex="0"><i class="fa-solid fa-layer-group"></i><span class="fb-name">${esc(FB.noneLabel)}</span></div>`;
+      }
+      html += FB.items.map(f => {
+        const pathTxt = (f.path && f.path.length) ? f.path.map(p => esc(p.name)).join(' / ') + ' / ' : '';
+        return `<div class="fb-row ${f.id === FB.chosenId ? 'is-chosen' : ''}" data-fbpick="${esc(f.id)}" data-fbname="${esc(f.name)}" role="button" tabindex="0" style="--fc-solid:${folderColor(f.color).solid}">
+          <span class="fc-dot"></span>
+          <span class="fb-name">${pathTxt ? `<span class="fb-path">${pathTxt}</span>` : ''}${esc(f.name)} <span class="ft-meta">(${f.quizCount})</span></span>
+          ${f.subfolderCount ? `<button type="button" class="secondary fb-down" data-fbdown="${esc(f.id)}" title="Buka sub-folder"><i class="fa-solid fa-chevron-right"></i>&nbsp;${f.subfolderCount}</button>` : ''}
+        </div>`;
+      }).join('');
+      list.innerHTML = html || `<div class="empty-state">${FB.q ? 'Tak ada folder yang cocok.' : 'Tak ada sub-folder di sini.'}</div>`;
+      document.getElementById('fbPaging').innerHTML = (FB.totalPages > 1)
+        ? `<div class="page-center"><div class="page-numbers">${buildPaginationList(FB.page, FB.totalPages).map(it => it === '...' ? '<span class="page-summary">...</span>' : `<button type="button" class="secondary page-btn ${it === FB.page ? 'active' : ''}" data-fbpage="${it}">${it}</button>`).join('')}</div></div>`
+        : '';
+      const btn = document.getElementById('fbChoose');
+      btn.disabled = (FB.chosenId === null || FB.chosenId === undefined);
+      btn.textContent = FB.chosenId === '' ? `Pilih: ${FB.noneLabel}` : 'Pilih folder ini';
+    }
+    document.getElementById('fbSearch').addEventListener('input', PSUI.debounce(() => {
+      FB.q = document.getElementById('fbSearch').value.trim(); FB.page = 1;
+      loadFbPage();
+    }, PSUI.AUTOSAVE_DEBOUNCE_MS));
+    document.getElementById('fbCrumbs').addEventListener('click', (ev) => {
+      const b = ev.target.closest('button[data-fbnav]'); if (!b) return;
+      FB.parentId = b.getAttribute('data-fbnav') || ''; FB.q = ''; document.getElementById('fbSearch').value = ''; FB.page = 1;
+      loadFbPage();
+    });
+    document.getElementById('fbList').addEventListener('click', (ev) => {
+      const down = ev.target.closest('[data-fbdown]');
+      if (down) { FB.parentId = down.getAttribute('data-fbdown'); FB.q = ''; document.getElementById('fbSearch').value = ''; FB.page = 1; loadFbPage(); return; }
+      const row = ev.target.closest('[data-fbpick]');
+      if (row) {
+        FB.chosenId = row.getAttribute('data-fbpick');
+        FB.chosenName = row.getAttribute('data-fbname') || '';
+        document.querySelectorAll('#fbList .fb-row').forEach(r => r.classList.toggle('is-chosen', r === row));
+        const btn = document.getElementById('fbChoose');
+        btn.disabled = false;
+        btn.textContent = FB.chosenId === '' ? `Pilih: ${FB.noneLabel}` : 'Pilih folder ini';
+      }
+    });
+    document.getElementById('fbList').addEventListener('keydown', (ev) => {
+      if (ev.key !== 'Enter' && ev.key !== ' ') return;
+      const row = ev.target.closest('[data-fbpick]'); if (!row) return;
+      ev.preventDefault(); row.click();
+    });
+    document.addEventListener('click', (ev) => {
+      const p = ev.target.getAttribute('data-fbpage'); if (!p) return;
+      const n = Number(p); if (!n || n < 1 || n > FB.totalPages || n === FB.page) return;
+      FB.page = n; loadFbPage();
+    });
+    document.getElementById('fbCancel').addEventListener('click', () => document.getElementById('folderBrowserDialog').close());
+    document.getElementById('fbChoose').addEventListener('click', () => {
+      if (FB.chosenId === null || FB.chosenId === undefined) return;
+      const cb = FB.cb, id = FB.chosenId, nm = FB.chosenName;
+      document.getElementById('folderBrowserDialog').close();
+      if (cb) cb(id, nm);
+    });
+
+    // ── Editor folder (rename / pindah induk / warna / hapus) ──
+    let folderEditState = { id: '', color: '', parentId: '', parentName: '' };
+    async function openFolderEdit(folderId, presetParentId) {
+      let folder = null;
+      if (folderId) {
+        try { folder = await api({ action: 'quizFolder.get', id: folderId }); }
+        catch (e) { showNotice(e.message, 'error'); return; }
+      }
+      const parentId = folder ? (folder.parentId || '') : (presetParentId || '');
+      let parentName = '';
+      if (folder && folder.path && folder.path.length) parentName = folder.path[folder.path.length - 1].name;
+      else if (!folder && parentId) { try { parentName = (await api({ action: 'quizFolder.get', id: parentId })).name; } catch (_) {} }
+      folderEditState = { id: folder ? folder.id : '', color: folder ? (folder.color || '') : '', parentId, parentName };
+      document.getElementById('folderEditTitle').textContent = folder ? 'Ubah Folder' : 'Folder Baru';
+      document.getElementById('fedId').value = folder ? folder.id : '';
+      document.getElementById('fedName').value = folder ? folder.name : '';
+      document.getElementById('fedParentBtn').textContent = parentName || 'Akar (tanpa induk)';
+      document.getElementById('btnFolderEditDelete').classList.toggle('hidden', !folder);
+      renderSwatches(document.getElementById('fedSwatches'), folderEditState.color);
+      const dlg = document.getElementById('folderEditDialog');
+      if (!dlg.open) dlg.showModal();
+    }
+    document.getElementById('fedParentBtn').addEventListener('click', () => {
+      openFolderBrowser({
+        title: 'Pilih Folder Induk',
+        info: folderEditState.id ? 'Folder ini & sub-foldernya tidak muncul di sini.' : '',
+        excludeId: folderEditState.id || '',
+        allowNone: true, noneLabel: 'Akar (tanpa induk)',
+        initialId: folderEditState.parentId || '',
+        onPick: (fid, fname) => {
+          folderEditState.parentId = fid;
+          folderEditState.parentName = fname;
+          document.getElementById('fedParentBtn').textContent = fname || 'Akar (tanpa induk)';
+        }
+      });
+    });
+    document.getElementById('fedSwatches').addEventListener('click', (ev) => {
+      const b = ev.target.closest('button[data-tok]'); if (!b) return;
+      folderEditState.color = b.dataset.tok;
+      renderSwatches(document.getElementById('fedSwatches'), folderEditState.color);
+    });
+    document.getElementById('btnFolderEditCancel').addEventListener('click', () => document.getElementById('folderEditDialog').close());
+    document.getElementById('folderEditForm').addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      const name = document.getElementById('fedName').value.trim();
+      if (!name) { showNotice('Nama folder wajib diisi.', 'error'); return; }
+      const btn = document.getElementById('btnFolderEditSave'); btn.disabled = true;
+      try {
+        const r = await apiPost({
+          action: 'quizFolder.save',
+          record: {
+            id: document.getElementById('fedId').value,
+            kelas_id: S.kelasId,
+            parent_id: folderEditState.parentId || '',
+            name, color: folderEditState.color
+          }
+        });
+        showNotice(r.message);
+        document.getElementById('folderEditDialog').close();
+        await refreshQuizPanel();
+      } catch (e) { showNotice(e.message, 'error'); } finally { btn.disabled = false; }
+    });
+    document.getElementById('btnFolderEditDelete').addEventListener('click', () => {
+      const id = document.getElementById('fedId').value;
+      const nm = document.getElementById('fedName').value.trim() || 'folder ini';
+      const parentId = folderEditState.parentId || '';
+      openConfirm({
+        title: 'Hapus folder?',
+        message: `Folder "${nm}" dihapus. Sub-folder & quiz di dalamnya dipindah ke tingkat di atasnya (tidak ikut terhapus).`,
+        confirmLabel: 'Hapus Folder', danger: true,
+        onConfirm: async () => {
+          try {
+            const r = await apiPost({ action: 'quizFolder.delete', id });
+            showNotice(r.message);
+            document.getElementById('folderEditDialog').close();
+            if (S.currentFolderId === id) S.currentFolderId = parentId;
+            S.browsePage = 1;
+            await refreshQuizPanel();
+          } catch (e) { showNotice(e.message, 'error'); }
+        }
+      });
+    });
+    document.getElementById('btnNewFolder').addEventListener('click', () => openFolderEdit(null, S.currentFolderId));
+
+    // Duplikat folder + seluruh isinya (sub-folder & quiz, rekursif) ke tingkat yang sama.
+    function duplicateFolder(id) {
+      const f = S.browseItems.find(x => x.kind === 'folder' && x.id === id);
+      const nm = f ? f.name : 'folder ini';
+      openConfirm({
+        title: 'Duplikat folder beserta isinya?',
+        message: `Folder "${nm}", semua sub-folder, dan semua quiz di dalamnya disalin ke tingkat yang sama. Tiap quiz salinan menjadi draf (belum terbit, tanpa jawaban santri). Quiz yang ada di "Quiz Terhapus" tidak ikut.`,
+        confirmLabel: 'Duplikat',
+        onConfirm: async () => {
+          try { const r = await apiPost({ action: 'quizFolder.duplicate', id }); showNotice(r.message); await refreshQuizPanel(); }
+          catch (e) { showNotice(e.message, 'error'); }
+        }
+      });
+    }
+
+    function openFolderPick(q) {
+      if (!q) return;
+      openFolderBrowser({
+        title: 'Pindahkan Quiz',
+        info: `"${q.title}" -> pilih folder tujuan`,
+        allowNone: true, noneLabel: 'Tanpa Folder',
+        initialId: q.folderId || '',
+        onPick: async (fid) => {
+          try {
+            const r = await apiPost({ action: 'quiz.setFolder', id: q.id, folderId: fid });
+            showNotice(r.message);
+            await refreshQuizPanel();
+          } catch (e) { showNotice(e.message, 'error'); }
+        }
+      });
+    }
+
+    // ── Editor ────────────────────────────────────────────────
+    function blankMc() { return { id: '', type: 'mc', text: '', options: ['', ''], correctIndex: 0, correctAnswers: [], explanation: '', points: 1, html: '' }; }
+    function blankShort() { return { id: '', type: 'short', text: '', options: [], correctIndex: 0, correctAnswers: [''], explanation: '', points: 1, html: '' }; }
+    function blankMateri() { return { id: '', type: 'materi', text: '', options: [], correctIndex: 0, correctAnswers: [], explanation: '', points: 0, html: '' }; }
+    function blankWordbank() { return { id: '', type: 'wordbank', text: '', options: [], correctIndex: 0, correctAnswers: [], answerText: '', distractorsText: '', explanation: '', points: 1, html: '' }; }
+    function blankSentence() { return { id: '', type: 'sentence', text: '', options: [], correctIndex: 0, correctAnswers: [], answerText: '', distractorsText: '', explanation: '', points: 1, html: '' }; }
+    function blankSlide() { return { id: '', type: 'slide', text: '', options: [], correctIndex: 0, correctAnswers: [], explanation: '', points: 0, seconds: 15, html: '' }; }
+    function splitDistractors_(s) { return String(s || '').split(/[,\n]+/).map(x => x.trim()).filter(Boolean); }
+    function countGaps_(tpl) { return (String(tpl || '').match(/\[\[[^\]]+\]\]/g) || []).length; }
+
+    // ── Halaman Materi: 1 instance Quill dipindah-pindah ke halaman aktif ──
+    // renderEditList() membangun ulang innerHTML #qEditList tiap render, jadi Quill tidak boleh
+    // "hidup" di dalamnya. Node #materiEditorStash (berisi toolbar + editor) dipindahkan masuk
+    // ke #materiSlot saat blok materi jadi halaman aktif, lalu ditarik keluar (detachMateri)
+    // sebelum innerHTML diganti. S._materiMountIndex = index blok yang sedang dipegang Quill.
+    S._materiQuill = null;
+    S._materiMountIndex = -1;
+    S._materiStash = [];
+    S._materiStashIndex = [];
+    function ensureMateriQuill() {
+      if (S._materiQuill) return S._materiQuill;
+      const icons = Quill.import('ui/icons');
+      icons['undo'] = '<svg viewbox="0 0 18 18"><polygon class="ql-fill ql-stroke" points="6 10 4 12 2 10 6 10"></polygon><path class="ql-stroke" d="M8.09,13.91A4.6,4.6,0,0,0,9,14,5,5,0,1,0,4,9"></path></svg>';
+      icons['redo'] = '<svg viewbox="0 0 18 18"><polygon class="ql-fill ql-stroke" points="12 10 14 12 16 10 12 10"></polygon><path class="ql-stroke" d="M9.91,13.91A4.6,4.6,0,0,1,9,14a5,5,0,1,1,5-5"></path></svg>';
+      const q = new Quill('#materiQuillHost', {
+        theme: 'snow',
+        placeholder: 'Tulis materi yang akan dibaca santri…',
+        modules: {
+          history: { delay: 1000, maxStack: 200, userOnly: true },
+          toolbar: {
+            container: [
+              ['undo', 'redo'],
+              [{ header: [1, 2, 3, 4, 5, 6, false] }],
+              [{ font: [] }],
+              [{ size: ['small', false, 'large', 'huge'] }],
+              ['bold', 'italic', 'underline', 'strike'],
+              [{ color: [] }, { background: [] }],
+              [{ script: 'sub' }, { script: 'super' }],
+              ['blockquote', 'code-block'],
+              [{ list: 'ordered' }, { list: 'bullet' }, { list: 'check' }],
+              [{ indent: '-1' }, { indent: '+1' }],
+              [{ align: [] }, { direction: 'rtl' }],
+              ['link', 'image', 'video'],
+              ['clean']
+            ],
+            handlers: {
+              undo: function () { this.quill.history.undo(); },
+              redo: function () { this.quill.history.redo(); },
+              image: function () {
+                const range = this.quill.getSelection(true);
+                const url = (window.prompt('Tempel URL gambar (mis. dari menu Dokumen & Catatan):') || '').trim();
+                if (!url) return;
+                this.quill.insertEmbed(range.index, 'image', url, 'user');
+                this.quill.setSelection(range.index + 1, 0, 'user');
+              }
+            }
+          }
+        }
+      });
+      const tb = q.getModule('toolbar');
+      if (tb && tb.container) tb.container.addEventListener('mousedown', (e) => { if (e.target.closest('button')) e.preventDefault(); });
+      q.on('text-change', (delta, old, source) => { if (source === 'user') flushMateriToDraft(); });
+      S._materiQuill = q;
+      return q;
+    }
+    function getMateriHtml() {
+      const q = S._materiQuill;
+      if (!q) return '';
+      const h = q.root.innerHTML;
+      return (h === '<p><br></p>' || h === '<p><br/></p>' || h === '<p></p>') ? '' : h;
+    }
+    function setMateriHtml(html) {
+      const q = ensureMateriQuill();
+      q.setContents({ ops: [{ insert: '\n' }] }, 'silent');
+      if (html) q.clipboard.dangerouslyPasteHTML(0, html, 'silent');
+      if (q.history) q.history.clear();
+    }
+    function flushMateriToDraft() {
+      const i = S._materiMountIndex;
+      if (i < 0 || !S._materiQuill) return;
+      const d = S.editDraft[i];
+      if (d && (d.type === 'materi' || d.type === 'slide')) d.html = getMateriHtml();
+    }
+    function detachMateri() {
+      flushMateriToDraft();
+      const stash = document.getElementById('materiEditorStash');
+      if (stash) {
+        stash.hidden = true;
+        document.getElementById('editorForm').appendChild(stash);
+      }
+      S._materiMountIndex = -1;
+    }
+    function mountMateriAt(i, slotId) {
+      // slotId dibedakan Form ('materiSlot') vs panel Materi Mode Teks ('materiSlotText') --
+      // #qEditList (Form) tetap ada di DOM (hidden) saat Mode Teks aktif, jadi 2 id itu wajib
+      // beda supaya getElementById tak pernah salah ambil slot yg sedang tersembunyi.
+      const slot = document.getElementById(slotId || 'materiSlot');
+      if (!slot) return;
+      ensureMateriQuill();
+      const stash = document.getElementById('materiEditorStash');
+      slot.appendChild(stash);
+      stash.hidden = false;
+      S._materiQuill.enable(true);
+      setMateriHtml(S.editDraft[i] ? S.editDraft[i].html : '');
+      S._materiMountIndex = i;
+    }
+    function materiPlainLen(html) {
+      return String(html || '').replace(/<[^>]*>/g, '').replace(/&nbsp;/gi, ' ').replace(/&amp;/gi, '&').trim().length;
+    }
+    function materiHasContent(html) {
+      return materiPlainLen(html) > 0 || /<(?:img|iframe)\b/i.test(String(html || ''));
+    }
+
+    function renderPesertaBox() {
+      const box = document.getElementById('pesertaBox');
+      const on = document.getElementById('cfgPesertaPilih').checked;
+      box.classList.toggle('hidden', !on);
+      if (!on) return;
+      const selected = new Set((S._pesertaSel || []));
+      box.innerHTML = S.roster.length ? S.roster.map(r =>
+        `<label class="cfg-check"><input type="checkbox" data-sid="${esc(r.id)}" ${selected.has(r.id) ? 'checked' : ''}> ${esc(r.nama)}</label>`
+      ).join('') : '<span class="muted">Roster kelas kosong.</span>';
+    }
+    document.getElementById('cfgPesertaPilih').addEventListener('change', renderPesertaBox);
+
+    // ── Pagination angka utk editor soal (1 soal/halaman, niru survey) ──
+    function buildPaginationList(page, totalPages, max = 10) {
+      if (totalPages <= max) return Array.from({ length: totalPages }, (_, i) => i + 1);
+      const mid = max - 2;
+      const pages = [1];
+      let start = Math.max(2, page - Math.floor(mid / 2));
+      let end = start + mid - 1;
+      if (end > totalPages - 1) { end = totalPages - 1; start = end - mid + 1; }
+      if (start > 2) pages.push('...');
+      for (let v = start; v <= end; v++) pages.push(v);
+      if (end < totalPages - 1) pages.push('...');
+      pages.push(totalPages);
+      return pages;
+    }
+    const QUIZ_CORRECT_MARK = '✅';
+
+    // Baris isi (tanpa penanda) untuk blok opaque — dipakai serialize & dibandingkan saat parse.
+    // Halaman Materi TIDAK ikut meratakan HTML-nya ke sini -- isi rich text-nya diedit langsung
+    // lewat kartu Quill di panel Materi (renderTextMateriPanel), di sini cuma bawa baris JUDUL.
+    function opaqueBlockLines(q) {
+      const dist = (q.distractorsText != null ? splitDistractors_(q.distractorsText) : (q.distractors || [])).join(', ');
+      if (q.type === 'wordbank') {
+        const L = [String(q.text || '').trim()];
+        if (dist) L.push('PENGECOH: ' + dist);
+        if ((q.explanation || '').trim()) L.push('PENJELASAN: ' + q.explanation.trim());
+        if (q.points != null && Number(q.points) !== 1) L.push('BOBOT: ' + q.points);
+        return L;
+      }
+      if (q.type === 'sentence') {
+        const L = [String(q.answerText || '').trim()];
+        if ((q.text || '').trim()) L.push('PROMPT: ' + q.text.trim());
+        if (dist) L.push('PENGECOH: ' + dist);
+        if ((q.explanation || '').trim()) L.push('PENJELASAN: ' + q.explanation.trim());
+        if (q.points != null && Number(q.points) !== 1) L.push('BOBOT: ' + q.points);
+        return L;
+      }
+      const L = [];
+      if ((q.text || '').trim()) L.push('JUDUL: ' + q.text.trim());
+      return L;
+    }
+
+    // Mode Teks (tempel data): baris 1 = pertanyaan; baris berikutnya = opsi/jawaban
+    // (✅ di akhir = benar); baris "PENJELASAN:" & "BOBOT:" = metadata; 1 baris kosong
+    // pisah antar-soal. ≤1 baris jawaban ATAU semua baris ber-✅ → Isian Singkat.
+    function serializeQuizDraftsToText(drafts) {
+      // Blok opaque (materi / wordbank / sentence): penanda [TAG #n] + isi diratakan jadi teks
+      // (Halaman Materi cuma bawa JUDUL, isi rich text-nya diedit via kartu Quill terpisah --
+      // lihat renderTextMateriPanel). Di-stash juga bareng index aslinya di S.editDraft
+      // (S._materiStashIndex) -- dipakai saat parse utk wordbank/susun (restore-jika-tak-berubah)
+      // & utk Halaman Materi (selalu ambil html LIVE dari S.editDraft, bukan dari stash beku).
+      S._materiStash = [];
+      S._materiStashIndex = [];
+      let opaqueK = 0;
+      return drafts.map((q, idx) => {
+        if (q.type === 'materi' || q.type === 'wordbank' || q.type === 'sentence') {
+          opaqueK += 1;
+          S._materiStash.push(JSON.parse(JSON.stringify(q)));
+          S._materiStashIndex.push(idx);
+          const tag = q.type === 'wordbank' ? 'BANK-KATA' : q.type === 'sentence' ? 'SUSUN' : 'MATERI';
+          const body = opaqueBlockLines(q).join('\n');
+          return `[${tag} #${opaqueK}]` + (body ? '\n' + body : '');
+        }
+        const lines = [(q.text || '').trim()];
+        if (q.type === 'mc') {
+          (q.options || []).forEach((opt, idx) => {
+            const o = (opt || '').trim();
+            lines.push(idx === q.correctIndex ? `${o} ${QUIZ_CORRECT_MARK}` : o);
+          });
+        } else {
+          const answers = (q.correctAnswers || []).map(a => (a || '').trim()).filter(Boolean);
+          (answers.length ? answers : ['']).forEach(a => lines.push(`${a} ${QUIZ_CORRECT_MARK}`));
+        }
+        if ((q.explanation || '').trim()) lines.push('PENJELASAN: ' + q.explanation.trim());
+        if (q.points != null && Number(q.points) !== 1) lines.push('BOBOT: ' + q.points);
+        return lines.join('\n');
+      }).join('\n\n');
+    }
+    function parseQuizTextToDrafts(text) {
+      const stripMark = l => l.replace(new RegExp('\\s*' + QUIZ_CORRECT_MARK + '\\s*$'), '').trim();
+      let opaqueSeq = 0;
+      return String(text || '').split(/\n\s*\n/).map(b => b.trim()).filter(Boolean).map(block => {
+        const rawLines = block.split('\n').map(l => l.trim()).filter(l => l !== '');
+        const questionText = rawLines[0] || '';
+        const mOpaque = questionText.match(/^\[\s*(materi|bank-kata|susun)\s*#?\s*(\d*)\s*\]/i);
+        if (mOpaque) {
+          opaqueSeq += 1;
+          const idx = mOpaque[2] ? (parseInt(mOpaque[2], 10) - 1) : (opaqueSeq - 1);
+          const kind = mOpaque[1].toLowerCase();
+          const rest = rawLines.slice(1);
+          const stashed = (S._materiStash || [])[idx];
+          // Tak diubah dari bentuk yang di-serialize -> pulihkan aslinya. Halaman Materi TIDAK
+          // ikut jalur ini -- isi rich text-nya (mungkin baru saja diedit lewat kartu Quill di
+          // panel Materi) selalu diambil LIVE dari S.editDraft di bawah, bukan dari stash beku.
+          if (kind !== 'materi' && stashed && rest.join('\n').trim() === opaqueBlockLines(stashed).join('\n').trim()) {
+            return JSON.parse(JSON.stringify(stashed));
+          }
+          let dist = [], expl = '', pts = 1, prompt = '', title = '';
+          const body = [];
+          rest.forEach(l => {
+            const mPr = l.match(/^prompt\s*[:：]\s*(.*)$/i);
+            const mJ = l.match(/^judul\s*[:：]\s*(.*)$/i);
+            const mP = l.match(/^pengecoh\s*[:：]\s*(.*)$/i);
+            const mE = l.match(/^penjelasan\s*[:：]\s*(.*)$/i);
+            const mB = l.match(/^bobot\s*[:：]\s*(.*)$/i);
+            if (mPr) { prompt = mPr[1].trim(); return; }
+            if (mJ) { title = mJ[1].trim(); return; }
+            if (mP) { dist = splitDistractors_(mP[1]); return; }
+            if (mE) { expl = mE[1].trim(); return; }
+            if (mB) { const n = parseFloat(String(mB[1]).replace(',', '.')); if (!Number.isNaN(n)) pts = n; return; }
+            body.push(l);
+          });
+          if (kind === 'bank-kata') {
+            return { id: '', type: 'wordbank', text: body.join(' ').trim(), options: [], correctIndex: 0, correctAnswers: [], answerText: '', distractorsText: dist.join(', '), explanation: expl, points: pts, html: '' };
+          }
+          if (kind === 'susun') {
+            return { id: '', type: 'sentence', text: prompt, options: [], correctIndex: 0, correctAnswers: [], answerText: body.join(' ').trim(), distractorsText: dist.join(', '), explanation: expl, points: pts, html: '' };
+          }
+          // Isi rich text Halaman Materi selalu diambil live dari S.editDraft (sudah di-flush
+          // dari kartu Quill di panel Materi) -- baris teks di sini cuma bawa JUDUL, bukan isi.
+          // Fallback ke baris polos hanya utk tag baru yg belum pernah lewat Mode Form.
+          const origIdx = (S._materiStashIndex || [])[idx];
+          const liveDraft = (origIdx != null && S.editDraft[origIdx] && S.editDraft[origIdx].type === 'materi') ? S.editDraft[origIdx] : null;
+          const html = liveDraft ? (liveDraft.html || '') : (body.length ? body.map(l => '<p>' + esc(l) + '</p>').join('') : '<p></p>');
+          return { id: liveDraft ? liveDraft.id : '', type: 'materi', text: title, options: [], correctIndex: 0, correctAnswers: [], explanation: '', points: 0, html: html };
+        }
+        let explanation = '', points = 1;
+        const answerLines = [];
+        rawLines.slice(1).forEach(l => {
+          const mExp = l.match(/^penjelasan\s*[:：]\s*(.*)$/i);
+          const mBob = l.match(/^bobot\s*[:：]\s*(.*)$/i);
+          if (mExp) { explanation = mExp[1].trim(); return; }
+          if (mBob) { const n = parseFloat(String(mBob[1]).replace(',', '.')); if (!Number.isNaN(n)) points = n; return; }
+          answerLines.push(l);
+        });
+        const markedCount = answerLines.filter(l => l.includes(QUIZ_CORRECT_MARK)).length;
+        const isShort = answerLines.length <= 1 || (answerLines.length >= 1 && markedCount === answerLines.length);
+        if (isShort) {
+          const answers = answerLines.map(stripMark).filter(Boolean);
+          return { id: '', type: 'short', text: questionText, options: [], correctIndex: 0, correctAnswers: answers.length ? answers : [''], explanation, points };
+        }
+        let correctIndex = answerLines.findIndex(l => l.includes(QUIZ_CORRECT_MARK));
+        if (correctIndex === -1) correctIndex = 0;
+        const options = answerLines.map(stripMark);
+        while (options.length < 2) options.push('');
+        return { id: '', type: 'mc', text: questionText, options, correctIndex, correctAnswers: [], explanation, points };
+      });
+    }
+    function setQuizModeUI(mode) {
+      document.querySelectorAll('.q-mode-btn').forEach(b => b.classList.toggle('active', b.dataset.qmode === mode));
+      document.getElementById('qFormMode').style.display = mode === 'text' ? 'none' : 'block';
+      document.getElementById('qTextMode').style.display = mode === 'text' ? 'block' : 'none';
+      document.getElementById('qTextHint').style.display = mode === 'text' ? 'block' : 'none';
+      S.qMode = mode;
+    }
+    function switchQuizMode(mode) {
+      if (mode === S.qMode) { setQuizModeUI(mode); return; }
+      detachMateri();   // flush + lepas Quill dari mana pun sebelum DOM-nya (form list / panel materi) dirombak
+      if (mode === 'text') {
+        document.getElementById('quizBulkText').value = serializeQuizDraftsToText(S.editDraft);
+        renderTextMateriPanel();
+      } else {
+        const parsed = parseQuizTextToDrafts(document.getElementById('quizBulkText').value);
+        S.editDraft = parsed.map((p, idx) => {
+          if (p.type === 'materi' || p.type === 'wordbank' || p.type === 'sentence') return p;
+          return (S.editDraft[idx] && (S.editDraft[idx].text || '').trim() === p.text.trim())
+            ? Object.assign(p, { id: S.editDraft[idx].id })
+            : p;
+        });
+        if (!S.editDraft.length) S.editDraft = [blankMc()];
+        S.qEditPage = 1;
+        renderEditList();
+      }
+      setQuizModeUI(mode);
+    }
+
+    // ── Panel Halaman Materi di Mode Teks: kartu rich text (Quill) di luar kotak teks, biar ──
+    // format tebal/miring/gambar tetap tampil & bisa diedit langsung (bukan diratakan jadi teks
+    // polos di kotak teks). activeIdx = index S.editDraft yg lagi dibuka utk diedit (opsional,
+    // default S._materiMountIndex).
+    function renderTextMateriPanel(activeIdx) {
+      if (activeIdx === undefined) activeIdx = S._materiMountIndex;
+      const wrap = document.getElementById('qTextMateriPanel');
+      if (!wrap) return;
+      const entries = (S._materiStashIndex || [])
+        .map((origIdx, k) => ({ origIdx: origIdx, stash: S._materiStash[k] }))
+        .filter(e => e.stash && e.stash.type === 'materi');
+      if (!entries.length) { wrap.innerHTML = ''; return; }
+      wrap.innerHTML = '<p class="muted" style="margin:0 0 8px;font-size:12px;">Halaman Materi (rich text) — edit langsung di sini, bukan lewat kotak teks di atas:</p>' +
+        entries.map(e => {
+          const draft = S.editDraft[e.origIdx];
+          const titleHtml = (draft && (draft.text || '').trim()) ? esc(draft.text) : '<span class="muted">(tanpa judul)</span>';
+          const isActive = e.origIdx === activeIdx;
+          return `<div class="materi-text-card" style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:10px;background:#fff;">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;${isActive ? '' : 'margin-bottom:8px;'}">
+              <strong style="font-size:12.5px;">${titleHtml}</strong>
+              <button type="button" class="secondary tm-toggle" data-i="${e.origIdx}" style="font-size:10.5px;padding:4px 9px;min-height:0;">${isActive ? 'Selesai' : 'Edit isi'}</button>
+            </div>
+            ${isActive
+              ? '<div id="materiSlotText" class="materi-slot"></div>'
+              : `<div class="ql-editor" style="border:1px solid var(--line);border-radius:8px;padding:8px 10px;">${draft && materiHasContent(draft.html) ? draft.html : '<p class="muted">(kosong)</p>'}</div>`}
+          </div>`;
+        }).join('');
+    }
+    document.getElementById('qTextMateriPanel').addEventListener('click', (ev) => {
+      const btn = ev.target.closest('.tm-toggle');
+      if (!btn) return;
+      const i = +btn.dataset.i;
+      const wasActive = S._materiMountIndex === i;
+      detachMateri();
+      renderTextMateriPanel(wasActive ? -1 : i);
+      if (!wasActive) mountMateriAt(i, 'materiSlotText');
+    });
+
+    function renderQEditPaging() {
+      const el = document.getElementById('qEditPaging');
+      if (S.editDraft.length <= 1) { el.innerHTML = ''; return; }
+      el.innerHTML = buildPaginationList(S.qEditPage, S.editDraft.length).map(p => p === '...'
+        ? '<span class="page-summary">…</span>'
+        : `<button type="button" class="secondary ${p === S.qEditPage ? 'active' : ''}" data-qp="${p}">${p}</button>`
+      ).join('');
+    }
+
+    // Normalisasi teks opsi utk pembanding "sama" (tanpa kapital & spasi berlebih) — samakan dgn server.
+    function normOptText_(s) { return String(s || '').toLowerCase().replace(/\s+/g, ' ').trim(); }
+    // Tandai input opsi PG yang isinya kembar + tampilkan pesan. Dipanggil saat render blok MC & tiap ketik opsi.
+    function refreshMcDupHints() {
+      const q = S.editDraft[S.qEditPage - 1];
+      const msg = document.getElementById('optDupMsg');
+      if (!q || q.type !== 'mc' || !msg) return;
+      const norm = (q.options || []).map(normOptText_);
+      const dup = new Set();
+      norm.forEach((v, k) => { if (v && norm.indexOf(v) !== k) { dup.add(k); dup.add(norm.indexOf(v)); } });
+      document.querySelectorAll('#qEditList .ed-opt').forEach(inp => inp.classList.toggle('is-dup', dup.has(+inp.dataset.oi)));
+      msg.hidden = dup.size === 0;
+    }
+
+    function renderEditList() {
+      const box = document.getElementById('qEditList');
+      detachMateri();   // tarik node Quill keluar SEBELUM innerHTML #qEditList diganti
+      if (!S.editDraft.length) {
+        box.innerHTML = '<div class="empty-state">Belum ada blok. Klik "+ Pilihan Ganda", "+ Isian Singkat", atau "+ Halaman Materi".</div>';
+        document.getElementById('qEditPaging').innerHTML = '';
+        return;
+      }
+      if (S.qEditPage > S.editDraft.length) S.qEditPage = S.editDraft.length;
+      if (S.qEditPage < 1) S.qEditPage = 1;
+      renderQEditPaging();
+      const i = S.qEditPage - 1;
+      const q = S.editDraft[i];
+      const moveBtns = `
+        <div style="display:flex;gap:6px;">
+          <button type="button" class="secondary ed-up" data-i="${i}" ${i === 0 ? 'disabled' : ''} style="font-size:11px;padding:5px 9px;">&uarr;</button>
+          <button type="button" class="secondary ed-down" data-i="${i}" ${i === S.editDraft.length - 1 ? 'disabled' : ''} style="font-size:11px;padding:5px 9px;">&darr;</button>
+          <button type="button" class="danger ed-del" data-i="${i}" style="font-size:11px;padding:5px 9px;">Hapus</button>
+        </div>`;
+      if (q.type === 'materi') {
+        box.innerHTML = `<div class="q-block">
+          <div class="q-block-head">
+            <strong>Blok ${i + 1} dari ${S.editDraft.length} · Halaman Materi</strong>
+            ${moveBtns}
+          </div>
+          <label>Judul materi (opsional)
+            <input type="text" class="ed-materi-title" data-i="${i}" value="${esc(q.text)}" placeholder="mis. Ringkasan Bab 3">
+          </label>
+          <div style="display:grid;gap:6px;">
+            <span class="muted">Isi materi &mdash; santri hanya membaca lalu lanjut. Tidak dijawab, tidak dinilai, tidak ikut diacak.</span>
+            <div id="materiSlot" class="materi-slot"></div>
+          </div>
+        </div>`;
+        mountMateriAt(i);
+        return;
+      }
+      if (q.type === 'slide') {
+        box.innerHTML = `<div class="q-block">
+          <div class="q-block-head">
+            <strong>Slide ${i + 1} dari ${S.editDraft.length}</strong>
+            ${moveBtns}
+          </div>
+          <div class="row-2">
+            <label>Judul slide (opsional)
+              <input type="text" class="ed-materi-title" data-i="${i}" value="${esc(q.text)}" placeholder="mis. Pendahuluan">
+            </label>
+            <label>Durasi (detik) <span class="muted">(3–600)</span>
+              <input type="number" min="3" max="600" step="1" class="ed-seconds" data-i="${i}" value="${esc(q.seconds != null ? q.seconds : 15)}">
+            </label>
+          </div>
+          <div style="display:grid;gap:6px;">
+            <span class="muted">Isi slide (teks kaya). Santri harus menunggu durasi di atas habis sebelum bisa lanjut ke slide berikutnya (kecuali sudah pernah tamat 1x).</span>
+            <div id="materiSlot" class="materi-slot"></div>
+          </div>
+        </div>`;
+        mountMateriAt(i);
+        return;
+      }
+      if (q.type === 'wordbank') {
+        const ng = countGaps_(q.text);
+        box.innerHTML = `<div class="q-block">
+          <div class="q-block-head">
+            <strong>Soal ${i + 1} dari ${S.editDraft.length} · Isian Bank Kata</strong>
+            ${moveBtns}
+          </div>
+          <label>Kalimat dengan rumpang
+            <textarea rows="3" class="ed-wb-text" data-i="${i}" placeholder="Ibukota Indonesia adalah [[Jakarta]]. Bendera kita berwarna [[merah|merah putih]].">${esc(q.text)}</textarea>
+          </label>
+          <p class="muted">Tandai kata yang dikosongkan dgn <code>[[jawaban]]</code>. Untuk beberapa jawaban benar: <code>[[a|b|c]]</code>. <span class="ed-wb-count">${ng} rumpang terdeteksi</span>.</p>
+          <label>Kata pengecoh (opsional)
+            <textarea rows="2" class="ed-wb-dist" data-i="${i}" placeholder="Pisahkan dengan koma atau baris baru — mis: Bandung, hijau, kuning">${esc(q.distractorsText || '')}</textarea>
+          </label>
+          <label>Penjelasan jawaban <span style="color:var(--danger)">*</span>
+            <textarea rows="2" class="ed-expl" data-i="${i}" placeholder="Muncul ke santri setelah soal ini dijawab…">${esc(q.explanation)}</textarea>
+          </label>
+          <label style="max-width:180px;">Bobot poin
+            <input type="number" min="0" step="0.5" class="ed-points" data-i="${i}" value="${esc(q.points)}">
+          </label>
+        </div>`;
+        return;
+      }
+      if (q.type === 'sentence') {
+        const nt = (q.answerText || '').trim().split(/\s+/).filter(Boolean).length;
+        box.innerHTML = `<div class="q-block">
+          <div class="q-block-head">
+            <strong>Soal ${i + 1} dari ${S.editDraft.length} · Susun Kalimat</strong>
+            ${moveBtns}
+          </div>
+          <label>Instruksi / prompt (opsional)
+            <input type="text" class="ed-sent-prompt" data-i="${i}" value="${esc(q.text)}" placeholder="Susun kata-kata berikut menjadi kalimat yang benar.">
+          </label>
+          <label>Kalimat yang benar
+            <textarea rows="2" class="ed-sent-answer" data-i="${i}" placeholder="Saya belajar di pondok pesantren.">${esc(q.answerText || '')}</textarea>
+          </label>
+          <p class="muted">Dipisah spasi jadi kartu kata teracak. <span class="ed-sent-count">${nt} kata</span>. Benar semua atau salah (tanpa nilai parsial).</p>
+          <label>Kata pengecoh (opsional)
+            <textarea rows="2" class="ed-sent-dist" data-i="${i}" placeholder="Pisahkan dengan koma atau baris baru">${esc(q.distractorsText || '')}</textarea>
+          </label>
+          <label>Penjelasan jawaban <span style="color:var(--danger)">*</span>
+            <textarea rows="2" class="ed-expl" data-i="${i}" placeholder="Muncul ke santri setelah soal ini dijawab…">${esc(q.explanation)}</textarea>
+          </label>
+          <label style="max-width:180px;">Bobot poin
+            <input type="number" min="0" step="0.5" class="ed-points" data-i="${i}" value="${esc(q.points)}">
+          </label>
+        </div>`;
+        return;
+      }
+      const optHtml = q.type === 'mc' ? `
+        <div class="opt-list">
+          ${q.options.map((o, oi) => `
+            <div class="opt-row">
+              <input type="radio" name="correct_${i}" ${q.correctIndex === oi ? 'checked' : ''} data-i="${i}" data-oi="${oi}" class="ed-correct">
+              <input type="text" value="${esc(o)}" placeholder="Opsi ${oi + 1}" data-i="${i}" data-oi="${oi}" class="ed-opt">
+              <button type="button" class="secondary ed-opt-del" data-i="${i}" data-oi="${oi}">&times;</button>
+            </div>`).join('')}
+        </div>
+        <p class="opt-dup-msg" id="optDupMsg" hidden>Ada opsi yang isinya sama &mdash; tiap opsi pilihan ganda harus berbeda.</p>
+        <button type="button" class="secondary ed-opt-add" data-i="${i}" style="font-size:11px;padding:6px 10px;justify-self:start;">+ Opsi</button>
+      ` : `
+        <div style="display:grid;gap:6px;">
+          <span class="muted">Kunci jawaban diterima (boleh lebih dari satu):</span>
+          ${q.correctAnswers.map((a, ai) => `
+            <div class="ans-row">
+              <input type="text" value="${esc(a)}" placeholder="Jawaban benar ${ai + 1}" data-i="${i}" data-ai="${ai}" class="ed-ans">
+              <button type="button" class="secondary ed-ans-del" data-i="${i}" data-ai="${ai}">&times;</button>
+            </div>`).join('')}
+          <button type="button" class="secondary ed-ans-add" data-i="${i}" style="font-size:11px;padding:6px 10px;justify-self:start;">+ Alternatif jawaban</button>
+        </div>`;
+      box.innerHTML = `<div class="q-block">
+        <div class="q-block-head">
+          <strong>Soal ${i + 1} dari ${S.editDraft.length} · ${q.type === 'mc' ? 'Pilihan Ganda' : 'Isian Singkat'}</strong>
+          <div style="display:flex;gap:6px;">
+            <button type="button" class="secondary ed-up" data-i="${i}" ${i === 0 ? 'disabled' : ''} style="font-size:11px;padding:5px 9px;">&uarr;</button>
+            <button type="button" class="secondary ed-down" data-i="${i}" ${i === S.editDraft.length - 1 ? 'disabled' : ''} style="font-size:11px;padding:5px 9px;">&darr;</button>
+            <button type="button" class="danger ed-del" data-i="${i}" style="font-size:11px;padding:5px 9px;">Hapus</button>
+          </div>
+        </div>
+        <label>Teks soal
+          <textarea rows="2" class="ed-text" data-i="${i}" placeholder="Tulis pertanyaan…">${esc(q.text)}</textarea>
+        </label>
+        ${optHtml}
+        <label>Penjelasan jawaban (kenapa benar) <span style="color:var(--danger)">*</span>
+          <textarea rows="2" class="ed-expl" data-i="${i}" placeholder="Muncul ke santri setelah soal ini dijawab…">${esc(q.explanation)}</textarea>
+        </label>
+        <label style="max-width:180px;">Bobot poin
+          <input type="number" min="0" step="0.5" class="ed-points" data-i="${i}" value="${esc(q.points)}">
+        </label>
+      </div>`;
+      refreshMcDupHints();
+    }
+
+    document.getElementById('qEditList').addEventListener('input', (ev) => {
+      if (ev.target.closest('#materiEditorStash')) return;   // event dari editor Quill materi — bukan urusan handler ini
+      const t = ev.target; const i = +t.dataset.i;
+      if (Number.isNaN(i)) return;
+      const q = S.editDraft[i]; if (!q) return;
+      if (t.classList.contains('ed-text')) q.text = t.value;
+      else if (t.classList.contains('ed-materi-title')) q.text = t.value;
+      else if (t.classList.contains('ed-seconds')) q.seconds = t.value;
+      else if (t.classList.contains('ed-expl')) q.explanation = t.value;
+      else if (t.classList.contains('ed-points')) q.points = t.value;
+      else if (t.classList.contains('ed-opt')) { q.options[+t.dataset.oi] = t.value; refreshMcDupHints(); }
+      else if (t.classList.contains('ed-ans')) q.correctAnswers[+t.dataset.ai] = t.value;
+      else if (t.classList.contains('ed-wb-text')) { q.text = t.value; const c = document.querySelector('#qEditList .ed-wb-count'); if (c) c.textContent = countGaps_(t.value) + ' rumpang terdeteksi'; }
+      else if (t.classList.contains('ed-wb-dist')) q.distractorsText = t.value;
+      else if (t.classList.contains('ed-sent-prompt')) q.text = t.value;
+      else if (t.classList.contains('ed-sent-answer')) { q.answerText = t.value; const c = document.querySelector('#qEditList .ed-sent-count'); if (c) c.textContent = t.value.trim().split(/\s+/).filter(Boolean).length + ' kata'; }
+      else if (t.classList.contains('ed-sent-dist')) q.distractorsText = t.value;
+    });
+    document.getElementById('qEditList').addEventListener('change', (ev) => {
+      if (ev.target.closest('#materiEditorStash')) return;
+      const t = ev.target; const i = +t.dataset.i;
+      if (t.classList.contains('ed-correct')) { S.editDraft[i].correctIndex = +t.dataset.oi; }
+    });
+    document.getElementById('qEditList').addEventListener('click', (ev) => {
+      if (ev.target.closest('#materiEditorStash')) return;   // klik tombol toolbar Quill — jangan diproses di sini
+      const t = ev.target.closest('button'); if (!t) return;
+      detachMateri();   // simpan isi Quill blok aktif SEBELUM array/urutan berubah
+      const i = +t.dataset.i; const q = S.editDraft[i];
+      if (t.classList.contains('ed-del')) { S.editDraft.splice(i, 1); if (S.qEditPage > S.editDraft.length) S.qEditPage = S.editDraft.length; }
+      else if (t.classList.contains('ed-up') && i > 0) { const x = S.editDraft.splice(i, 1)[0]; S.editDraft.splice(i - 1, 0, x); S.qEditPage = i; }
+      else if (t.classList.contains('ed-down') && i < S.editDraft.length - 1) { const x = S.editDraft.splice(i, 1)[0]; S.editDraft.splice(i + 1, 0, x); S.qEditPage = i + 2; }
+      else if (t.classList.contains('ed-opt-add')) { q.options.push(''); }
+      else if (t.classList.contains('ed-opt-del')) { if (q.options.length > 2) { q.options.splice(+t.dataset.oi, 1); if (q.correctIndex >= q.options.length) q.correctIndex = 0; } }
+      else if (t.classList.contains('ed-ans-add')) { q.correctAnswers.push(''); }
+      else if (t.classList.contains('ed-ans-del')) { if (q.correctAnswers.length > 1) q.correctAnswers.splice(+t.dataset.ai, 1); }
+      else return;
+      renderEditList();
+    });
+    document.getElementById('qEditPaging').addEventListener('click', (ev) => {
+      const b = ev.target.closest('button[data-qp]'); if (!b) return;
+      S.qEditPage = +b.dataset.qp;
+      renderEditList();
+    });
+    document.querySelectorAll('.q-mode-btn').forEach(b => b.addEventListener('click', () => switchQuizMode(b.dataset.qmode)));
+    function addBlock(factory) {
+      if (S.qMode === 'text') switchQuizMode('form');
+      detachMateri();
+      // Sisip TEPAT SETELAH blok yg sedang dibuka (bukan selalu di akhir array) -- kalau lagi di
+      // halaman 5, blok baru jadi halaman 6, bukan lompat ke halaman terakhir.
+      const insertAt = S.qEditPage || S.editDraft.length;
+      S.editDraft.splice(insertAt, 0, factory());
+      S.qEditPage = Math.min(insertAt + 1, S.editDraft.length);
+      renderEditList();
+    }
+    const QUIZ_ADD_FACTORY_ = { mc: blankMc, short: blankShort, wordbank: blankWordbank, sentence: blankSentence, materi: blankMateri };
+    document.getElementById('qAddMenu').addEventListener('click', (ev) => {
+      const item = ev.target.closest('.q-add-menu-item');
+      if (!item) return;
+      document.getElementById('qAddMenu').classList.add('hidden');
+      addBlock(QUIZ_ADD_FACTORY_[item.dataset.add]);
+    });
+    document.getElementById('btnAddBlock').addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      document.getElementById('qAddMenu').classList.toggle('hidden');
+    });
+    document.addEventListener('click', (ev) => {
+      if (!ev.target.closest('#qAddDropdown')) document.getElementById('qAddMenu').classList.add('hidden');
+    });
+    // #btnAddBlock & .q-add-menu-item pakai <div role="button">, bukan <button>, jadi aktivasi
+    // keyboard (Enter/Space) tidak otomatis -- disambungkan manual ke aksi klik yg sama.
+    document.getElementById('qAddDropdown').addEventListener('keydown', (ev) => {
+      if (ev.key !== 'Enter' && ev.key !== ' ') return;
+      const item = ev.target.closest('.q-add-menu-item');
+      if (item) { ev.preventDefault(); document.getElementById('qAddMenu').classList.add('hidden'); addBlock(QUIZ_ADD_FACTORY_[item.dataset.add]); return; }
+      if (ev.target.closest('#btnAddBlock')) { ev.preventDefault(); document.getElementById('qAddMenu').classList.toggle('hidden'); }
+    });
+    document.getElementById('btnAddSlide').addEventListener('click', () => addBlock(blankSlide));
+
+    // Tampilan editor menyesuaikan tipe: 'dokumen' -> mode slide (tanpa Mode Teks / tombol soal biasa).
+    function applyTipeUI() {
+      const dok = document.getElementById('qTipe').value === 'dokumen';
+      document.getElementById('qAddDropdown').classList.toggle('hidden', dok);
+      document.getElementById('btnAddSlide').classList.toggle('hidden', !dok);
+      document.getElementById('qModeTabs').classList.toggle('hidden', dok);
+      document.getElementById('qDokHint').classList.toggle('hidden', !dok);
+      document.getElementById('cfgExam').classList.toggle('hidden', dok);
+      document.getElementById('qSectionTitle').innerHTML = dok ? 'Slide <span style="color:var(--danger)">*</span>' : 'Soal <span style="color:var(--danger)">*</span>';
+      if (dok && S.qMode === 'text') setQuizModeUI('form');
+    }
+    document.getElementById('qTipe').addEventListener('change', () => {
+      const dok = document.getElementById('qTipe').value === 'dokumen';
+      const hasSlides = S.editDraft.some(q => q.type === 'slide');
+      if (dok && !hasSlides) { detachMateri(); S.editDraft = [blankSlide()]; S.qEditPage = 1; }
+      else if (!dok && hasSlides) { detachMateri(); S.editDraft = [blankMc()]; S.qEditPage = 1; }
+      applyTipeUI();
+      renderEditList();
+    });
+
+    function openEditor(q) {
+      const dlg = document.getElementById('editorDialog');
+      document.getElementById('editorTitle').textContent = q ? 'Edit Quiz' : 'Buat Quiz';
+      document.getElementById('qId').value = q ? q.id : '';
+      document.getElementById('qTitle').value = q ? q.title : '';
+      document.getElementById('qDesc').value = q ? q.description : '';
+      document.getElementById('qTipe').value = q ? q.tipe : 'drill';
+      document.getElementById('qPublish').value = q ? q.publishState : 'draft';
+      document.getElementById('qOpenAt').value = q && q.openAt ? q.openAt : '';
+      document.getElementById('qCloseAt').value = q && q.closeAt ? q.closeAt : '';
+      S.editColor = (q && q.color) || '';
+      renderSwatches(document.getElementById('qColorSwatches'), S.editColor);
+      const c = (q && q.config) || {};
+      document.getElementById('cfgMaxAttempts').value = c.maxAttempts != null ? c.maxAttempts : 1;
+      document.getElementById('cfgTimeLimit').value = c.timeLimitMinutes || 0;
+      document.getElementById('cfgShuffleQ').checked = !!c.shuffleQuestions;
+      document.getElementById('cfgShuffleO').checked = !!c.shuffleOptions;
+      document.getElementById('cfgReshuffle').checked = c.reshuffleEachRound === undefined ? true : !!c.reshuffleEachRound;
+      document.getElementById('cfgAllowBack').checked = c.allowBack === undefined ? true : !!c.allowBack;
+      document.getElementById('cfgSertakanDibekukan').checked = !!c.sertakanDibekukan;
+      document.getElementById('cfgShowResult').value = c.showResultMode || 'langsung';
+      document.getElementById('cfgShowAnswers').value = c.showAnswersMode || 'langsung';
+      document.getElementById('cfgPesertaPilih').checked = (c.pesertaMode === 'pilih');
+      S._pesertaSel = (c.pesertaSantriIds || []).slice();
+      renderPesertaBox();
+      S.editBgAudioUrl = c.bgAudioUrl || '';
+      document.getElementById('qBgAudioLoop').checked = c.bgAudioLoop === undefined ? true : !!c.bgAudioLoop;
+      document.getElementById('qBgAudioFile').value = '';
+      setBgAudioUI();
+      detachMateri();
+      S.editDraft = q ? JSON.parse(JSON.stringify(q.questions || [])).map(x => ({
+        id: x.id || '', type: x.type, text: x.text || '', options: x.options || (x.type === 'mc' ? ['', ''] : []),
+        correctIndex: x.correctIndex || 0, correctAnswers: x.correctAnswers || (x.type === 'short' ? [''] : []),
+        answerText: x.answerText || '',
+        distractorsText: Array.isArray(x.distractors) ? x.distractors.join(', ') : '',
+        seconds: x.seconds != null ? x.seconds : 15,
+        explanation: x.explanation || '', points: x.points != null ? x.points : (x.type === 'materi' || x.type === 'slide' ? 0 : 1),
+        html: x.html || ''
+      })) : [(q && q.tipe === 'dokumen') ? blankSlide() : blankMc()];
+      S.qEditPage = 1;
+      document.getElementById('quizBulkText').value = '';
+      setQuizModeUI('form');
+      applyTipeUI();
+      dlg.showModal();          // buka dialog dulu: Quill materi butuh host yang sudah "layout-able"
+      renderEditList();
+    }
+    document.getElementById('btnNewQuiz').addEventListener('click', () => openEditor(null));
+    document.getElementById('btnCancelEdit').addEventListener('click', () => document.getElementById('editorDialog').close());
+
+    // ── Export / Import quiz (pindah antar kelas / tahun ajaran via file .json) ────────────────
+    const QUIZ_EXPORT_VERSION_ = 1;
+    function exportQuizToFile(item) {
+      const payload = {
+        psQuizExport: QUIZ_EXPORT_VERSION_,
+        title: item.title || '', description: item.description || '', tipe: item.tipe || 'drill',
+        questions: item.questions || [], config: item.config || {}, color: item.color || ''
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const safeName = (item.title || 'quiz').trim().replace(/[^a-z0-9 _-]+/gi, '').replace(/\s+/g, '-').slice(0, 60) || 'quiz';
+      const a = document.createElement('a');
+      a.href = url; a.download = `quiz-${safeName}.json`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+    document.getElementById('btnImportQuiz').addEventListener('click', () => document.getElementById('importQuizFile').click());
+    document.getElementById('importQuizFile').addEventListener('change', async (ev) => {
+      const file = ev.target.files && ev.target.files[0];
+      ev.target.value = '';   // reset supaya file yg sama bisa dipilih ulang
+      if (!file) return;
+      let data;
+      try {
+        data = JSON.parse(await file.text());
+      } catch (e) { showNotice('File bukan JSON yang valid.', 'error'); return; }
+      if (!data || typeof data !== 'object' || !Array.isArray(data.questions)) {
+        showNotice('File ini bukan hasil Export Quiz yang dikenali.', 'error'); return;
+      }
+      const record = {
+        kelas_id: S.kelasId,
+        title: data.title || 'Quiz Import',
+        description: data.description || '',
+        tipe: data.tipe || 'drill',
+        questions: data.questions,
+        config: data.config || {},
+        color: data.color || ''
+      };
+      if (S.currentFolderId) record.folder_id = S.currentFolderId;
+      const btnImport = document.getElementById('btnImportQuiz'); btnImport.disabled = true;
+      try {
+        const r = await apiPost({ action: 'quiz.save', record });
+        showNotice('Quiz "' + record.title + '" berhasil diimpor. ' + r.message);
+        await refreshQuizPanel();
+      } catch (e) { showNotice(e.message, 'error'); } finally { btnImport.disabled = false; }
+    });
+    document.getElementById('qColorSwatches').addEventListener('click', (ev) => {
+      const b = ev.target.closest('button[data-tok]'); if (!b) return;
+      S.editColor = b.dataset.tok;
+      renderSwatches(document.getElementById('qColorSwatches'), S.editColor);
+    });
+
+    // ── Suara latar quiz ──────────────────────────────────────────────────────
+    function setBgAudioUI() {
+      const prev = document.getElementById('qBgAudioPreview');
+      const st = document.getElementById('qBgAudioStatus');
+      if (S.editBgAudioUrl) {
+        prev.src = '/' + S.editBgAudioUrl;
+        prev.style.display = '';
+        st.textContent = 'Suara latar aktif — ' + S.editBgAudioUrl.split('/').pop();
+      } else {
+        prev.removeAttribute('src'); prev.style.display = 'none';
+        st.textContent = 'Belum ada suara latar.';
+      }
+    }
+    document.getElementById('qBgAudioFile').addEventListener('change', async (ev) => {
+      const file = ev.target.files && ev.target.files[0];
+      if (!file) return;
+      if (file.size > 5 * 1024 * 1024) { showNotice('Ukuran audio maksimal 5 MB.', 'error'); ev.target.value = ''; return; }
+      const st = document.getElementById('qBgAudioStatus');
+      st.textContent = 'Mengunggah…';
+      ev.target.disabled = true;
+      try {
+        const r = await fetch(API_BASE.replace(/\/api$/, '') + '/api/quiz/upload-audio?token=' + encodeURIComponent(getToken()) + '&filename=' + encodeURIComponent(file.name), {
+          method: 'POST', headers: { 'Content-Type': file.type || 'application/octet-stream' }, body: file
+        });
+        const j = await r.json();
+        if (!j.ok) throw new Error(j.error && j.error.message || 'Gagal mengunggah.');
+        S.editBgAudioUrl = j.data.url;
+        setBgAudioUI();
+        showNotice('Suara latar terunggah.');
+      } catch (e) { st.textContent = ''; showNotice(e.message, 'error'); }
+      finally { ev.target.value = ''; ev.target.disabled = false; }
+    });
+    document.getElementById('btnClearBgAudio').addEventListener('click', () => {
+      S.editBgAudioUrl = '';
+      document.getElementById('qBgAudioFile').value = '';
+      setBgAudioUI();
+    });
+
+    document.getElementById('editorForm').addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      detachMateri();   // pastikan isi Quill materi tersimpan ke S.editDraft
+      if (S.qMode === 'text') switchQuizMode('form');
+      if (!S.editDraft.length) { showNotice('Tambahkan minimal 1 blok.', 'error'); return; }
+      const isDok = document.getElementById('qTipe').value === 'dokumen';
+      for (let i = 0; i < S.editDraft.length; i++) {
+        const qd = S.editDraft[i];
+        const gotoSoal = () => { setQuizModeUI('form'); S.qEditPage = i + 1; renderEditList(); };
+        if (qd.type === 'slide') {
+          if (!materiHasContent(qd.html)) { showNotice(`Slide ${i + 1}: isinya masih kosong.`, 'error'); gotoSoal(); return; }
+          const sec = parseInt(qd.seconds, 10);
+          if (!Number.isFinite(sec) || sec < 3 || sec > 600) { showNotice(`Slide ${i + 1}: durasi harus 3–600 detik.`, 'error'); gotoSoal(); return; }
+          continue;
+        }
+        if (qd.type === 'materi') {
+          if (!materiHasContent(qd.html)) { showNotice(`Blok ${i + 1} (Halaman Materi): isinya masih kosong.`, 'error'); gotoSoal(); return; }
+          continue;
+        }
+        if (qd.type === 'sentence') {
+          const nt = (qd.answerText || '').trim().split(/\s+/).filter(Boolean).length;
+          if (!(qd.answerText || '').trim()) { showNotice(`Soal ${i + 1}: kalimat yang benar wajib diisi.`, 'error'); gotoSoal(); return; }
+          if (nt < 2) { showNotice(`Soal ${i + 1}: kalimat minimal 2 kata.`, 'error'); gotoSoal(); return; }
+          if (nt > 40) { showNotice(`Soal ${i + 1}: maksimal 40 kata.`, 'error'); gotoSoal(); return; }
+          if (!(qd.explanation || '').trim()) { showNotice(`Soal ${i + 1}: penjelasan wajib diisi.`, 'error'); gotoSoal(); return; }
+          continue;
+        }
+        if (!(qd.text || '').trim()) { showNotice(`Soal ${i + 1}: ${qd.type === 'wordbank' ? 'kalimat rumpang' : 'teks soal'} wajib diisi.`, 'error'); gotoSoal(); return; }
+        if (qd.type === 'wordbank') {
+          const ng = countGaps_(qd.text);
+          if (!ng) { showNotice(`Soal ${i + 1}: tandai minimal 1 rumpang dengan [[jawaban]].`, 'error'); gotoSoal(); return; }
+          if (ng > 12) { showNotice(`Soal ${i + 1}: maksimal 12 rumpang.`, 'error'); gotoSoal(); return; }
+          if (!(qd.explanation || '').trim()) { showNotice(`Soal ${i + 1}: penjelasan wajib diisi.`, 'error'); gotoSoal(); return; }
+          continue;
+        }
+        if (!(qd.explanation || '').trim()) { showNotice(`Soal ${i + 1}: penjelasan wajib diisi.`, 'error'); gotoSoal(); return; }
+        if (qd.type === 'mc') {
+          const filled = qd.options.map(o => (o || '').trim()).filter(Boolean);
+          if (filled.length < 2) { showNotice(`Soal ${i + 1}: pilihan ganda butuh minimal 2 opsi terisi.`, 'error'); gotoSoal(); return; }
+          const nrm = filled.map(normOptText_);
+          const dupAt = nrm.findIndex((v, k) => nrm.indexOf(v) !== k);
+          if (dupAt >= 0) { showNotice(`Soal ${i + 1}: ada 2 opsi yang sama ("${filled[dupAt]}"). Tiap opsi harus berbeda.`, 'error'); gotoSoal(); return; }
+          if (!qd.options[qd.correctIndex] || !qd.options[qd.correctIndex].trim()) { showNotice(`Soal ${i + 1}: tandai salah satu opsi terisi sebagai jawaban benar.`, 'error'); gotoSoal(); return; }
+        } else {
+          const ans = (qd.correctAnswers || []).map(a => (a || '').trim()).filter(Boolean);
+          if (!ans.length) { showNotice(`Soal ${i + 1}: minimal 1 kunci jawaban wajib diisi.`, 'error'); gotoSoal(); return; }
+        }
+      }
+      if (isDok) {
+        if (!S.editDraft.some(q => q.type === 'slide')) { showNotice('Dokumen butuh minimal 1 slide.', 'error'); return; }
+      } else if (!S.editDraft.some(q => q.type !== 'materi')) {
+        showNotice('Quiz butuh minimal 1 soal yang dinilai (Halaman Materi saja tidak cukup).', 'error'); return;
+      }
+      const pesertaPilih = document.getElementById('cfgPesertaPilih').checked;
+      const pesertaIds = pesertaPilih
+        ? Array.from(document.querySelectorAll('#pesertaBox input[data-sid]:checked')).map(x => x.dataset.sid)
+        : [];
+      const config = {
+        maxAttempts: +document.getElementById('cfgMaxAttempts').value || 0,
+        timeLimitMinutes: +document.getElementById('cfgTimeLimit').value || 0,
+        shuffleQuestions: document.getElementById('cfgShuffleQ').checked,
+        shuffleOptions: document.getElementById('cfgShuffleO').checked,
+        reshuffleEachRound: document.getElementById('cfgReshuffle').checked,
+        allowBack: document.getElementById('cfgAllowBack').checked,
+        sertakanDibekukan: document.getElementById('cfgSertakanDibekukan').checked,
+        showResultMode: document.getElementById('cfgShowResult').value,
+        showAnswersMode: document.getElementById('cfgShowAnswers').value,
+        pesertaMode: pesertaPilih ? 'pilih' : 'semua',
+        pesertaSantriIds: pesertaIds,
+        bgAudioUrl: S.editBgAudioUrl || '',
+        bgAudioLoop: document.getElementById('qBgAudioLoop').checked
+      };
+      const questions = S.editDraft.map(q => {
+        if (q.type === 'slide') return { id: q.id, type: 'slide', text: (q.text || '').trim().slice(0, 200), html: q.html || '', seconds: Math.max(3, Math.min(600, parseInt(q.seconds, 10) || 15)) };
+        if (q.type === 'materi') return { id: q.id, type: 'materi', text: (q.text || '').trim().slice(0, 200), html: q.html || '' };
+        if (q.type === 'wordbank') return { id: q.id, type: 'wordbank', text: (q.text || '').trim(), distractors: splitDistractors_(q.distractorsText), explanation: (q.explanation || '').trim(), points: +q.points || 0 };
+        if (q.type === 'sentence') return { id: q.id, type: 'sentence', text: (q.text || '').trim(), answerText: (q.answerText || '').trim(), distractors: splitDistractors_(q.distractorsText), explanation: (q.explanation || '').trim(), points: +q.points || 0 };
+        return q.type === 'mc'
+          ? { id: q.id, type: 'mc', text: (q.text || '').trim(), options: q.options.map(o => (o || '').trim()), correctIndex: q.correctIndex, explanation: (q.explanation || '').trim(), points: +q.points || 0 }
+          : { id: q.id, type: 'short', text: (q.text || '').trim(), correctAnswers: q.correctAnswers.map(a => (a || '').trim()).filter(Boolean), explanation: (q.explanation || '').trim(), points: +q.points || 0 };
+      });
+      const record = {
+        id: document.getElementById('qId').value,
+        kelas_id: S.kelasId,
+        title: document.getElementById('qTitle').value.trim(),
+        description: document.getElementById('qDesc').value.trim(),
+        tipe: document.getElementById('qTipe').value,
+        publish_state: document.getElementById('qPublish').value,
+        open_at: document.getElementById('qOpenAt').value,
+        close_at: document.getElementById('qCloseAt').value,
+        color: S.editColor || '',
+        questions, config
+      };
+      // Quiz baru langsung "jatuh" ke folder yang sedang dibuka (server abaikan folder_id saat edit).
+      if (!record.id && S.currentFolderId) record.folder_id = S.currentFolderId;
+      const btnSave = document.getElementById('btnSaveQuiz'); btnSave.disabled = true;
+      try {
+        const r = await apiPost({ action: 'quiz.save', record });
+        showNotice(r.message);
+        document.getElementById('editorDialog').close();
+        await refreshQuizPanel();
+      } catch (e) { showNotice(e.message, 'error'); } finally { btnSave.disabled = false; }
+    });
+
+    // ── Laporan Baca (dokumen) — reuse #resultDialog ──────────
+    async function openDocReaders(q) {
+      const dlg = document.getElementById('resultDialog');
+      document.getElementById('notDoneOverlay').hidden = true;
+      document.getElementById('resultTitle').textContent = 'Laporan Baca: ' + q.title;
+      document.getElementById('resSearch').value = '';
+      document.getElementById('btnRelease').classList.add('hidden');
+      document.getElementById('btnExportXlsx').classList.add('hidden');
+      document.getElementById('resPaginationBottom').innerHTML = '';
+      document.getElementById('resList').innerHTML = '<div class="empty-state">Memuat…</div>';
+      dlg.showModal();
+      try {
+        S.docReaders = await api({ action: 'quiz.doc.readers', id: q.id });
+        renderDocReaders();
+      } catch (e) { document.getElementById('resList').innerHTML = `<div class="empty-state">${esc(e.message)}</div>`; }
+    }
+    function renderDocReaders() {
+      const d = S.docReaders; if (!d) return;
+      const term = (document.getElementById('resSearch').value || '').toLowerCase().trim();
+      const rows = (d.rows || []).filter(r => !term || (r.santriNama || '').toLowerCase().includes(term));
+      document.getElementById('resSummary').textContent = `${d.doneCount} dari ${d.total} santri sudah selesai membaca · ${d.slideCount} slide`;
+      const badge = st => st === 'selesai' ? '<span class="chip g">Selesai</span>'
+        : st === 'sedang' ? '<span class="chip w">Sedang baca</span>'
+        : '<span class="chip d">Belum baca</span>';
+      document.getElementById('resList').innerHTML = rows.length ? rows.map(r => `
+        <div class="res-attempt">
+          <div class="quiz-card-top">
+            <strong>${esc(r.santriNama)}</strong>
+            ${badge(r.status)}
+          </div>
+          <div class="muted">${r.status === 'selesai'
+            ? 'Selesai ' + (r.finishedAt ? r.finishedAt.replace('T', ' ') : '—')
+            : (r.status === 'sedang' ? ('Terakhir di slide ' + (r.currentSlide + 1) + (r.startedAt ? ' · mulai ' + r.startedAt.replace('T', ' ') : '')) : '—')}</div>
+        </div>`).join('') : '<div class="empty-state">Tidak ada santri yang cocok.</div>';
+    }
+
+    // ── Results ───────────────────────────────────────────────
+    async function openResult(q) {
+      S.docReaders = null;
+      document.getElementById('notDoneOverlay').hidden = true;
+      document.getElementById('btnRelease').classList.remove('hidden');
+      document.getElementById('btnExportXlsx').classList.remove('hidden');
+      const dlg = document.getElementById('resultDialog');
+      document.getElementById('resultTitle').textContent = 'Hasil: ' + q.title;
+      document.getElementById('resSearch').value = '';
+      document.getElementById('resList').innerHTML = '<div class="empty-state">Memuat…</div>';
+      S.resPage = 1;
+      dlg.showModal();
+      try {
+        S.resultData = await api({ action: 'quiz.results', id: q.id });
+        renderResult();
+      } catch (e) { document.getElementById('resList').innerHTML = `<div class="empty-state">${esc(e.message)}</div>`; }
+    }
+    function renderResult() {
+      const d = S.resultData; if (!d) return;
+      const q = d.quiz;
+      const btnRel = document.getElementById('btnRelease');
+      btnRel.textContent = q.releasedAt ? 'Batalkan rilis hasil' : 'Rilis hasil ke santri';
+      btnRel.dataset.id = q.id; btnRel.dataset.to = q.releasedAt ? '0' : '1';
+      document.getElementById('resSummary').textContent =
+        `${d.santriRows.length} dari ${d.rosterCount} santri sudah mengerjakan · ${d.notDoneCount} belum · tipe ${q.tipe}`;
+      const term = (document.getElementById('resSearch').value || '').toLowerCase();
+      const allRows = d.santriRows.filter(r => !term || r.santriNama.toLowerCase().includes(term));
+      const total = allRows.length;
+      S.resTotalPages = Math.max(1, Math.ceil(total / S.resPageSize));
+      if (S.resPage > S.resTotalPages) S.resPage = S.resTotalPages;
+      if (S.resPage < 1) S.resPage = 1;
+      const rows = allRows.slice((S.resPage - 1) * S.resPageSize, S.resPage * S.resPageSize);
+      let html = `<table class="res-table"><thead><tr><th>Nama</th><th>Percobaan</th><th>Skor terbaik</th><th>Terakhir submit</th><th></th></tr></thead><tbody>`;
+      rows.forEach((r, ri) => {
+        html += `<tr>
+          <td>${esc(r.santriNama)}${r.hasInProgress ? ' <span class="chip w">sedang mengerjakan</span>' : ''}</td>
+          <td>${r.attemptCount}</td>
+          <td>${r.bestScore == null ? '—' : r.bestScore}</td>
+          <td>${r.lastSubmittedAt ? esc(r.lastSubmittedAt.replace('T', ' ')) : '—'}</td>
+          <td style="text-align:right;"><button class="secondary res-expand" data-ri="${ri}" style="font-size:10.5px;padding:4px 9px;min-height:0;">Rincian</button></td>
+        </tr>
+        <tr class="res-detail hidden" data-ri="${ri}"><td colspan="5"></td></tr>`;
+      });
+      html += `</tbody></table>`;
+      if (d.notDonePreview.length) {
+        html += `<div style="margin-top:10px;"><strong style="font-size:11px;text-transform:uppercase;color:var(--muted);">Belum mengerjakan (${d.notDoneCount}):</strong> <span class="muted">${d.notDonePreview.map(x => esc(x.santriNama)).join(', ')}${d.notDoneHasMore ? '…' : ''}</span>${d.notDoneHasMore ? ' <button type="button" class="secondary" id="btnShowAllNotDone" style="font-size:10.5px;padding:3px 9px;min-height:0;">Lihat semua</button>' : ''}</div>`;
+      }
+      const box = document.getElementById('resList');
+      box.innerHTML = html;
+      box._rows = rows;
+      renderResultPagination(total, S.resTotalPages);
+    }
+    // Beda dari pagination kelas (data-page): dinamai data-res-page biar tak tabrakan dgn
+    // listener kelas (keduanya delegasi global ke document, item bernomor sama bisa dobel-jalan
+    // kalau nama attribute-nya sama). Selalu tampil walau cuma 1 santri (minimumCount:0).
+    function renderResultPagination(total, totalPages) {
+      const markup = total ? `
+        <div class="page-center">
+          <div class="page-numbers">
+            ${buildPaginationList(S.resPage, totalPages).map(item =>
+              item === '...'
+                ? '<span class="page-summary">...</span>'
+                : `<button class="secondary page-btn ${item === S.resPage ? 'active' : ''}" type="button" data-res-page="${item}">${item}</button>`
+            ).join('')}
+          </div>
+          <div class="page-summary">Halaman ${S.resPage} dari ${totalPages} | total ${total} santri</div>
+        </div>
+      ` : '';
+      window.PSUI.syncPaginationHosts({ markup, visibleCount: total, totalCount: total, minimumCount: 0, bottomId: 'resPaginationBottom' });
+    }
+    document.addEventListener('click', (ev) => {
+      const page = ev.target.getAttribute('data-res-page');
+      if (!page) return;
+      const nextPage = Number(page);
+      if (!nextPage || nextPage < 1 || nextPage > S.resTotalPages || nextPage === S.resPage) return;
+      S.resPage = nextPage;
+      renderResult();
+    });
+    document.getElementById('resSearch').addEventListener('input', PSUI.debounce(() => {
+      if (S.docReaders && document.getElementById('resultTitle').textContent.indexOf('Laporan Baca') === 0) { renderDocReaders(); return; }
+      S.resPage = 1; renderResult();
+    }, PSUI.AUTOSAVE_DEBOUNCE_MS));
+    document.getElementById('resList').addEventListener('click', (ev) => {
+      const b = ev.target.closest('button.res-expand'); if (!b) return;
+      const ri = +b.dataset.ri;
+      const box = document.getElementById('resList');
+      const r = (box._rows || [])[ri]; if (!r) return;
+      const detailTd = box.querySelector(`tr.res-detail[data-ri="${ri}"]`);
+      const cell = detailTd.querySelector('td');
+      if (!detailTd.classList.contains('hidden')) { detailTd.classList.add('hidden'); return; }
+      detailTd.classList.remove('hidden');
+      cell.innerHTML = r.attempts.map(at => `
+        <div class="res-attempt">
+          <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;">
+            <strong>Percobaan ${at.attemptNo} · ${at.statusKerja === 'selesai' ? 'selesai' : 'belum selesai'}</strong>
+            <span>Auto ${at.autoScore} · <strong>Final ${at.finalScore}</strong> · ${at.correctCount}/${at.totalCount} benar</span>
+          </div>
+          ${at.gradedByName ? `<div class="muted">Dikoreksi manual oleh ${esc(at.gradedByName)} · ${esc((at.gradedAt || '').replace('T', ' '))}</div>` : ''}
+          ${at.answers.map(a => `
+            <div class="res-qrow">
+              <div><strong>${esc(a.questionText)}</strong> <span class="muted">(${a.points} poin)</span></div>
+              <div>Jawaban santri: <em>${esc(a.yourAnswerText || '(kosong)')}</em> ${a.correct ? '<span class="ans-ok">&#10004; benar</span>' : '<span class="ans-no">&#10008; salah</span>'}</div>
+              <div class="muted">Kunci: ${esc(a.correctAnswerText)}</div>
+              ${a.type === 'short' ? `<div class="grade-btns">
+                  <span class="muted">Koreksi manual:</span>
+                  <button type="button" class="secondary gr ${a.manualOverride === 'benar' ? 'on-ok' : ''}" data-att="${esc(at.attemptId)}" data-q="${esc(a.questionId)}" data-v="benar">Benar</button>
+                  <button type="button" class="secondary gr ${a.manualOverride === 'salah' ? 'on-no' : ''}" data-att="${esc(at.attemptId)}" data-q="${esc(a.questionId)}" data-v="salah">Salah</button>
+                  <button type="button" class="secondary gr" data-att="${esc(at.attemptId)}" data-q="${esc(a.questionId)}" data-v="">Auto</button>
+                </div>` : ''}
+            </div>`).join('')}
+        </div>`).join('') || '<span class="muted">Belum ada percobaan.</span>';
+    });
+    document.getElementById('resList').addEventListener('click', async (ev) => {
+      const b = ev.target.closest('button.gr'); if (!b) return;
+      const group = b.closest('.grade-btns');
+      const groupBtns = group ? Array.from(group.querySelectorAll('button.gr')) : [b];
+      groupBtns.forEach(x => x.disabled = true);
+      try {
+        const r = await apiPost({ action: 'quiz.grade', attemptId: b.dataset.att, grades: [{ questionId: b.dataset.q, verdict: b.dataset.v }] });
+        showNotice('Nilai: final ' + r.finalScore + ' (' + r.correctCount + '/' + r.totalCount + ')');
+        S.resultData = await api({ action: 'quiz.results', id: S.resultData.quiz.id });
+        renderResult();
+      } catch (e) { showNotice(e.message, 'error'); groupBtns.forEach(x => x.disabled = false); }
+    });
+    document.getElementById('resList').addEventListener('click', (ev) => {
+      if (!ev.target.closest('#btnShowAllNotDone')) return;
+      openNotDoneOverlay();
+    });
+    function openNotDoneOverlay() {
+      document.getElementById('notDoneOverlay').hidden = false;
+      loadNotDonePage(1);
+    }
+    function closeNotDoneOverlay() { document.getElementById('notDoneOverlay').hidden = true; }
+    async function loadNotDonePage(page) {
+      const body = document.getElementById('notDoneBody');
+      body.innerHTML = '<div class="empty-state">Memuat…</div>';
+      try {
+        const d = await api({ action: 'quiz.results.notDone', id: S.resultData.quiz.id, page, pageSize: S.notDonePageSize });
+        S.notDonePage = d.page; S.notDoneTotalPages = d.totalPages; S.notDoneData = d;
+        renderNotDone();
+      } catch (e) { body.innerHTML = `<div class="empty-state">${esc(e.message)}</div>`; }
+    }
+    function renderNotDone() {
+      const d = S.notDoneData; if (!d) return;
+      document.getElementById('notDoneTitle').textContent = `Belum Mengerjakan (${d.total})`;
+      document.getElementById('notDoneBody').innerHTML = d.items.length
+        ? d.items.map(x => `<div class="nd-row">${esc(x.santriNama)}</div>`).join('')
+        : '<div class="empty-state">Tidak ada.</div>';
+      document.getElementById('notDonePagination').innerHTML = d.totalPages > 1 ? `
+        <div class="page-center">
+          <div class="page-numbers">
+            ${buildPaginationList(S.notDonePage, d.totalPages).map(item =>
+              item === '...'
+                ? '<span class="page-summary">...</span>'
+                : `<button class="secondary page-btn ${item === S.notDonePage ? 'active' : ''}" type="button" data-nd-page="${item}">${item}</button>`
+            ).join('')}
+          </div>
+          <div class="page-summary">Halaman ${S.notDonePage} dari ${d.totalPages}</div>
+        </div>
+      ` : '';
+    }
+    document.getElementById('notDonePagination').addEventListener('click', (ev) => {
+      const b = ev.target.closest('button[data-nd-page]'); if (!b) return;
+      const p = Number(b.dataset.ndPage);
+      if (!p || p === S.notDonePage) return;
+      loadNotDonePage(p);
+    });
+    document.getElementById('notDoneClose').addEventListener('click', closeNotDoneOverlay);
+    document.getElementById('notDoneOverlay').addEventListener('click', (ev) => { if (ev.target === ev.currentTarget) closeNotDoneOverlay(); });
+    document.getElementById('btnRelease').addEventListener('click', async (ev) => {
+      const b = ev.currentTarget;
+      b.disabled = true;
+      try {
+        const r = await apiPost({ action: 'quiz.releaseResults', id: b.dataset.id, released: b.dataset.to === '1' });
+        showNotice(r.message);
+        S.resultData = await api({ action: 'quiz.results', id: b.dataset.id });
+        renderResult();
+        await loadBrowse();
+      } catch (e) { showNotice(e.message, 'error'); } finally { b.disabled = false; }
+    });
+    document.getElementById('btnCloseResult').addEventListener('click', () => document.getElementById('resultDialog').close());
+
+    document.getElementById('btnExportXlsx').addEventListener('click', async () => {
+      const d = S.resultData; if (!d || !window.XLSX) { showNotice('Data belum siap.', 'error'); return; }
+      const btn = document.getElementById('btnExportXlsx');
+      btn.disabled = true;
+      try {
+        const q = d.quiz;
+        // notDone lengkap tidak ikut terkirim di quiz.results (bisa ribuan nama) -- ambil sekali
+        // penuh (all:true) khusus saat export, biar file tetap lengkap walau overlay "Lihat Semua" belum dibuka.
+        const notDoneAll = (await api({ action: 'quiz.results.notDone', id: q.id, all: true })).items;
+        const summary = [['Nama', 'Jml Percobaan', 'Skor Terbaik', 'Skor Terakhir', 'Terakhir Submit']];
+        d.santriRows.forEach(r => summary.push([r.santriNama, r.attemptCount, r.bestScore == null ? '' : r.bestScore, r.lastScore == null ? '' : r.lastScore, (r.lastSubmittedAt || '').replace('T', ' ')]));
+        notDoneAll.forEach(x => summary.push([x.santriNama, 0, '', '', '']));
+        const detail = [['Nama', 'Percobaan', 'Soal', 'Jawaban Santri', 'Benar?', 'Kunci', 'Poin', 'Auto', 'Final']];
+        d.santriRows.forEach(r => r.attempts.forEach(at => at.answers.forEach(a => {
+          detail.push([r.santriNama, at.attemptNo, a.questionText, a.yourAnswerText, a.correct ? 'benar' : 'salah', a.correctAnswerText, a.points, at.autoScore, at.finalScore]);
+        })));
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summary), 'Ringkasan');
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(detail), 'Rincian');
+        XLSX.writeFile(wb, `Hasil_Quiz_${(q.title || 'quiz').replace(/[^a-z0-9]/gi, '_')}.xlsx`);
+      } catch (e) { showNotice(e.message, 'error'); } finally { btn.disabled = false; }
+    });
+
+    window.addEventListener('DOMContentLoaded', async () => {
+      if (window.PSAccess && window.PSAccess.redirectIfForbidden(getStoredSession(), 'quizDigital.html')) return;
+      if (window.PSShell) window.PSShell.mount({ currentPage: 'quizDigital.html', session: getStoredSession(), getStoredSession, storageKey: STORAGE.session });
+      await loadTA();
+    });
+  </script>
+</body>
+</html>

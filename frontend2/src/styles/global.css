@@ -1,0 +1,55 @@
+@import './tokens.css';
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--app-font-family);
+  background: var(--color-bg);
+  color: var(--color-text);
+  /* Diatur dari halaman Pengaturan Tampilan (appTheme.uiScale). zoom scale seluruh UI
+     (termasuk font) sekaligus tanpa perlu refactor semua px ke rem -- sama seperti
+     --app-ui-scale di frontend lama (shared-ui.css). */
+  zoom: var(--app-ui-scale);
+}
+
+@supports not (zoom: 1) {
+  body {
+    transform: scale(var(--app-ui-scale));
+    transform-origin: top left;
+    width: calc(100% / var(--app-ui-scale));
+    min-height: calc(100vh / var(--app-ui-scale));
+  }
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+a {
+  color: var(--color-primary);
+}
+
+/* Jaring pengaman hover -- berlaku ke SEMUA tombol di app (tag <button>, bukan class,
+   jadi tetap kena walau tiap halaman punya *.module.css sendiri-sendiri). Tombol
+   "primary" (addBtn/saveBtn/dst) sudah punya :hover warna sendiri di module.css
+   masing-masing (var(--color-primary-strong)) yang otomatis menang krn lebih spesifik. */
+button:not(:disabled) {
+  transition: filter 0.12s, border-color 0.12s, background-color 0.12s, color 0.12s;
+}
+
+button:hover:not(:disabled) {
+  filter: brightness(0.96);
+}

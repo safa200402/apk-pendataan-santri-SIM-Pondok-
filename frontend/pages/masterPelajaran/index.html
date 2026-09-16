@@ -451,8 +451,8 @@
             prasyaratText +
           '</div>' +
           '<div class="level-actions">' +
-            (idx > 0 ? '<button class="secondary btn-sm"' + (canManage ? '' : ' disabled aria-disabled="true" title="Mudir hanya bisa melihat data pelajaran, tidak bisa mengubah urutan."') + ' onclick="reorderLevel(\'' + pelajaranId + '\',\'' + l.id + '\',\'up\')"><i class="fa-solid fa-arrow-up"></i></button>' : '') +
-            (idx < levels.length - 1 ? '<button class="secondary btn-sm"' + (canManage ? '' : ' disabled aria-disabled="true" title="Mudir hanya bisa melihat data pelajaran, tidak bisa mengubah urutan."') + ' onclick="reorderLevel(\'' + pelajaranId + '\',\'' + l.id + '\',\'down\')"><i class="fa-solid fa-arrow-down"></i></button>' : '') +
+            (idx > 0 ? '<button class="secondary btn-sm"' + (canManage ? '' : ' disabled aria-disabled="true" title="Mudir hanya bisa melihat data pelajaran, tidak bisa mengubah urutan."') + ' onclick="reorderLevel(\'' + pelajaranId + '\',\'' + l.id + '\',\'up\',this)"><i class="fa-solid fa-arrow-up"></i></button>' : '') +
+            (idx < levels.length - 1 ? '<button class="secondary btn-sm"' + (canManage ? '' : ' disabled aria-disabled="true" title="Mudir hanya bisa melihat data pelajaran, tidak bisa mengubah urutan."') + ' onclick="reorderLevel(\'' + pelajaranId + '\',\'' + l.id + '\',\'down\',this)"><i class="fa-solid fa-arrow-down"></i></button>' : '') +
             '<button class="secondary btn-sm" onclick="editLevel(\'' + pelajaranId + '\',\'' + l.id + '\')"><i class="fa-solid fa-pen"></i></button>' +
             (canManage ? '<button class="danger btn-sm" onclick="showConfirmHapusLevel(\'' + pelajaranId + '\',\'' + l.id + '\',\'' + escHtml(l.nama_level) + '\')"><i class="fa-solid fa-trash"></i></button>' : '') +
           '</div>' +
@@ -682,9 +682,10 @@
     });
 
     // ── Reorder level ──────────────────────────────────────────────────────────
-    function reorderLevel(pelajaranId, levelId, dir) {
+    function reorderLevel(pelajaranId, levelId, dir, btn) {
+      if (btn) btn.disabled = true;
       api('pelajaran.level.reorder', { id: levelId, dir: dir }, function(res) {
-        if (!res.ok) { showToast(res.error || 'Gagal mengubah urutan', 'error'); return; }
+        if (!res.ok) { showToast(res.error || 'Gagal mengubah urutan', 'error'); if (btn) btn.disabled = false; return; }
         loadLevels(pelajaranId);
       });
     }
@@ -699,7 +700,10 @@
 
     document.getElementById('confirmHapusPelOk').addEventListener('click', function() {
       if (!_hapusPelId) return;
+      this.disabled = true;
+      var btn = this;
       api('pelajaran.delete', { id: _hapusPelId }, function(res) {
+        btn.disabled = false;
         document.getElementById('confirmHapusPelDialog').close();
         if (!res.ok) { showToast(res.error || 'Gagal menghapus', 'error'); return; }
         showToast('Pelajaran dihapus', 'success');
@@ -717,8 +721,11 @@
 
     document.getElementById('confirmHapusLevelOk').addEventListener('click', function() {
       if (!_hapusLevelId) return;
+      this.disabled = true;
+      var btn = this;
       var pelajaranId = _hapusLevelId.pelajaranId;
       api('pelajaran.level.delete', { id: _hapusLevelId.levelId }, function(res) {
+        btn.disabled = false;
         document.getElementById('confirmHapusLevelDialog').close();
         if (!res.ok) { showToast(res.error || 'Gagal menghapus level', 'error'); return; }
         showToast('Level dihapus', 'success');
@@ -739,7 +746,7 @@
     document.getElementById('addPrasyaratBtn').addEventListener('click', addPrasyarat);
     document.getElementById('addPelPrasyaratBtn').addEventListener('click', addPelPrasyarat);
     document.getElementById('refreshBtn').addEventListener('click', function() { _page = 1; loadPelajaran(); });
-    document.getElementById('searchInput').addEventListener('input', function() { _page = 1; loadPelajaran(); });
+    document.getElementById('searchInput').addEventListener('input', PSUI.debounce(function() { _page = 1; loadPelajaran(); }, PSUI.AUTOSAVE_DEBOUNCE_MS));
     document.getElementById('statusFilter').addEventListener('change', function() { _page = 1; loadPelajaran(); });
     document.getElementById('pageSizeSelect').addEventListener('change', function() { _pageSize = parseInt(this.value) || 25; _page = 1; loadPelajaran(); });
     document.addEventListener('click', function(e) {

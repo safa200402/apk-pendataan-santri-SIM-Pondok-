@@ -1,0 +1,888 @@
+CATATAN ANTI DOUBLE-SUBMIT - TOMBOL SIMPAN/EDIT/AKSI JANGAN BISA DIKLIK BERKALI-KALI
+=====================================================================================
+Ringkasan masalah: kalau internet lambat/putus-putus, tombol Simpan/Edit/aksi lain
+bisa diklik berkali-kali sebelum request pertama selesai -> request dobel terkirim
+ke server (data dobel, state korup, dll). Pola perbaikan pertama kali diterapkan
+penuh di quizDigital (2026-09-13). Status tiap halaman ditandai di bagian 4 & 5:
+  [✅] = SELESAI/aman      [ ] = belum dicek/diterapkan
+
+
+1. POLA DASAR
+--------------
+Sebelum:
+  document.getElementById('formX').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    ... validasi ...
+    try {
+      const r = await apiPost({ ... });
+      ...
+    } catch (e) { showNotice(e.message, 'error'); }
+  });
+
+Sesudah:
+  document.getElementById('formX').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    ... validasi (boleh return lebih awal, TOMBOL BELUM di-disable di sini) ...
+    const btn = document.getElementById('btnSimpanX');
+    btn.disabled = true;
+    try {
+      const r = await apiPost({ ... });
+      ...
+    } catch (e) { showNotice(e.message, 'error'); }
+    finally { btn.disabled = false; }
+  });
+
+Kenapa ini menghilangkan risiko "diklik 3x bersamaan": begitu klik pertama jalan,
+`btn.disabled = true` di-set SINKRON, sebelum baris `await` manapun dieksekusi.
+Browser tidak pernah mengirim event click/submit ke elemen yang statusnya sudah
+disabled -- jadi klik ke-2 & ke-3 diabaikan TOTAL oleh browser sendiri, bukan
+cuma "diabaikan oleh kode kita". Hasilnya cuma 1 request yang pernah terkirim,
+walau request pertama itu menggantung lama karena internet lambat.
+
+
+2. LANGKAH-LANGKAH TERAPKAN DI 1 HALAMAN
+-------------------------------------------
+1) Cari semua pemanggilan yang MENGUBAH data (bukan sekadar baca).
+   - Tiap halaman kadang punya nama helper beda-beda (`api()`, `apiPost()`,
+     langsung `fetch(API_BASE, {method:'POST', ...})`, dst) -- cek dulu definisi
+     helper-nya di bagian atas tag <script> halaman itu sebelum grep.
+   - "Mengubah data" = nama action-nya semacam *.save, *.delete, *.trash,
+     *.restore, *.toggle, *.publish, *.duplicate, *.setFolder, *.grade,
+     *.release*, upload file, dll. Yang cuma BACA (*.get, *.list, *.browse,
+     *.results, dst) TIDAK wajib di-disable (boleh saja, tapi bukan prioritas).
+
+2) Untuk tiap pemanggilan itu, cari TOMBOL yang men-trigger-nya:
+   - form submit -> tombol `type="submit"` di form itu (kasih `id` dulu kalau
+     belum punya, seperti "btnFolderEditSave" yang ditambahkan di quizDigital).
+   - tombol biasa -> lihat `addEventListener('click', ...)` yang langsung
+     terpasang di tombol itu.
+   - delegasi (1 listener di container utk banyak tombol, mis. kartu list) ->
+     pakai elemen yang sudah didapat dari `ev.target.closest(...)`, JANGAN
+     pakai id statis (tombolnya banyak & dibuat ulang tiap render).
+
+3) Tambahkan `namaBtn.disabled = true;` PERSIS SEBELUM baris `try { await ... }`,
+   yaitu SETELAH semua validasi & `return` awal selesai -- supaya validasi yang
+   gagal tidak ikut mengunci tombolnya.
+
+4) Nyalakan lagi tombolnya:
+   - Default paling aman: `finally { namaBtn.disabled = false; }` -- selalu
+     nyala lagi baik request-nya sukses maupun gagal.
+   - Boleh dikecualikan (cuma nyalakan lagi di `catch`) HANYA kalau saat sukses
+     dialognya pasti ditutup ATAU elemen tombolnya pasti ikut digambar ulang
+     dari nol (mis. list yang di-render total lewat `container.innerHTML = ...`
+     setelah request sukses).
+   - Kalau ragu pilih yang mana: PAKAI `finally`. Salah pilih exception-only
+     bisa bikin tombol nyangkut disabled selamanya setelah sukses.
+
+5) Tes manual di browser: DevTools > Network > throttle "Slow 3G", buka
+   halamannya, klik tombol Simpan/aksi itu 3-5x cepat berturut-turut, pastikan
+   cuma 1 request yang muncul di tab Network dan tombolnya nyala lagi setelah
+   request selesai (baik sukses maupun sengaja bikin gagal, mis. matikan wifi
+   sebentar).
+
+
+3. KASUS KHUSUS / JEBAKAN (ditemukan pas kerjain quizDigital)
+----------------------------------------------------------------
+a) Tombol di dalam dialog konfirmasi generik (openConfirm/confirmOkBtn) --
+   SUDAH AMAN TANPA perlu ditambah apa-apa, KARENA dialognya di-close() duluan
+   secara sinkron sebelum request async-nya jalan. Begitu dialog close,
+   tombolnya hilang dari layar -- tidak mungkin diklik lagi secara fisik.
+   Contoh: konfirmasi hapus/duplikat quiz & folder di quizDigital.
+b) Tombol di dalam picker yang menutup dialog-nya dulu baru memanggil callback
+   (mis. folder browser "Pilih folder ini") -- sama, sudah aman by design
+   dengan alasan yang sama seperti poin (a).
+c) Grup tombol yang saling terkait (mis. 3 tombol Benar/Salah/Auto untuk 1
+   soal di quizDigital) -- disable SEMUA tombol dalam grupnya sekaligus, bukan
+   cuma tombol yang diklik. Kalau cuma yang diklik yang di-disable, tombol
+   sebelahnya masih bisa diklik dan bikin 2 request yang saling balapan.
+d) Tombol yang TIDAK ikut digambar ulang setelah sukses (tombol statis di
+   luar list yang di-render ulang, mis. "Rilis Hasil" di quizDigital) -- WAJIB
+   pakai `finally`. Kalau cuma re-enable di `catch`, begitu request-nya sukses
+   tombolnya nyangkut disabled selamanya (elemen DOM-nya sama persis, tidak
+   pernah diganti baru).
+e) Input file (upload gambar/audio/dokumen) -- disable elemen
+   `<input type="file">`-nya sendiri selama proses upload, dan reset
+   `.value = ''` di `finally` juga (supaya user bisa pilih file yang sama lagi
+   kalau upload gagal).
+f) JANGAN disable tombol SEBELUM validasi selesai. Kalau validasi gagal dan
+   kode `return` lebih dulu, pastikan baris `disabled = true` belum kelewat
+   dieksekusi -- kalau kepencet, tombolnya nyangkut nonaktif padahal tidak ada
+   request yang pernah jalan.
+
+
+4. HALAMAN YANG SUDAH DIKERJAKAN PENUH
+------------------------------------------
+[✅] quizDigital -- SELESAI 2026-09-13. Semua tombol yang mengubah data sudah
+    dikunci: Simpan quiz, Simpan folder, Import quiz (quiz.save via file),
+    publish/aktif-nonaktif/pulihkan quiz (list aksi), koreksi jawaban (grup
+    Benar/Salah/Auto), Rilis hasil, upload suara latar. Detail alasan tiap
+    kasus ada di bagian 3 di atas (semuanya ditemukan pas kerjain halaman ini).
+
+[✅] izinPulang, pelanggaran, santriSakit -- SELESAI 2026-09-13 (dikerjakan
+    bareng karena 3 halaman ini nyaris kembar strukturnya -- form input +
+    kartu rekap + dialog edit/kembali-sembuh + kamera WebRTC + import/export
+    Excel). Form submit utama, dialog Tandai Kembali/Sembuh, dialog Edit,
+    Tetapkan/Hapus Hukuman (pelanggaran), dan Hapus Semua SUDAH lebih dulu
+    aman (sudah ada disabled+finally sebelum sesi ini). Yang DITAMBAHKAN sesi
+    ini, ditemukan lewat audit ulang ketiga halaman:
+      a) Tombol "Hapus" & "Pulihkan" di tiap kartu (soft-delete via
+         *.setDeleted / *.toggle) -- SEBELUMNYA sama sekali tidak disable.
+         Sekarang tombol yang diklik (bukan id statis, krn di-generate ulang
+         tiap render) dikirim ke fungsinya dan di-disable sebelum apiPost;
+         re-enable HANYA di catch (bukan finally) karena kalau sukses,
+         loadRekap() me-render ulang seluruh list jadi elemen lamanya sudah
+         hilang dari DOM -- sama seperti pola tombol hapus-foto yang sudah
+         ada duluan di halaman yang sama.
+      b) Tombol "Import Excel" -- SEBELUMNYA tidak disable sama sekali selama
+         proses import jalan, padahal klik ulang saat proses berjalan
+         membuka file-picker lagi dan bisa memicu 2 proses import
+         bersamaan (rawan duplikasi/korup data massal). Sekarang di-disable
+         di awal handler `change` importExcelInput, re-enable di finally.
+      c) `uploadEditFotos` (upload foto tambahan lewat dialog Edit) di
+         pelanggaran & santriSakit -- SEBELUMNYA tidak disable input file-nya
+         (izinPulang sudah benar duluan). Sekarang input di-disable sebelum
+         loop upload, di-enable lagi setelah loop selesai (izinPulang dipakai
+         sebagai referensi pola).
+      d) Tombol "Ambil Foto" di dialog kamera WebRTC (izCam/pelCam/sskCam) --
+         SEBELUMNYA tidak disable sama sekali; ada celah kecil antara klik
+         dan callback `canvas.toBlob` (async, butuh waktu encode) di mana
+         tombol masih bisa diklik ulang dan memicu capture+upload dobel.
+         Sekarang tombol capture di-disable segera setelah validasi
+         `video.videoWidth` lolos (bukan sebelum, spy validasi gagal tak
+         ikut mengunci tombol), dan di-enable lagi tiap kali dialog kamera
+         dibuka ulang (fungsi `open*Cam()`) -- karena `toBlob` SELALU
+         menutup dialog kamera begitu selesai, jadi titik re-enable yang
+         aman adalah saat dialog dibuka lagi, bukan di dalam `toBlob`.
+    Verifikasi: parse JS lolos (node -e `new Function(...)` per halaman) dan
+    ketiga halaman ke-serve 200 OK dari server lokal. TIDAK sempat dites
+    manual di browser (throttle Slow 3G + klik cepat berkali-kali seperti
+    langkah 2.5) karena sesi ini tidak punya akses browser interaktif --
+    kalau sempat, tolong dites manual sekali sebelum benar-benar dianggap
+    tuntas, terutama bagian kamera (d) yang paling riskan.
+
+[✅] pengumuman -- SELESAI 2026-09-13. 7 gap ditemukan & diperbaiki, semua pola
+    sama dgn batch sebelumnya (tombol/checkbox yg meng-apiPost tidak pernah
+    di-disable): tombol Aktifkan/Nonaktifkan & Hapus per-kartu pengumuman
+    (togglePengumuman/deletePengumuman, re-enable di catch krn list re-render
+    total saat sukses), tombol Hapus per-item di tab Respon & tab Sudah
+    Dilihat (deletePengumumanResponItem/deletePengumumanSeenItem, sama polanya),
+    tombol statis "Hapus Semua Respon" & "Hapus Semua Data Dilihat"
+    (disable+finally krn tombolnya tidak ikut re-render), dan input upload
+    lampiran gambar/video (pengumumanMediaInput) yg sebelumnya bisa dipicu
+    ulang (buka file-picker lagi) selagi batch upload sebelumnya masih jalan
+    -- sekarang di-disable bareng tombol Simpan selama proses upload.
+    Form Simpan pengumuman utama (btnPengumumanSave) sudah aman duluan.
+    Verifikasi: parse JS lolos, halaman ke-serve 200 OK. Tidak ada dialog
+    kamera di halaman ini. Sama seperti batch sebelumnya, TIDAK sempat dites
+    manual di browser (klik cepat berkali-kali via DevTools).
+
+[✅] kelolaAudit -- SELESAI 2026-09-13. Halaman pengaturan toggle murni (tidak
+    ada form/list roster) -- 7 handler yang meng-apiPost SEMUANYA tidak
+    pernah disable elemen pemicunya sebelum sesi ini: tombol statis "Simpan"
+    di panel cutoff & panel jenis kelas siang (saveCutoffOffset,
+    saveKelasJenisAudited -- disable+finally krn tombolnya tidak ikut
+    re-render), checkbox "Santri Dibekukan tetap kena audit"
+    (saveDibekukanKenaAudit -- disable sebelum request, otomatis balik
+    ke state benar krn render ulang panel dipanggil di kedua cabang sukses
+    & gagal), tombol Aktifkan/Nonaktifkan per-kartu audit (toggleAudit --
+    re-enable manual di catch krn re-render TIDAK dipanggil di cabang
+    gagal), checkbox "Blokir Jurnal SDM" & checkbox aturan tambahan per-kartu
+    (toggleBlocksJurnal/toggleBoolField -- disable sebelum request, list
+    full re-render di KEDUA cabang jadi otomatis balik benar), dan tombol
+    "Simpan" nilai minimal per-pekan di kartu Audit Perkembangan
+    (saveNumberField -- re-enable manual di catch, validasi gagal tidak
+    ikut mengunci tombol krn return lebih dulu). Verifikasi: parse JS lolos,
+    halaman ke-serve 200 OK.
+
+[✅] hafalanHarian -- DIAUDIT 2026-09-13, TIDAK ADA PERUBAHAN KODE karena
+    SEMUA 4 aksi yang mengubah data (hafalan.harian.save -- dipakai utk
+    simpan tunggal/rentang-tanggal/quick-entries sekaligus, hafalan.harian
+    .delete x2 titik panggil, hafalan.harian.hapus.semua) SUDAH aman
+    duluan: tombol Simpan entri (entrySaveBtn) sudah disable+finally+
+    spinner; saveAwalSection (form "Hafalan Awal" per santri) sudah
+    disable+catch-reenable; deleteEntryFromSSP mengganti seluruh container
+    daftar setoran jadi spinner SINKRON sebelum request jalan (semua tombol
+    hapus lain di situ ikut hilang dari layar, aman by design spt kasus 3a/b
+    di bagian atas); dialog "Hapus Semua Data" (hapusSemuaData) juga
+    menutup dialognya dulu sebelum request jalan. Ada 1 fungsi `deleteEntry`
+    yang di-export ke window tapi TIDAK dipanggil dari elemen UI manapun
+    (kemungkinan sisa kode lama, sudah digantikan `deleteEntryFromSSP`) --
+    dibiarkan apa adanya krn tidak reachable dari UI, jadi bukan risiko
+    nyata. Halaman ini TIDAK punya import/export Excel maupun dialog kamera.
+    Verifikasi: grep semua titik panggil apiPost/fetch di file (cuma 2
+    helper `api`/`apiPost`, tidak ada fetch/XHR lain), baca konteks tiap
+    titik panggil dan tombolnya masing-masing.
+
+[✅] survey -- SELESAI 2026-09-13. Klon pengumuman (lebih sederhana, tanpa
+    upload media) -- 4 gap sama polanya: tombol Aktifkan/Nonaktifkan &
+    Hapus per-kartu survey (toggleSurvey/deleteSurvey, re-enable di catch
+    krn list re-render total saat sukses), tombol Hapus per-item di dialog
+    Hasil (deleteCompletionItem, sama polanya), dan tombol statis "Hapus
+    Semua" di dialog Hasil (btnHapusSemuaCompletion, disable+finally krn
+    tombolnya tidak ikut re-render). Form Simpan survey utama
+    (btnSurveySave) sudah aman duluan. Verifikasi: parse JS lolos, halaman
+    ke-serve 200 OK.
+
+[✅] inputAbsensiPengurus -- SELESAI 2026-09-13. Cuma 1 gap: tombol capture
+    kamera (btnCapture) bisa dobel-klik sebelum canvas.toBlob+FileReader
+    selesai (pola sama spt kamera di izinPulang/pelanggaran/santriSakit) --
+    sekarang di-disable begitu videoWidth siap, lalu di-enable-kan lagi
+    tiap kali dialog kamera dibuka (btnBukaKamera). Submit absensi
+    (btnAbsen) & hapus absensi (btnHapusOk) sudah aman duluan
+    (disable+finally). Verifikasi: parse JS lolos, halaman ke-serve 200 OK.
+
+[✅] koordinatAbsensi -- DIAUDIT 2026-09-13, TIDAK ADA PERUBAHAN KODE. Semua
+    3 titik apiPost (simpan lokasi/btnLokasiSimpan, simpan aturan
+    absensi/btnAturanSimpan, hapus lokasi-atau-aturan/btnHapusOk) SUDAH
+    pakai pola disable+finally yang benar sejak awal. Tidak ada dialog
+    kamera maupun import/export Excel di halaman ini. Verifikasi: grep
+    semua titik panggil apiPost (cuma 3, semua sudah diperiksa manual),
+    halaman ke-serve 200 OK.
+
+[✅] jenisPelanggaran -- SELESAI 2026-09-13. Halaman kecil (329 baris), cuma
+    1 gap: tombol Aktifkan/Nonaktifkan per-kartu jenis (toggleJenis) tidak
+    pernah disable -- sekarang disable sebelum request, re-enable di catch
+    (list re-render total saat sukses). Form Simpan (btnJenisSave) sudah
+    aman duluan. Verifikasi: parse JS lolos, halaman ke-serve 200 OK.
+
+[✅] kelolaAuditBawahan -- SELESAI 2026-09-13. Gabungan panel Audit (klon
+    kelolaAudit) + panel "Sambungkan WhatsApp" (fitur terpisah, router
+    /api/whatsapp/*) -- total 11 gap: tombol Aktifkan/Nonaktifkan per audit
+    (toggleAudit) & tombol "Simpan Jabatan Tambahan" per-kartu
+    (saveAudienceExtra) sama polanya dgn kelolaAudit (disable+catch-reenable,
+    list full re-render saat sukses); di panel WA -- checkbox "Aktifkan
+    fitur WhatsApp" (handleWaEnableToggle, disable+finally krn renderWaPanel
+    tidak pernah sentuh .disabled), tombol "Sambungkan (Scan QR)"
+    (handleWaConnectClick, disable+finally, mencegah showModal() dobel yg
+    bisa throw InvalidStateError kalau dialog sudah kebuka), tombol
+    "Putuskan/Ganti Akun" (handleWaLogoutClick, disable+finally), tombol
+    hapus per-chip target grup/nomor (handleWaTargetRemove, disable+catch-
+    reenable), tombol "Tambah Nomor" (handleWaAddNumber, disable+finally),
+    tombol hapus per-chip jadwal & tombol "Tambah Jam" (handleWaScheduleSave/
+    handleWaAddSchedule, sama pola), dan baris grup di dialog "Pilih Grup"
+    (bisa diklik dobel sebelum request add/remove selesai -- dikunci pakai
+    dataset flag + pointer-events:none, lepas otomatis krn list di-render
+    ulang total tiap kali). Tombol "Kirim Audit Sekarang" & "Kirim Pesan
+    Uji Coba" sudah aman duluan (disable+finally). Verifikasi: parse JS
+    lolos, halaman ke-serve 200 OK. TIDAK sempat dites manual koneksi WA
+    sungguhan (perlu akun WA nyata + scan QR).
+
+[✅] rekapZoom -- DIAUDIT 2026-09-13, TIDAK ADA PERUBAHAN KODE. Cuma 2 aksi
+    yang mengubah data (zoom.kehadiran.save, zoom.kunjungan.save) dan
+    KEDUANYA autosave per-field dengan debounce 700ms (pola baku yg sama
+    dgn PSUI.debounce di ~45 halaman lain -- lihat [[project-shared-debounce-
+    search-inputs]] di memori) -- debounce-nya sendiri SUDAH menggabungkan
+    klik/ubah beruntun (termasuk tombol toggle kamera tri-state yg boleh
+    diklik berkali-kali) jadi cuma 1 request per jeda tenang, jadi tidak
+    perlu disable tombol terpisah spt pola submit/delete biasa. Tombol
+    Export PDF & Export Laporan sudah disable+re-enable dgn benar duluan.
+    Verifikasi: grep semua titik panggil apiPost (cuma 2, keduanya sudah
+    diperiksa manual), halaman ke-serve 200 OK.
+
+[✅] kelolaAddons -- DIAUDIT 2026-09-13, TIDAK ADA PERUBAHAN KODE. Halaman
+    baru (dibuat 2026-09-14 menurut komentar di kodenya) -- ketiga titik
+    apiPost (toggle aktif/nonaktif addon, simpan level akses kustom per
+    jabatan, kembalikan ke aturan bawaan) SUDAH pakai pola disable+re-enable
+    yang benar sejak awal dibuat. Verifikasi: grep semua titik panggil
+    apiPost (cuma 3, semua sudah diperiksa manual), halaman ke-serve 200 OK.
+
+[✅] ujianHafalan -- SELESAI 2026-09-13. Halaman besar (1733 baris) -- cuma
+    1 gap dari 8 titik panggil `api()`: tombol Hapus per-baris di tabel
+    ujian (deleteUjian, dipanggil lewat onclick inline tanpa referensi
+    tombol) tidak pernah disable -- sekarang tombolnya dikirim lewat `this`,
+    di-disable sebelum request, re-enable di catch (tabel re-render total
+    saat sukses). Form Simpan (entrySaveBtn), Hapus Semua (dgn ketik
+    konfirmasi), Tempel Data (preview+simpan), dan Export TXT Tempel SEMUA
+    sudah aman duluan (disable+finally/catch yang benar). Tidak ada dialog
+    kamera maupun import/export Excel di halaman ini. Verifikasi: grep
+    semua titik panggil `api()` (8 total, semua sudah diperiksa manual
+    satu-satu), parse JS lolos, halaman ke-serve 200 OK.
+
+[✅] jadwalIbadah -- DIAUDIT 2026-09-13, TIDAK ADA PERUBAHAN KODE. 8 titik
+    panggil `api()`: saveSlot & saveMeta (jadwal Imam/Kultum per hari-waktu,
+    catatan) adalah autosave debounce 700ms spt rekapZoom -- aman by design.
+    Tempel Data Khutbah (preview+simpan) & Form Simpan Khutbah sudah
+    disable+finally/re-enable yang benar. Tombol Hapus khutbah
+    (hapusKhutbah) aman TANPA perlu disable eksplisit karena dialog
+    konfirmasinya (confirmHapusDialog) ditutup SINKRON sebelum
+    `await hapusKhutbah()` dipanggil -- kasus 3a/b di bagian atas file ini
+    (tombol OK sudah hilang dari layar sebelum request jalan). Tidak ada
+    dialog kamera maupun import/export Excel di halaman ini. Verifikasi:
+    grep semua titik panggil `api()` (8 total, semua sudah diperiksa manual
+    satu-satu termasuk alur dialog konfirmasi hapus), halaman ke-serve 200 OK.
+
+[✅] superAdmin -- DIAUDIT 2026-09-13, TIDAK ADA PERUBAHAN KODE. 8 operasi
+    berbahaya (reset password massal santri/pengurus, bersihkan username
+    invalid, auto-set username santri/pengurus, export kredensial PDF
+    santri/pengurus, paksa logout semua) SEMUA didefinisikan lewat array
+    OPS generik dan dijalankan lewat pipeline yang sama:
+    askConfirm() -> dialog konfirmasi ditutup SINKRON sebelum
+    `await runOp()` -> runOp() sendiri juga disable+finally tombolnya --
+    dobel proteksi. 3 kartu pengaturan terpisah (Maintenance Mode, Batas
+    Riwayat, Batas Sesi Login) semuanya sudah disable+finally/re-enable yang
+    benar. Verifikasi: grep semua titik panggil `api()` (11 total, semua
+    sudah diperiksa manual termasuk pipeline generik OPS-nya), halaman
+    ke-serve 200 OK.
+
+[✅] nilaiUjian -- SELESAI 2026-09-13. Halaman besar (1598 baris) -- 2 gap
+    dari 9 titik panggil `api()`: tombol konfirmasi hapus sesi ujian
+    (deleteConfirmBtn -> executeDeleteSession) tidak pernah disable dan
+    dialognya baru ditutup SETELAH sukses (beda dari pola dialog-tertutup-
+    duluan di halaman lain) -- sekarang di-disable sebelum request,
+    re-enable kalau gagal; dan tombol/input Upload Excel (uploadExcelBtn +
+    excelFileInput, dipakai utk import nilai massal per kolom)
+    sebelumnya bisa dipicu ulang (buka file-picker lagi) selagi proses
+    baca-file+simpan-per-kolom sebelumnya masih jalan, krn `input.value=''`
+    direset sinkron sebelum upload async-nya selesai -- sekarang tombol
+    trigger-nya dikunci selama proses. Form Simpan sesi ujian (saveForm)
+    sudah aman duluan (disable+finally). Tidak ada dialog kamera di
+    halaman ini. Verifikasi: parse JS lolos, halaman ke-serve 200 OK.
+
+[✅] nilaiUas -- DIAUDIT 2026-09-13, TIDAK ADA PERUBAHAN KODE. Cuma 1 aksi
+    yang mengubah data di seluruh halaman (uas.save, dipanggil dari
+    saveKomponen per-komponen nilai UAS per santri) dan SUDAH pakai pola
+    disable+finally yang benar sejak awal. Tidak ada dialog kamera maupun
+    import/export Excel di halaman ini. Verifikasi: grep semua titik
+    panggil `api()` (3 total, cuma 1 yang mutating dan sudah diperiksa
+    manual), halaman ke-serve 200 OK.
+
+[✅] kegiatanSop -- SELESAI 2026-09-13. Halaman besar (2810 baris) -- 5 gap:
+    form Simpan kegiatan (saveForm, pakai event.submitter krn tombolnya
+    tanpa id), toggle status & hapus kegiatan (delegated click, tombolnya
+    diambil dari closest()), simpan & hapus Lampiran/Ketentuan
+    (saveLampiran -- WAJIB finally krn tombol statis tidak ikut re-render
+    dialog; deleteLampiran -- catch-only krn list-nya re-render total),
+    dan tombol Import Excel yg sebelumnya bisa dipicu ulang selama proses
+    (input value direset sinkron sebelum import async selesai). Hapus Semua
+    (executeDeleteAll) & Tempel Data (preview+simpan) sudah aman duluan
+    (dialog ditutup sinkron / disable+catch yg benar). Tidak ada dialog
+    kamera. Verifikasi: parse JS lolos, halaman ke-serve 200 OK.
+
+[✅] editKaldik -- SELESAI 2026-09-13. 2 gap: form Simpan acara (saveForm,
+    pakai event.submitter) dan konfirmasi Hapus (confirmDelete, dialognya
+    baru ditutup SETELAH sukses, beda dari pola lain -- sekarang terima
+    parameter btn dari event.submitter). Tempel Data (preview+simpan) dan
+    Hapus Semua Data (3 mode: semua/rentang/per TA, dialog ditutup sinkron
+    sebelum request) sudah aman duluan. Tidak ada dialog kamera maupun
+    import/export Excel. Verifikasi: parse JS lolos, halaman ke-serve 200 OK.
+
+[✅] daftarSantri -- SELESAI 2026-09-13. Halaman TERBESAR sejauh ini (3682
+    baris, 22 titik panggil `api()`) -- 10 gap: bulk Aktifkan/Nonaktifkan/
+    Hapus terpilih (handleBulkToggle/handleBulkDelete, tombol dari toolbar
+    massal yang di-generate ulang tiap render), hapus 1 kandidat duplikat
+    (deleteDuplicateIds), Import Excel (tombol trigger dikunci selama
+    proses, sama pola dgn halaman lain), toggle Aktif/Nonaktif santri
+    (toggleItem), toggle status Dibekukan (toggleFrozenItem), Hapus
+    Permanen santri (deleteItem, delegated click via closest()), Reset
+    Semua Password Santri (tombol statis, WAJIB finally), dan Reset
+    Password per-santri di dalam form edit (tombol di-generate ulang tiap
+    buka dialog, tetap dikasih finally krn aman & konsisten). YANG SUDAH
+    AMAN DULUAN (tidak diubah): form tempel cepat santri inti
+    (saveQuickImport -- pakai flag manual quickImportState.busy + guard
+    early-return, setara disable+finally), form Simpan santri utama
+    (saveForm -- dialog SENGAJA ditutup sinkron sebelum request supaya user
+    bisa lanjut edit santri lain sambil save sebelumnya masih jalan, ada
+    state.pendingSaveCount + peringatan beforeunload), catatan status
+    (saveCatatan), dan Hapus Semua Data (deleteAllSantri, dialog ditutup
+    sinkron). Tidak ada dialog kamera; upload foto/dokumen cuma staging
+    lokal (FileReader), dikirim sekali lewat santri.save saat form
+    di-submit. Verifikasi: parse JS lolos, halaman ke-serve 200 OK.
+
+[✅] backup -- SELESAI 2026-09-13. 2 gap: tombol Hapus per-file backup
+    (doDelete, dari onclick inline) tidak pernah disable; dan fungsi
+    doRestore (aksi PALING merusak di halaman ini -- menimpa SELURUH data)
+    tidak punya pengaman kalau di-drop/dipilih file lagi selagi restore
+    sebelumnya masih berjalan -- ditambahkan flag module-level
+    `restoreInProgress` + finally. Buat Backup (doCreate, pola busy-state
+    lewat polling status tiap 2 detik), Batalkan Backup (doCancelBackup),
+    dan 2 form pengaturan (sumber folder & jadwal otomatis) semua sudah
+    aman duluan. Verifikasi: parse JS lolos, halaman ke-serve 200 OK.
+
+[✅] editSoal -- SELESAI 2026-09-13. Halaman besar (1956 baris) -- 4 gap:
+    tombol Hapus di dalam dialog edit soal (dlgDeleteBtn, WAJIB finally krn
+    tombol statis tidak pernah di-reset oleh openDlg()), Hapus soal dari
+    kartu list (delSoal, delegated), Duplikat soal (copyItem), dan
+    naik/turun urutan soal (moveItem, disable tombol yg diklik saja --
+    dobel klik pada tombol BEDA di item lain tetap memungkinkan tapi itu
+    edge case terpisah & bukan double-submit yg sama). Form Simpan utama,
+    Hapus Jenis Ujian (dialog ditutup sinkron), rename jenis (progress
+    disable/enable manual di loop), dan Tempel Data massal semua sudah
+    aman duluan. Tidak ada dialog kamera/import Excel. Verifikasi: parse
+    JS lolos, halaman ke-serve 200 OK.
+
+[✅] editRegu -- SELESAI 2026-09-13. 5 gap: form Simpan regu utama (saveForm,
+    SEBELUMNYA SAMA SEKALI tanpa disable atau dialog-close-duluan --
+    beda dari pola pages/editX lain; sekarang pakai event.submitter),
+    Pindahkan Santri (pindahkanSantri), toggle Aktif/Nonaktif regu
+    (toggleItem, delegated), bulk Aktifkan/Nonaktifkan terpilih
+    (handleBulkToggle), dan tombol Import Excel yg bisa dipicu ulang
+    selama proses. YANG SUDAH AMAN DULUAN: Hapus 1/bulk regu (keduanya
+    lewat helper bersama `confirmCascadeDelete` yang menutup dialog SINKRON
+    sebelum request jalan -- helper ini DIDUPLIKASI VERBATIM juga di
+    editKelas/editHalaqoh/editHalaqohTasmi, jadi ketiga halaman itu sudah
+    otomatis aman untuk bagian hapusnya saat giliran diaudit nanti), bulk
+    Ubah Tahun Ajaran (dialog ditutup sinkron), Hapus Semua Data (dialog
+    ditutup sinkron), dan form tempel cepat regu inti (flag manual
+    quickImportState.busy, identik pola daftarSantri). Verifikasi: parse
+    JS lolos, halaman ke-serve 200 OK.
+
+[✅] editKelas -- SELESAI 2026-09-13. Klon editRegu + fitur tambahan
+    (Dokumen&File per-kelas, Silabus per-kelas) -- 11 gap total: form Simpan
+    kelas utama (saveForm, event.submitter), toggle Aktif/Nonaktif
+    (toggleItem), bulk Aktifkan/Nonaktifkan terpilih (handleBulkToggle),
+    upload dokumen (handleKelasDocUpload -- input file dikunci selama
+    proses, WAJIB reset value+disabled di akhir spt pola upload lain),
+    hapus 1 dokumen (handleKelasDocDelete), dan 5 aksi Silabus: tambah
+    materi (handleSilabusAdd, WAJIB finally krn tombol statis), tandai
+    selesai (handleSilabusToggle, checkbox), hapus materi
+    (handleSilabusDelete), naik/turun urutan (handleSilabusReorder), serta
+    Import Excel (tombol dikunci selama proses). YANG SUDAH AMAN DULUAN:
+    Hapus 1/bulk kelas (confirmCascadeDelete, dialog tertutup sinkron —
+    helper sama dgn editRegu), bulk Ubah Tahun Ajaran, Hapus Semua Data,
+    form tempel cepat, dan rename-inline nama/deadline materi silabus
+    (commit on blur, secara alami tak bisa dobel-trigger). Verifikasi:
+    parse JS lolos, halaman ke-serve 200 OK.
+
+[✅] editHalaqoh -- SELESAI 2026-09-13. Klon editRegu + mekanisme SOFT-DELETE
+    "sampah" (beda dari regu/kelas yg langsung cascade-delete) -- 8 gap:
+    form Simpan halaqoh utama (saveForm), toggle Aktif/Nonaktif
+    (toggleItem), Hapus ke sampah (deleteItem, soft-delete), Pulihkan dari
+    sampah (restoreItem), Pindahkan Santri (pindahkanSantri), bulk
+    Aktifkan/Nonaktifkan terpilih (handleBulkToggle), dan Import Excel
+    (tombol dikunci selama proses). YANG SUDAH AMAN DULUAN: Hapus Permanen
+    dari sampah (purgeItem, lewat confirmCascadeDelete -- dialog tertutup
+    sinkron), bulk Hapus Permanen, bulk Ubah Tahun Ajaran, Hapus Semua
+    Data, dan form tempel cepat. Verifikasi: parse JS lolos, halaman
+    ke-serve 200 OK.
+
+[✅] tasmiSetoran -- DIAUDIT 2026-09-13, TIDAK ADA PERUBAHAN KODE. Cuma 1
+    aksi yang mengubah data di seluruh halaman (tasmiSetoran.save, dipanggil
+    dari saveGrid untuk simpan grid setoran 1 halaqoh x 1 tanggal sekaligus)
+    dan SUDAH pakai pola disable+finally yang benar sejak awal. Tidak ada
+    dialog kamera maupun import/export Excel. Verifikasi: grep semua titik
+    panggil `api()` (8 total, cuma 1 yang mutating dan sudah diperiksa
+    manual), halaman ke-serve 200 OK.
+
+[✅] masterPelajaran -- SELESAI 2026-09-13. Pola API beda dari halaman lain
+    (callback-style `api(action, payload, cb)`, bukan async/await) -- 3 gap:
+    naik/turun urutan level (reorderLevel, dari onclick inline), dan KEDUA
+    dialog konfirmasi hapus (pelajaran & level) yang tombol OK-nya BARU
+    menutup dialog DI DALAM callback (setelah round-trip selesai, bukan
+    sebelum) -- beda dari pola dialog-tertutup-duluan di halaman async/await
+    lain, jadi window antara klik & selesai request tetap rawan diklik
+    dobel; diperbaiki dengan disable tombol OK secara sinkron sebelum
+    memanggil `api(...)`. Form Simpan pelajaran & form Simpan level sudah
+    aman duluan (disable di awal, reset di baris pertama callback -- setara
+    finally). Verifikasi: parse JS lolos, halaman ke-serve 200 OK.
+
+[✅] editHalaqohTasmi -- SELESAI 2026-09-13. Klon editHalaqoh (termasuk
+    mekanisme soft-delete "sampah") + fitur baru "Auto-Generate Kelompok"
+    (preview+simpan, SUDAH aman duluan dgn disable/finally manual) -- 5 gap
+    identik pola editHalaqoh: form Simpan utama (saveForm), toggle Aktif/
+    Nonaktif (toggleItem), Hapus ke sampah (deleteItem), Pulihkan
+    (restoreItem), bulk Aktifkan/Nonaktifkan (handleBulkToggle). YANG SUDAH
+    AMAN DULUAN: Hapus Permanen dari sampah & bulk delete (confirmCascadeDelete,
+    dialog tertutup sinkron), bulk Ubah Tahun Ajaran. Halaman ini TIDAK
+    punya fitur Import Excel maupun tempel cepat (CRUD inti saja, sesuai
+    catatan sebelumnya). Verifikasi: parse JS lolos, halaman ke-serve 200 OK.
+
+[✅] tahunAjaran -- SELESAI 2026-09-13. 5 gap: form Simpan tahun ajaran
+    (saveForm, event.submitter), Jadikan Aktif (setActive), naik/turun
+    urutan (moveOrder), buka/tutup kunci tahun ajaran (toggleLock), dan
+    konfirmasi Hapus Permanen (confirmDelete -- dialog BARU ditutup
+    SETELAH sukses, beda dari pola lain, sekarang pakai event.submitter).
+    Duplikat Tahun Ajaran (submitDuplicate) sudah aman duluan
+    (disable+finally). Verifikasi: parse JS lolos, halaman ke-serve 200 OK.
+
+[✅] progPelajaran -- SELESAI 2026-09-13. Pola API callback-style spt
+    masterPelajaran -- 1 gap: konfirmasi Hapus entry pelajaran santri
+    (confirmHapusEntryOk, dialog baru ditutup DI DALAM callback, bukan
+    sebelum) -- diperbaiki dgn disable tombol sinkron sebelum panggil
+    `api(...)`. Form Simpan entry sudah aman duluan (disable di awal,
+    reset di baris pertama callback). Verifikasi: parse JS lolos, halaman
+    ke-serve 200 OK.
+
+[✅] kaldik -- DIAUDIT 2026-09-13, TIDAK ADA PERUBAHAN KODE. Halaman
+    READ-ONLY MURNI (tampilan kalender akademik publik) -- cuma 1 titik
+    panggil `api()` dan itu pun `kaldik.list` (baca). Tidak ada form/tombol
+    aksi sama sekali di halaman ini. Verifikasi: grep semua titik panggil
+    api()/fetch() di file, cuma 1 yang read-only.
+
+[✅] editPengurus -- SELESAI 2026-09-13. Halaman besar (2422 baris, 15 titik
+    panggil `api()`) -- 9 gap: bulk Aktifkan/Bekukan/Nonaktifkan/Hapus
+    terpilih (handleBulkToggle/handleBulkFreeze/handleBulkDelete, beda dari
+    editRegu/editKelas krn ada aksi "Bekukan" tambahan & hapus permanen
+    pakai confirm() polos bukan confirmCascadeDelete), Hapus Semua Pengurus
+    (handleDeleteAll, proses 2 tahap fetch-list+bulk-delete, tombol statis
+    WAJIB finally), form Simpan pengurus utama (saveForm, event.submitter),
+    Hapus TTD tersimpan (clearTtdDlgSaved -- HATI-HATI ada 2 tombol mirip
+    nama, ttdDlgClearBtn buat bersihkan CANVAS lokal vs ttdDlgClearSavedBtn
+    buat hapus TTD tersimpan di server, gap-nya di tombol KEDUA), toggle
+    Aktif/Nonaktif (toggleItem), toggle status Dibekukan (toggleFrozenItem),
+    Hapus 1 pengurus (deleteItem), dan Import Excel (tombol dikunci selama
+    proses). YANG SUDAH AMAN DULUAN: Simpan TTD (saveTtdDlg,
+    disable+finally), form tempel cepat pengurus inti (flag manual
+    quickImportState.busy). Tidak ada dialog kamera (TTD pakai canvas
+    gambar tangan + upload PNG, bukan kamera). Verifikasi: parse JS lolos,
+    halaman ke-serve 200 OK.
+
+[✅] changePassword -- DIAUDIT 2026-09-13, TIDAK ADA PERUBAHAN KODE. Cuma
+    1 aksi (account.changePassword) dan sudah pakai disable+finally yang
+    benar sejak awal. Verifikasi: baca seluruh file (272 baris, kecil),
+    halaman ke-serve 200 OK.
+
+[✅] catatanku -- SELESAI 2026-09-13. Halaman besar (2134 baris, modul
+    Dokumen & Catatan per-pengurus) -- 5 gap: Simpan Berbagi (saveShare,
+    tombol statis WAJIB finally), submit Ganti Nama & submit Deskripsi
+    (submitRename/submitDescription, keduanya form method="dialog" jadi
+    dipakaikan event.submitter, dialog SEBELUMNYA baru tertutup setelah
+    sukses), Sematkan/Batal-Sematkan (aksi "pin", dipanggil langsung tanpa
+    dialog konfirmasi), dan Pulihkan dari Sampah (aksi "restore", sama
+    tanpa konfirmasi). YANG SUDAH AMAN DULUAN: Pindah ke Sampah & Hapus
+    Permanen (lewat helper openConfirm() bersama yang menutup dialog
+    SINKRON sebelum callback jalan -- pola sama dgn kasus 3a/b), Pulihkan
+    Versi Dokumen (restoreVersion, SELALU dipanggil lewat openConfirm juga),
+    autosave editor Quill/tabel (saveEditor, debounce 1 detik + status
+    indikator yang berubah SINKRON sebelum baris await manapun -- retry
+    klik saat status "failed" otomatis aman krn class sudah berubah duluan),
+    dan Buat Dokumen Baru (createDoc, dialog pilih tipe ditutup sinkron
+    sebelum request). Upload gambar Quill (quillImageHandler) dibiarkan
+    apa adanya -- input file baru dibuat fresh tiap klik toolbar, risiko
+    dobel-submit sangat rendah krn native file-picker dialog lazimnya modal
+    ke tab browser. Verifikasi: parse JS lolos, halaman ke-serve 200 OK.
+
+[✅] bukuDigital -- SELESAI 2026-09-13. 1 gap: tombol Hapus per-buku
+    (deleteBuku, listener langsung per-tombol bukan delegasi, `this` dari
+    closure sekarang dikirim sbg parameter btn). Form Simpan/Update buku
+    (termasuk upload file & simpan konten Quill sekaligus, saveDialog)
+    sudah aman duluan (disable+finally). Verifikasi: parse JS lolos,
+    halaman ke-serve 200 OK.
+
+[✅] bankSoal -- SELESAI 2026-09-13. 1 gap: tombol Hapus per-soal
+    (deleteSoal, listener langsung per-tombol, `this` dikirim sbg btn).
+    Form Simpan/Update soal (termasuk upload file & simpan konten Quill
+    sekaligus) sudah aman duluan (disable+finally). Verifikasi: parse JS
+    lolos, halaman ke-serve 200 OK.
+
+[✅] portalSettings -- DIAUDIT 2026-09-13, TIDAK ADA PERUBAHAN KODE. Cuma 1
+    aksi mutasi (portal.brand.save, form pengaturan logo/branding/carousel
+    portal publik) dan sudah pakai disable+finally yang benar sejak awal.
+    Verifikasi: grep semua titik panggil api() (2 total, cuma 1 mutating),
+    halaman ke-serve 200 OK.
+
+[✅] riwayat -- SELESAI 2026-09-13. 2 gap: hapus 1 entri riwayat (deleteOne,
+    delegated click) dan konfirmasi Hapus Semua Riwayat (deleteAll --
+    dialog SEBELUMNYA baru ditutup SETELAH sukses, form method="dialog"
+    jadi dipakaikan event.submitter). Simpan Batas Riwayat (saveLimit)
+    sudah aman duluan (disable+finally). Verifikasi: parse JS lolos,
+    halaman ke-serve 200 OK.
+
+[✅] perkembanganTemplate -- SELESAI 2026-09-13. 1 gap: tombol Hapus
+    per-template (deleteTpl, inline onclick, `this` dikirim sbg btn). Form
+    Simpan/Update template sudah aman duluan (disable+finally). Verifikasi:
+    baca seluruh file (187 baris, kecil), parse JS lolos, halaman ke-serve
+    200 OK.
+
+[✅] perkembanganSantri -- SELESAI 2026-09-13. 2 gap: Simpan catatan
+    perkembangan (saveEntry, tombol statis etSaveBtn WAJIB finally krn
+    dialog tidak pernah ditutup/di-render-ulang setelah sukses -- cuma
+    field teks dikosongkan) dan Hapus catatan (deleteEntry, inline onclick).
+    Catatan lain (bukan bug double-submit, di luar scope operasi ini):
+    editEntry menimpa handler `onclick` di atas `addEventListener` yang
+    sudah terpasang di etSaveBtn, jadi setelah klik Edit sekali, tombol itu
+    bisa memicu 2 pemanggilan saveEntry sekaligus (satu dari listener lama
+    dgn id kosong, satu dari onclick baru dgn id benar) -- tidak disentuh
+    krn bukan soal disable/re-enable, murni bug wiring event terpisah.
+    Verifikasi: parse JS lolos, halaman ke-serve 200 OK.
+
+[✅] inputKelasLevel -- DIAUDIT 2026-09-13, TIDAK ADA PERUBAHAN KODE. Cuma 1
+    aksi mutasi (kelasLevel.save, disimpan per-baris dalam loop utk semua
+    santri di 1 kelas sekaligus) dan sudah pakai disable yg benar
+    (unconditional re-enable stlh loop selesai, tiap iterasi py try/catch
+    sendiri jadi loop selalu tuntas). Verifikasi: grep semua titik panggil
+    api() (4 total, cuma 1 mutating), halaman ke-serve 200 OK.
+
+[✅] halaqohAbsensi -- SELESAI 2026-09-13. Halaman besar (2800 baris) tapi
+    cuma 1 aksi mutasi di seluruh file (halaqoh.absensi.save, dipanggil
+    dari saveModalChanges dlm loop utk semua sesi yg "kotor"/dirty
+    sekaligus) -- 1 gap: form Simpan modal absensi (saveModal, form
+    method="dialog" jadi dipakaikan event.submitter) TIDAK PERNAH disable
+    sebelumnya. Prompt "Simpan sebelum keluar?" (promptSavePendingChanges,
+    dipanggil saat pindah tanggal/tutup modal dgn perubahan belum
+    tersimpan) sudah aman by design -- overlay-nya disembunyikan SINKRON
+    sebelum saveModalChanges dipanggil, jadi tombolnya sudah hilang dari
+    layar duluan (kasus 3a/b). Tidak ada dialog kamera maupun import/export
+    Excel. Verifikasi: grep semua titik panggil api() (4 total, cuma 1
+    mutating, sudah diperiksa manual termasuk 2 call-site saveModalChanges),
+    halaman ke-serve 200 OK.
+
+[✅] akhlakKepribadian -- DIAUDIT 2026-09-13, TIDAK ADA PERUBAHAN KODE. Cuma
+    1 aksi mutasi (akhlak.save, disimpan per santri dlm loop utk 1 regu
+    sekaligus) dan sudah pakai disable yg benar (unconditional re-enable
+    stlh loop, tiap iterasi py try/catch sendiri). Verifikasi: baca seluruh
+    file (289 baris, kecil), halaman ke-serve 200 OK.
+
+[✅] accountProfile -- SELESAI 2026-09-13. KASUS KHUSUS: 3 tombol aksi di
+    halaman ini (saveButton/logoutAllButton/ttdClearSavedBtn) ternyata
+    `<div class="btn">`, BUKAN elemen `<button>` sungguhan -- `.disabled`
+    tidak berefek sama sekali pada div, jadi ketiganya dikunci pakai pola
+    flag `busy` module-level (persis spt quickImportState.busy di halaman
+    lain) alih-alih disable+finally biasa: Simpan Profil (saveProfile),
+    Keluar dari Semua Perangkat (logoutAllSessions), dan Hapus TTD
+    tersimpan (clearTtdSaved). Simpan TTD baru (saveTtd, pakai tombol
+    `<button>` sungguhan ttdSaveBtn) sudah aman duluan (disable+finally).
+    CATATAN UNTUK AUDIT SELANJUTNYA: kalau ketemu tombol aksi berupa
+    `<div class="btn">` lagi di halaman lain, jangan pakai `.disabled`
+    (silent no-op) -- pakai pola flag busy ini. Verifikasi: parse JS lolos,
+    halaman ke-serve 200 OK.
+
+[✅] deskripsiSantri -- SELESAI 2026-09-13. 3 gap: Simpan Deskripsi
+    (saveDeskripsi, tombol dsSaveBtn di-generate ulang tiap buka santri,
+    tetap dikasih finally biar konsisten & aman kalau dialog tidak
+    ditutup/re-render setelah sukses), Simpan Template (saveTpl, tombol
+    statis WAJIB finally), dan Hapus Template (deleteTpl, inline onclick).
+    Verifikasi: baca seluruh file (349 baris, kecil), parse JS lolos,
+    halaman ke-serve 200 OK.
+
+[✅] jadwalFingerprint -- SELESAI 2026-09-13. 4 gap: Simpan Semua Koreksi
+    (saveAll, tombol toolbar statis), Reset koreksi per-pengurus
+    (resetOverride, delegated click), Generate Kunci Bridge Baru
+    (generateBridgeKey, aksi berdampak luas -- mematikan semua script
+    bridge yg sedang jalan sampai .env-nya diupdate manual), dan Hapus
+    baris scan PIN tak dikenal (deleteUnmatchedScan, delegated click).
+    Verifikasi: parse JS lolos, halaman ke-serve 200 OK.
+
+[✅] jadwalHarianPengurus -- SELESAI 2026-09-13. 1 gap: tombol "Simpan
+    Semua" (saveAll, sama pola dgn jadwalFingerprint tapi utk jadwal
+    piket harian, bukan koreksi fingerprint) tidak pernah di-disable.
+    Verifikasi: grep semua titik panggil api() (2 total, cuma 1 mutating),
+    halaman ke-serve 200 OK.
+
+[✅] kelasAbsensi -- SELESAI 2026-09-14. 3 gap: tombol "Simpan absensi"
+    dialog (saveModal, form method="dialog" tapi preventDefault jadi
+    dialog TIDAK auto-close -- harus disable manual saveDialogButton),
+    checkbox toggle materi Silabus (toggleSilabusItem, delegated click,
+    aksi "flip" server-side jadi klik ganda cepat bisa balik-balik status)
+    -- dibiarkan digenerate ulang saat sukses (re-render innerHTML), tapi
+    tetap di-re-enable di catch. Sudah aman duluan: prompt "Kamu belum
+    menyimpan" (unsavedSaveButton) krn overlay disembunyikan SYNC sebelum
+    await jalan (pola dialog-close-duluan). Verifikasi: parse JS lolos,
+    halaman ke-serve 200 OK.
+
+[✅] kelolaMading -- SELESAI 2026-09-14. 3 gap: Simpan konten (saveForm,
+    event.submitter krn dialog bukan method="dialog" & tetap terbuka saat
+    error), Toggle Publish/Draft (toggleItem, delegated click), Hapus
+    konten (deleteItem, delegated click + confirm). Verifikasi: parse JS
+    lolos, halaman ke-serve 200 OK.
+
+[✅] login -- SELESAI 2026-09-14. 1 gap: form submit (tombol "Masuk")
+    tidak pernah di-disable -- pakai event.submitter, re-enable cuma di
+    catch (sukses = redirect via setTimeout 650ms, halaman pindah jadi
+    tombol boleh tetap disabled). Verifikasi: parse JS lolos, halaman
+    ke-serve 200 OK.
+
+[✅] loginSantri -- SELESAI 2026-09-14. 1 gap: sama persis dgn [[login]]
+    (form submit "Masuk" via event.submitter, re-enable cuma di catch).
+    Verifikasi: parse JS lolos, halaman ke-serve 200 OK.
+
+[✅] logout -- SELESAI 2026-09-14. TIDAK ADA gap -- tidak ada tombol
+    aksi sama sekali, cuma IIFE otomatis saat halaman dimuat (panggil
+    logout API sekali lalu redirect). Tidak mungkin double-submit krn
+    tidak dipicu klik user. Verifikasi: baca seluruh file (52 baris).
+
+[✅] raport -- SELESAI 2026-09-14. TIDAK ADA gap -- halaman read-only
+    (Lihat Raport, Export Semua PDF, Cetak/print, pagination), semua
+    panggilan api() adalah GET data (raport.data/santriList/tahunAjaran),
+    tidak ada save/delete/toggle. Export Semua PDF boleh diklik ulang
+    scr teori (baca-baca lagi + generate PDF client-side) tapi bukan
+    mutasi data server jadi di luar scope operasi ini. Verifikasi: grep
+    semua tombol & panggilan api(), halaman ke-serve 200 OK.
+
+[✅] raport&rekamJejak -- SELESAI 2026-09-14. TIDAK ADA gap -- halaman
+    read-only (viewer gabungan Raport + Rekam Jejak per santri per bulan),
+    semua panggilan api() adalah GET (santriList/raport.data/
+    tahunAjaran.list/rekamJejak.data), tidak ada save/delete/toggle.
+    Verifikasi: grep semua panggilan api(), halaman ke-serve 200 OK.
+
+[✅] reguAbsensi -- SELESAI 2026-09-14. 1 gap: tombol "Simpan absensi"
+    dialog (saveModal) -- PERSIS klon [[kelasAbsensi]] tapi utk Regu,
+    tanpa fitur Silabus. Verifikasi: parse JS lolos, halaman ke-serve
+    200 OK.
+
+[✅] riwayatPindahHalaqoh -- SELESAI 2026-09-14. 4 gap: toggle status
+    (toggleItem, delegated click + confirm), Hapus permanen (deleteItem,
+    delegated click + prompt ketik "HAPUS"), Simpan edit tanggal/alasan
+    (submitEditPindahDialog, dialog TETAP TERBUKA saat error --
+    event.submitter), dan dialog Pindahkan Santri baru
+    (submitPindahDialog, sama pola event.submitter). Verifikasi: parse JS
+    lolos, halaman ke-serve 200 OK.
+
+[✅] riwayatPindahRegu -- SELESAI 2026-09-14. 4 gap: PERSIS klon
+    [[riwayatPindahHalaqoh]] tapi utk Regu (toggleItem, deleteItem,
+    submitEditPindahDialog, submitPindahDialog) -- fix yang sama persis.
+    Verifikasi: parse JS lolos, halaman ke-serve 200 OK.
+
+[✅] aksesInfo -- SELESAI 2026-09-14. TIDAK ADA gap -- halaman read-only
+    (matriks akses per jabatan/per halaman), cuma 1 panggilan api() GET
+    (jabatan.names) + tab switcher lokal, tidak ada tombol aksi mutating.
+    Verifikasi: grep semua tombol & panggilan api(), halaman ke-serve
+    200 OK.
+
+[✅] beranda -- SELESAI 2026-09-14. TIDAK ADA gap -- halaman read-only
+    (dashboard ringkasan + carousel jadwal ibadah/khutbah), semua fetch()
+    adalah GET (jadwal.ibadah.beranda.carousel/jadwal.khutbah.list/
+    portal.brand.public.get), tombol yang ada cuma nav/carousel/pagination
+    lokal, tidak ada mutasi data. Verifikasi: grep semua tombol & panggilan
+    api()/fetch(), halaman ke-serve 200 OK.
+
+[✅] dashboard (+ 5 varian jabatan: dashboardAdmin, dashboardAkademik,
+    dashboardKesantrian, dashboardKoordHalaqoh, dashboardSdm) -- SELESAI
+    2026-09-14. 1 gap DI FILE dashboard/index.html (dashboard Super
+    Admin): tombol "Import Semua Data" (handleImportAllFile, trigger via
+    hidden input file -- reset value='' sync tapi tombol pemicu
+    importAllButton tidak pernah di-disable, sekarang wajib
+    disable+finally). Sudah aman duluan di file yg sama: "Hapus Semua
+    Data" (executeDeleteAllData, dialog konfirmasi ditutup SYNC sebelum
+    await -- pola dialog-close-duluan). 5 varian jabatan (Admin/Akademik/
+    Kesantrian/KoordHalaqoh/Sdm) semuanya READ-ONLY murni (cuma
+    dashboard.*.audit GET + pagination lokal), TIDAK ADA gap. Verifikasi:
+    parse JS lolos utk dashboard/index.html, grep semua panggilan api()
+    utk 5 varian lain, ke-6 halaman ke-serve 200 OK.
+
+[✅] dataKelompok -- SELESAI 2026-09-14. TIDAK ADA gap -- halaman
+    read-only (viewer data kelompok per section, semua panggilan api()
+    GET: references/section.action). Verifikasi: grep semua panggilan
+    api(), halaman ke-serve 200 OK.
+
+[✅] dataKelompokManual -- SELESAI 2026-09-14. TIDAK ADA gap -- satu2nya
+    aksi simpan (persist, dataKelompokManual.save) dipicu scheduleSave()
+    yg pakai setTimeout 700ms coalescing (pola debounce autosave, aman
+    by design). Verifikasi: baca fungsi persist+scheduleSave, halaman
+    ke-serve 200 OK.
+
+[✅] infoHalaman -- SELESAI 2026-09-14. TIDAK ADA gap -- halaman statis
+    murni, TIDAK ADA panggilan api()/fetch() sama sekali. Verifikasi:
+    grep api()/fetch() nihil, halaman ke-serve 200 OK.
+
+[✅] jamDigital -- SELESAI 2026-09-14. TIDAK ADA gap -- halaman kiosk
+    display (jam+jadwal ibadah publik), satu2nya tombol (Stop audio)
+    murni client-side, heartbeat ke server dipicu setInterval bukan klik
+    user. Verifikasi: grep semua tombol & setInterval, halaman ke-serve
+    200 OK.
+
+[✅] jamDigitalRemote -- SELESAI 2026-09-14. Halaman kontrol remote utk
+    kiosk jamDigital (bukan CRUD data santri) -- mayoritas tombol kirim
+    "sendCmd" (set current display state, idempotent overwrite: running
+    text, status, test time, master volume/mute, sleep schedule, adzan,
+    dsb) ATAU memutasi array lokal (_slides) SYNC dulu baru kirim, ATAU
+    dialog upload video yg ditutup SYNC sebelum request -- semua pola ini
+    sudah aman by design (idempotent / re-render sync duluan), TIDAK
+    diberi disable satu-satu spy tidak overkill. 3 gap NYATA yg diperbaiki
+    (aksi APPEND item baru / upload berdiri sendiri tanpa dialog-close):
+    Tambah Video YouTube (btnAddYoutube, fetch), Upload Logo
+    (btnUploadLogo, XHR), Upload Audio (btnUploadAudio, XHR) -- ketiganya
+    sekarang disable tombol pemicu selama proses + re-enable di
+    onload/onerror atau .finally(). Verifikasi: parse JS lolos, halaman
+    ke-serve 200 OK.
+
+[✅] jurnalSdm -- SELESAI 2026-09-14. 6 gap -- SEMUA pola sama: overlay
+    popup ditutup SETELAH await (bukan sebelum), jadi tombol Simpan
+    tetap ada & bisa diklik ulang selama request jalan: Tambah/Edit
+    Kegiatan (saveEntry, btnSimpanEntry), Hapus Kegiatan (deleteEntry,
+    delegated click + confirm), Ajukan/Edit Izin Sakit/Tidak Hadir
+    (saveIzin, btnSimpanIzin), Sahkan Kegiatan (savePengesahan,
+    btnSimpanPengesahan), Fingerprint (saveFingerprint, btnSimpanFp --
+    overlay TIDAK ditutup sama sekali stlh simpan, wajib finally), Data
+    Lapangan (saveDataLapangan, btnSimpanLp -- sama, wajib finally).
+    Verifikasi: parse JS lolos, halaman ke-serve 200 OK.
+
+[✅] madingDigital -- SELESAI 2026-09-14. TIDAK ADA gap -- halaman
+    read-only (papan mading publik/viewer konten), 1 panggilan fetch()
+    GET, tombol cuma Lihat selengkapnya/pagination/tutup dialog.
+    Verifikasi: grep semua tombol & panggilan fetch(), halaman ke-serve
+    200 OK.
+
+[✅] madingPublik -- SELESAI 2026-09-14. TIDAK ADA gap -- halaman publik
+    read-only (papan mading utk pengunjung luar), cuma 1 fetch() GET
+    (content.public.list). Verifikasi: grep panggilan fetch(), halaman
+    ke-serve 200 OK.
+
+[✅] masterJabatan -- SELESAI 2026-09-14. 6 gap: Bulk Aktifkan/Nonaktifkan
+    (handleBulkToggle, toolbar massal di-re-render SETELAH await bukan
+    sebelum), Bulk Hapus permanen (handleBulkDelete, sama), Hapus Semua
+    Jabatan (handleDeleteAll, tombol persisten deleteAllButton), Simpan
+    jabatan (saveForm, dialog TETAP TERBUKA saat error -- event.submitter,
+    2 panggilan api() berurutan jabatan.save+jabatan.saveRelasi),
+    Toggle status (toggleItem, delegated click), Hapus jabatan
+    (deleteItem, delegated click). Sudah aman duluan: fitur "Tempel Cepat"
+    (quickImportState.busy flag + render disable, pola sama dgn
+    daftarSantri/editRegu/editKelas/editPengurus), Export/Download PDF
+    ringkasan (read-only). Verifikasi: parse JS lolos, halaman ke-serve
+    200 OK.
+
+[✅] profilSaya -- SELESAI 2026-09-14. TIDAK ADA gap -- halaman statis
+    murni (cuma tampilkan nama+jabatan dari session tersimpan), TIDAK ADA
+    panggilan api()/fetch() sama sekali. Verifikasi: baca seluruh file
+    (109 baris), halaman ke-serve 200 OK.
+
+[✅] rekapAbsensiPengurus -- SELESAI 2026-09-14. TIDAK ADA gap -- halaman
+    read-only (rekap absensi per pengurus per bulan), semua panggilan
+    api() GET (pengurus.list/rekap.absensi.pengurus.detail), tombol cuma
+    Cek Absensi (buka dialog)/navigasi bulan/refresh. Verifikasi: grep
+    semua tombol & panggilan api(), halaman ke-serve 200 OK.
+
+[✅] skemaDb -- SELESAI 2026-09-14. TIDAK ADA gap -- halaman ERD statis
+    (lihat [[project-skemaDb-page]]), TIDAK ADA panggilan api()/fetch()
+    sama sekali, tombol cuma zoom/tutup overlay diagram. Verifikasi: grep
+    api()/fetch()/tombol, halaman ke-serve 200 OK.
+
+[✅] strukturOrganisasi -- SELESAI 2026-09-14. TIDAK ADA gap -- halaman
+    read-only (bagan struktur jabatan), cuma 1 panggilan api() GET
+    (jabatan.struktur), tombol cuma pencarian pengurus (dropdown
+    lokal)/navigasi. Verifikasi: grep semua tombol & panggilan api(),
+    halaman ke-serve 200 OK.
+
+[✅] frontend/pages/santri/* (4 halaman KHUSUS LOGIN SANTRI, bukan
+    pengurus -- ketinggalan dari daftar bagian 5 awal krn nested 1 folder
+    lebih dalam) -- SELESAI 2026-09-14:
+    - kondisiSantri: TIDAK ADA gap, read-only (rekap zoom/pelanggaran/
+      izin pulang/sakit per bulan, semua GET).
+    - rekamJejak: TIDAK ADA gap, read-only (viewer rekam jejak sendiri).
+    - santriProfile: TIDAK ADA gap, read-only (profil + konten publik,
+      semua GET santri.self/session).
+    - quizSantri: 1 gap NYATA -- tombol "Mulai/Lanjutkan" quiz (startQuiz,
+      quiz.santri.start) tidak disable sebelum request, celah dobel-klik
+      bisa bikin 2 attempt sebelum dialog runner kebuka (showModal
+      otomatis bikin area belakangnya inert, tapi CUMA setelah dialog
+      benar2 terbuka -- selama menunggu network, tombol daftar masih bisa
+      diklik lagi). Sudah aman duluan & CUKUP CANGGIH: seluruh alur
+      jawab/cek/submit quiz (submitRunner, quiz.santri.submit) SUDAH pakai
+      flag `rn.busy` yang mengunci tombol nav + ganti teks jadi
+      "Menyimpan…/Mengumpulkan…" selama request jalan, dicek di awal
+      handler (early-return kalau busy) -- pola busy-flag yang sama
+      persis dgn quickImportState di [[masterJabatan]] dkk, dan
+      quiz.santri.answer memang sengaja fire-and-forget (.catch kosong)
+      krn per-soal autosave, bukan aksi final. Verifikasi: parse JS
+      lolos, ke-4 halaman ke-serve 200 OK.
+
+
+5. HALAMAN LAIN YANG PERLU DICEK & DITERAPKAN
+--------------------------------------------------
+SEMUA halaman di frontend/pages/**/index.html (termasuk subfolder
+frontend/pages/santri/) sudah diaudit satu per satu per 2026-09-14 --
+daftar checklist ini sudah kosong. Lihat bagian 4 di atas untuk catatan
+lengkap tiap halaman (gap yang diperbaiki, atau alasan kenapa halaman
+itu sudah aman/read-only/tidak relevan).
+
+Kalau ada halaman BARU ditambahkan setelah tanggal ini, urus pakai
+langkah di bagian 2 lalu catat hasilnya di bagian 4 dengan format yang
+sama seperti entri-entri di atas.
+
+
+6. CARA KERJA YANG DISARANKAN
+----------------------------------
+Jangan kerjakan semua halaman sekaligus dalam 1 sesi (terlalu banyak file,
+risiko typo/salah pasang tinggi). Tiap sesi: pilih 1-3 halaman dari daftar
+bagian 5, terapkan langkah bagian 2 + perhatikan jebakan bagian 3, tes manual
+seperti langkah 2.5 (throttle "Slow 3G" + klik cepat berkali-kali), baru
+centang [✅] di file catatan ini kalau sudah lolos tes.

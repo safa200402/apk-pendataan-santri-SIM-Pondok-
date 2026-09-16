@@ -340,12 +340,6 @@
       <section class="panel nav" id="nav"></section>
       <div class="content-stack">
         <section class="notice info" id="notice"></section>
-        <section class="issue-panel">
-          <h2>Masalah Terkait</h2>
-          <p>Temuan audit yang relevan dengan jabatan dan penugasan akan muncul di sini.</p>
-          <div class="issue-summary" id="issueSummary">Belum ada data audit.</div>
-          <ul class="issue-warning-list" id="issueList"></ul>
-        </section>
         <section class="panel">
           <div class="section-head">
             <h2>Daftar jabatan</h2>
@@ -551,12 +545,6 @@ Active</button>
       selectedAtasanIds: new Set()
     };
 
-    const ISSUE_GROUP_CONFIG = {
-      pengurus_without_jabatan: true,
-      halaqoh_without_pengampu: true,
-      kelas_without_pengajar: true,
-      regu_without_pembina: true
-    };
     const PROTECTED_JABATAN_NAMES = new Set(['super admin', 'superadmin']);
     const uiState = {
       currentNoticeId: '',
@@ -734,8 +722,6 @@ Active</button>
       }
       return json.data;
     }
-
-    const issuePanelController = createIssuePanelController(api, { issueConfig: ISSUE_GROUP_CONFIG });
 
     function buildPaginationList(page, totalPages) {
       const maxNumbers = 10;
@@ -915,31 +901,33 @@ Active</button>
       `, count > 0);
     }
 
-    async function handleBulkToggle(active) {
+    async function handleBulkToggle(active, btn) {
       const ids = getSelectedIds();
       if (!ids.length) return showNotice('Pilih minimal satu jabatan.', 'error');
       if (!confirm(`${active ? 'Aktifkan' : 'Nonaktifkan'} ${ids.length} jabatan terpilih?`)) return;
+      if (btn) btn.disabled = true;
       try {
         await api('bulk.toggle', { sheetKey: DATASET_KEY, ids, active }, 'POST');
         clearSelectedIds();
         await loadData();
-        await issuePanelController.load();
       } catch (error) {
         showNotice(error.message || 'Gagal memproses aksi massal.', 'error');
+        if (btn) btn.disabled = false;
       }
     }
 
-    async function handleBulkDelete() {
+    async function handleBulkDelete(btn) {
       const ids = getSelectedIds();
       if (!ids.length) return showNotice('Pilih minimal satu jabatan.', 'error');
       if (!confirm(`Hapus permanen ${ids.length} jabatan terpilih?`)) return;
+      if (btn) btn.disabled = true;
       try {
         await api('bulk.delete', { sheetKey: DATASET_KEY, ids }, 'POST');
         clearSelectedIds();
         await loadData();
-        await issuePanelController.load();
       } catch (error) {
         showNotice(error.message || 'Gagal menghapus data terpilih.', 'error');
+        if (btn) btn.disabled = false;
       }
     }
 
@@ -965,6 +953,8 @@ Active</button>
         return;
       }
       if (!confirm('HAPUS SEMUA jabatan secara permanen (kecuali jabatan sistem yang dilindungi)? Tindakan ini tidak dapat dibatalkan.')) return;
+      const btn = document.getElementById('deleteAllButton');
+      if (btn) btn.disabled = true;
       try {
         showNotice('Memuat daftar jabatan...', 'info');
         const data = await api('jabatan.list', { page: 1, pageSize: 100000 });
@@ -976,10 +966,11 @@ Active</button>
         }
         await api('bulk.delete', { sheetKey: DATASET_KEY, ids }, 'POST');
         await loadData();
-        await issuePanelController.load();
         showNotice(`${ids.length} jabatan berhasil dihapus. Jabatan sistem tetap dipertahankan.`, 'info');
       } catch (error) {
         showNotice(error.message || 'Gagal menghapus semua jabatan.', 'error');
+      } finally {
+        if (btn) btn.disabled = false;
       }
     }
 
@@ -999,7 +990,6 @@ Active</button>
           }
         });
         await loadData();
-        await issuePanelController.load();
         showNotice('Import Excel jabatan selesai.', 'info');
       } catch (error) {
         showNotice(error.message || 'Gagal import Excel.', 'error');
@@ -1284,7 +1274,6 @@ Active</button>
       quickImportState.busy = false;
       if (successCount) {
         await loadData();
-        await issuePanelController.load();
       }
       const remainingEntries = invalidEntries.concat(failedEntries);
       if (remainingEntries.length) {
@@ -1538,6 +1527,8 @@ Active</button>
         deskription: fields.namedItem('deskription').value.trim(),
         status: fields.namedItem('status').value
       };
+      const submitBtn = event.submitter || form.querySelector('button[type="submit"]');
+      if (submitBtn) submitBtn.disabled = true;
       try {
         const saved = await api('jabatan.save', { record: payload }, 'POST');
         const savedId = saved.id || jabatanId;
@@ -1547,13 +1538,13 @@ Active</button>
         }
         document.getElementById('dialog').close();
         await loadData();
-        await issuePanelController.load();
       } catch (error) {
         showNotice(error.message || 'Gagal menyimpan jabatan.', 'error');
+        if (submitBtn) submitBtn.disabled = false;
       }
     }
 
-    async function toggleItem(id) {
+    async function toggleItem(id, btn) {
       const item = state.items.find(entry => entry.id === id);
       if (!item) return;
       if (isProtectedJabatan(item)) {
@@ -1563,16 +1554,17 @@ Active</button>
       const nextActive = !item.active;
       const yes = confirm(`${nextActive ? 'Aktifkan' : 'Nonaktifkan'} jabatan "${item.name}"?`);
       if (!yes) return;
+      if (btn) btn.disabled = true;
       try {
         await api('jabatan.toggle', { id, active: nextActive }, 'POST');
         await loadData();
-        await issuePanelController.load();
       } catch (error) {
         showNotice(error.message || 'Gagal mengubah status jabatan.', 'error');
+        if (btn) btn.disabled = false;
       }
     }
 
-    async function deleteItem(id) {
+    async function deleteItem(id, btn) {
       const item = state.items.find(entry => entry.id === id);
       if (!item) return;
       if (isProtectedJabatan(item)) {
@@ -1581,13 +1573,14 @@ Active</button>
       }
       const yes = confirm(`Hapus permanen jabatan "${item.name}"? Relasi jabatan pengurus juga akan dibersihkan.`);
       if (!yes) return;
+      if (btn) btn.disabled = true;
       try {
         await api('jabatan.delete', { id }, 'POST');
         showNotice(`Jabatan "${item.name}" dihapus permanen.`, 'info');
         await loadData();
-        await issuePanelController.load();
       } catch (error) {
         showNotice(error.message || 'Gagal menghapus jabatan.', 'error');
+        if (btn) btn.disabled = false;
       }
     }
 
@@ -1607,7 +1600,6 @@ Active</button>
       document.getElementById('addButton').addEventListener('click', () => openDialog());
       document.getElementById('refreshButton').addEventListener('click', async () => {
         await loadData();
-        await issuePanelController.load();
       });
       document.getElementById('toggleExpandButton').addEventListener('click', toggleExpandedList);
       document.getElementById('toolbarCollapseToggle').addEventListener('click', toggleActionToolbar);
@@ -1620,10 +1612,10 @@ Active</button>
       document.getElementById('deleteAllButton').addEventListener('click', handleDeleteAll);
       document.getElementById('importExcelInput').addEventListener('change', handleImportChange);
       document.getElementById('closeDialog').addEventListener('click', () => document.getElementById('dialog').close());
-      document.getElementById('atasanSearchInput').addEventListener('input', e => filterAtasanCheckboxList(e.target.value));
+      document.getElementById('atasanSearchInput').addEventListener('input', PSUI.debounce(e => filterAtasanCheckboxList(e.target.value), PSUI.AUTOSAVE_DEBOUNCE_MS));
       document.getElementById('closeQuickImportDialog').addEventListener('click', () => document.getElementById('quickImportDialog').close());
       document.getElementById('form').addEventListener('submit', saveForm);
-      document.getElementById('searchInput').addEventListener('input', () => { state.page = 1; loadData(); });
+      document.getElementById('searchInput').addEventListener('input', PSUI.debounce(() => { state.page = 1; loadData(); }, PSUI.AUTOSAVE_DEBOUNCE_MS));
       document.getElementById('statusFilter').addEventListener('change', () => { state.page = 1; loadData(); });
       document.getElementById('sortSelect').addEventListener('change', () => { state.page = 1; loadData(); });
       document.getElementById('pageSizeSelect').addEventListener('change', event => {
@@ -1677,10 +1669,10 @@ Active</button>
         if (item) openDialog({ ...item.record, id: item.id, name: item.name, level: item.level, deskription: item.deskription, status: item.status, atasanIds: item.atasanIds || [] });
       }
       if (toggleId) {
-        toggleItem(toggleId);
+        toggleItem(toggleId, actionButton);
       }
       if (deleteId) {
-        deleteItem(deleteId);
+        deleteItem(deleteId, actionButton);
       }
       if (duplicateId) {
         const item = state.items.find(entry => entry.id === duplicateId);
@@ -1712,9 +1704,9 @@ Active</button>
       const { id } = event.target;
       if (id === 'selectVisibleButton') selectVisibleItems();
       if (id === 'clearSelectedButton') clearSelectedIds();
-      if (id === 'bulkActivateButton') handleBulkToggle(true);
-      if (id === 'bulkDeactivateButton') handleBulkToggle(false);
-      if (id === 'bulkDeleteButton') handleBulkDelete();
+      if (id === 'bulkActivateButton') handleBulkToggle(true, event.target);
+      if (id === 'bulkDeactivateButton') handleBulkToggle(false, event.target);
+      if (id === 'bulkDeleteButton') handleBulkDelete(event.target);
     });
     window.addEventListener('load', async () => {
       if (window.PSAccess && window.PSAccess.redirectIfForbidden(getStoredSession(), currentPage)) {
@@ -1726,7 +1718,6 @@ Active</button>
       syncActionToolbar();
       syncExpandToggleButton();
       await loadData();
-      await issuePanelController.load();
     });
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});

@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#9e2f22">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="../../shared-ui.css">
+  <script src="../../shared-ui.js"></script>
+  <title>Kelola Addons</title>
+  <link rel="stylesheet" href="../../shared-shell.css">
+  <link rel="stylesheet" href="../../vendor/fontawesome/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700&display=swap');
+    :root {
+      --paper: #f6efe0; --ink: #4d4034; --muted: #7b6a58;
+      --line: rgba(91,73,57,0.15); --accent: #b97650;
+      --success: #74846c; --danger: #a55a52; --warning: #b58439;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; }
+    body::before { content: ''; position: fixed; inset: 0; pointer-events: none; opacity: 0.15; mix-blend-mode: multiply; }
+    body::after  { content: ''; position: fixed; inset: 0; pointer-events: none; opacity: 0.23; }
+    h1, h2, h3 { margin: 0 0 10px; text-transform: uppercase; }
+    p { margin: 0; line-height: 1.65; }
+    .nav a, button { font-weight: 800 !important; text-transform: uppercase; }
+    .panel { padding: 22px; }
+    .card { padding: 16px; }
+    button { font: inherit; padding: 12px 18px; font-weight: 700; cursor: pointer; }
+    .notice { display: none; padding: 14px 16px; line-height: 1.55; }
+    .notice.show { display: block; }
+    .empty-state { padding: 36px 20px; text-align: center; color: var(--muted); font-size: 14px; }
+
+    .addon-list { display: grid; gap: 12px; margin-top: 12px; }
+    .section-count { display: inline-flex; min-width: 22px; padding: 2px 8px; justify-content: center; border-radius: 999px; background: rgba(91,73,57,0.12); color: var(--muted); font-size: 11px; }
+    .section-hint { font-size: 12px; color: var(--muted); margin: 4px 4px 0; }
+
+    /* Kartu addon niru pola shared ".minimal-list-card" (sama dgn Daftar Santri/Quiz Digital,
+       lihat shared-ui.css) -- ringkas (nama+status) dulu, detail (deskripsi/konsekuensi/level
+       akses) baru muncul begitu kartunya diklik/di-Enter. */
+    .minimal-list-card.is-locked { background: rgba(255, 248, 230, 0.7) !important; }
+    .minimal-list-card.is-off { background: rgba(165, 90, 82, 0.12) !important; }
+    .minimal-list-card.has-custom-access { border-left: 5px solid var(--accent); }
+    .addon-title-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .addon-desc { font-size: 13px; color: var(--ink); line-height: 1.6; }
+    .addon-consequence { font-size: 12.5px; line-height: 1.6; padding: 10px 12px; border-radius: 10px; }
+    .addon-consequence.aktif { background: rgba(116,132,108,0.14); color: #3a5a30; }
+    .addon-consequence.nonaktif { background: rgba(165,90,82,0.14); color: var(--danger); }
+    .addon-consequence.terkunci { background: rgba(91,73,57,0.09); color: var(--muted); }
+    .addon-consequence b { text-transform: uppercase; letter-spacing: 0.03em; }
+    .addon-meta { font-size: 11px; color: var(--muted); }
+    .status-chip { display: inline-flex; padding: 3px 10px; font-size: 11px; font-weight: 700; border-radius: 999px; text-transform: uppercase; }
+    .status-chip.on { background: rgba(116,132,108,0.18); color: #3a5a30; }
+    .status-chip.off { background: rgba(165,90,82,0.18); color: var(--danger); }
+    .status-chip.locked { background: rgba(91,73,57,0.14); color: var(--muted); }
+    .locked-toggle-hint { font-size: 11px; color: var(--muted); white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; padding: 0 14px; }
+
+    /* Ketiga kelompok (Bisa Dinonaktifkan / Bisa Diubah Akses / Terkunci Total) sama-sama
+       collapsible lewat <details>, biar semua bisa ditutup-buka -- bukan cuma kartu di dalamnya. */
+    details.addon-section { margin-top: 24px; }
+    details.addon-section summary { cursor: pointer; font-weight: 700; font-size: 14px; padding: 10px 4px; list-style: none; display: flex; align-items: center; gap: 8px; }
+    details.addon-section summary::-webkit-details-marker { display: none; }
+    details.addon-section .section-count { margin-left: 2px; }
+
+    details.manage-jabatan { width: 100%; margin-top: 12px; border-top: 1px dashed var(--line); padding-top: 10px; }
+    details.manage-jabatan summary { cursor: pointer; font-weight: 700; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.03em; color: var(--accent); list-style: none; display: flex; align-items: center; gap: 6px; }
+    details.manage-jabatan summary::-webkit-details-marker { display: none; }
+    details.manage-jabatan summary .chevron { transition: transform 0.15s; font-size: 10px; }
+    details.manage-jabatan[open] summary .chevron { transform: rotate(90deg); }
+    .manage-jabatan-body { margin-top: 10px; }
+    .manage-desc { font-size: 12px; color: var(--muted); line-height: 1.55; margin-bottom: 10px; }
+    .jabatan-highlight { color: #2e7d32 !important; font-weight: 800; }
+    .manage-mode-chip { display: inline-flex; padding: 2px 9px; font-size: 10.5px; font-weight: 700; border-radius: 999px; text-transform: uppercase; margin-bottom: 8px; }
+    .manage-mode-chip.bawaan { background: rgba(91,73,57,0.1); color: var(--muted); }
+    .manage-mode-chip.custom { background: rgba(185,118,80,0.16); color: var(--accent); }
+    .manage-custom-toggle { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--ink); cursor: pointer; margin-bottom: 8px; }
+    .manage-custom-toggle input { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
+    .jabatan-checklist { max-height: 220px; overflow-y: auto; display: grid; gap: 4px; padding: 10px; border-radius: 10px; background: rgba(255,255,255,0.5); border: 1px solid var(--line); }
+    .jabatan-checklist label { display: flex; align-items: center; gap: 8px; font-size: 12.5px; padding: 3px 4px; border-radius: 6px; cursor: pointer; }
+    .jabatan-checklist label:hover { background: rgba(185,118,80,0.08); }
+    .jabatan-checklist input { width: 15px; height: 15px; accent-color: var(--accent); cursor: pointer; flex-shrink: 0; }
+    .manage-jabatan-actions { margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap; }
+    .manage-jabatan-actions button { padding: 8px 14px; font-size: 11.5px; }
+  </style>
+</head>
+<body>
+  <script src="../../shared-nav.js"></script>
+  <script src="../../shared-access.js"></script>
+  <script src="../../shared-shell.js"></script>
+  <header class="app-header">
+    <div class="header-left">
+      <button class="drawer-toggle" id="navToggle" type="button" aria-label="Toggle sidebar">Menu</button>
+      <div class="header-brand">Pendataan Santri</div>
+      <div class="header-page">Kelola Addons</div>
+    </div>
+    <div class="header-right">
+      <span class="header-chip" id="headerRole">Admin</span>
+    </div>
+  </header>
+  <div class="drawer-backdrop" id="navBackdrop"></div>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+  <main>
+    <div class="app-layout">
+      <section class="panel nav" id="nav"></section>
+      <div class="content-stack">
+
+        <section class="panel">
+          <div>
+            <h2>Kelola Addons</h2>
+            <p style="color:var(--muted);font-size:13px;margin-top:4px;">Hampir semua halaman aplikasi ini terdaftar di bawah, dibagi 3 kelompok. Klik kartu untuk buka/tutup detailnya. Menonaktifkan addon atau membatasi level akses TIDAK PERNAH menghapus data yang sudah tersimpan, hanya menyembunyikan menu &amp; menolak akses sampai diatur ulang.</p>
+          </div>
+
+          <details class="addon-section" id="toggleableSection" open>
+            <summary>1. Bisa Dinonaktifkan <span class="section-count" id="toggleableCount">0</span></summary>
+            <p class="section-hint">Fitur opsional, boleh dimatikan total kapan saja &mdash; baca "Jika diaktifkan"/"Jika dinonaktifkan" sebelum mengubah.</p>
+            <div class="addon-list" id="addonList">
+              <div class="empty-state">Memuat daftar addon...</div>
+            </div>
+          </details>
+
+          <details class="addon-section" id="configurableSection" open>
+            <summary>2. Bisa Diubah Akses Kelolanya <span class="section-count" id="configurableCount">0</span></summary>
+            <p class="section-hint">Halaman inti, TIDAK bisa dimatikan (selalu aktif) &mdash; tapi siapa yang boleh Lihat/Kelola bisa diganti dari jabatan bawaan.</p>
+            <div class="addon-list" id="configurableList">
+              <div class="empty-state">Memuat daftar addon...</div>
+            </div>
+          </details>
+
+          <details class="addon-section" id="lockedSection">
+            <summary>3. Terkunci Total <span class="section-count" id="lockedCount">0</span></summary>
+            <p class="section-hint">Tidak bisa dimatikan maupun diatur ulang aksesnya lewat sini &mdash; alasannya ditulis di tiap kartu.</p>
+            <div class="addon-list" id="lockedList"></div>
+          </details>
+        </section>
+
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const API_BASE = window.location.origin + '/api';
+    const STORAGE = { token: 'ps_token', session: 'ps_session' };
+
+    function getToken() { return localStorage.getItem(STORAGE.token) || ''; }
+    function getStoredSession() { try { return JSON.parse(localStorage.getItem(STORAGE.session) || 'null'); } catch (_) { return null; } }
+    function getScopedSession() { return window.PSAccess && typeof window.PSAccess.getScopedSession === 'function' ? window.PSAccess.getScopedSession(getStoredSession()) : getStoredSession(); }
+    function canManage() { const s = getScopedSession(); return !!(s && s.permissions && (s.permissions.isAdmin || s.permissions.isSuperAdmin)); }
+
+    async function api(d) { const p = new URLSearchParams({ ...d, token: getToken() }); const r = await fetch(API_BASE + '?' + p); const j = await r.json(); if (!j.ok) throw new Error(j.error?.message || 'Error'); return j.data; }
+    async function apiPost(d) { const r = await fetch(API_BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...d, token: getToken() }) }); const j = await r.json(); if (!j.ok) throw new Error(j.error?.message || 'Error'); return j.data; }
+
+    const uiState = { counter: 0, shownAt: 0, pending: null, currentId: '' };
+    function createNoticeEl(text, type) {
+      const el = document.createElement('section');
+      el.className = `notice show ${type || 'info'}`; el.dataset.noticeId = `n-${Date.now()}-${uiState.counter += 1}`; el.textContent = text;
+      function dismiss() { if (!el.parentNode) return; el.classList.add('notice-dismissing'); setTimeout(() => { el.remove(); const s = document.getElementById('noticeStack'); if (s && !s.hasChildNodes() && s.matches(':popover-open')) s.hidePopover(); }, 220); }
+      el.addEventListener('click', dismiss); setTimeout(dismiss, type === 'error' ? 10000 : 5000); return el;
+    }
+    function showNotice(text, type) {
+      if (uiState.pending) { clearTimeout(uiState.pending); uiState.pending = null; }
+      const elapsed = Date.now() - uiState.shownAt;
+      if (elapsed < 2000 && uiState.currentId) { uiState.pending = setTimeout(() => { uiState.pending = null; showNotice(text, type); }, 2000 - elapsed); return; }
+      const el = createNoticeEl(text, type); const stack = document.getElementById('noticeStack');
+      stack.prepend(el); uiState.currentId = el.dataset.noticeId; uiState.shownAt = Date.now();
+      if (stack.matches(':popover-open')) stack.hidePopover(); stack.showPopover();
+    }
+    function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
+    // Semua nama jabatan/peran yang disebut di teks deskripsi level akses ditonjolkan (tebal +
+    // hijau), biar daftar "siapa boleh apa" gampang dipindai sekilas. Diurutkan dari nama
+    // TERPANJANG dulu supaya "Super Admin" ketangkap utuh sebelum "Admin" (substring-nya) dicoba.
+    // Teks sumbernya ditulis backend (bukan input pengguna), aman disisipi HTML setelah di-escape.
+    const JABATAN_HIGHLIGHT_NAMES = [
+      'Super Admin', 'Koordinator Halaqoh', 'Operator Jam Digital', 'Pembina Regu',
+      'Pengampu Halaqoh', 'Kesantrian', 'Akademik', 'Pengajar', 'Ustadzah', 'Ustadz',
+      'Kebersihan', 'Mudir', 'Admin', 'Guru'
+    ];
+    const JABATAN_HIGHLIGHT_RE = new RegExp('\\b(' + JABATAN_HIGHLIGHT_NAMES.join('|') + ')\\b', 'g');
+    function highlightJabatan(s) { return esc(s).replace(JABATAN_HIGHLIGHT_RE, '<strong class="jabatan-highlight">$1</strong>'); }
+
+    let addonsData = { items: [], setBy: '', setAt: '' };
+    let jabatanList = []; // {id, name}, dimuat sekali, dipakai semua checklist level akses
+    let expandedKeys = new Set(); // key kartu yang sedang dibuka (bertahan lintas render ulang)
+
+    async function loadAllJabatan() {
+      let page = 1; let all = [];
+      for (;;) {
+        const data = await api({ action: 'jabatan.list', status: 'active', pageSize: 100, page });
+        all = all.concat(data.items || []);
+        if (!data.totalPages || page >= data.totalPages) break;
+        page += 1;
+      }
+      // Super Admin selalu boleh apa pun di luar centang ini (lihat canAccessLevel_ di backend),
+      // jadi jabatan bernama "Super Admin"/"Superadmin" sengaja tidak ditampilkan -- nyentang atau
+      // tidak, hasilnya sama saja, cuma bikin bingung kalau ikut muncul di daftar.
+      jabatanList = all
+        .filter(j => !/super\s*admin/i.test(j.name || ''))
+        .map(j => ({ id: j.id, name: j.name }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    // Tiap item (addon toggleable ATAU locked-group yang sudah py `levels`) bisa punya 1+ level
+    // akses (mis. "Lihat" & "Kelola"). Per level: jabatanIds null = ikut aturan bawaan (lihat
+    // desc); array (boleh kosong) = MENGGANTIKAN TOTAL, cuma jabatan di daftar itu yang boleh
+    // (Super Admin selalu boleh apa pun, tidak ditampilkan sebagai pilihan).
+    function levelSectionHtml(itemKey, lv) {
+      const custom = Array.isArray(lv.jabatanIds);
+      const checkedSet = new Set(custom ? lv.jabatanIds : []);
+      const modeChip = custom
+        ? `<span class="manage-mode-chip custom">Kustom &middot; ${checkedSet.size} jabatan</span>`
+        : `<span class="manage-mode-chip bawaan">Ikut aturan bawaan</span>`;
+      const checklistHtml = jabatanList.length
+        ? jabatanList.map(j => `<label><input type="checkbox" class="chk-manage-jabatan" value="${esc(j.id)}" ${checkedSet.has(j.id) ? 'checked' : ''}>${esc(j.name)}</label>`).join('')
+        : `<div class="empty-state" style="padding:12px;">Memuat daftar jabatan...</div>`;
+      return `<details class="manage-jabatan" data-key="${esc(itemKey)}" data-level="${esc(lv.key)}">
+        <summary><i class="fa-solid fa-chevron-right chevron"></i> ${esc(lv.label)} ${modeChip}</summary>
+        <div class="manage-jabatan-body">
+          <div class="manage-desc">${highlightJabatan(lv.desc || '')} <strong class="jabatan-highlight">Super Admin</strong> selalu boleh apa pun, terlepas dari pengaturan ini.</div>
+          <label class="manage-custom-toggle">
+            <input type="checkbox" class="chk-manage-custom" ${custom ? 'checked' : ''}>
+            Tentukan jabatan sendiri (menggantikan total aturan bawaan)
+          </label>
+          <div class="jabatan-checklist" ${custom ? '' : 'hidden'}>${checklistHtml}</div>
+          <div class="manage-jabatan-actions" ${custom ? '' : 'hidden'}>
+            <button class="secondary btn-save-manage-jabatan" type="button"><i class="fa-solid fa-floppy-disk"></i>&ensp;Simpan ${esc(lv.label)}</button>
+          </div>
+        </div>
+      </details>`;
+    }
+    function levelSectionsHtml(a) {
+      return (a.levels || []).map(lv => levelSectionHtml(a.key, lv)).join('');
+    }
+
+    function addonCardHtml(a) {
+      const manage = canManage();
+      const isLocked = !a.toggleable;
+      const expanded = expandedKeys.has(a.key);
+      // Kartu ikut berubah warna kalau (1) addon-nya nonaktif, dan/atau (2) level aksesnya
+      // sudah DIUBAH dari bawaan (garis kiri aksen) -- kelihatan sekilas tanpa perlu buka kartu.
+      const isOff = !isLocked && !a.aktif;
+      const hasCustomAccess = (a.levels || []).some(lv => Array.isArray(lv.jabatanIds));
+      const statusChip = isLocked
+        ? `<span class="status-chip locked">Terkunci</span>`
+        : `<span class="status-chip ${a.aktif ? 'on' : 'off'}">${a.aktif ? 'Aktif' : 'Nonaktif'}</span>`;
+      const levelChip = (a.levels && a.levels.length)
+        ? (hasCustomAccess ? `<span class="manage-mode-chip custom">Akses disesuaikan</span>` : `<span class="manage-mode-chip bawaan">Akses bawaan</span>`)
+        : '';
+      const hint = (a.halaman && a.halaman.length) ? `Halaman: ${esc(a.halaman.join(', '))}` : '';
+      const consequenceHtml = isLocked
+        ? `<div class="addon-consequence terkunci"><b>Kenapa tidak bisa dimatikan</b><br>${esc(a.alasanTerkunci)}</div>`
+        : (a.aktif
+            ? `<div class="addon-consequence aktif"><b>Sedang aktif</b> &mdash; kalau dinonaktifkan: ${esc(a.konsekuensiNonaktif)}</div>`
+            : `<div class="addon-consequence nonaktif"><b>Sedang nonaktif</b> &mdash; kalau diaktifkan: ${esc(a.konsekuensiAktif)}</div>`);
+      const toggleBtn = (manage && a.toggleable)
+        ? `<button class="secondary minimal-list-card-toggle btn-toggle-addon" data-key="${esc(a.key)}" data-active="${a.aktif ? '1' : '0'}" type="button">${a.aktif ? 'Nonaktifkan' : 'Aktifkan'}</button>`
+        : (isLocked ? `<span class="locked-toggle-hint"><i class="fa-solid fa-lock"></i>&ensp;Selalu aktif</span>` : '');
+      return `<article class="card minimal-list-card ${expanded ? 'is-expanded' : ''} ${isLocked ? 'is-locked' : ''} ${isOff ? 'is-off' : ''} ${hasCustomAccess ? 'has-custom-access' : ''}" data-key="${esc(a.key)}">
+        <div class="minimal-list-card-head">
+          <div class="minimal-list-card-main" data-collapse="${esc(a.key)}" role="button" tabindex="0" aria-expanded="${expanded ? 'true' : 'false'}" aria-label="${expanded ? 'Tutup' : 'Buka'} detail ${esc(a.nama)}">
+            <div class="addon-title-row">
+              <strong class="minimal-list-card-name">${esc(a.nama)}</strong>
+              ${statusChip}
+              ${levelChip}
+            </div>
+            ${hint ? `<span class="minimal-list-card-hint">${hint}</span>` : ''}
+          </div>
+          ${toggleBtn}
+        </div>
+        <div class="minimal-list-card-detail">
+          <div class="minimal-list-card-summary">
+            <p class="addon-desc">${esc(a.deskripsi)}</p>
+          </div>
+          ${consequenceHtml}
+          ${addonsData.setAt ? `<div class="addon-meta">Terakhir diubah (addon/level mana pun): ${esc(addonsData.setBy || '-')} &middot; ${esc(addonsData.setAt)}</div>` : ''}
+          ${manage ? levelSectionsHtml(a) : ''}
+        </div>
+      </article>`;
+    }
+
+    function toggleExpanded(key) {
+      if (!key) return;
+      if (expandedKeys.has(key)) expandedKeys.delete(key); else expandedKeys.add(key);
+      renderAddonList();
+    }
+
+    // 3 kelompok (permintaan user 2026-09-14): (1) toggleable = bisa dinonaktifkan total; (2)
+    // locked TAPI py `levels` = tidak bisa dimatikan tapi Lihat/Kelola-nya bisa diganti jabatan;
+    // (3) locked TANPA `levels` sama sekali = benar2 tidak bisa diapa-apakan lewat sini.
+    function renderAddonList() {
+      const toggleable = addonsData.items.filter(a => a.toggleable);
+      const configurable = addonsData.items.filter(a => !a.toggleable && a.levels && a.levels.length);
+      const locked = addonsData.items.filter(a => !a.toggleable && (!a.levels || !a.levels.length));
+
+      function renderInto(listId, items, emptyMsg) {
+        const el = document.getElementById(listId);
+        el.innerHTML = items.length ? items.map(addonCardHtml).join('') : `<div class="empty-state">${emptyMsg}</div>`;
+        el.querySelectorAll('.btn-toggle-addon').forEach(b => b.addEventListener('click', () => toggleAddon(b.dataset.key, b.dataset.active === '1', b)));
+        el.querySelectorAll('details.manage-jabatan').forEach(wireManageJabatanSection);
+      }
+
+      document.getElementById('toggleableCount').textContent = toggleable.length;
+      document.getElementById('toggleableSection').hidden = !toggleable.length;
+      renderInto('addonList', toggleable, 'Belum ada addon yang bisa dinonaktifkan.');
+
+      document.getElementById('configurableCount').textContent = configurable.length;
+      document.getElementById('configurableSection').hidden = !configurable.length;
+      renderInto('configurableList', configurable, 'Belum ada halaman yang level aksesnya bisa diatur.');
+
+      document.getElementById('lockedCount').textContent = locked.length;
+      document.getElementById('lockedSection').hidden = !locked.length;
+      renderInto('lockedList', locked, '');
+    }
+
+    // Klik/Enter/Spasi pada [data-collapse] buka-tutup kartu -- didaftarkan SEKALI di container
+    // (event delegation), tahan lintas render ulang karena listener-nya nempel di container,
+    // bukan di kartu yang di-render ulang tiap kali.
+    function wireCollapseContainer(id) {
+      const el = document.getElementById(id);
+      el.addEventListener('click', (ev) => {
+        const trigger = ev.target.closest('[data-collapse]');
+        if (trigger) toggleExpanded(trigger.getAttribute('data-collapse'));
+      });
+      el.addEventListener('keydown', (ev) => {
+        if (ev.key !== 'Enter' && ev.key !== ' ') return;
+        const trigger = ev.target.closest('[data-collapse]');
+        if (!trigger) return;
+        ev.preventDefault();
+        toggleExpanded(trigger.getAttribute('data-collapse'));
+      });
+    }
+    wireCollapseContainer('addonList');
+    wireCollapseContainer('configurableList');
+    wireCollapseContainer('lockedList');
+
+    async function loadAddons() {
+      try { addonsData = await api({ action: 'addons.settings.get' }); } catch (e) { showNotice(e.message, 'error'); }
+      renderAddonList();
+    }
+
+    function wireManageJabatanSection(detailsEl) {
+      const key = detailsEl.dataset.key;
+      const level = detailsEl.dataset.level;
+      const customChk = detailsEl.querySelector('.chk-manage-custom');
+      const listBox = detailsEl.querySelector('.jabatan-checklist');
+      const actionsBox = detailsEl.querySelector('.manage-jabatan-actions');
+      const item = () => addonsData.items.find(a => a.key === key);
+      const levelLabel = () => (item()?.levels || []).find(lv => lv.key === level)?.label || level;
+      customChk.addEventListener('change', async () => {
+        if (customChk.checked) {
+          listBox.hidden = false; actionsBox.hidden = false;
+          return;
+        }
+        // Uncheck = balik ke aturan bawaan -- langsung simpan (null), tanpa perlu klik Simpan lagi.
+        listBox.hidden = true; actionsBox.hidden = true;
+        customChk.disabled = true;
+        try {
+          addonsData = await apiPost({ action: 'addons.settings.set', key, level, jabatanIds: null });
+          showNotice(`${levelLabel()} dikembalikan ke aturan bawaan.`);
+          renderAddonList();
+        } catch (e) { showNotice(e.message, 'error'); customChk.disabled = false; renderAddonList(); }
+      });
+      const saveBtn = detailsEl.querySelector('.btn-save-manage-jabatan');
+      saveBtn.addEventListener('click', async () => {
+        const ids = Array.from(detailsEl.querySelectorAll('.chk-manage-jabatan:checked')).map(c => c.value);
+        const label = levelLabel();
+        const nama = item()?.nama || key;
+        if (ids.length === 0 && !window.confirm(`Daftar jabatan dikosongkan -- artinya TIDAK ADA jabatan (selain Super Admin) yang punya akses "${label}" untuk "${nama}". Lanjutkan?`)) return;
+        saveBtn.disabled = true;
+        try {
+          addonsData = await apiPost({ action: 'addons.settings.set', key, level, jabatanIds: ids });
+          showNotice(`${label} "${nama}" disimpan (${ids.length} jabatan).`);
+          renderAddonList();
+        } catch (e) { showNotice(e.message, 'error'); saveBtn.disabled = false; }
+      });
+    }
+
+    async function toggleAddon(key, active, btn) {
+      const item = addonsData.items.find(a => a.key === key);
+      if (!item) return;
+      const confirmMsg = active
+        ? `Nonaktifkan "${item.nama}"?\n\n${item.konsekuensiNonaktif}\n\nData yang sudah tersimpan tidak akan dihapus.`
+        : `Aktifkan "${item.nama}"?\n\n${item.konsekuensiAktif}`;
+      if (!window.confirm(confirmMsg)) return;
+      if (btn) btn.disabled = true;
+      try {
+        addonsData = await apiPost({ action: 'addons.settings.set', key, aktif: !active });
+        showNotice(active ? `${item.nama} dinonaktifkan.` : `${item.nama} diaktifkan.`);
+        renderAddonList();
+      } catch (e) { showNotice(e.message, 'error'); if (btn) btn.disabled = false; }
+    }
+
+    window.addEventListener('DOMContentLoaded', async () => {
+      if (window.PSAccess && window.PSAccess.redirectIfForbidden(getStoredSession(), 'kelolaAddons.html')) return;
+      if (window.PSShell) window.PSShell.mount({ currentPage: window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : '/pages/kelolaAddons/', session: getStoredSession(), getStoredSession, storageKey: STORAGE.session });
+      await loadAddons();
+      if (canManage()) {
+        try { await loadAllJabatan(); renderAddonList(); } catch (e) { showNotice('Gagal memuat daftar jabatan: ' + e.message, 'error'); }
+      }
+    });
+  </script>
+</body>
+</html>

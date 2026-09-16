@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="id">
 <head>
   <meta charset="UTF-8">
@@ -27,17 +27,9 @@
     h1, h2, h3 { margin: 0; text-transform: uppercase; }
     p { margin: 0; line-height: 1.65; }
 
-    .page-intro {
-      margin-bottom: 8px;
-    }
-    .page-intro h1 {
-      font-size: clamp(20px, 3vw, 28px);
-      margin-bottom: 6px;
-    }
-    .page-intro p {
-      color: var(--muted);
-      font-size: 14px;
-    }
+    .page-intro { margin-bottom: 8px; }
+    .page-intro h1 { font-size: clamp(20px, 3vw, 28px); margin-bottom: 6px; }
+    .page-intro p { color: var(--muted); font-size: 14px; }
 
     /* Legend */
     .legend {
@@ -58,23 +50,33 @@
       font-weight: 600;
       color: var(--ink);
     }
-    .legend-dot {
-      width: 13px;
-      height: 13px;
-      border-radius: 4px;
-      flex-shrink: 0;
+    .legend-dot { width: 13px; height: 13px; border-radius: 4px; flex-shrink: 0; }
+    .key-label { font-size: 11px; font-weight: 800; color: var(--accent); margin-right: 2px; }
+
+    /* Catatan penting */
+    .schema-note {
+      margin-top: 16px;
+      padding: 13px 16px;
+      border-radius: 13px;
+      background: rgba(217, 164, 65, 0.08);
+      border: 1px solid rgba(217, 164, 65, 0.30);
+      font-size: 12.5px;
+      color: var(--ink);
+      line-height: 1.6;
     }
-    .key-label {
+    .schema-note b { color: #a06f18; }
+    .schema-note ul { margin: 7px 0 0; padding-left: 18px; }
+    .schema-note li { margin: 4px 0; }
+    .schema-note code {
+      font-family: monospace;
       font-size: 11px;
-      font-weight: 800;
-      color: var(--accent);
-      margin-right: 2px;
+      background: rgba(0, 0, 0, 0.06);
+      padding: 1px 5px;
+      border-radius: 4px;
     }
 
     /* Schema sections */
-    .schema-section {
-      margin-top: 28px;
-    }
+    .schema-section { margin-top: 30px; }
     .schema-section-title {
       font-size: 10px;
       font-weight: 900;
@@ -85,20 +87,28 @@
       padding-bottom: 8px;
       border-bottom: 2px dashed var(--line);
     }
+    .schema-section-title span { color: var(--accent); font-weight: 900; }
     .schema-row {
       display: flex;
       flex-wrap: wrap;
       gap: 14px;
       align-items: flex-start;
     }
-    .schema-row + .schema-row {
-      margin-top: 14px;
+    .schema-row + .schema-row { margin-top: 14px; }
+    .subsection-label {
+      width: 100%;
+      font-size: 11px;
+      font-weight: 800;
+      color: var(--accent);
+      letter-spacing: 0.04em;
+      margin: 10px 0 -2px;
+      text-transform: uppercase;
     }
     .schema-arrow {
       display: flex;
       align-items: center;
       gap: 10px;
-      margin: 10px 0;
+      margin: 14px 0;
       color: var(--muted);
       font-size: 13px;
       font-weight: 600;
@@ -113,9 +123,9 @@
 
     /* Entity cards */
     .entity-card {
-      flex: 1 1 190px;
-      min-width: 175px;
-      max-width: 270px;
+      flex: 1 1 200px;
+      min-width: 185px;
+      max-width: 280px;
       border-radius: 16px;
       border: 2px solid;
       overflow: hidden;
@@ -136,12 +146,7 @@
       margin-bottom: 5px;
       color: #fff;
     }
-    .entity-name {
-      font-size: 15px;
-      font-weight: 800;
-      color: var(--ink);
-      line-height: 1.2;
-    }
+    .entity-name { font-size: 15px; font-weight: 800; color: var(--ink); line-height: 1.2; }
     .entity-table {
       font-size: 11px;
       font-family: monospace;
@@ -149,23 +154,9 @@
       margin-top: 3px;
       opacity: 0.85;
     }
-    .entity-cols {
-      padding: 10px 14px;
-      display: grid;
-      gap: 5px;
-    }
-    .col-row {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      font-size: 12px;
-    }
-    .col-badge {
-      font-size: 9px;
-      font-weight: 900;
-      color: var(--accent);
-      min-width: 18px;
-    }
+    .entity-cols { padding: 10px 14px; display: grid; gap: 5px; }
+    .col-row { display: flex; align-items: center; gap: 5px; font-size: 12px; }
+    .col-badge { font-size: 9px; font-weight: 900; color: var(--accent); min-width: 18px; }
     .col-type {
       font-size: 10px;
       padding: 1px 5px;
@@ -176,14 +167,8 @@
       font-family: monospace;
       white-space: nowrap;
     }
-    .col-name {
-      color: var(--ink);
-      font-weight: 600;
-    }
-    .entity-rels {
-      padding: 8px 14px 12px;
-      border-top: 1px solid rgba(0, 0, 0, 0.06);
-    }
+    .col-name { color: var(--ink); font-weight: 600; }
+    .entity-rels { padding: 8px 14px 12px; border-top: 1px solid rgba(0, 0, 0, 0.06); }
     .rels-title {
       font-size: 9px;
       font-weight: 900;
@@ -205,45 +190,34 @@
     }
 
     /* Category color schemes */
-    .cat-entity {
-      border-color: rgba(58, 110, 165, 0.32);
-    }
+    .cat-root { border-color: rgba(217, 164, 65, 0.5); }
+    .cat-root .entity-tag { background: #d9a441; }
+    .cat-root .entity-card-head { background: rgba(217, 164, 65, 0.12); }
+
+    .cat-entity { border-color: rgba(58, 110, 165, 0.32); }
     .cat-entity .entity-tag { background: #3a6ea5; }
     .cat-entity .entity-card-head { background: rgba(58, 110, 165, 0.06); }
 
-    .cat-struct {
-      border-color: rgba(74, 122, 74, 0.32);
-    }
+    .cat-struct { border-color: rgba(74, 122, 74, 0.32); }
     .cat-struct .entity-tag { background: #4a7a4a; }
     .cat-struct .entity-card-head { background: rgba(74, 122, 74, 0.06); }
 
-    .cat-activity {
-      border-color: rgba(185, 118, 80, 0.35);
-    }
+    .cat-activity { border-color: rgba(185, 118, 80, 0.35); }
     .cat-activity .entity-tag { background: #b97650; }
     .cat-activity .entity-card-head { background: rgba(185, 118, 80, 0.07); }
 
-    .cat-support {
-      border-color: rgba(123, 106, 88, 0.28);
-    }
+    .cat-support { border-color: rgba(123, 106, 88, 0.28); }
     .cat-support .entity-tag { background: #7b6a58; }
     .cat-support .entity-card-head { background: rgba(123, 106, 88, 0.05); }
 
-    .cat-pivot {
-      border-color: rgba(130, 100, 160, 0.3);
-    }
+    .cat-pivot { border-color: rgba(130, 100, 160, 0.3); }
     .cat-pivot .entity-tag { background: #826490; }
     .cat-pivot .entity-card-head { background: rgba(130, 100, 160, 0.06); }
 
-    .panel {
-      overflow: auto;
-
-    }
+    .panel { overflow: auto; }
 
     /* Tree diagram section */
-    .tree-section {
-      margin-top: 24px;
-    }
+    .tree-section { margin-top: 24px; }
     .tree-section-title {
       font-size: 10px;
       font-weight: 900;
@@ -268,10 +242,7 @@
       border-color: var(--accent);
       box-shadow: 0 4px 18px rgba(185, 118, 80, 0.12);
     }
-    #treeChart {
-      width: 100%;
-      height: 620px;
-    }
+    #treeChart { width: 100%; height: 1150px; }
     .tree-zoom-hint {
       position: absolute;
       bottom: 10px;
@@ -300,9 +271,7 @@
       cursor: zoom-out;
       animation: tree-overlay-in 0.18s ease;
     }
-    #treeOverlay.is-open {
-      display: grid;
-    }
+    #treeOverlay.is-open { display: grid; }
     @keyframes tree-overlay-in {
       from { opacity: 0; transform: scale(0.97); }
       to   { opacity: 1; transform: scale(1); }
@@ -333,11 +302,9 @@
       transition: background 0.15s;
       z-index: 10001;
     }
-    #treeOverlayClose:hover {
-      background: rgba(255, 255, 255, 0.28);
-    }
+    #treeOverlayClose:hover { background: rgba(255, 255, 255, 0.28); }
   </style>
-  <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+  <script src="../../vendor/echarts/echarts.min.js"></script>
 </head>
 <body>
   <header class="app-header">
@@ -359,46 +326,78 @@
         <section class="panel">
           <div class="page-intro">
             <h1>Skema Database</h1>
-            <p>Gambaran struktur tabel dan relasi data dalam sistem pendataan santri.</p>
+            <p>Peta tabel &amp; relasi sistem pendataan santri, dibaca langsung dari definisi <code style="font-family:monospace;font-size:12px;">SCHEMAS</code> di backend. Urutan mengikuti alur data sebenarnya: <b>Tahun Ajaran</b> di paling atas sebagai fondasi.</p>
           </div>
 
           <!-- Legend -->
           <div class="legend">
-            <div class="legend-item">
-              <span class="legend-dot" style="background:#3a6ea5;"></span>Entitas Inti
-            </div>
-            <div class="legend-item">
-              <span class="legend-dot" style="background:#4a7a4a;"></span>Struktur Pembelajaran
-            </div>
-            <div class="legend-item">
-              <span class="legend-dot" style="background:#b97650;"></span>Kegiatan &amp; Penilaian
-            </div>
-            <div class="legend-item">
-              <span class="legend-dot" style="background:#7b6a58;"></span>Referensi &amp; Pendukung
-            </div>
-            <div class="legend-item">
-              <span class="legend-dot" style="background:#826490;"></span>Tabel Pivot
-            </div>
-            <div class="legend-item">
-              <span class="key-label">PK</span>Primary Key
-            </div>
-            <div class="legend-item">
-              <span class="key-label">FK</span>Foreign Key
-            </div>
+            <div class="legend-item"><span class="legend-dot" style="background:#d9a441;"></span>Fondasi (Tahun Ajaran)</div>
+            <div class="legend-item"><span class="legend-dot" style="background:#3a6ea5;"></span>Entitas Inti</div>
+            <div class="legend-item"><span class="legend-dot" style="background:#4a7a4a;"></span>Struktur Kelompok</div>
+            <div class="legend-item"><span class="legend-dot" style="background:#b97650;"></span>Kegiatan &amp; Penilaian</div>
+            <div class="legend-item"><span class="legend-dot" style="background:#7b6a58;"></span>Referensi &amp; Pendukung</div>
+            <div class="legend-item"><span class="legend-dot" style="background:#826490;"></span>Tabel Pivot / Log</div>
+            <div class="legend-item"><span class="key-label">PK</span>Primary Key</div>
+            <div class="legend-item"><span class="key-label">FK</span>Foreign Key</div>
           </div>
 
-          <!-- ═══ Diagram Pohon ═══ -->
+          <div class="schema-note">
+            <b>Konvensi yang perlu diingat sebelum membaca kartu:</b>
+            <ul>
+              <li><b>Kelompok (Halaqoh/Kelas Siang/Regu/Halaqoh Tasmi') punya 3 parent FK sekaligus,</b> bukan cuma Tahun Ajaran: santri (roster), pengurus (pengampu/pengajar/pembina), dan <code>tahun_ajaran_id</code>. Diagram pohon di bawah hanya menampilkan <b>1 sumbu utama</b> (Tahun Ajaran &rarr; kelompok) demi keterbacaan &mdash; 2 relasi FK lainnya cuma tampak sebagai kolom FK &amp; chip &laquo;Diturunkan dari&raquo; di kartu Level 2, bukan sebagai cabang pohon.</li>
+              <li><b>Tahun Ajaran tetap fondasi temporal.</b> Ganti TA aktif = ganti seluruh konteks kelompok &amp; roster untuk periode itu; ini alasan dia diletakkan di Level 0, bukan berarti dia satu-satunya induk.</li>
+              <li><b>Keanggotaan kelompok TIDAK pakai tabel pivot.</b> Daftar santri disimpan sebagai <em>array JSON</em> di baris kelompok: <code>id_santri</code> pada halaqoh/regu/halaqohTasmi, tapi <code>id_murid</code> khusus <code>kelasSiang</code>.</li>
+              <li><b>Kolom audit standar disembunyikan dari kartu.</b> Hampir semua tabel juga punya: <code>status</code>, <code>created_by_id/name</code>, <code>updated_by_id/name</code>, <code>edit_history</code>, <code>created_at</code>, <code>updated_at</code> (sebagian + <code>is_deleted</code>).</li>
+              <li>Semua kolom fisik bertipe <code>TEXT</code> di SQLite (mesin sheet-state); tipe di bawah adalah tipe <em>logis</em> untuk memudahkan baca.</li>
+            </ul>
+          </div>
+
+          <!-- Diagram Pohon -->
           <div class="tree-section">
-            <div class="tree-section-title">Diagram Pohon Relasi</div>
+            <div class="tree-section-title">Diagram Pohon Relasi <span style="text-transform:none;letter-spacing:0;font-weight:600;color:var(--muted);">&mdash; 1 sumbu utama (Tahun Ajaran); lihat kartu untuk FK Santri/Pengurus</span></div>
             <div class="tree-wrap" id="treeWrap" title="Klik untuk zoom penuh">
-              <span class="tree-zoom-hint">⛶ klik untuk zoom</span>
+              <span class="tree-zoom-hint">&#9970; klik untuk zoom</span>
               <div id="treeChart"></div>
             </div>
           </div>
 
-          <!-- ═══ Level 1: Entitas Inti ═══ -->
+          <!-- LEVEL 0 -->
           <div class="schema-section">
-            <div class="schema-section-title">Entitas Inti</div>
+            <div class="schema-section-title"><span>Level 0</span> &nbsp;&middot;&nbsp; Fondasi</div>
+            <div class="schema-row">
+              <div class="entity-card cat-root">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Fondasi</div>
+                  <div class="entity-name">Tahun Ajaran</div>
+                  <div class="entity-table">tabel: tahunAjaran</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">nama</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">semester</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">DATE</span><span class="col-name">tanggal_mulai</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">DATE</span><span class="col-name">tanggal_selesai</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">BOOL</span><span class="col-name">is_aktif</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">BOOL</span><span class="col-name">is_locked</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">INT</span><span class="col-name">urutan</span></div>
+                </div>
+                <div class="entity-rels">
+                  <div class="rels-title">Menaungi (via tahun_ajaran_id)</div>
+                  <span class="rel-chip">Halaqoh</span>
+                  <span class="rel-chip">Kelas Siang</span>
+                  <span class="rel-chip">Regu</span>
+                  <span class="rel-chip">Halaqoh Tasmi'</span>
+                  <span class="rel-chip">+ mayoritas tabel kegiatan</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="schema-arrow">&darr; Di dalam satu Tahun Ajaran, ada dua entitas orang &darr;</div>
+
+          <!-- LEVEL 1 -->
+          <div class="schema-section">
+            <div class="schema-section-title"><span>Level 1</span> &nbsp;&middot;&nbsp; Entitas Inti (Orang &amp; Jabatan)</div>
             <div class="schema-row">
 
               <div class="entity-card cat-entity">
@@ -409,19 +408,24 @@
                 </div>
                 <div class="entity-cols">
                   <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
-                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">nama</span></div>
-                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">no_induk</span></div>
-                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">NIK</span></div>
-                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">jenis_kelamin</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">nama_lengkap_akte</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">nama_lengkap_kk</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">nama_setelah_diubah</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">nama_panggilan</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">no_induk <span style="opacity:.6">(NIS)</span></span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">nik</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">jenis_kelamin_singkat</span></div>
                   <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">status</span></div>
-                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">tanggal_lahir</span></div>
-                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">alamat</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">angkatan</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">jenis_akad</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">DATE</span><span class="col-name">tanggal_masuk</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">BOOL</span><span class="col-name">is_deleted</span></div>
                 </div>
                 <div class="entity-rels">
                   <div class="rels-title">Terhubung ke</div>
-                  <span class="rel-chip">→ Halaqoh</span>
-                  <span class="rel-chip">→ Kelas Siang</span>
-                  <span class="rel-chip">→ Regu</span>
+                  <span class="rel-chip">&rarr; array id_santri: Halaqoh / Regu / Halaqoh Tasmi'</span>
+                  <span class="rel-chip">&rarr; array id_murid: Kelas Siang</span>
+                  <span class="rel-chip">&rarr; subjek semua tabel kegiatan &amp; kesantrian</span>
                 </div>
               </div>
 
@@ -433,19 +437,22 @@
                 </div>
                 <div class="entity-cols">
                   <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
-                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">nama</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">name</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">username</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">password</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">token</span></div>
                   <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">email</span></div>
                   <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">gender</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">no_hp</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">jenis_pengurus</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">ttd</span></div>
                   <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">status</span></div>
-                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">photo_url</span></div>
-                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">token</span></div>
                 </div>
                 <div class="entity-rels">
                   <div class="rels-title">Terhubung ke</div>
-                  <span class="rel-chip">→ Jabatan (via pivot)</span>
-                  <span class="rel-chip">→ Kelas Siang</span>
-                  <span class="rel-chip">→ Halaqoh</span>
-                  <span class="rel-chip">→ Regu</span>
+                  <span class="rel-chip">&rarr; Jabatan (via pengurus_jabatan)</span>
+                  <span class="rel-chip">&rarr; pengampu / pengajar / pembina kelompok</span>
+                  <span class="rel-chip">&rarr; subjek modul SDM</span>
                 </div>
               </div>
 
@@ -464,7 +471,8 @@
                 </div>
                 <div class="entity-rels">
                   <div class="rels-title">Terhubung ke</div>
-                  <span class="rel-chip">→ Pengurus (via pivot)</span>
+                  <span class="rel-chip">&harr; Pengurus (pivot)</span>
+                  <span class="rel-chip">&harr; Jabatan Relasi (hierarki)</span>
                 </div>
               </div>
 
@@ -479,44 +487,37 @@
                   <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_pengurus</span></div>
                   <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_jabatan</span></div>
                   <div class="col-row"><span class="col-badge"></span><span class="col-type">BOOL</span><span class="col-name">is_utama</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">peran</span></div>
                   <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">status</span></div>
+                </div>
+              </div>
+
+              <div class="entity-card cat-pivot">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Pivot</div>
+                  <div class="entity-name">Jabatan Relasi</div>
+                  <div class="entity-table">tabel: jabatan_relasi</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">jabatan_id</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">atasan_jabatan_id</span></div>
+                </div>
+                <div class="entity-rels">
+                  <div class="rels-title">Fungsi</div>
+                  <span class="rel-chip">Pohon atasan&ndash;bawahan antar jabatan (dipakai Audit Bawahan)</span>
                 </div>
               </div>
 
             </div>
           </div>
 
-          <div class="schema-arrow">↓ Santri &amp; Pengurus masuk ke struktur belajar ↓</div>
+          <div class="schema-arrow">&darr; Santri &amp; Pengurus dikelompokkan per Tahun Ajaran &darr;</div>
 
-          <!-- ═══ Level 2: Struktur Pembelajaran ═══ -->
+          <!-- LEVEL 2 -->
           <div class="schema-section">
-            <div class="schema-section-title">Struktur Pembelajaran &amp; Organisasi</div>
+            <div class="schema-section-title"><span>Level 2</span> &nbsp;&middot;&nbsp; Struktur Kelompok <span style="text-transform:none;letter-spacing:0;font-weight:600;">(tiap kelompok = 3 FK masuk sekaligus: Santri + Pengurus + Tahun Ajaran)</span></div>
             <div class="schema-row">
-
-              <div class="entity-card cat-struct">
-                <div class="entity-card-head">
-                  <div class="entity-tag">Struktur</div>
-                  <div class="entity-name">Kelas Siang</div>
-                  <div class="entity-table">tabel: kelasSiang</div>
-                </div>
-                <div class="entity-cols">
-                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
-                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">name</span></div>
-                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">jam</span></div>
-                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_pengajar</span></div>
-                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">JSON</span><span class="col-name">id_murid</span></div>
-                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">gender_group</span></div>
-                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">tahun_ajaran_id</span></div>
-                </div>
-                <div class="entity-rels">
-                  <div class="rels-title">Terhubung ke</div>
-                  <span class="rel-chip">← Santri</span>
-                  <span class="rel-chip">← Pengurus</span>
-                  <span class="rel-chip">← Tahun Ajaran</span>
-                  <span class="rel-chip">→ Absensi Kelas</span>
-                  <span class="rel-chip">→ Nilai UP</span>
-                </div>
-              </div>
 
               <div class="entity-card cat-struct">
                 <div class="entity-card-head">
@@ -534,11 +535,47 @@
                   <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">tahun_ajaran_id</span></div>
                 </div>
                 <div class="entity-rels">
-                  <div class="rels-title">Terhubung ke</div>
-                  <span class="rel-chip">← Santri</span>
-                  <span class="rel-chip">← Pengurus</span>
-                  <span class="rel-chip">← Tahun Ajaran</span>
-                  <span class="rel-chip">→ Absensi Halaqoh</span>
+                  <div class="rels-title">Diturunkan dari (3 parent FK)</div>
+                  <span class="rel-chip">&larr; Santri (id_santri)</span>
+                  <span class="rel-chip">&larr; Pengurus (id_pengampu_halaqoh/_badal)</span>
+                  <span class="rel-chip">&larr; Tahun Ajaran</span>
+                  <div class="rels-title" style="margin-top:6px;">Menghasilkan</div>
+                  <span class="rel-chip">&rarr; Absensi Halaqoh</span>
+                  <span class="rel-chip">&rarr; Hafalan Harian</span>
+                  <span class="rel-chip">&rarr; Ujian Hafalan</span>
+                  <span class="rel-chip">&rarr; Nilai UAS</span>
+                </div>
+              </div>
+
+              <div class="entity-card cat-struct">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Struktur</div>
+                  <div class="entity-name">Kelas Siang</div>
+                  <div class="entity-table">tabel: kelasSiang</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">name</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">jam</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_pengajar</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_pengajar_badal</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">JSON</span><span class="col-name">id_murid</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">jenis</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">silabus</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">tahun_ajaran_id</span></div>
+                </div>
+                <div class="entity-rels">
+                  <div class="rels-title">Diturunkan dari (3 parent FK)</div>
+                  <span class="rel-chip">&larr; Santri (id_murid)</span>
+                  <span class="rel-chip">&larr; Pengurus (id_pengajar/_badal)</span>
+                  <span class="rel-chip">&larr; Tahun Ajaran</span>
+                  <div class="rels-title" style="margin-top:6px;">Menghasilkan</div>
+                  <span class="rel-chip" style="background:rgba(217,164,65,.18);color:#a06f18;">roster = id_murid, bukan id_santri</span>
+                  <span class="rel-chip">&rarr; Absensi Kelas</span>
+                  <span class="rel-chip">&rarr; Nilai UP</span>
+                  <span class="rel-chip">&rarr; Nilai Wajib Ujian</span>
+                  <span class="rel-chip">&rarr; Silabus Kelas</span>
+                  <span class="rel-chip">&rarr; Soal / Quiz</span>
                 </div>
               </div>
 
@@ -552,27 +589,171 @@
                   <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
                   <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">name</span></div>
                   <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_pembina</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_pembina_badal</span></div>
                   <div class="col-row"><span class="col-badge">FK</span><span class="col-type">JSON</span><span class="col-name">id_santri</span></div>
                   <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">gender_group</span></div>
                   <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">tahun_ajaran_id</span></div>
                 </div>
                 <div class="entity-rels">
-                  <div class="rels-title">Terhubung ke</div>
-                  <span class="rel-chip">← Santri</span>
-                  <span class="rel-chip">← Pengurus (pembina)</span>
-                  <span class="rel-chip">← Tahun Ajaran</span>
+                  <div class="rels-title">Diturunkan dari (3 parent FK)</div>
+                  <span class="rel-chip">&larr; Santri (id_santri)</span>
+                  <span class="rel-chip">&larr; Pengurus (id_pembina/_badal)</span>
+                  <span class="rel-chip">&larr; Tahun Ajaran</span>
+                  <div class="rels-title" style="margin-top:6px;">Menghasilkan</div>
+                  <span class="rel-chip">&rarr; Absensi Regu</span>
+                  <span class="rel-chip">&rarr; Perkembangan Bulanan</span>
+                  <span class="rel-chip">&rarr; Akhlak &amp; Kepribadian</span>
+                  <span class="rel-chip">&rarr; Deskripsi Raport</span>
+                </div>
+              </div>
+
+              <div class="entity-card cat-struct">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Struktur</div>
+                  <div class="entity-name">Halaqoh Tasmi'</div>
+                  <div class="entity-table">tabel: halaqohTasmi</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">name</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_pengampu_halaqoh</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_pengampu_badal</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">JSON</span><span class="col-name">id_santri</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">tahun_ajaran_id</span></div>
+                </div>
+                <div class="entity-rels">
+                  <div class="rels-title">Diturunkan dari (3 parent FK)</div>
+                  <span class="rel-chip">&larr; Santri (id_santri)</span>
+                  <span class="rel-chip">&larr; Pengurus (id_pengampu_halaqoh/_badal)</span>
+                  <span class="rel-chip">&larr; Tahun Ajaran</span>
+                  <div class="rels-title" style="margin-top:6px;">Menghasilkan</div>
+                  <span class="rel-chip">&rarr; Tasmi' Setoran</span>
+                </div>
+              </div>
+
+              <div class="entity-card cat-pivot">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Log</div>
+                  <div class="entity-name">Riwayat Pindah Halaqoh</div>
+                  <div class="entity-table">tabel: riwayatPindahHalaqoh</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_santri</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_halaqoh_asal</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_halaqoh_tujuan</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_tahun_ajaran</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">DATE</span><span class="col-name">tanggal_pindah</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">alasan</span></div>
+                </div>
+              </div>
+
+              <div class="entity-card cat-pivot">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Log</div>
+                  <div class="entity-name">Riwayat Pindah Regu</div>
+                  <div class="entity-table">tabel: riwayatPindahRegu</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_santri</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_regu_asal</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_regu_tujuan</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_tahun_ajaran</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">DATE</span><span class="col-name">tanggal_pindah</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">alasan</span></div>
                 </div>
               </div>
 
             </div>
           </div>
 
-          <div class="schema-arrow">↓ Kelas &amp; Halaqoh menghasilkan data kegiatan ↓</div>
+          <div class="schema-arrow">&darr; Tiap kelompok menghasilkan data kegiatan &amp; penilaian &darr;</div>
 
-          <!-- ═══ Level 3: Kegiatan & Penilaian ═══ -->
+          <!-- LEVEL 3 -->
           <div class="schema-section">
-            <div class="schema-section-title">Kegiatan &amp; Penilaian</div>
+            <div class="schema-section-title"><span>Level 3</span> &nbsp;&middot;&nbsp; Kegiatan &amp; Penilaian</div>
+
             <div class="schema-row">
+              <div class="subsection-label">Turunan Halaqoh</div>
+
+              <div class="entity-card cat-activity">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Kegiatan</div>
+                  <div class="entity-name">Absensi Halaqoh</div>
+                  <div class="entity-table">tabel: absensiHalaqoh</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">DATE</span><span class="col-name">tanggal</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">sesi</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_halaqoh</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_pengurus_input</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">JSON</span><span class="col-name">data_absensi</span></div>
+                </div>
+              </div>
+
+              <div class="entity-card cat-activity">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Kegiatan</div>
+                  <div class="entity-name">Hafalan Harian</div>
+                  <div class="entity-table">tabel: hafalanHarian</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">DATE</span><span class="col-name">tanggal</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_halaqoh</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_santri</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_pengurus</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">ziyadah</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">muroja_sabaqi</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">muroja_manzili</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">jenis</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">tahun_ajaran_id</span></div>
+                </div>
+              </div>
+
+              <div class="entity-card cat-activity">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Penilaian</div>
+                  <div class="entity-name">Ujian Hafalan</div>
+                  <div class="entity-table">tabel: ujianHafalan</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">tipe</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_halaqoh</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_santri</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_penguji</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_tahun_ajaran</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">DATE</span><span class="col-name">tanggal_ujian</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">INT</span><span class="col-name">juz_mulai / juz_akhir</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">NUM</span><span class="col-name">nilai</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">BOOL</span><span class="col-name">lulus</span></div>
+                </div>
+              </div>
+
+              <div class="entity-card cat-activity">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Penilaian</div>
+                  <div class="entity-name">Nilai UAS</div>
+                  <div class="entity-table">tabel: nilaiUas</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_santri</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_halaqoh</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_tahun_ajaran</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">NUM</span><span class="col-name">nilai_quran / _mufrodat</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">NUM</span><span class="col-name">nilai_hadits / _adzkar</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">NUM</span><span class="col-name">kkm_* (per komponen)</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">JSON</span><span class="col-name">entries_* (multi-nilai)</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="schema-row">
+              <div class="subsection-label">Turunan Kelas Siang</div>
 
               <div class="entity-card cat-activity">
                 <div class="entity-card-head">
@@ -586,14 +767,12 @@
                   <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_kelas</span></div>
                   <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_pengurus_input</span></div>
                   <div class="col-row"><span class="col-badge"></span><span class="col-type">JSON</span><span class="col-name">data_absensi</span></div>
-                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">catatan</span></div>
-                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">status</span></div>
                 </div>
               </div>
 
               <div class="entity-card cat-activity">
                 <div class="entity-card-head">
-                  <div class="entity-tag">Kegiatan</div>
+                  <div class="entity-tag">Penilaian</div>
                   <div class="entity-name">Nilai UP</div>
                   <div class="entity-table">tabel: nilaiUp</div>
                 </div>
@@ -602,75 +781,522 @@
                   <div class="col-row"><span class="col-badge"></span><span class="col-type">DATE</span><span class="col-name">tanggal</span></div>
                   <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_kelas</span></div>
                   <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_pengajar</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">jenis / sesi</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">NUM</span><span class="col-name">persen <span style="opacity:.6">(bobot %)</span></span></div>
                   <div class="col-row"><span class="col-badge"></span><span class="col-type">JSON</span><span class="col-name">detail_nilai</span></div>
-                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">catatan</span></div>
-                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">status</span></div>
                 </div>
               </div>
 
               <div class="entity-card cat-activity">
                 <div class="entity-card-head">
+                  <div class="entity-tag">Aturan</div>
+                  <div class="entity-name">Nilai Wajib Ujian</div>
+                  <div class="entity-table">tabel: nilaiWajibUjian</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">jenis / sesi</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_kelas</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">tahun_ajaran_id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">DATE</span><span class="col-name">tanggal</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">INT</span><span class="col-name">max_terlambat</span></div>
+                </div>
+                <div class="entity-rels">
+                  <div class="rels-title">Catatan</div>
+                  <span class="rel-chip">tabel lama generik: nilaiWajib (tanpa tahun_ajaran_id)</span>
+                </div>
+              </div>
+
+              <div class="entity-card cat-activity">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Materi</div>
+                  <div class="entity-name">Silabus Kelas</div>
+                  <div class="entity-table">tabel: kelasSilabus</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">kelas_id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">INT</span><span class="col-name">urutan</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">nama_materi</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">BOOL</span><span class="col-name">selesai</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">DATE</span><span class="col-name">deadline</span></div>
+                </div>
+              </div>
+
+              <div class="entity-card cat-activity">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Bank</div>
+                  <div class="entity-name">Soal</div>
+                  <div class="entity-table">tabel: soal</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">kelas_id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">jenis_ujian</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">tahun_ajaran_id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">tipe / nomor</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">pertanyaan / opsi_a&hellip;d</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">jawaban / bobot</span></div>
+                </div>
+              </div>
+
+              <div class="entity-card cat-activity">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Quiz</div>
+                  <div class="entity-name">Quiz</div>
+                  <div class="entity-table">tabel: quiz</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">kelas_id</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">tahun_ajaran_id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">title</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">tipe <span style="opacity:.6">(drill / examination)</span></span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">JSON</span><span class="col-name">questions_json / config_json</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">publish_state</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">folder_id</span></div>
+                </div>
+                <div class="entity-rels">
+                  <div class="rels-title">Terhubung ke</div>
+                  <span class="rel-chip">&rarr; Quiz Folder</span>
+                  <span class="rel-chip">&rarr; Quiz Jawaban</span>
+                  <span class="rel-chip">&rarr; Quiz Bacaan</span>
+                </div>
+              </div>
+
+              <div class="entity-card cat-activity">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Quiz</div>
+                  <div class="entity-name">Quiz Folder</div>
+                  <div class="entity-table">tabel: quizFolder</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">kelas_id</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">tahun_ajaran_id</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">parent_id <span style="opacity:.6">(bertingkat)</span></span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">name / color</span></div>
+                </div>
+              </div>
+
+              <div class="entity-card cat-activity">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Quiz</div>
+                  <div class="entity-name">Quiz Jawaban</div>
+                  <div class="entity-table">tabel: quizJawaban</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">quiz_id</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">kelas_id</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">santri_id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">INT</span><span class="col-name">attempt_no</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">JSON</span><span class="col-name">answers_json / order_json</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">NUM</span><span class="col-name">auto_score / final_score</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">status_kerja</span></div>
+                </div>
+              </div>
+
+              <div class="entity-card cat-activity">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Quiz</div>
+                  <div class="entity-name">Quiz Bacaan</div>
+                  <div class="entity-table">tabel: quizBacaan</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">quiz_id</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">kelas_id</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">santri_id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">INT</span><span class="col-name">current_slide</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">DATE</span><span class="col-name">finished_at</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="schema-row">
+              <div class="subsection-label">Turunan Regu &amp; Halaqoh Tasmi'</div>
+
+              <div class="entity-card cat-activity">
+                <div class="entity-card-head">
                   <div class="entity-tag">Kegiatan</div>
-                  <div class="entity-name">Absensi Halaqoh</div>
-                  <div class="entity-table">tabel: absensiHalaqoh</div>
+                  <div class="entity-name">Absensi Regu</div>
+                  <div class="entity-table">tabel: absensiRegu</div>
                 </div>
                 <div class="entity-cols">
                   <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
                   <div class="col-row"><span class="col-badge"></span><span class="col-type">DATE</span><span class="col-name">tanggal</span></div>
-                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_halaqoh</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_regu</span></div>
                   <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_pengurus_input</span></div>
                   <div class="col-row"><span class="col-badge"></span><span class="col-type">JSON</span><span class="col-name">data_absensi</span></div>
-                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">catatan</span></div>
-                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">status</span></div>
                 </div>
               </div>
 
               <div class="entity-card cat-activity">
                 <div class="entity-card-head">
-                  <div class="entity-tag">Kegiatan</div>
-                  <div class="entity-name">Absensi Guru</div>
-                  <div class="entity-table">tabel: absensiGuru</div>
+                  <div class="entity-tag">Raport</div>
+                  <div class="entity-name">Perkembangan Bulanan</div>
+                  <div class="entity-table">tabel: perkembanganBulanan</div>
                 </div>
                 <div class="entity-cols">
                   <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_santri</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_regu</span></div>
                   <div class="col-row"><span class="col-badge"></span><span class="col-type">DATE</span><span class="col-name">tanggal</span></div>
-                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">day_status</span></div>
-                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">nonaktif_reason</span></div>
-                  <div class="col-row"><span class="col-badge"></span><span class="col-type">JSON</span><span class="col-name">data_absensi</span></div>
-                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">status</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">teks</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_pengisi</span></div>
+                </div>
+              </div>
+
+              <div class="entity-card cat-activity">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Raport</div>
+                  <div class="entity-name">Akhlak &amp; Kepribadian</div>
+                  <div class="entity-table">tabel: akhlakNilai</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_santri</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_regu</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">tahun_ajaran_id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">JSON</span><span class="col-name">nilai_json <span style="opacity:.6">(A/B/C/D)</span></span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_pengisi</span></div>
+                </div>
+              </div>
+
+              <div class="entity-card cat-activity">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Raport</div>
+                  <div class="entity-name">Deskripsi Raport</div>
+                  <div class="entity-table">tabel: deskripsiRaport</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_santri</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_regu</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">tahun_ajaran_id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">teks</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_pengisi</span></div>
+                </div>
+              </div>
+
+              <div class="entity-card cat-activity">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Penilaian</div>
+                  <div class="entity-name">Tasmi' Setoran</div>
+                  <div class="entity-table">tabel: tasmiSetoran</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_halaqoh_tasmi</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">DATE</span><span class="col-name">tanggal</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">tahun_ajaran_id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">JSON</span><span class="col-name">entries_json <span style="opacity:.6">(nilai semua santri)</span></span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_pengisi</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="schema-row">
+              <div class="subsection-label">Melekat langsung ke Santri</div>
+
+              <div class="entity-card cat-activity">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Raport</div>
+                  <div class="entity-name">Level Marhalah</div>
+                  <div class="entity-table">tabel: santriKelasLevel</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_santri</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">tahun_ajaran_id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">level <span style="opacity:.6">(Tamhidi, Takmili&hellip;)</span></span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_pengisi</span></div>
+                </div>
+              </div>
+
+              <div class="entity-card cat-activity">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Akademik</div>
+                  <div class="entity-name">Santri Pelajaran</div>
+                  <div class="entity-table">tabel: santriPelajaran</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">santri_id</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">pelajaran_id</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">level_id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">NUM</span><span class="col-name">nilai</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">tahun_ajaran / semester</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- LEVEL 4 -->
+          <div class="schema-section">
+            <div class="schema-section-title"><span>Level 4</span> &nbsp;&middot;&nbsp; Kesantrian <span style="text-transform:none;letter-spacing:0;font-weight:600;">(melekat ke Santri, ber-tahun_ajaran_id)</span></div>
+            <div class="schema-row">
+
+              <div class="entity-card cat-activity">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Kesantrian</div>
+                  <div class="entity-name">Santri Sakit</div>
+                  <div class="entity-table">tabel: santriSakit</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">santri_id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">DATE</span><span class="col-name">tanggal_mulai / _sembuh</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">keterangan / tempat_perawatan</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">BOOL</span><span class="col-name">boleh_masuk</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">tahun_ajaran_id</span></div>
+                </div>
+              </div>
+
+              <div class="entity-card cat-activity">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Kesantrian</div>
+                  <div class="entity-name">Izin Pulang</div>
+                  <div class="entity-table">tabel: izinPulang</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">santri_id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">DATE</span><span class="col-name">tanggal_izin</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">DATE</span><span class="col-name">tanggal_kembali_rencana</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">DATE</span><span class="col-name">tanggal_kembali_aktual</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">keperluan / hukuman_keterlambatan</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">tahun_ajaran_id</span></div>
+                </div>
+              </div>
+
+              <div class="entity-card cat-activity">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Kesantrian</div>
+                  <div class="entity-name">Pelanggaran</div>
+                  <div class="entity-table">tabel: pelanggaran</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">santri_id</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">jenis_id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">kategori</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">DATE</span><span class="col-name">tanggal</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">status_hukuman / hukuman</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">tahun_ajaran_id</span></div>
+                </div>
+              </div>
+
+              <div class="entity-card cat-support">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Referensi</div>
+                  <div class="entity-name">Jenis Pelanggaran</div>
+                  <div class="entity-table">tabel: pelanggaranJenis</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">nama</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">kategori</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">deskripsi</span></div>
+                </div>
+              </div>
+
+              <div class="entity-card cat-activity">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Zoom</div>
+                  <div class="entity-name">Zoom Kehadiran</div>
+                  <div class="entity-table">tabel: zoom_kehadiran</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">santri_id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">INT</span><span class="col-name">bulan / tahun / pekan</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">status / jam_masuk</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">BOOL</span><span class="col-name">kamera_on</span></div>
+                </div>
+              </div>
+
+              <div class="entity-card cat-activity">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Zoom</div>
+                  <div class="entity-name">Zoom Kunjungan</div>
+                  <div class="entity-table">tabel: zoom_kunjungan</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">santri_id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">INT</span><span class="col-name">bulan / tahun</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">status_dijenguk / status_keluar</span></div>
                 </div>
               </div>
 
             </div>
           </div>
 
-          <!-- ═══ Level 4: Referensi & Pendukung ═══ -->
+          <!-- LEVEL 5 -->
           <div class="schema-section">
-            <div class="schema-section-title">Referensi &amp; Pendukung</div>
+            <div class="schema-section-title"><span>Level 5</span> &nbsp;&middot;&nbsp; SDM / Kepegawaian <span style="text-transform:none;letter-spacing:0;font-weight:600;">(melekat ke Pengurus)</span></div>
             <div class="schema-row">
+
+              <div class="entity-card cat-activity">
+                <div class="entity-card-head">
+                  <div class="entity-tag">SDM</div>
+                  <div class="entity-name">Absensi Pengurus</div>
+                  <div class="entity-table">tabel: absensiPengurus</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_pengurus</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">DATE</span><span class="col-name">tanggal / waktu</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">tipe <span style="opacity:.6">(masuk / pulang)</span></span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">NUM</span><span class="col-name">lat_absen / lng_absen / jarak_meter</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">BOOL</span><span class="col-name">luar_lokasi</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">foto_url</span></div>
+                </div>
+              </div>
 
               <div class="entity-card cat-support">
                 <div class="entity-card-head">
                   <div class="entity-tag">Referensi</div>
-                  <div class="entity-name">Tahun Ajaran</div>
-                  <div class="entity-table">tabel: tahunAjaran</div>
+                  <div class="entity-name">Koordinat Absensi</div>
+                  <div class="entity-table">tabel: koordinatAbsensi</div>
                 </div>
                 <div class="entity-cols">
                   <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
-                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">nama</span></div>
-                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">semester</span></div>
-                  <div class="col-row"><span class="col-badge"></span><span class="col-type">DATE</span><span class="col-name">tanggal_mulai</span></div>
-                  <div class="col-row"><span class="col-badge"></span><span class="col-type">DATE</span><span class="col-name">tanggal_selesai</span></div>
-                  <div class="col-row"><span class="col-badge"></span><span class="col-type">BOOL</span><span class="col-name">is_aktif</span></div>
-                  <div class="col-row"><span class="col-badge"></span><span class="col-type">BOOL</span><span class="col-name">is_locked</span></div>
-                </div>
-                <div class="entity-rels">
-                  <div class="rels-title">Digunakan oleh</div>
-                  <span class="rel-chip">Kelas Siang</span>
-                  <span class="rel-chip">Halaqoh</span>
-                  <span class="rel-chip">Regu</span>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_pengurus</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_lokasi</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">NUM</span><span class="col-name">lat / lng / radius_meter</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">hari_wajib / jam_masuk / jam_keluar</span></div>
                 </div>
               </div>
+
+              <div class="entity-card cat-support">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Referensi</div>
+                  <div class="entity-name">Lokasi Absensi</div>
+                  <div class="entity-table">tabel: lokasiAbsensi</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">nama_lokasi</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">NUM</span><span class="col-name">lat / lng</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">keterangan</span></div>
+                </div>
+              </div>
+
+              <div class="entity-card cat-activity">
+                <div class="entity-card-head">
+                  <div class="entity-tag">SDM</div>
+                  <div class="entity-name">Absensi Guru</div>
+                  <div class="entity-table">tabel: absensiGuru</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">DATE</span><span class="col-name">tanggal</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">day_status / nonaktif_reason</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">JSON</span><span class="col-name">data_absensi <span style="opacity:.6">(per pengurus)</span></span></div>
+                </div>
+              </div>
+
+              <div class="entity-card cat-activity">
+                <div class="entity-card-head">
+                  <div class="entity-tag">SDM</div>
+                  <div class="entity-name">Jurnal SDM</div>
+                  <div class="entity-table">tabel: sdmJurnal</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_pengurus</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">DATE</span><span class="col-name">tanggal</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">jenis_kegiatan / id_ref</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">jam_mulai / jam_selesai</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">jurnal_text</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">BOOL</span><span class="col-name">sah</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">disahkan_oleh_id</span></div>
+                </div>
+              </div>
+
+              <div class="entity-card cat-activity">
+                <div class="entity-card-head">
+                  <div class="entity-tag">SDM</div>
+                  <div class="entity-name">Jadwal Harian Pengurus</div>
+                  <div class="entity-table">tabel: jadwalHarianPengurus</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_pengurus</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">DATE</span><span class="col-name">tanggal</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_tahun_ajaran</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">jam_hadir_shubuh &hellip; jam_hadir_isya</span></div>
+                </div>
+              </div>
+
+              <div class="entity-card cat-activity">
+                <div class="entity-card-head">
+                  <div class="entity-tag">SDM</div>
+                  <div class="entity-name">Fingerprint SDM</div>
+                  <div class="entity-table">tabel: sdmFingerprint</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_jurnal</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_pengurus</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">DATE</span><span class="col-name">tanggal / jam_masuk</span></div>
+                </div>
+              </div>
+
+              <div class="entity-card cat-activity">
+                <div class="entity-card-head">
+                  <div class="entity-tag">SDM</div>
+                  <div class="entity-name">Data Lapangan SDM</div>
+                  <div class="entity-table">tabel: sdmDataLapangan</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_jurnal</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_pengurus</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">DATE</span><span class="col-name">tanggal / jam_masuk</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">dilaporkan_oleh_id</span></div>
+                </div>
+              </div>
+
+              <div class="entity-card cat-activity">
+                <div class="entity-card-head">
+                  <div class="entity-tag">SDM</div>
+                  <div class="entity-name">Fingerprint Log</div>
+                  <div class="entity-table">tabel: fingerprintLog</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_pengurus</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">DATE</span><span class="col-name">tanggal / waktu</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">tipe / sumber / device_sn</span></div>
+                </div>
+              </div>
+
+              <div class="entity-card cat-activity">
+                <div class="entity-card-head">
+                  <div class="entity-tag">SDM</div>
+                  <div class="entity-name">Override Jadwal FP</div>
+                  <div class="entity-table">tabel: jadwalFingerprintOverride</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_pengurus</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">DATE</span><span class="col-name">tanggal</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_tahun_ajaran</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">jam_* override</span></div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- LEVEL 6 -->
+          <div class="schema-section">
+            <div class="schema-section-title"><span>Level 6</span> &nbsp;&middot;&nbsp; Referensi &amp; Materi</div>
+            <div class="schema-row">
 
               <div class="entity-card cat-support">
                 <div class="entity-card-head">
@@ -680,11 +1306,71 @@
                 </div>
                 <div class="entity-cols">
                   <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
-                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">judul</span></div>
-                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">deskripsi</span></div>
-                  <div class="col-row"><span class="col-badge"></span><span class="col-type">DATE</span><span class="col-name">tanggal_mulai</span></div>
-                  <div class="col-row"><span class="col-badge"></span><span class="col-type">DATE</span><span class="col-name">tanggal_selesai</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">judul / deskripsi</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">DATE</span><span class="col-name">tanggal_mulai / tanggal_selesai</span></div>
                   <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">warna</span></div>
+                </div>
+              </div>
+
+              <div class="entity-card cat-support">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Referensi</div>
+                  <div class="entity-name">Pelajaran</div>
+                  <div class="entity-table">tabel: pelajaran</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">nama / nama_buku</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">deskripsi</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">JSON</span><span class="col-name">prasyarat</span></div>
+                </div>
+                <div class="entity-rels">
+                  <div class="rels-title">Terhubung ke</div>
+                  <span class="rel-chip">&rarr; Level Pelajaran</span>
+                </div>
+              </div>
+
+              <div class="entity-card cat-support">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Detail</div>
+                  <div class="entity-name">Level Pelajaran</div>
+                  <div class="entity-table">tabel: pelajaranLevel</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">pelajaran_id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">nama_level</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">INT</span><span class="col-name">urutan</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">JSON</span><span class="col-name">prasyarat</span></div>
+                </div>
+              </div>
+
+              <div class="entity-card cat-support">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Materi</div>
+                  <div class="entity-name">Buku Digital</div>
+                  <div class="entity-table">tabel: bukuDigital</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">judul / penulis / pelajaran</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">file_path / file_type</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">akses</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">BOOL</span><span class="col-name">can_download</span></div>
+                </div>
+              </div>
+
+              <div class="entity-card cat-support">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Materi</div>
+                  <div class="entity-name">Bank Soal</div>
+                  <div class="entity-table">tabel: bankSoal</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">judul / pelajaran / jenis / tingkat</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">tahun_ajaran_id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">file_path / file_type</span></div>
                 </div>
               </div>
 
@@ -696,14 +1382,13 @@
                 </div>
                 <div class="entity-cols">
                   <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
-                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">name</span></div>
-                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">jabatan_utama</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">name / jabatan_utama</span></div>
                   <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">description</span></div>
-                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">status</span></div>
                 </div>
                 <div class="entity-rels">
                   <div class="rels-title">Terhubung ke</div>
-                  <span class="rel-chip">→ SOP Item</span>
+                  <span class="rel-chip">&rarr; SOP Item</span>
+                  <span class="rel-chip">&rarr; SOP Lampiran</span>
                 </div>
               </div>
 
@@ -716,14 +1401,72 @@
                 <div class="entity-cols">
                   <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
                   <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_kegiatan</span></div>
-                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">pj_label</span></div>
-                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">waktu</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">pj_label / waktu</span></div>
                   <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">sop_text</span></div>
                   <div class="col-row"><span class="col-badge"></span><span class="col-type">INT</span><span class="col-name">urutan</span></div>
                 </div>
               </div>
 
+              <div class="entity-card cat-support">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Detail</div>
+                  <div class="entity-name">SOP Lampiran</div>
+                  <div class="entity-table">tabel: kegiatanSopLampiran</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_kegiatan</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">nama / jenis</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">isi</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">INT</span><span class="col-name">urutan</span></div>
+                </div>
+              </div>
+
+              <div class="entity-card cat-support">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Template</div>
+                  <div class="entity-name">Template Deskripsi</div>
+                  <div class="entity-table">tabel: deskripsiTemplate</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">judul / teks</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_pengisi</span></div>
+                </div>
+              </div>
+
+              <div class="entity-card cat-support">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Template</div>
+                  <div class="entity-name">Template Perkembangan</div>
+                  <div class="entity-table">tabel: perkembanganTemplate</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">judul / teks</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">id_pengisi</span></div>
+                </div>
+              </div>
+
+              <div class="entity-card cat-support">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Manual</div>
+                  <div class="entity-name">Data Kelompok Manual</div>
+                  <div class="entity-table">tabel: dataKelompokManual</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">tahun_ajaran_id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">JSON</span><span class="col-name">data_json <span style="opacity:.6">(seluruh tab+baris)</span></span></div>
+                </div>
+              </div>
+
             </div>
+          </div>
+
+          <!-- LEVEL 7 -->
+          <div class="schema-section">
+            <div class="schema-section-title"><span>Level 7</span> &nbsp;&middot;&nbsp; Portal &amp; Komunikasi</div>
             <div class="schema-row">
 
               <div class="entity-card cat-support">
@@ -734,13 +1477,10 @@
                 </div>
                 <div class="entity-cols">
                   <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
-                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">title</span></div>
-                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">slug</span></div>
-                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">summary</span></div>
-                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">body</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">title / slug</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">summary / body</span></div>
                   <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">target_role</span></div>
                   <div class="col-row"><span class="col-badge"></span><span class="col-type">DATE</span><span class="col-name">published_at</span></div>
-                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">status</span></div>
                 </div>
               </div>
 
@@ -752,13 +1492,265 @@
                 </div>
                 <div class="entity-cols">
                   <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
-                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">organization_name</span></div>
-                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">logo_url</span></div>
-                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">tagline</span></div>
-                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">description</span></div>
-                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">address</span></div>
-                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">contact</span></div>
-                  <div class="col-row"><span class="col-badge"></span><span class="col-type">JSON</span><span class="col-name">landing_gallery_json</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">organization_name / logo_url</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">organization_tagline / _description</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">organization_contact / _email</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">JSON</span><span class="col-name">landing_carousel_json</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">BOOL</span><span class="col-name">enrollment_enabled</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">enrollment_academic_year</span></div>
+                </div>
+              </div>
+
+              <div class="entity-card cat-support">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Popup</div>
+                  <div class="entity-name">Pengumuman</div>
+                  <div class="entity-table">tabel: pengumuman</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">title / message</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">JSON</span><span class="col-name">target_jabatan_ids</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">JSON</span><span class="col-name">kecuali_pengurus_ids</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">BOOL</span><span class="col-name">is_unlimited / wajib_respon</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">INT</span><span class="col-name">max_show_count / wait_seconds</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">JSON</span><span class="col-name">respon_rules</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">DATE</span><span class="col-name">start_date / end_date</span></div>
+                </div>
+                <div class="entity-rels">
+                  <div class="rels-title">Terhubung ke</div>
+                  <span class="rel-chip">&rarr; Pengumuman Seen</span>
+                  <span class="rel-chip">&rarr; Pengumuman Respon</span>
+                </div>
+              </div>
+
+              <div class="entity-card cat-pivot">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Log</div>
+                  <div class="entity-name">Pengumuman Seen</div>
+                  <div class="entity-table">tabel: pengumumanSeen</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">pengumuman_id</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">pengurus_id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">INT</span><span class="col-name">seen_count</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">DATE</span><span class="col-name">last_seen_at</span></div>
+                </div>
+              </div>
+
+              <div class="entity-card cat-pivot">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Log</div>
+                  <div class="entity-name">Pengumuman Respon</div>
+                  <div class="entity-table">tabel: pengumumanRespon</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">pengumuman_id</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">pengurus_id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">quick_type / note</span></div>
+                </div>
+              </div>
+
+              <div class="entity-card cat-support">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Popup</div>
+                  <div class="entity-name">Survey</div>
+                  <div class="entity-table">tabel: survey</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">title / description</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">JSON</span><span class="col-name">target_jabatan_ids</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">JSON</span><span class="col-name">questions_json</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">DATE</span><span class="col-name">start_date / end_date</span></div>
+                </div>
+                <div class="entity-rels">
+                  <div class="rels-title">Terhubung ke</div>
+                  <span class="rel-chip">&rarr; Survey Completion</span>
+                </div>
+              </div>
+
+              <div class="entity-card cat-pivot">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Log</div>
+                  <div class="entity-name">Survey Completion</div>
+                  <div class="entity-table">tabel: surveyCompletion</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">survey_id</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">pengurus_id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">INT</span><span class="col-name">wrong_count</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">DATE</span><span class="col-name">completed_at</span></div>
+                </div>
+              </div>
+
+              <div class="entity-card cat-support">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Ibadah</div>
+                  <div class="entity-name">Jadwal Ibadah</div>
+                  <div class="entity-table">tabel: jadwalIbadah</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">tahun_ajaran_id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">hari / waktu</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">imam / imam_badal1 / imam_badal2</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">kultum / kultum_badal1 / _badal2</span></div>
+                </div>
+              </div>
+
+              <div class="entity-card cat-support">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Ibadah</div>
+                  <div class="entity-name">Jadwal Ibadah Meta</div>
+                  <div class="entity-table">tabel: jadwalIbadahMeta</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">tahun_ajaran_id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">khutbah_jumat / catatan</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">BOOL</span><span class="col-name">tampil_beranda_aktif</span></div>
+                </div>
+              </div>
+
+              <div class="entity-card cat-support">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Ibadah</div>
+                  <div class="entity-name">Jadwal Khutbah Jum'at</div>
+                  <div class="entity-table">tabel: jadwalKhutbahJumat</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">tahun_ajaran_id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">DATE</span><span class="col-name">tanggal</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">khotib / khotib_badal / catatan</span></div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- LEVEL 8 -->
+          <div class="schema-section">
+            <div class="schema-section-title"><span>Level 8</span> &nbsp;&middot;&nbsp; Sistem &amp; Catatan <span style="text-transform:none;letter-spacing:0;font-weight:600;">(lintas modul, SQL mentah)</span></div>
+            <div class="schema-row">
+
+              <div class="entity-card cat-support">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Catatan</div>
+                  <div class="entity-name">Catatan &amp; Dokumen</div>
+                  <div class="entity-table">tabel: catatanDoc</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">TEXT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">TEXT</span><span class="col-name">owner_id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">title / doc_type</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">content_html / content_delta</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">share_everyone / pinned</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">DATE</span><span class="col-name">deleted_at <span style="opacity:.6">(sampah 30 hari)</span></span></div>
+                </div>
+                <div class="entity-rels">
+                  <div class="rels-title">Terhubung ke</div>
+                  <span class="rel-chip">&rarr; Berbagi Catatan</span>
+                  <span class="rel-chip">&rarr; Versi Catatan</span>
+                </div>
+              </div>
+
+              <div class="entity-card cat-pivot">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Pivot</div>
+                  <div class="entity-name">Berbagi Catatan</div>
+                  <div class="entity-table">tabel: catatanShare</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">TEXT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">TEXT</span><span class="col-name">doc_id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">kind <span style="opacity:.6">(user / jabatan / semua)</span></span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">ref_value / ref_label</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">BOOL</span><span class="col-name">can_edit</span></div>
+                </div>
+              </div>
+
+              <div class="entity-card cat-pivot">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Log</div>
+                  <div class="entity-name">Versi Catatan</div>
+                  <div class="entity-table">tabel: catatanVersion</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">TEXT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">TEXT</span><span class="col-name">doc_id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">title / doc_type / content_html</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">TEXT</span><span class="col-name">editor_id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">note / size</span></div>
+                </div>
+              </div>
+
+              <div class="entity-card cat-pivot">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Audit</div>
+                  <div class="entity-name">Riwayat / Audit Log</div>
+                  <div class="entity-table">tabel: riwayat</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">aksi / entitas</span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">entitas_id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">label</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">JSON</span><span class="col-name">sebelum / sesudah <span style="opacity:.6">(id&rarr;nama)</span></span></div>
+                  <div class="col-row"><span class="col-badge">FK</span><span class="col-type">INT</span><span class="col-name">user_id</span></div>
+                </div>
+              </div>
+
+              <div class="entity-card cat-support">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Setelan</div>
+                  <div class="entity-name">Setelan Riwayat</div>
+                  <div class="entity-table">tabel: riwayatSettings</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">INT</span><span class="col-name">limit_count</span></div>
+                </div>
+              </div>
+
+              <div class="entity-card cat-support">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Setelan</div>
+                  <div class="entity-name">Setelan Sesi Login</div>
+                  <div class="entity-table">tabel: loginSessionSettings</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">INT</span><span class="col-name">max_sessions</span></div>
+                </div>
+              </div>
+
+              <div class="entity-card cat-support">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Setelan</div>
+                  <div class="entity-name">Setelan Jam Digital</div>
+                  <div class="entity-table">tabel: jam_digital_settings</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">INT</span><span class="col-name">id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">JSON</span><span class="col-name">settings_json</span></div>
+                </div>
+              </div>
+
+              <div class="entity-card cat-support">
+                <div class="entity-card-head">
+                  <div class="entity-tag">Runtime</div>
+                  <div class="entity-name">Heartbeat Jam Digital</div>
+                  <div class="entity-table">tabel: jam_digital_viewer_heartbeat</div>
+                </div>
+                <div class="entity-cols">
+                  <div class="col-row"><span class="col-badge">PK</span><span class="col-type">TEXT</span><span class="col-name">viewer_id</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">INT</span><span class="col-name">last_seen</span></div>
+                  <div class="col-row"><span class="col-badge"></span><span class="col-type">TEXT</span><span class="col-name">ip</span></div>
                 </div>
               </div>
 
@@ -772,7 +1764,7 @@
 
   <!-- Tree fullscreen overlay -->
   <div id="treeOverlay" role="dialog" aria-modal="true" aria-label="Diagram Pohon">
-    <button id="treeOverlayClose" type="button" aria-label="Tutup">✕</button>
+    <button id="treeOverlayClose" type="button" aria-label="Tutup">&#10005;</button>
     <div id="treeChartFull"></div>
   </div>
 
@@ -799,56 +1791,165 @@
     }
 
     // ── ECharts tree ──────────────────────────────────────────
+    const C_ROOT = { color: '#c4a055', borderColor: '#8a6a20', borderWidth: 2 };
+    const C_TA   = { color: '#d9a441', borderColor: '#a06f18', borderWidth: 2 };
+    const C_ENT  = { color: '#3a6ea5', borderColor: '#2a4e7a', borderWidth: 2 };
+    const C_STR  = { color: '#4a7a4a', borderColor: '#305530', borderWidth: 2 };
+    const C_ACT  = { color: '#b97650', borderColor: '#7a4a28', borderWidth: 2 };
+    const C_SUP  = { color: '#7b6a58', borderColor: '#504030', borderWidth: 2 };
+    const C_PIV  = { color: '#826490', borderColor: '#584468', borderWidth: 2 };
+
     const TREE_DATA = {
-      name: 'Sistem\nPendataan Santri', value: '',
-      itemStyle: { color: '#c4a055', borderColor: '#8a6a20', borderWidth: 2 },
+      name: 'Sistem\nPendataan Santri', value: '', itemStyle: C_ROOT,
       children: [
         {
-          name: 'Santri', value: 'santri',
-          itemStyle: { color: '#3a6ea5', borderColor: '#2a4e7a', borderWidth: 2 },
+          name: 'Tahun Ajaran', value: 'tahunAjaran', itemStyle: C_TA,
           children: [
             {
-              name: 'Kelas Siang', value: 'kelasSiang',
-              itemStyle: { color: '#4a7a4a', borderColor: '#305530', borderWidth: 2 },
+              name: 'Halaqoh', value: 'halaqoh', itemStyle: C_STR,
               children: [
-                { name: 'Absensi Kelas',  value: 'absensiKelas',  itemStyle: { color: '#b97650', borderColor: '#7a4a28', borderWidth: 2 } },
-                { name: 'Nilai UP',       value: 'nilaiUp',       itemStyle: { color: '#b97650', borderColor: '#7a4a28', borderWidth: 2 } },
-                { name: 'Absensi Guru',   value: 'absensiGuru',   itemStyle: { color: '#b97650', borderColor: '#7a4a28', borderWidth: 2 } }
+                { name: 'Absensi Halaqoh', value: 'absensiHalaqoh', itemStyle: C_ACT },
+                { name: 'Hafalan Harian',  value: 'hafalanHarian',  itemStyle: C_ACT },
+                { name: 'Ujian Hafalan',   value: 'ujianHafalan',   itemStyle: C_ACT },
+                { name: 'Nilai UAS',       value: 'nilaiUas',       itemStyle: C_ACT }
               ]
             },
             {
-              name: 'Halaqoh', value: 'halaqoh',
-              itemStyle: { color: '#4a7a4a', borderColor: '#305530', borderWidth: 2 },
+              name: 'Kelas Siang', value: 'kelasSiang', itemStyle: C_STR,
               children: [
-                { name: 'Absensi Halaqoh', value: 'absensiHalaqoh', itemStyle: { color: '#b97650', borderColor: '#7a4a28', borderWidth: 2 } }
+                { name: 'Absensi Kelas',     value: 'absensiKelas',    itemStyle: C_ACT },
+                { name: 'Nilai UP',          value: 'nilaiUp',         itemStyle: C_ACT },
+                { name: 'Nilai Wajib Ujian', value: 'nilaiWajibUjian', itemStyle: C_ACT },
+                { name: 'Silabus Kelas',     value: 'kelasSilabus',    itemStyle: C_ACT },
+                { name: 'Soal',              value: 'soal',            itemStyle: C_ACT },
+                {
+                  name: 'Quiz', value: 'quiz', itemStyle: C_ACT,
+                  children: [
+                    { name: 'Quiz Folder',  value: 'quizFolder',  itemStyle: C_ACT },
+                    { name: 'Quiz Jawaban', value: 'quizJawaban', itemStyle: C_ACT },
+                    { name: 'Quiz Bacaan',  value: 'quizBacaan',  itemStyle: C_ACT }
+                  ]
+                }
               ]
             },
-            { name: 'Regu', value: 'regu', itemStyle: { color: '#4a7a4a', borderColor: '#305530', borderWidth: 2 } }
+            {
+              name: 'Regu', value: 'regu', itemStyle: C_STR,
+              children: [
+                { name: 'Absensi Regu',          value: 'absensiRegu',          itemStyle: C_ACT },
+                { name: 'Perkembangan Bulanan',  value: 'perkembanganBulanan',  itemStyle: C_ACT },
+                { name: 'Akhlak & Kepribadian',  value: 'akhlakNilai',          itemStyle: C_ACT },
+                { name: 'Deskripsi Raport',      value: 'deskripsiRaport',      itemStyle: C_ACT }
+              ]
+            },
+            {
+              name: "Halaqoh Tasmi'", value: 'halaqohTasmi', itemStyle: C_STR,
+              children: [
+                { name: "Tasmi' Setoran", value: 'tasmiSetoran', itemStyle: C_ACT }
+              ]
+            }
           ]
         },
         {
-          name: 'Pengurus', value: 'pengurus',
-          itemStyle: { color: '#3a6ea5', borderColor: '#2a4e7a', borderWidth: 2 },
+          name: 'Santri', value: 'santri', itemStyle: C_ENT,
           children: [
-            { name: 'Jabatan',            value: 'jabatan',           itemStyle: { color: '#7b6a58', borderColor: '#504030', borderWidth: 2 } },
-            { name: 'Pengurus × Jabatan', value: 'pengurus_jabatan',  itemStyle: { color: '#826490', borderColor: '#584468', borderWidth: 2 } }
+            { name: 'Level Marhalah',   value: 'santriKelasLevel',      itemStyle: C_ACT },
+            { name: 'Santri Pelajaran', value: 'santriPelajaran',       itemStyle: C_ACT },
+            { name: 'Pindah Halaqoh',   value: 'riwayatPindahHalaqoh',  itemStyle: C_PIV },
+            { name: 'Pindah Regu',      value: 'riwayatPindahRegu',     itemStyle: C_PIV },
+            {
+              name: 'Kesantrian', value: '', itemStyle: C_SUP,
+              children: [
+                { name: 'Santri Sakit',      value: 'santriSakit',      itemStyle: C_ACT },
+                { name: 'Izin Pulang',       value: 'izinPulang',       itemStyle: C_ACT },
+                { name: 'Pelanggaran',       value: 'pelanggaran',      itemStyle: C_ACT },
+                { name: 'Jenis Pelanggaran', value: 'pelanggaranJenis', itemStyle: C_SUP },
+                { name: 'Zoom Kehadiran',    value: 'zoom_kehadiran',   itemStyle: C_ACT },
+                { name: 'Zoom Kunjungan',    value: 'zoom_kunjungan',   itemStyle: C_ACT }
+              ]
+            }
           ]
         },
         {
-          name: 'Referensi\n& Pendukung', value: '',
-          itemStyle: { color: '#7b6a58', borderColor: '#504030', borderWidth: 2 },
+          name: 'Pengurus', value: 'pengurus', itemStyle: C_ENT,
           children: [
-            { name: 'Tahun Ajaran', value: 'tahunAjaran',      itemStyle: { color: '#7b6a58', borderColor: '#504030', borderWidth: 2 } },
-            { name: 'Kaldik',       value: 'kaldik',           itemStyle: { color: '#7b6a58', borderColor: '#504030', borderWidth: 2 } },
+            { name: 'Jabatan',            value: 'jabatan',          itemStyle: C_SUP },
+            { name: 'Pengurus × Jabatan', value: 'pengurus_jabatan', itemStyle: C_PIV },
+            { name: 'Jabatan Relasi',     value: 'jabatan_relasi',   itemStyle: C_PIV },
             {
-              name: 'Kegiatan SOP', value: 'kegiatanSop',
-              itemStyle: { color: '#7b6a58', borderColor: '#504030', borderWidth: 2 },
+              name: 'SDM / Kepegawaian', value: '', itemStyle: C_SUP,
               children: [
-                { name: 'SOP Item', value: 'kegiatanSopItem', itemStyle: { color: '#7b6a58', borderColor: '#504030', borderWidth: 2 } }
+                { name: 'Absensi Pengurus',       value: 'absensiPengurus',           itemStyle: C_ACT },
+                { name: 'Absensi Guru',           value: 'absensiGuru',               itemStyle: C_ACT },
+                { name: 'Koordinat Absensi',      value: 'koordinatAbsensi',          itemStyle: C_SUP },
+                { name: 'Lokasi Absensi',         value: 'lokasiAbsensi',             itemStyle: C_SUP },
+                { name: 'Jurnal SDM',             value: 'sdmJurnal',                 itemStyle: C_ACT },
+                { name: 'Jadwal Harian Pengurus', value: 'jadwalHarianPengurus',      itemStyle: C_ACT },
+                { name: 'Fingerprint SDM',        value: 'sdmFingerprint',            itemStyle: C_ACT },
+                { name: 'Data Lapangan SDM',      value: 'sdmDataLapangan',           itemStyle: C_ACT },
+                { name: 'Fingerprint Log',        value: 'fingerprintLog',            itemStyle: C_ACT },
+                { name: 'Override Jadwal FP',     value: 'jadwalFingerprintOverride', itemStyle: C_ACT }
+              ]
+            }
+          ]
+        },
+        {
+          name: 'Referensi\n& Materi', value: '', itemStyle: C_SUP,
+          children: [
+            { name: 'Kalender Akademik', value: 'kaldik',      itemStyle: C_SUP },
+            {
+              name: 'Pelajaran', value: 'pelajaran', itemStyle: C_SUP,
+              children: [ { name: 'Level Pelajaran', value: 'pelajaranLevel', itemStyle: C_SUP } ]
+            },
+            { name: 'Buku Digital', value: 'bukuDigital', itemStyle: C_SUP },
+            { name: 'Bank Soal',    value: 'bankSoal',    itemStyle: C_SUP },
+            {
+              name: 'Kegiatan SOP', value: 'kegiatanSop', itemStyle: C_SUP,
+              children: [
+                { name: 'SOP Item',     value: 'kegiatanSopItem',     itemStyle: C_SUP },
+                { name: 'SOP Lampiran', value: 'kegiatanSopLampiran', itemStyle: C_SUP }
               ]
             },
-            { name: 'Content',      value: 'content',          itemStyle: { color: '#7b6a58', borderColor: '#504030', borderWidth: 2 } },
-            { name: 'Portal Brand', value: 'portalBrand',      itemStyle: { color: '#7b6a58', borderColor: '#504030', borderWidth: 2 } }
+            { name: 'Template Deskripsi',    value: 'deskripsiTemplate',    itemStyle: C_SUP },
+            { name: 'Template Perkembangan', value: 'perkembanganTemplate', itemStyle: C_SUP },
+            { name: 'Data Kelompok Manual',  value: 'dataKelompokManual',   itemStyle: C_SUP }
+          ]
+        },
+        {
+          name: 'Portal &\nKomunikasi', value: '', itemStyle: C_SUP,
+          children: [
+            { name: 'Content',      value: 'content',      itemStyle: C_SUP },
+            { name: 'Portal Brand', value: 'portalBrand',  itemStyle: C_SUP },
+            {
+              name: 'Pengumuman', value: 'pengumuman', itemStyle: C_SUP,
+              children: [
+                { name: 'Pengumuman Seen',  value: 'pengumumanSeen',  itemStyle: C_PIV },
+                { name: 'Pengumuman Respon', value: 'pengumumanRespon', itemStyle: C_PIV }
+              ]
+            },
+            {
+              name: 'Survey', value: 'survey', itemStyle: C_SUP,
+              children: [ { name: 'Survey Completion', value: 'surveyCompletion', itemStyle: C_PIV } ]
+            },
+            { name: 'Jadwal Ibadah',        value: 'jadwalIbadah',       itemStyle: C_SUP },
+            { name: 'Jadwal Ibadah Meta',   value: 'jadwalIbadahMeta',   itemStyle: C_SUP },
+            { name: "Jadwal Khutbah Jum'at", value: 'jadwalKhutbahJumat', itemStyle: C_SUP }
+          ]
+        },
+        {
+          name: 'Sistem &\nCatatan', value: '', itemStyle: C_SUP,
+          children: [
+            {
+              name: 'Catatan & Dokumen', value: 'catatanDoc', itemStyle: C_SUP,
+              children: [
+                { name: 'Berbagi Catatan', value: 'catatanShare',   itemStyle: C_PIV },
+                { name: 'Versi Catatan',   value: 'catatanVersion', itemStyle: C_PIV }
+              ]
+            },
+            { name: 'Riwayat / Audit Log',   value: 'riwayat',                     itemStyle: C_PIV },
+            { name: 'Setelan Riwayat',       value: 'riwayatSettings',             itemStyle: C_SUP },
+            { name: 'Setelan Sesi Login',    value: 'loginSessionSettings',        itemStyle: C_SUP },
+            { name: 'Setelan Jam Digital',   value: 'jam_digital_settings',        itemStyle: C_SUP },
+            { name: 'Heartbeat Jam Digital', value: 'jam_digital_viewer_heartbeat', itemStyle: C_SUP }
           ]
         }
       ]
@@ -871,35 +1972,38 @@
         series: [{
           type: 'tree',
           data: [TREE_DATA],
-          top: '4%', left: '3%', bottom: '4%', right: '26%',
-          symbolSize: 11,
+          top: '2%', left: '3%', bottom: '2%', right: '20%',
+          symbolSize: 10,
           symbol: 'roundRect',
           orient: 'LR',
           roam: roam,
-          expandAndCollapse: false,
+          expandAndCollapse: true,
           initialTreeDepth: 10,
           label: {
             show: true,
             position: 'right',
-            fontSize: 12,
+            fontSize: 11,
             fontFamily: 'Poppins, sans-serif',
             fontWeight: '700',
             color: '#4d4034',
             backgroundColor: 'rgba(255, 248, 230, 0.94)',
-            borderRadius: 7,
-            padding: [4, 9],
+            borderRadius: 6,
+            padding: [3, 8],
             borderWidth: 1.5,
             borderColor: 'rgba(196, 160, 85, 0.5)',
-            distance: 6,
+            distance: 5,
             formatter: function (p) {
               return p.data.value
                 ? '{n|' + p.name + '}\n{t|' + p.data.value + '}'
                 : '{n|' + p.name + '}';
             },
             rich: {
-              n: { fontSize: 12, fontWeight: '700', fontFamily: 'Poppins, sans-serif', color: '#4d4034', lineHeight: 18 },
-              t: { fontSize: 10, fontFamily: 'Courier New, monospace', color: '#7b6a58', lineHeight: 15 }
+              n: { fontSize: 11, fontWeight: '700', fontFamily: 'Poppins, sans-serif', color: '#4d4034', lineHeight: 15 },
+              t: { fontSize: 9, fontFamily: 'Courier New, monospace', color: '#7b6a58', lineHeight: 13 }
             }
+          },
+          leaves: {
+            label: { position: 'right' }
           },
           lineStyle: { color: '#b09070', width: 1.5, curveness: 0.45 },
           emphasis: { focus: 'descendant' },

@@ -531,7 +531,7 @@
         b.addEventListener('click', function(e) { e.stopPropagation(); openDialog(this.dataset.edit); });
       });
       el.querySelectorAll('[data-del]').forEach(function(b) {
-        b.addEventListener('click', function(e) { e.stopPropagation(); deleteSoal(this.dataset.del, this.dataset.judul); });
+        b.addEventListener('click', function(e) { e.stopPropagation(); deleteSoal(this.dataset.del, this.dataset.judul, this); });
       });
       el.querySelectorAll('[data-history]').forEach(function(b) {
         b.addEventListener('click', function(e) { e.stopPropagation(); showEditHistory(this.dataset.history); });
@@ -724,14 +724,15 @@
       });
     }
 
-    async function deleteSoal(id, judul) {
+    async function deleteSoal(id, judul, btn) {
       if (!confirm('Hapus soal "' + judul + '"? Tindakan ini tidak dapat dibatalkan.')) return;
+      if (btn) btn.disabled = true;
       try {
         await api('banksoal.delete', { id: id });
         showNotice('Soal berhasil dihapus.', 'success');
         _expandedIds.delete(id);
         await loadSoal();
-      } catch(e) { showNotice('Gagal menghapus: ' + e.message, 'error'); }
+      } catch(e) { showNotice('Gagal menghapus: ' + e.message, 'error'); if (btn) btn.disabled = false; }
     }
 
     function showEditHistory(id) {
@@ -808,8 +809,9 @@
       });
 
       /* Filter listeners */
+      var debouncedApplyFilters = PSUI.debounce(applyFilters, PSUI.AUTOSAVE_DEBOUNCE_MS);
       ['searchSoal','filterPelajaran','filterJenis','filterTingkat','filterTahunAjaran'].forEach(function(id) {
-        document.getElementById(id).addEventListener('input',  applyFilters);
+        document.getElementById(id).addEventListener('input',  debouncedApplyFilters);
         document.getElementById(id).addEventListener('change', applyFilters);
       });
 

@@ -398,6 +398,69 @@
       flex-shrink: 0;
     }
     .ji-carousel-dot.active { background: var(--accent); }
+
+    /* ── Tombol "Lihat semua jadwal" (khutbah) + popup terpisah, di ATAS carousel ── */
+    .ji-carousel-viewall-btn {
+      display: inline-block;
+      margin-top: 14px;
+      padding: 5px 12px;
+      border-radius: 999px;
+      border: 1.5px solid var(--line);
+      background: rgba(255, 251, 243, 0.7);
+      color: var(--accent);
+      font-weight: 700;
+      font-size: 10.5px;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    .ji-carousel-viewall-btn:hover { background: rgba(255, 251, 243, 1); }
+    .ji-all-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 9600;
+      background: rgba(41, 23, 15, 0.5);
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      box-sizing: border-box;
+    }
+    .ji-all-overlay.show { display: flex; }
+    .ji-all-card {
+      position: relative;
+      width: 100%;
+      max-width: 460px;
+      max-height: calc(100vh - 32px);
+      overflow-y: auto;
+      background: var(--paper);
+      color: var(--ink);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 26px 22px 20px;
+      box-sizing: border-box;
+    }
+    .ji-all-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 18px;
+      font-weight: 900;
+      text-align: center;
+      margin-bottom: 4px;
+    }
+    .ji-all-subtitle {
+      font-size: 12px;
+      color: var(--muted);
+      text-align: center;
+      margin-bottom: 14px;
+    }
+    .ji-all-list { display: grid; }
+    .ji-all-empty { color: var(--muted); font-style: italic; text-align: center; padding: 20px 0; }
+    .ji-all-paging { display: grid; justify-items: center; gap: 8px; margin-top: 16px; }
+    .ji-all-paging .paging { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+    .ji-all-paging .page-center { display: grid; gap: 6px; justify-items: center; }
+    .ji-all-paging .page-numbers { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+    .ji-all-paging .page-summary { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+    .ji-all-paging .page-btn { padding: 6px 11px; font-size: 12px; }
   </style>
 </head>
 <body>
@@ -455,6 +518,16 @@
     };
 
     const BADGE_COLORS = ['#b97650', '#74846c', '#b58439', '#a55a52', '#7b6a58', '#9e2f22'];
+
+    // Tombol footer "User Aktif" di sidebar (shared-shell.js) yang bukan bagian NAV_GROUPS,
+    // ditampilkan juga di Beranda sebagai satu seksi "Akun".
+    const ACCOUNT_LINKS = [
+      { href: '/pages/beranda/', label: 'Beranda', icon: 'house', description: 'Halaman utama' },
+      { href: '/pages/accountProfile/', label: 'Profil Akun', icon: 'circle-user', description: 'Lihat dan ubah profil akun' },
+      { href: '/pages/changePassword/', label: 'Ganti Password', icon: 'key', description: 'Ubah kata sandi akun' },
+      { href: '/pages/riwayat/', label: 'Riwayat', icon: 'clock-rotate-left', description: 'Riwayat aktivitas akun', role: 'pengurus' },
+      { href: '/pages/logout/', label: 'Logout', icon: 'right-from-bracket', description: 'Keluar dari akun', danger: true }
+    ];
 
     function getStoredSession() {
       try { return JSON.parse(localStorage.getItem(STORAGE.session) || 'null'); }
@@ -613,6 +686,26 @@
       }).join('');
     }
 
+    function renderAccountTiles(session) {
+      const host = document.getElementById('tileSections');
+      if (!host) return;
+      const role = session && session.role;
+      const items = ACCOUNT_LINKS.filter((item) => !item.role || item.role === role);
+      if (!items.length) return;
+      let colorIndex = 0;
+      const tiles = items.map((item) => {
+        const color = item.danger ? 'var(--danger)' : BADGE_COLORS[colorIndex++ % BADGE_COLORS.length];
+        return '<a class="tile" href="' + escapeHtml(item.href) + '" title="' + escapeHtml(item.description || '') + '">'
+          + '<span class="tile-badge" style="background:' + color + '"><i class="fa-solid fa-' + escapeHtml(item.icon) + '"></i></span>'
+          + '<span>' + escapeHtml(item.label) + '</span>'
+          + '</a>';
+      }).join('');
+      host.insertAdjacentHTML('beforeend', '<div class="tile-section">'
+        + '<div class="tile-section-title">Akun</div>'
+        + '<div class="tile-grid">' + tiles + '</div>'
+        + '</div>');
+    }
+
     function applyTileFilter(query) {
       const q = String(query || '').toLowerCase().trim();
       const sections = document.querySelectorAll('#tileSections .tile-section');
@@ -636,7 +729,7 @@
     function bindTileSearch() {
       const input = document.getElementById('berandaSearch');
       if (!input) return;
-      input.addEventListener('input', () => applyTileFilter(input.value));
+      input.addEventListener('input', PSUI.debounce(() => applyTileFilter(input.value), PSUI.AUTOSAVE_DEBOUNCE_MS));
       input.addEventListener('keydown', (event) => {
         if (event.key === 'Escape') {
           input.value = '';
@@ -686,6 +779,7 @@
       }
 
       renderTiles(rawSession);
+      renderAccountTiles(rawSession);
       bindTileSearch();
 
       // Mount shell
@@ -749,7 +843,8 @@
         }).join('');
         return '<div class="ji-carousel-icon"><i class="fa-solid fa-mosque"></i></div>'
           + '<div class="ji-carousel-title">' + escapeHtml(item.title) + '</div>'
-          + rowsHtml;
+          + rowsHtml
+          + '<button type="button" class="ji-carousel-viewall-btn" id="jiKhutbahViewAllBtn">Lihat Semua</button>';
       }
       const icon = item.type === 'imam' ? 'person-praying' : 'microphone';
       const slotsHtml = (item.slots || []).map((s) => (
@@ -801,10 +896,137 @@
         noteToggle.addEventListener('click', toggleNote);
         noteToggle.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggleNote(); } });
       }
+      const viewAllBtn = overlay.querySelector('#jiKhutbahViewAllBtn');
+      if (viewAllBtn) viewAllBtn.addEventListener('click', openKhutbahAllDialog);
     }
 
     function closeJadwalIbadahCarousel() {
       const overlay = document.getElementById('jiCarouselOverlay');
+      if (overlay) overlay.remove();
+    }
+
+    /* ── Popup "Lihat semua jadwal" (khutbah Jum'at) -- terpisah dari carousel di atas,
+       dibuka DI ATASNYA (carousel tetap ada di belakang, tutup popup ini kembali ke
+       carousel). Fetch semua baris jadwal.khutbah.list (sama dgn yg dipakai pages/jadwalIbadah/,
+       TA aktif), paginasi CLIENT-SIDE (dataset kecil, sama pola dgn editKaldik). */
+    const HARI_ID_JI = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', "Jum'at", 'Sabtu'];
+    function formatTanggalPanjangJi(iso) {
+      if (!iso) return '—';
+      const d = new Date(iso + 'T00:00:00');
+      if (isNaN(d)) return iso;
+      return HARI_ID_JI[d.getDay()] + ', ' + d.getDate() + ' ' + BULAN_ID_JI[d.getMonth()] + ' ' + d.getFullYear();
+    }
+
+    let _jiAllRows = [];
+    let _jiAllPage = 1;
+    const JI_ALL_PAGE_SIZE = 5;
+
+    function buildJiAllPaginationList(page, totalPages) {
+      const maxNumbers = 7;
+      if (totalPages <= maxNumbers) return Array.from({ length: totalPages }, (_, i) => i + 1);
+      const middleSlots = maxNumbers - 2;
+      const pages = [1];
+      let start = Math.max(2, page - Math.floor(middleSlots / 2));
+      let end = start + middleSlots - 1;
+      if (end > totalPages - 1) { end = totalPages - 1; start = end - middleSlots + 1; }
+      if (start > 2) pages.push('...');
+      for (let v = start; v <= end; v += 1) pages.push(v);
+      if (end < totalPages - 1) pages.push('...');
+      pages.push(totalPages);
+      return pages;
+    }
+
+    async function openKhutbahAllDialog() {
+      let overlay = document.getElementById('jiAllOverlay');
+      if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'jiAllOverlay';
+        overlay.className = 'ji-all-overlay';
+        overlay.addEventListener('click', (event) => { if (event.target === overlay) closeKhutbahAllDialog(); });
+        document.body.appendChild(overlay);
+      }
+      overlay.innerHTML = '<div class="ji-all-card">'
+        + '<button type="button" class="ji-carousel-close" id="jiAllClose" aria-label="Tutup">&times;</button>'
+        + '<div class="ji-all-title">Jadwal Khutbah Jum\'at</div>'
+        + '<div class="ji-all-subtitle">Memuat...</div>'
+        + '</div>';
+      overlay.classList.add('show');
+      overlay.querySelector('#jiAllClose').addEventListener('click', closeKhutbahAllDialog);
+
+      const token = localStorage.getItem(STORAGE.token);
+      if (!token) return;
+      try {
+        const r = await fetch('/api?' + new URLSearchParams({ action: 'jadwal.khutbah.list', token }));
+        const json = await r.json();
+        if (!json.ok || !json.data) throw new Error('gagal');
+        _jiAllRows = (json.data.rows || []).slice().sort((a, b) => (a.tanggal < b.tanggal ? -1 : a.tanggal > b.tanggal ? 1 : 0));
+        const todayIso = new Date().toISOString().slice(0, 10);
+        const idx = _jiAllRows.findIndex((row) => row.tanggal >= todayIso);
+        _jiAllPage = idx >= 0 ? Math.floor(idx / JI_ALL_PAGE_SIZE) + 1 : 1;
+        renderKhutbahAllDialog();
+      } catch (e) {
+        const subtitle = overlay.querySelector('.ji-all-subtitle');
+        if (subtitle) subtitle.textContent = 'Gagal memuat jadwal.';
+      }
+    }
+
+    function renderKhutbahAllDialog() {
+      const overlay = document.getElementById('jiAllOverlay');
+      if (!overlay) return;
+      const total = _jiAllRows.length;
+      const totalPages = Math.max(1, Math.ceil(total / JI_ALL_PAGE_SIZE));
+      if (_jiAllPage > totalPages) _jiAllPage = totalPages;
+      if (_jiAllPage < 1) _jiAllPage = 1;
+      const pageRows = _jiAllRows.slice((_jiAllPage - 1) * JI_ALL_PAGE_SIZE, _jiAllPage * JI_ALL_PAGE_SIZE);
+      const todayIso = new Date().toISOString().slice(0, 10);
+
+      const listHtml = pageRows.length
+        ? pageRows.map((row) => {
+            const khotibText = row.khotib ? escapeHtml(row.khotib) : '<span class="ji-carousel-empty">—</span>';
+            const badalText = row.khotibBadal ? '<div class="ji-carousel-badal">Badal: ' + escapeHtml(row.khotibBadal) + '</div>' : '';
+            const isToday = row.tanggal === todayIso;
+            return '<div class="ji-carousel-row' + (isToday ? ' current' : '') + '">'
+              + '<span class="ji-carousel-label">' + escapeHtml(formatTanggalPanjangJi(row.tanggal)) + (isToday ? ' <span class="ji-carousel-tag">Hari ini</span>' : '') + '</span>'
+              + '<span class="ji-carousel-value">' + khotibText + badalText + '</span>'
+              + '</div>';
+          }).join('')
+        : '<div class="ji-all-empty">Belum ada jadwal khutbah.</div>';
+
+      const pagingHtml = total > JI_ALL_PAGE_SIZE
+        ? '<div class="paging">'
+          + '<button type="button" class="secondary" data-page="' + (_jiAllPage - 1) + '"' + (_jiAllPage <= 1 ? ' disabled' : '') + '>Sebelumnya</button>'
+          + '<div class="page-center">'
+            + '<div class="page-numbers">' + buildJiAllPaginationList(_jiAllPage, totalPages).map((p) => (
+                p === '...'
+                  ? '<span class="page-summary">...</span>'
+                  : '<button type="button" class="secondary page-btn' + (p === _jiAllPage ? ' active' : '') + '" data-page="' + p + '">' + p + '</button>'
+              )).join('') + '</div>'
+            + '<div class="page-summary">Halaman ' + _jiAllPage + ' dari ' + totalPages + ' &middot; total ' + total + ' jadwal</div>'
+          + '</div>'
+          + '<button type="button" class="secondary" data-page="' + (_jiAllPage + 1) + '"' + (_jiAllPage >= totalPages ? ' disabled' : '') + '>Berikutnya</button>'
+          + '</div>'
+        : '';
+
+      const card = overlay.querySelector('.ji-all-card');
+      card.innerHTML = '<button type="button" class="ji-carousel-close" id="jiAllClose" aria-label="Tutup">&times;</button>'
+        + '<div class="ji-all-title">Jadwal Khutbah Jum\'at</div>'
+        + '<div class="ji-all-subtitle">Semua jadwal tahun ajaran berjalan</div>'
+        + '<div class="ji-all-list">' + listHtml + '</div>'
+        + (pagingHtml ? '<div class="ji-all-paging">' + pagingHtml + '</div>' : '');
+
+      card.querySelector('#jiAllClose').addEventListener('click', closeKhutbahAllDialog);
+      card.querySelectorAll('[data-page]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const p = Number(btn.getAttribute('data-page'));
+          if (!p || p < 1 || p > totalPages || p === _jiAllPage) return;
+          _jiAllPage = p;
+          renderKhutbahAllDialog();
+        });
+      });
+    }
+
+    function closeKhutbahAllDialog() {
+      const overlay = document.getElementById('jiAllOverlay');
       if (overlay) overlay.remove();
     }
 

@@ -127,6 +127,7 @@
             </div>
             <div class="section-head-actions">
               <button class="primary" type="button" id="btnTambahSurvey"><i class="fa-solid fa-plus"></i>&ensp;Tambah Survey</button>
+              <button class="secondary" type="button" id="toggleExpandButton" data-expand-state="collapsed">Buka semua</button>
             </div>
           </div>
 
@@ -264,7 +265,7 @@
 
     let surveyItems = [];
     let jabatanRefs = [];
-    const state = { page: 1, pageSize: 10, totalPages: 1 };
+    const state = { page: 1, pageSize: 10, totalPages: 1, expandedIds: new Set() };
 
     async function loadRefs() {
       try {
@@ -531,6 +532,7 @@
     // ── List & pagination utama ─────────────────────────────────────────────────
     async function loadSurvey() {
       try { const d = await api({ action: 'survey.list' }); surveyItems = d.items || []; } catch (_) { surveyItems = []; }
+      pruneSurveyExpandedIds();
       renderSurveyList();
     }
 
@@ -570,6 +572,42 @@
       window.PSUI.syncPaginationHosts({ markup, visibleCount: total ? Math.min(state.pageSize, total) : 0, totalCount: total, topId: 'paginationTop', bottomId: 'paginationBottom' });
     }
 
+    let surveyPageIds = [];
+
+    function isSurveyExpanded(id) {
+      return state.expandedIds.has(String(id));
+    }
+
+    function pruneSurveyExpandedIds() {
+      const known = new Set(surveyItems.map(s => String(s.id)));
+      Array.from(state.expandedIds).forEach(id => { if (!known.has(id)) state.expandedIds.delete(id); });
+    }
+
+    function syncExpandToggleButton() {
+      const btn = document.getElementById('toggleExpandButton');
+      if (!btn) return;
+      const has = surveyPageIds.length > 0;
+      const allExpanded = has && surveyPageIds.every(id => state.expandedIds.has(id));
+      btn.disabled = !has;
+      btn.dataset.expandState = allExpanded ? 'expanded' : 'collapsed';
+      btn.textContent = allExpanded ? 'Tutup semua' : 'Buka semua';
+    }
+
+    function toggleSurveyExpanded(id) {
+      if (!id) return;
+      const key = String(id);
+      if (state.expandedIds.has(key)) state.expandedIds.delete(key);
+      else state.expandedIds.add(key);
+      renderSurveyList();
+    }
+
+    function toggleExpandedList() {
+      const allExpanded = surveyPageIds.length > 0 && surveyPageIds.every(id => state.expandedIds.has(id));
+      if (allExpanded) surveyPageIds.forEach(id => state.expandedIds.delete(id));
+      else surveyPageIds.forEach(id => state.expandedIds.add(id));
+      renderSurveyList();
+    }
+
     function renderSurveyList() {
       const list = document.getElementById('surveyList');
       const manage = canManage();
@@ -578,48 +616,66 @@
       if (state.page > totalPages) state.page = totalPages;
       if (!surveyItems.length) {
         list.innerHTML = '<div class="empty-state">Belum ada survey.</div>';
+        surveyPageIds = [];
+        syncExpandToggleButton();
         renderPaging(0);
         return;
       }
       const pageItems = surveyItems.slice((state.page - 1) * state.pageSize, state.page * state.pageSize);
+      surveyPageIds = pageItems.map(s => String(s.id));
       let html = '';
       pageItems.forEach(s => {
         const inactive = !s.active;
-        html += `<div class="card survey-card" style="${inactive ? 'opacity:0.55;' : ''}">
-          <div class="survey-card-body">
-            <div class="survey-title">${esc(s.title)}${inactive ? ' <em style="font-size:10px;font-weight:400;text-transform:none;">(Nonaktif)</em>' : ''}</div>
-            ${s.description ? `<div class="survey-desc">${esc(s.description)}</div>` : ''}
-            <div class="survey-meta">
-              <div class="survey-meta-row">
-                ${(s.targetJabatanLabels || []).slice(0, 4).map(l => `<span class="jab-chip">${esc(l)}</span>`).join('')}
-                ${(s.targetJabatanLabels || []).length > 4 ? `
-                  ${(s.targetJabatanLabels || []).slice(4).map(l => `<span class="jab-chip jab-chip-extra">${esc(l)}</span>`).join('')}
-                  <button class="jab-chip-toggle" type="button" data-jab-toggle>+${s.targetJabatanLabels.length - 4}</button>
-                  <button class="jab-chip-collapse" type="button" data-jab-collapse>&minus;</button>
-                ` : ''}
-              </div>
-              <div class="survey-meta-row">
-                <span class="count-chip">${s.questionCount} pertanyaan</span>
-                <span class="count-chip">${Number(s.completionCount || 0)} selesai</span>
-                ${s.startDate || s.endDate ? `<span class="count-chip">${esc(s.startDate || '...')} s/d ${esc(s.endDate || '...')}</span>` : ''}
+        const expanded = isSurveyExpanded(s.id);
+        const hint = [
+          `${s.questionCount} pertanyaan`,
+          `${Number(s.completionCount || 0)} selesai`,
+          `${(s.targetJabatanLabels || []).length} jabatan target`
+        ].join(' · ');
+        html += `<article class="card minimal-list-card ${expanded ? 'is-expanded' : ''}" style="${inactive ? 'opacity:0.55;' : ''}">
+          <div class="minimal-list-card-head">
+            <div class="minimal-list-card-main" data-collapse="${esc(s.id)}" role="button" tabindex="0" aria-expanded="${expanded ? 'true' : 'false'}" aria-label="${expanded ? 'Tutup detail survey' : 'Buka detail survey'}">
+              <div class="survey-title">${esc(s.title)}${inactive ? ' <em style="font-size:10px;font-weight:400;text-transform:none;">(Nonaktif)</em>' : ''}</div>
+              <span class="minimal-list-card-hint">${esc(hint)}</span>
+            </div>
+            <button class="secondary minimal-list-card-toggle" type="button" data-collapse="${esc(s.id)}" aria-expanded="${expanded ? 'true' : 'false'}" aria-label="${expanded ? 'Tutup detail survey' : 'Buka detail survey'}">${expanded ? 'Tutup' : 'Detail'}</button>
+          </div>
+          <div class="minimal-list-card-detail">
+            <div class="minimal-list-card-summary">
+              ${s.description ? `<div class="survey-desc">${esc(s.description)}</div>` : ''}
+              <div class="survey-meta">
+                <div class="survey-meta-row">
+                  ${(s.targetJabatanLabels || []).slice(0, 4).map(l => `<span class="jab-chip">${esc(l)}</span>`).join('')}
+                  ${(s.targetJabatanLabels || []).length > 4 ? `
+                    ${(s.targetJabatanLabels || []).slice(4).map(l => `<span class="jab-chip jab-chip-extra">${esc(l)}</span>`).join('')}
+                    <button class="jab-chip-toggle" type="button" data-jab-toggle>+${s.targetJabatanLabels.length - 4}</button>
+                    <button class="jab-chip-collapse" type="button" data-jab-collapse>&minus;</button>
+                  ` : ''}
+                </div>
+                <div class="survey-meta-row">
+                  <span class="count-chip">${s.questionCount} pertanyaan</span>
+                  <span class="count-chip">${Number(s.completionCount || 0)} selesai</span>
+                  ${s.startDate || s.endDate ? `<span class="count-chip">${esc(s.startDate || '...')} s/d ${esc(s.endDate || '...')}</span>` : ''}
+                </div>
               </div>
             </div>
+            <div class="toolbar minimal-list-card-actions">
+              ${manage ? `<button class="secondary btn-hasil-survey" data-id="${esc(s.id)}" data-title="${esc(s.title)}" type="button" style="padding:8px 12px;" title="Lihat siapa saja yang sudah selesai"><i class="fa-solid fa-list-check"></i>&ensp;Hasil (${Number(s.completionCount || 0)})</button>
+              <button class="secondary btn-edit-survey" data-id="${esc(s.id)}" type="button" style="padding:8px 12px;" title="Edit"><i class="fa-solid fa-pen"></i>&ensp;Edit</button>
+              <button class="secondary btn-toggle-survey" data-id="${esc(s.id)}" data-active="${s.active ? '1' : '0'}" type="button" style="padding:8px 12px;" title="${inactive ? 'Aktifkan' : 'Nonaktifkan'}"><i class="fa-solid ${inactive ? 'fa-toggle-off' : 'fa-toggle-on'}"></i>&ensp;${inactive ? 'Aktifkan' : 'Nonaktifkan'}</button>` : ''}
+              ${del ? `<button class="danger btn-delete-survey" data-id="${esc(s.id)}" type="button" style="padding:8px 12px;" title="Hapus"><i class="fa-solid fa-trash"></i>&ensp;Hapus</button>` : ''}
+            </div>
           </div>
-          <div class="survey-actions">
-            ${manage ? `<button class="secondary btn-hasil-survey" data-id="${esc(s.id)}" data-title="${esc(s.title)}" type="button" style="padding:8px 12px;" title="Lihat siapa saja yang sudah selesai"><i class="fa-solid fa-list-check"></i>&ensp;${Number(s.completionCount || 0)}</button>
-            <button class="secondary btn-edit-survey" data-id="${esc(s.id)}" type="button" style="padding:8px 12px;" title="Edit"><i class="fa-solid fa-pen"></i></button>
-            <button class="secondary btn-toggle-survey" data-id="${esc(s.id)}" data-active="${s.active ? '1' : '0'}" type="button" style="padding:8px 12px;" title="${inactive ? 'Aktifkan' : 'Nonaktifkan'}"><i class="fa-solid ${inactive ? 'fa-toggle-off' : 'fa-toggle-on'}"></i></button>` : ''}
-            ${del ? `<button class="danger btn-delete-survey" data-id="${esc(s.id)}" type="button" style="padding:8px 12px;" title="Hapus"><i class="fa-solid fa-trash"></i></button>` : ''}
-          </div>
-        </div>`;
+        </article>`;
       });
       list.innerHTML = html;
       list.querySelectorAll('.btn-hasil-survey').forEach(b => b.addEventListener('click', () => openSurveyCompletionDialog(b.dataset.id, b.dataset.title)));
       list.querySelectorAll('.btn-edit-survey').forEach(b => b.addEventListener('click', () => openSurveyEdit(b.dataset.id)));
-      list.querySelectorAll('.btn-toggle-survey').forEach(b => b.addEventListener('click', () => toggleSurvey(b.dataset.id, b.dataset.active === '1')));
-      list.querySelectorAll('.btn-delete-survey').forEach(b => b.addEventListener('click', () => deleteSurvey(b.dataset.id)));
+      list.querySelectorAll('.btn-toggle-survey').forEach(b => b.addEventListener('click', () => toggleSurvey(b.dataset.id, b.dataset.active === '1', b)));
+      list.querySelectorAll('.btn-delete-survey').forEach(b => b.addEventListener('click', () => deleteSurvey(b.dataset.id, b)));
       list.querySelectorAll('[data-jab-toggle]').forEach(b => b.addEventListener('click', () => b.closest('.survey-meta-row').classList.add('show-all-jabatan')));
       list.querySelectorAll('[data-jab-collapse]').forEach(b => b.addEventListener('click', () => b.closest('.survey-meta-row').classList.remove('show-all-jabatan')));
+      syncExpandToggleButton();
       renderPaging(surveyItems.length);
     }
 
@@ -631,6 +687,19 @@
       state.page = p;
       renderSurveyList();
     });
+
+    document.getElementById('surveyList').addEventListener('click', e => {
+      const trigger = e.target.closest('[data-collapse]');
+      if (trigger) toggleSurveyExpanded(trigger.getAttribute('data-collapse'));
+    });
+    document.getElementById('surveyList').addEventListener('keydown', e => {
+      const t = e.target.closest('[data-collapse]');
+      if (!t || t.tagName === 'BUTTON') return;
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      e.preventDefault();
+      toggleSurveyExpanded(t.getAttribute('data-collapse'));
+    });
+    document.getElementById('toggleExpandButton').addEventListener('click', toggleExpandedList);
 
     function openSurveyEdit(id) {
       const item = surveyItems.find(s => s.id === id); if (!item) return;
@@ -654,22 +723,24 @@
       document.getElementById('surveyTitle').focus();
     }
 
-    async function toggleSurvey(id, active) {
+    async function toggleSurvey(id, active, btn) {
+      if (btn) btn.disabled = true;
       try {
         await apiPost({ action: 'survey.toggle', id, active: !active });
         showNotice(active ? 'Survey dinonaktifkan.' : 'Survey diaktifkan.');
         await loadSurvey();
-      } catch (e) { showNotice(e.message, 'error'); }
+      } catch (e) { showNotice(e.message, 'error'); if (btn) btn.disabled = false; }
     }
 
-    async function deleteSurvey(id) {
+    async function deleteSurvey(id, btn) {
       const item = surveyItems.find(s => s.id === id);
       if (!confirm(`Hapus permanen survey "${item ? item.title : ''}"? Tindakan ini tidak bisa dibatalkan.`)) return;
+      if (btn) btn.disabled = true;
       try {
         await apiPost({ action: 'survey.delete', id });
         showNotice('Survey dihapus.');
         await loadSurvey();
-      } catch (e) { showNotice(e.message, 'error'); }
+      } catch (e) { showNotice(e.message, 'error'); if (btn) btn.disabled = false; }
     }
 
     function resetForm() {
@@ -788,7 +859,7 @@
             </div>
           </div>
         `).join('');
-        listEl.querySelectorAll('.btn-delete-completion-item').forEach(b => b.addEventListener('click', () => deleteCompletionItem(b.dataset.id)));
+        listEl.querySelectorAll('.btn-delete-completion-item').forEach(b => b.addEventListener('click', () => deleteCompletionItem(b.dataset.id, b)));
       }
       renderMiniPagination(['completionPaginationTop', 'completionPaginationBottom'], completionTabState, filtered.length, renderCompletionList);
     }
@@ -815,28 +886,30 @@
       await loadCompletionList();
     }
 
-    document.getElementById('completionSearchInput').addEventListener('input', e => {
+    document.getElementById('completionSearchInput').addEventListener('input', PSUI.debounce(e => {
       completionTabState.search = e.target.value;
       completionTabState.page = 1;
       renderCompletionList();
-    });
+    }, PSUI.AUTOSAVE_DEBOUNCE_MS));
 
-    async function deleteCompletionItem(id) {
+    async function deleteCompletionItem(id, btn) {
       if (!confirm('Hapus data ini? Akun ini akan ditawarkan survey ini lagi. Tindakan ini tidak bisa dibatalkan.')) return;
+      if (btn) btn.disabled = true;
       try {
         await apiPost({ action: 'survey.completion.delete', id });
         showNotice('Data dihapus.');
         await loadCompletionList();
-      } catch (e) { showNotice(e.message, 'error'); }
+      } catch (e) { showNotice(e.message, 'error'); if (btn) btn.disabled = false; }
     }
 
     document.getElementById('btnHapusSemuaCompletion').addEventListener('click', async () => {
       if (!confirm('Hapus SEMUA data penyelesaian untuk survey ini? Semua akun target akan ditawarkan survey ini lagi. Tindakan ini tidak bisa dibatalkan.')) return;
+      const btn = document.getElementById('btnHapusSemuaCompletion'); btn.disabled = true;
       try {
         await apiPost({ action: 'survey.completion.deleteAll', id: surveyCompletionTargetId });
         showNotice('Semua data penyelesaian dihapus.');
         await loadCompletionList();
-      } catch (e) { showNotice(e.message, 'error'); }
+      } catch (e) { showNotice(e.message, 'error'); } finally { btn.disabled = false; }
     });
 
     document.getElementById('btnSurveyCompletionClose').addEventListener('click', () => document.getElementById('surveyCompletionDialog').close());

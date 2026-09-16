@@ -8,7 +8,7 @@
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="../../shared-ui.css">
   <link rel="stylesheet" href="../../shared-shell.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+  <link rel="stylesheet" href="../../vendor/fontawesome/css/all.min.css">
   <script src="../../shared-ui.js"></script>
   <title>Jadwal Ibadah</title>
   <style>
@@ -748,7 +748,7 @@ CATATAN: Bulan Ramadhan`;
         if (warn) warn.style.display = this.value && !isJumat(this.value) ? 'block' : 'none';
       });
       bindTableButtons();
-      document.getElementById('kh_f_nama')?.addEventListener('input', applyKhutbahFilter);
+      document.getElementById('kh_f_nama')?.addEventListener('input', PSUI.debounce(applyKhutbahFilter, PSUI.AUTOSAVE_DEBOUNCE_MS));
       document.getElementById('kh_f_bulan')?.addEventListener('change', applyKhutbahFilter);
       document.getElementById('kh_f_reset')?.addEventListener('click', () => {
         khutbahFilter = { nama: '', bulan: '' };
@@ -943,7 +943,7 @@ CATATAN: Bulan Ramadhan`;
       if (window.jspdf) return;
       await new Promise((resolve, reject) => {
         const s = document.createElement('script');
-        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+        s.src = '../../vendor/jspdf/jspdf.umd.min.js';
         s.onload = resolve;
         s.onerror = () => reject(new Error('Gagal memuat library PDF.'));
         document.head.appendChild(s);

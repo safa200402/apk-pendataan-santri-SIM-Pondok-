@@ -2451,7 +2451,13 @@
 
     async function saveModal(event) {
       event.preventDefault();
-      await saveModalChanges({ reload: true });
+      const btn = document.getElementById('saveDialogButton');
+      if (btn) btn.disabled = true;
+      try {
+        await saveModalChanges({ reload: true });
+      } finally {
+        if (btn) btn.disabled = false;
+      }
     }
 
     function openAbsensiRekapPanel() {
@@ -2534,11 +2540,11 @@
     }
 
     function bindEvents() {
-      document.getElementById('searchInput').addEventListener('input', event => {
+      document.getElementById('searchInput').addEventListener('input', PSUI.debounce(event => {
         state.searchQuery = event.target.value || '';
         state.page = 1;
         renderCards();
-      });
+      }, PSUI.AUTOSAVE_DEBOUNCE_MS));
       document.getElementById('filterGender').addEventListener('change', event => {
         state.filterGender = event.target.value || '';
         state.page = 1;
@@ -2610,10 +2616,10 @@
       });
       document.getElementById('prevDateButton').addEventListener('click', () => shiftDate(-1));
       document.getElementById('nextDateButton').addEventListener('click', () => shiftDate(1));
-      document.getElementById('santriSearchInput').addEventListener('input', event => {
+      document.getElementById('santriSearchInput').addEventListener('input', PSUI.debounce(event => {
         state.modal.filter = event.target.value || '';
         renderAttendanceBody();
-      });
+      }, PSUI.AUTOSAVE_DEBOUNCE_MS));
       document.getElementById('setAllHadirButton').addEventListener('click', cycleSetAllStatuses);
       document.getElementById('clearAllButton').addEventListener('click', clearAllStatuses);
       document.getElementById('copyLatestButton').addEventListener('click', copyLatestStatuses);

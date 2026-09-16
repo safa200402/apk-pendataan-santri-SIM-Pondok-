@@ -539,12 +539,6 @@
       <section class="panel nav" id="nav"></section>
       <div class="content-stack">
         <section class="notice info" id="notice"></section>
-        <section class="issue-panel">
-          <h2>Masalah Terkait</h2>
-          <p>Temuan audit yang relevan dengan kelas siang akan muncul di sini.</p>
-          <div class="issue-summary" id="issueSummary">Belum ada data audit.</div>
-          <ul class="issue-warning-list" id="issueList"></ul>
-        </section>
         <section class="panel">
           <div class="section-head">
             <h2>Daftar kelas siang dan kelas ekstrakurikuler</h2>
@@ -707,6 +701,9 @@
           <option value="Tahfizh"></option>
           <option value="Tahsin"></option>
           <option value="Privat"></option>
+          <option value="Kelas Online"></option>
+          <option value="Kelas Khusus"></option>
+          <option value="Kelas Hybrid"></option>
         </datalist>
         <span class="selector-note">Kosongkan jika tanpa keterangan jenis. Boleh pilih dari daftar atau ketik sendiri.</span>
       </label>
@@ -958,17 +955,6 @@ MURID:
       dialogFiles: [],
       dialogSilabusItems: [],
       tahunAjaranFilter: ''
-    };
-    const ISSUE_GROUP_CONFIG = {
-      active_without_three_classes: true,
-      frozen_without_assignments: true,
-      kelas_without_pengajar: true,
-      kelas_without_jam: true,
-      kelas_gender_mismatch: true,
-      invalid_references: {
-        filter: item => item.entity === 'kelasSiang',
-        successText: 'Tidak ada referensi kelas siang yang hilang.'
-      }
     };
     const uiState = {
       currentNoticeId: '',
@@ -2138,7 +2124,6 @@ MURID:
 
       try {
         await loadData();
-        await issuePanelController.load();
       } catch (error) {
         showNotice(error.message || 'Data kelas tersimpan, tetapi daftar gagal dimuat ulang.', 'error');
       }
@@ -2204,14 +2189,11 @@ MURID:
         state.page = 1;
         clearSelectedIds();
         await loadData();
-        await issuePanelController.load();
         showNotice(data.message || 'Semua kelas siang berhasil dihapus.', 'info');
       } catch (error) {
         showNotice(error.message || 'Gagal menghapus semua kelas siang.', 'error');
       }
     }
-
-    const issuePanelController = createIssuePanelController(api, { issueConfig: ISSUE_GROUP_CONFIG });
 
     function checklistMetaHtml(item) {
       const idPart = item.noInduk ? `NIS ${item.noInduk}` : (item.username ? '@' + item.username : '');
@@ -2226,7 +2208,7 @@ MURID:
       document.getElementById(targetId).innerHTML = items.map((item, index) => `
         <label data-item-index="${index}">
           <input type="checkbox" value="${item.id}" ${selected.has(item.id) ? 'checked' : ''}>
-          <span>${escapeHtml(item.name)}${checklistMetaHtml(item)}</span>
+          <span>${escapeHtml(item.name)}${checklistMetaHtml(item)}</span>${item.namaLain ? `<span aria-hidden="true" style="display:none">${escapeHtml(item.namaLain)}</span>` : ''}
         </label>
       `).join('');
       updateChecklistHint(targetId);
@@ -2475,23 +2457,23 @@ MURID:
           const res = await api('bulk.setTahunAjaran', { sheetKey: DATASET_KEY, ids, tahunAjaranId: taId }, 'POST');
           clearSelectedIds();
           await loadData();
-          if (typeof issuePanelController !== 'undefined' && issuePanelController) await issuePanelController.load();
           showNotice((res && res.message) || 'Tahun ajaran berhasil diperbarui.', 'success');
         } catch (e) { showNotice(e.message || 'Gagal mengubah tahun ajaran.', 'error'); }
       };
     }
 
-    async function handleBulkToggle(active) {
+    async function handleBulkToggle(active, btn) {
       const ids = getSelectedIds();
       if (!ids.length) return showNotice('Pilih minimal satu kelas.', 'error');
       if (!confirm(`${active ? 'Aktifkan' : 'Nonaktifkan'} ${ids.length} kelas terpilih?`)) return;
+      if (btn) btn.disabled = true;
       try {
         await api('bulk.toggle', { sheetKey: DATASET_KEY, ids, active }, 'POST');
         clearSelectedIds();
         await loadData();
-        await issuePanelController.load();
       } catch (error) {
         showNotice(error.message || 'Gagal memproses aksi massal.', 'error');
+        if (btn) btn.disabled = false;
       }
     }
 
@@ -2525,7 +2507,6 @@ MURID:
           const res = await doDeleteFn(word);
           clearSelectedIds();
           await loadData();
-          if (typeof issuePanelController !== 'undefined' && issuePanelController) await issuePanelController.load();
           showNotice((res && res.message) || 'Data dihapus permanen.', 'info');
         } catch (e) { showNotice(e.message || 'Gagal menghapus.', 'error'); }
       };
@@ -2710,7 +2691,6 @@ MURID:
           }
         });
         await loadData();
-        await issuePanelController.load();
         showNotice('Import Excel kelas siang selesai.', 'info');
       } catch (error) {
         showNotice(error.message || 'Gagal import Excel.', 'error');
@@ -2740,6 +2720,7 @@ MURID:
                   ${item.jenis ? `<span class="kelas-jenis-tag">${escapeHtml(item.jenis)}</span>` : ''}
                   ${contextLabel ? `<span class="kelas-context-label">(${escapeHtml(contextLabel)})</span>` : ''}
                 </div>
+                <span class="minimal-list-card-hint">${escapeHtml(item.status || '-')} &nbsp;·&nbsp; Murid ${item.santriCount} &nbsp;·&nbsp; Guru ${item.pengajarLabels.length} &nbsp;·&nbsp; Badal ${item.badalLabels.length}</span>
               </div>
               <button class="secondary minimal-list-card-toggle" type="button" data-edit="${item.id}" aria-label="Edit kelas ${escapeHtml(item.name || '-')}">Edit</button>
             </div>
@@ -2914,11 +2895,12 @@ MURID:
       }).join('');
     }
 
-    async function handleKelasDocDelete(index) {
+    async function handleKelasDocDelete(index, btn) {
       const kelasId = state.dialogKelasId;
       if (!kelasId) return;
       const file = state.dialogFiles[index];
       if (!confirm(`Hapus file "${file?.name}"?`)) return;
+      if (btn) btn.disabled = true;
       try {
         const result = await api('kelas.doc.delete', { kelasId, fileIndex: index }, 'POST');
         state.dialogFiles = result.data.files || [];
@@ -2927,12 +2909,15 @@ MURID:
         renderKelasFiles();
       } catch (err) {
         showNotice(err.message || 'Gagal menghapus file.', 'error');
+        if (btn) btn.disabled = false;
       }
     }
 
     async function handleKelasDocUpload(fileList) {
       const kelasId = state.dialogKelasId;
       if (!kelasId || !fileList.length) return;
+      const inputEl = document.getElementById('kelasFileInput');
+      inputEl.disabled = true;
       const statusEl = document.getElementById('kelasFileUploadStatus');
       for (const file of Array.from(fileList)) {
         statusEl.textContent = `Mengunggah ${file.name}...`;
@@ -2953,7 +2938,8 @@ MURID:
         }
       }
       statusEl.textContent = '';
-      document.getElementById('kelasFileInput').value = '';
+      inputEl.value = '';
+      inputEl.disabled = false;
     }
 
     async function loadSilabusList() {
@@ -3006,6 +2992,8 @@ MURID:
         deadlineInput.focus();
         return;
       }
+      const addBtn = document.getElementById('btnAddSilabusItem');
+      addBtn.disabled = true;
       try {
         await api('kelas.silabus.save', { kelas_id: kelasId, nama_materi: namaMateri, deadline }, 'POST');
         input.value = '';
@@ -3013,15 +3001,19 @@ MURID:
         await loadSilabusList();
       } catch (err) {
         showNotice(err.message || 'Gagal menambah materi.', 'error');
+      } finally {
+        addBtn.disabled = false;
       }
     }
 
-    async function handleSilabusToggle(id) {
+    async function handleSilabusToggle(id, cb) {
+      if (cb) cb.disabled = true;
       try {
         await api('kelas.silabus.toggle', { id }, 'POST');
         await loadSilabusList();
       } catch (err) {
         showNotice(err.message || 'Gagal mengubah status materi.', 'error');
+        if (cb) cb.disabled = false;
       }
     }
 
@@ -3089,23 +3081,71 @@ MURID:
       });
     }
 
-    async function handleSilabusDelete(id) {
+    async function handleSilabusDelete(id, btn) {
       if (!confirm('Hapus materi silabus ini?')) return;
+      if (btn) btn.disabled = true;
       try {
         await api('kelas.silabus.delete', { id }, 'POST');
         await loadSilabusList();
       } catch (err) {
         showNotice(err.message || 'Gagal menghapus materi.', 'error');
+        if (btn) btn.disabled = false;
       }
     }
 
-    async function handleSilabusReorder(id, dir) {
+    async function handleSilabusReorder(id, dir, btn) {
+      if (btn) btn.disabled = true;
       try {
         await api('kelas.silabus.reorder', { id, dir }, 'POST');
         await loadSilabusList();
       } catch (err) {
         showNotice(err.message || 'Gagal mengubah urutan materi.', 'error');
+        if (btn) btn.disabled = false;
       }
+    }
+
+    // Peringatan santri dibekukan di roster: dialog overlay konfirmasi SEBELUM simpan.
+    // Santri NONAKTIF tidak dicek di sini -- endpoint `references` cuma mengirim santri
+    // aktif + dibekukan, jadi santri nonaktif tak pernah muncul di checklist & otomatis
+    // terlepas dari roster saat simpan (keputusan user 2026-08-31).
+    function pickFrozenSantriFromChecklist(santriIds) {
+      const picked = new Set(santriIds || []);
+      return (state.refs.santri || []).filter(s => picked.has(s.id) && s.statusLabel === 'Dibekukan');
+    }
+
+    function confirmFrozenSantriBeforeSave(frozenList) {
+      return new Promise(resolve => {
+        let dlg = document.getElementById('frozenSantriDialog');
+        if (!dlg) {
+          dlg = document.createElement('dialog');
+          dlg.id = 'frozenSantriDialog';
+          // data-no-history: dialog konfirmasi transien yang dibuka DI ATAS dialog edit --
+          // jangan ikut mekanisme history dialog bersama (shared-ui.js), kalau tidak klik
+          // Batal akan men-history.back() dan menutup dialog edit di belakangnya juga.
+          dlg.setAttribute('data-no-history', 'true');
+          dlg.style.cssText = 'border:none;border-radius:16px;padding:0;max-width:460px;width:94vw;box-shadow:0 20px 60px rgba(0,0,0,0.3);color:#3a2f25;';
+          document.body.appendChild(dlg);
+        }
+        const rows = frozenList.map(s => `<li>${escapeHtml(s.name)}${s.noInduk ? ` <span style="color:#8a7f72;">&middot; NIS ${escapeHtml(s.noInduk)}</span>` : ''}</li>`).join('');
+        dlg.innerHTML = `<div style="padding:22px;display:grid;gap:12px;font-family:inherit;">
+          <h3 style="margin:0;color:var(--warning,#b26a00);">Ada santri dibekukan</h3>
+          <div style="font-size:13.5px;line-height:1.6;">
+            <strong>${frozenList.length}</strong> santri berstatus <strong>Dibekukan</strong> ikut tercentang di kelas ini:
+            <ul style="margin:8px 0 0;padding-left:20px;">${rows}</ul>
+            <br>Santri dibekukan boleh tetap berada di kelas. Lanjutkan simpan?
+          </div>
+          <div style="display:flex;gap:10px;justify-content:flex-end;">
+            <button class="secondary" type="button" id="frozenSantriCancel">Batal</button>
+            <button class="primary" type="button" id="frozenSantriOk">Ya, simpan tetap</button>
+          </div>
+        </div>`;
+        dlg.showModal();
+        let settled = false;
+        const finish = (val) => { if (settled) return; settled = true; try { dlg.close(); } catch (e) {} resolve(val); };
+        dlg.querySelector('#frozenSantriCancel').onclick = () => finish(false);
+        dlg.querySelector('#frozenSantriOk').onclick = () => finish(true);
+        dlg.addEventListener('close', () => finish(false), { once: true });
+      });
     }
 
     async function saveForm(event) {
@@ -3132,28 +3172,34 @@ MURID:
         document.getElementById('dialogTahunAjaran').focus();
         return;
       }
+      const frozenPicked = pickFrozenSantriFromChecklist(record.santriIds);
+      if (frozenPicked.length && !(await confirmFrozenSantriBeforeSave(frozenPicked))) return;
+      const btn = event.submitter;
+      if (btn) btn.disabled = true;
       try {
         await api('kelas.save', { record }, 'POST');
         document.getElementById('dialog').close();
         await loadData();
-        await issuePanelController.load();
       } catch (error) {
         showNotice(error.message || 'Gagal menyimpan kelas.', 'error');
+      } finally {
+        if (btn) btn.disabled = false;
       }
     }
 
-    async function toggleItem(id) {
+    async function toggleItem(id, btn) {
       const item = state.items.find(entry => entry.id === id);
       if (!item) return;
       const nextActive = !item.active;
       const yes = confirm(`${nextActive ? 'Aktifkan' : 'Nonaktifkan'} kelas "${item.name}"?`);
       if (!yes) return;
+      if (btn) btn.disabled = true;
       try {
         await api('kelas.toggle', { id, active: nextActive }, 'POST');
         await loadData();
-        await issuePanelController.load();
       } catch (error) {
         showNotice(error.message || 'Gagal mengubah status kelas.', 'error');
+        if (btn) btn.disabled = false;
       }
     }
 
@@ -3187,7 +3233,6 @@ MURID:
       document.getElementById('deleteAllButton').addEventListener('click', openDeleteAllDialog);
       document.getElementById('refreshButton').addEventListener('click', async () => {
         await loadData();
-        await issuePanelController.load();
       });
       document.getElementById('toggleExpandButton').addEventListener('click', toggleExpandedList);
       document.getElementById('toolbarCollapseToggle').addEventListener('click', toggleActionToolbar);
@@ -3196,7 +3241,7 @@ MURID:
       document.getElementById('exportExcelButton').addEventListener('click', handleExportExcel);
       document.getElementById('importExcelInput').addEventListener('change', handleImportChange);
       document.getElementById('tahunAjaranFilter').addEventListener('change', event => { state.page = 1; state.tahunAjaranFilter = event.target.value; loadData(); });
-      document.getElementById('searchInput').addEventListener('input', () => { state.page = 1; loadData(); });
+      document.getElementById('searchInput').addEventListener('input', PSUI.debounce(() => { state.page = 1; loadData(); }, PSUI.AUTOSAVE_DEBOUNCE_MS));
       document.getElementById('statusFilter').addEventListener('change', () => { state.page = 1; loadData(); });
       document.getElementById('genderFilter').addEventListener('change', () => { state.page = 1; loadData(); });
       document.getElementById('jamFilter').addEventListener('change', () => { state.page = 1; loadData(); });
@@ -3241,7 +3286,7 @@ MURID:
       });
       document.getElementById('kelasFilesList').addEventListener('click', event => {
         const btn = event.target.closest('[data-delete-file]');
-        if (btn) handleKelasDocDelete(Number(btn.getAttribute('data-delete-file')));
+        if (btn) handleKelasDocDelete(Number(btn.getAttribute('data-delete-file')), btn);
       });
       document.getElementById('btnAddSilabusItem').addEventListener('click', handleSilabusAdd);
       document.getElementById('silabusNewInput').addEventListener('keydown', event => {
@@ -3249,7 +3294,7 @@ MURID:
       });
       document.getElementById('silabusItemList').addEventListener('change', event => {
         const cb = event.target.closest('[data-silabus-toggle]');
-        if (cb) handleSilabusToggle(cb.getAttribute('data-silabus-toggle'));
+        if (cb) handleSilabusToggle(cb.getAttribute('data-silabus-toggle'), cb);
       });
       document.getElementById('silabusItemList').addEventListener('click', event => {
         const nameSpan = event.target.closest('[data-silabus-name]');
@@ -3257,11 +3302,11 @@ MURID:
         const deadlineSpan = event.target.closest('[data-silabus-deadline]');
         if (deadlineSpan) { handleSilabusEditDeadline(deadlineSpan.getAttribute('data-silabus-deadline'), deadlineSpan); return; }
         const upBtn = event.target.closest('[data-silabus-up]');
-        if (upBtn) { handleSilabusReorder(upBtn.getAttribute('data-silabus-up'), 'up'); return; }
+        if (upBtn) { handleSilabusReorder(upBtn.getAttribute('data-silabus-up'), 'up', upBtn); return; }
         const downBtn = event.target.closest('[data-silabus-down]');
-        if (downBtn) { handleSilabusReorder(downBtn.getAttribute('data-silabus-down'), 'down'); return; }
+        if (downBtn) { handleSilabusReorder(downBtn.getAttribute('data-silabus-down'), 'down', downBtn); return; }
         const delBtn = event.target.closest('[data-silabus-delete]');
-        if (delBtn) handleSilabusDelete(delBtn.getAttribute('data-silabus-delete'));
+        if (delBtn) handleSilabusDelete(delBtn.getAttribute('data-silabus-delete'), delBtn);
       });
       document.querySelectorAll('[data-selector-target]').forEach(input => {
         input.addEventListener('input', event => applyChecklistFilter(event.target.dataset.selectorTarget, event.target.value));
@@ -3292,7 +3337,7 @@ MURID:
         return;
       }
       if (toggleId) {
-        toggleItem(toggleId);
+        toggleItem(toggleId, actionButton);
         return;
       }
       if (deleteId) {
@@ -3319,8 +3364,8 @@ MURID:
       const { id } = event.target;
       if (id === 'selectVisibleButton') selectVisibleItems();
       if (id === 'clearSelectedButton') clearSelectedIds();
-      if (id === 'bulkActivateButton') handleBulkToggle(true);
-      if (id === 'bulkDeactivateButton') handleBulkToggle(false);
+      if (id === 'bulkActivateButton') handleBulkToggle(true, event.target);
+      if (id === 'bulkDeactivateButton') handleBulkToggle(false, event.target);
       if (id === 'bulkTahunAjaranButton') bulkSetTahunAjaran();
       if (id === 'bulkDeleteButton') handleBulkDelete();
     });
@@ -3333,7 +3378,6 @@ MURID:
       syncActionToolbar();
       syncExpandToggleButton();
       await loadData();
-      await issuePanelController.load();
       if (window.PSShell && typeof window.PSShell.consumeAuditMismatchSantriPanel === 'function') {
         window.PSShell.consumeAuditMismatchSantriPanel(name => {
           document.getElementById('searchInput').value = name;

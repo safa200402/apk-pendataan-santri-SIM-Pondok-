@@ -117,6 +117,20 @@
     }
 
     #halaqohList .minimal-list-card-toggle { white-space: normal; text-align: center; }
+
+    /* Baris audit kuning per kartu halaqoh -- niru pages/kelasAbsensi (.attendance-audit) */
+    .attendance-audit {
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+      padding: 8px 15px 10px;
+      border-top: 1px dashed var(--line);
+      font-size: 11.5px;
+      font-weight: 700;
+      line-height: 1.5;
+      color: var(--warning, #9f7600);
+    }
+    .attendance-audit .audit-ico { flex-shrink: 0; margin-top: 1px; }
     .paging-host { display: grid; gap: 8px; margin: 16px 0; }
     .paging { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; }
     .page-center { display: grid; gap: 8px; justify-items: center; }
@@ -653,13 +667,6 @@
           </label>
         </div>
 
-        <div class="catatan-box">
-          <label>
-            Catatan sesi
-            <textarea id="catatanInput" placeholder="Catatan umum untuk sesi tasmi' tanggal ini (opsional)"></textarea>
-          </label>
-        </div>
-
         <div class="pengampu-info" id="pengampuInfo" hidden>
           <span><strong>Pengampu:</strong> <span id="pengampuNames">-</span></span>
           <span><strong>Pembimbing Pengganti (Badal):</strong> <span id="badalNames">-</span></span>
@@ -667,6 +674,13 @@
 
         <div class="grid-wrap" id="gridWrap" hidden>
           <table class="setoran-table" id="setoranTable"></table>
+        </div>
+
+        <div class="catatan-box">
+          <label>
+            Catatan sesi
+            <textarea id="catatanInput" placeholder="Catatan umum untuk sesi tasmi' tanggal ini (opsional)"></textarea>
+          </label>
         </div>
         <p id="emptyState" style="margin-top:16px;color:var(--muted);">Memuat data setoran tasmi'...</p>
 
@@ -938,6 +952,14 @@
       return uiState.currentNoticeId;
     }
 
+    function debounce(fn, wait) {
+      let t;
+      return function (...args) {
+        clearTimeout(t);
+        t = setTimeout(() => fn.apply(this, args), wait);
+      };
+    }
+
     function escapeHtml(value) {
       return String(value == null ? '' : value)
         .replace(/&/g, '&amp;')
@@ -997,10 +1019,6 @@
       return (h.pengampuLabels && h.pengampuLabels.length) ? h.pengampuLabels.join(', ') : 'Belum ada pengampu';
     }
 
-    function halaqohSearchText(h) {
-      return [h.name, halaqohPengampuText(h), (h.badalLabels || []).join(' '), h.tahunAjaranNama].join(' ').toLowerCase();
-    }
-
     function normalizeGenderKey(value) {
       const t = String(value || '').toLowerCase();
       if (['ikhwan', 'putra', 'laki-laki', 'laki', 'male', 'l'].some(k => t.includes(k))) return 'ikhwan';
@@ -1014,9 +1032,23 @@
       return key ? `entity-gender-${key}` : '';
     }
 
+    // Paging & filter (search/gender/tahunAjaran) dikerjakan di BACKEND (keputusan user
+    // 2026-08-29) -- request cuma minta 1 halaman sekaligus, bukan seluruh halaqoh tasmi'.
+    // state.halaqohList jadi CUMA berisi halaqoh di halaman yg lagi ditampilkan (bukan semua
+    // lagi) -- lihat penanganan khusus deep-link ?openHalaqoh= di listener 'load' di bawah,
+    // yg fetch 1 halaqoh spesifik terpisah kalau ternyata tidak ada di halaman yg lagi aktif.
     async function loadHalaqohList(showMessage) {
-      const data = await api('tasmiSetoran.halaqohList');
+      const data = await api('tasmiSetoran.halaqohList', {
+        page: state.page,
+        pageSize: state.pageSize,
+        search: state.searchQuery,
+        gender: state.filterGender,
+        tahunAjaranId: state.filterTa
+      });
       state.halaqohList = data.items || [];
+      state.total = data.total || 0;
+      state.totalPages = data.totalPages || 1;
+      state.page = data.page || state.page;
       renderHalaqohCards();
       if (showMessage) showNotice('Daftar halaqoh tasmi\' berhasil dimuat ulang.', 'info');
     }
@@ -1052,14 +1084,23 @@
       document.getElementById('badalNames').textContent = (halaqoh.badalLabels && halaqoh.badalLabels.length) ? halaqoh.badalLabels.join(', ') : 'Belum ada';
     }
 
-    function getFilteredHalaqohItems() {
-      const query = state.searchQuery.trim().toLowerCase();
-      return (state.halaqohList || []).filter(h => {
-        if (state.filterTa && h.tahunAjaranId !== state.filterTa) return false;
-        if (state.filterGender && normalizeGenderKey(h.genderGroup) !== state.filterGender) return false;
-        if (query && !halaqohSearchText(h).includes(query)) return false;
-        return true;
-      });
+    // PJ setoran tasmi' utk baris audit: pengampu utama + badal (ditandai "(badal)").
+    function tasmiAuditPjText(h) {
+      const names = [...(h.pengampuLabels || []), ...(h.badalLabels || []).map(n => `${n} (badal)`)];
+      return names.length ? names.join(', ') : 'Belum ada pengampu';
+    }
+
+    // Baris kuning "belum di-tasmi" per kartu -- data audit dari backend (h.audit),
+    // definisinya disamakan persis dgn popup nag "Kelola Audit" (lihat server.js
+    // computeTasmiGapDates_): cuma hari Sabtu, kelengkapan status + catatan utk "Tidak
+    // Tasmi'", santri dibekukan dikecualikan, batas ikut setting auditCutoffOffsetDays.
+    function getTasmiAuditHtml(h) {
+      const audit = h.audit;
+      if (!audit || !audit.active || !audit.missingCount) return '';
+      return `<div class="attendance-audit">
+        <span class="audit-ico" aria-hidden="true">&#9888;</span>
+        <span>${audit.missingCount}x Sabtu belum lengkap di-tasmi sejak ${escapeHtml(formatShortDate(audit.since))} &middot; PJ: ${escapeHtml(tasmiAuditPjText(h))}</span>
+      </div>`;
     }
 
     function halaqohCardHtml(h) {
@@ -1075,6 +1116,7 @@
             </div>
             <button class="secondary minimal-list-card-toggle" type="button" data-open-halaqoh="${escapeHtml(h.id)}">Buka</button>
           </div>
+          ${getTasmiAuditHtml(h)}
         </article>
       `;
     }
@@ -1118,11 +1160,9 @@
 
     function renderHalaqohCards() {
       const target = document.getElementById('halaqohList');
-      const filtered = getFilteredHalaqohItems();
-      state.total = filtered.length;
-      state.totalPages = Math.max(1, Math.ceil(filtered.length / state.pageSize));
-      if (state.page > state.totalPages) state.page = state.totalPages;
-      const items = filtered.slice((state.page - 1) * state.pageSize, state.page * state.pageSize);
+      // state.halaqohList SUDAH 1 halaman hasil filter dari backend (lihat loadHalaqohList) --
+      // tidak perlu difilter/dipotong ulang di sini.
+      const items = state.halaqohList || [];
 
       if (!items.length) {
         const filtering = state.searchQuery || state.filterTa || state.filterGender;
@@ -1769,26 +1809,33 @@
         pdfBtn.disabled = true;
         pdfBtn.title = 'Hanya untuk super admin, admin, atau koordinator halaqoh.';
       }
-      document.getElementById('searchInput').addEventListener('input', event => {
+      async function reloadHalaqohList() {
+        try {
+          await loadHalaqohList();
+        } catch (error) {
+          showNotice(error.message || 'Gagal memuat daftar halaqoh tasmi\'.', 'error');
+        }
+      }
+      document.getElementById('searchInput').addEventListener('input', debounce(event => {
         state.searchQuery = event.target.value || '';
         state.page = 1;
-        renderHalaqohCards();
-      });
+        reloadHalaqohList();
+      }, PSUI.AUTOSAVE_DEBOUNCE_MS));
       document.getElementById('filterTa').addEventListener('change', event => {
         state.filterTa = event.target.value || '';
         state.page = 1;
-        renderHalaqohCards();
+        reloadHalaqohList();
       });
       document.getElementById('filterGender').addEventListener('change', event => {
         state.filterGender = event.target.value || '';
         state.page = 1;
-        renderHalaqohCards();
+        reloadHalaqohList();
       });
       function handleHalaqohPaginationClick(event) {
         const btn = event.target.closest('[data-page]');
         if (!btn) return;
         const pg = parseInt(btn.dataset.page, 10);
-        if (!isNaN(pg)) { state.page = pg; renderHalaqohCards(); }
+        if (!isNaN(pg)) { state.page = pg; reloadHalaqohList(); }
       }
       document.getElementById('paginationTop').addEventListener('click', handleHalaqohPaginationClick);
       document.getElementById('paginationBottom').addEventListener('click', handleHalaqohPaginationClick);
@@ -1888,6 +1935,14 @@
           await loadTahunAjaranList();
           await loadHalaqohList();
           const openHalaqohId = new URLSearchParams(location.search).get('openHalaqoh');
+          // state.halaqohList sekarang cuma 1 halaman (lihat loadHalaqohList) -- halaqoh yg
+          // dituju popup audit bisa saja ada di halaman lain / kefilter oleh filterTa/filterGender
+          // yg lagi aktif, jadi fetch 1 halaqoh itu SPESIFIK dulu (lewat param `id`, skip
+          // filter+paging di backend) sebelum dicek keberadaannya.
+          if (openHalaqohId && !state.halaqohList.some(h => h.id === openHalaqohId)) {
+            const extra = await api('tasmiSetoran.halaqohList', { id: openHalaqohId });
+            if (extra.items && extra.items.length) state.halaqohList = [...state.halaqohList, ...extra.items];
+          }
           if (openHalaqohId && state.halaqohList.some(h => h.id === openHalaqohId)) {
             history.replaceState(null, '', location.pathname);
             // Sengaja MUNDUR ke Sabtu terakhir yg SUDAH LEWAT (bukan nearestSaturdayStr, yg

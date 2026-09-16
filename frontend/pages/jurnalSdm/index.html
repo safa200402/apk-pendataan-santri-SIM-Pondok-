@@ -1205,22 +1205,28 @@
       } else {
         payload.idRef = document.getElementById('entryRefSelect').value;
       }
+      const btn = document.getElementById('btnSimpanEntry');
+      if (btn) btn.disabled = true;
       try {
         await api('sdm.jurnal.entry.save', payload);
         hideEntryForm();
         await refreshAfterChange();
       } catch (e) {
         showNotice(e.message || 'Gagal menyimpan kegiatan.', 'error');
+      } finally {
+        if (btn) btn.disabled = false;
       }
     }
 
-    async function deleteEntry(id) {
+    async function deleteEntry(id, btn) {
       if (!confirm('Hapus kegiatan ini? Tindakan ini hanya untuk Super Admin.')) return;
+      if (btn) btn.disabled = true;
       try {
         await api('sdm.jurnal.entry.delete', { id });
         await refreshAfterChange();
       } catch (e) {
         showNotice(e.message || 'Gagal menghapus kegiatan.', 'error');
+        if (btn) btn.disabled = false;
       }
     }
 
@@ -1295,6 +1301,8 @@
       const jenisIzin = document.getElementById('izinJenisSelect').value;
       const catatan = document.getElementById('izinCatatan').value.trim();
       if (!catatan) { showNotice('Catatan izin wajib diisi.', 'error'); return; }
+      const btn = document.getElementById('btnSimpanIzin');
+      if (btn) btn.disabled = true;
       try {
         if (entryId) {
           const result = await api('sdm.jurnal.izin.entry.update', { id: entryId, jenisIzin, catatan });
@@ -1316,6 +1324,8 @@
         }
       } catch (e) {
         showNotice(e.message || 'Gagal menyimpan izin.', 'error');
+      } finally {
+        if (btn) btn.disabled = false;
       }
     }
 
@@ -1381,12 +1391,16 @@
       const sah = document.getElementById('pengesahanSah').value;
       const alasan = document.getElementById('pengesahanAlasan').value.trim();
       if (sah === '0' && !alasan) { showNotice('Alasan wajib diisi kalau kegiatan dinyatakan tidak sah.', 'error'); return; }
+      const btn = document.getElementById('btnSimpanPengesahan');
+      if (btn) btn.disabled = true;
       try {
         await api('sdm.jurnal.entry.pengesahan', { id, sah, alasan });
         hidePengesahanForm();
         await refreshAfterChange();
       } catch (e) {
         showNotice(e.message || 'Gagal menyimpan pengesahan.', 'error');
+      } finally {
+        if (btn) btn.disabled = false;
       }
     }
 
@@ -1394,6 +1408,8 @@
     async function saveFingerprint() {
       const idJurnal = document.getElementById('pengesahanEntryId').value;
       if (!idJurnal) return;
+      const btn = document.getElementById('btnSimpanFp');
+      if (btn) btn.disabled = true;
       try {
         await api('sdm.fingerprint.save', {
           idJurnal,
@@ -1405,11 +1421,15 @@
         showNotice('Data fingerprint disimpan.', 'success');
       } catch (e) {
         showNotice(e.message || 'Gagal menyimpan data fingerprint.', 'error');
+      } finally {
+        if (btn) btn.disabled = false;
       }
     }
     async function saveDataLapangan() {
       const idJurnal = document.getElementById('pengesahanEntryId').value;
       if (!idJurnal) return;
+      const btn = document.getElementById('btnSimpanLp');
+      if (btn) btn.disabled = true;
       try {
         await api('sdm.dataLapangan.save', {
           idJurnal,
@@ -1421,6 +1441,8 @@
         showNotice('Data lapangan disimpan.', 'success');
       } catch (e) {
         showNotice(e.message || 'Gagal menyimpan data lapangan.', 'error');
+      } finally {
+        if (btn) btn.disabled = false;
       }
     }
 
@@ -1463,7 +1485,7 @@
       syncConceptPanel();
       document.getElementById('refreshButton').addEventListener('click', loadData);
       document.getElementById('toggleExpandButton').addEventListener('click', toggleExpandedList);
-      document.getElementById('searchInput').addEventListener('input', () => { state.page = 1; loadData(); });
+      document.getElementById('searchInput').addEventListener('input', PSUI.debounce(() => { state.page = 1; loadData(); }, PSUI.AUTOSAVE_DEBOUNCE_MS));
       document.getElementById('statusFilter').addEventListener('change', () => { state.page = 1; loadData(); });
       document.getElementById('jenisFilter').addEventListener('change', () => { state.page = 1; loadData(); });
       document.getElementById('sortSelect').addEventListener('change', () => { state.page = 1; loadData(); });
@@ -1549,7 +1571,7 @@
           return;
         }
         if (sahkanBtn) { showPengesahanForm(sahkanBtn.getAttribute('data-sahkan-entry')); return; }
-        if (hapusBtn) { deleteEntry(hapusBtn.getAttribute('data-hapus-entry')); return; }
+        if (hapusBtn) { deleteEntry(hapusBtn.getAttribute('data-hapus-entry'), hapusBtn); return; }
       });
 
       document.getElementById('btnSimpanPengesahan').addEventListener('click', savePengesahan);

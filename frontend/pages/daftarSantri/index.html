@@ -458,9 +458,7 @@
     }
 
     .is-unavailable,
-    .file-input-proxy,
-    .issue-panel #issueSummary,
-    .issue-panel #issueList {
+    .file-input-proxy {
       display: none !important;
     }
 
@@ -478,13 +476,22 @@
     .doc-upload-area { margin-top: 6px; display: flex; flex-direction: column; gap: 8px; }
     .doc-preview-wrap { display: flex; align-items: flex-start; gap: 8px; flex-wrap: wrap; }
     .doc-preview-img { max-width: 180px; max-height: 130px; border-radius: 8px; object-fit: contain; border: 1px solid rgba(91,73,57,0.18); cursor: pointer; }
+    .doc-preview-pdf { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 8px; background: #fff; border: 1px solid rgba(91,73,57,0.18); font-size: 12px; font-weight: 600; color: #a55a52; text-decoration: none; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .doc-upload-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
     .doc-pick-btn { display: inline-flex; align-items: center; padding: 5px 11px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 600; background: #fff; color: var(--text-muted); }
     .doc-pick-btn:hover { background: #f5f0eb; }
     .doc-delete-btn { padding: 4px 10px; border-radius: 8px; border: 1px solid rgba(165,90,82,0.4); background: #fff5f5; color: #a55a52; font-size: 12px; font-weight: 600; cursor: pointer; }
     .doc-delete-btn:hover { background: #ffe8e8; }
+    .doc-view-btn { padding: 4px 10px; border-radius: 8px; border: 1px solid rgba(91,73,57,0.3); background: #fff; color: #4d4034; font-size: 12px; font-weight: 600; cursor: pointer; }
+    .doc-view-btn:hover { background: #f5f0eb; }
     .doc-no-file { font-size: 12px; color: var(--text-muted); align-self: center; }
     .doc-pending-name { font-size: 12px; font-style: italic; color: var(--text); }
+
+    #docViewerTitle { max-width: 100%; overflow-wrap: anywhere; word-break: break-word; }
+    .doc-viewer-body { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; background: #e9e4da; border-radius: 12px; min-height: 55vh; overflow: auto; }
+    .doc-viewer-body img { max-width: 100%; max-height: 68vh; object-fit: contain; display: block; margin: auto; }
+    .doc-viewer-body iframe { width: 100%; height: 68vh; border: 0; background: #fff; border-radius: 12px; }
+    .doc-viewer-body .doc-viewer-empty { font-size: 13px; color: var(--muted); padding: 24px; }
 
     .dialog-photo-area { display: flex; align-items: center; gap: 14px; padding: 12px 0 16px; border-bottom: 1px solid rgba(91,73,57,0.15); margin-bottom: 4px; }
     .dialog-photo-avatar { width: 68px; height: 68px; border-radius: 50%; background: linear-gradient(135deg, #f4d978, #c99a28); color: #4a2f22; display: grid; place-items: center; font-size: 22px; font-weight: 900; overflow: hidden; flex-shrink: 0; border: 2px solid rgba(74,47,34,0.12); }
@@ -564,26 +571,6 @@
       <section class="panel nav" id="nav"></section>
       <div class="content-stack">
         <section class="notice info" id="notice"></section>
-        <section class="issue-panel">
-          <h2>Masalah Terkait</h2>
-          <div class="issue-summary" id="issueSummary"></div>
-          <ul class="issue-warning-list" id="issueList"></ul>
-        </section>
-        <section id="pageConceptPanel" style="display:none; padding:18px 20px; border-radius:18px; background:linear-gradient(135deg, #2b1e14, #19120c); color:#f3e9d8; box-shadow:0 14px 32px rgba(0,0,0,0.35);">
-          <span style="display:inline-block; padding:5px 12px; border-radius:999px; background:rgba(185,118,80,0.25); color:#e8b98f; font-size:11px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:10px;">Konsep Halaman · Terlihat hanya untuk Super Admin</span>
-          <ul style="margin:0; padding-left:18px; display:grid; gap:8px; font-size:13px; line-height:1.6;">
-            <li style="color:#e6d9c4;"><strong style="color:#f6d9b8;">Super Admin</strong> bisa mengakses semua fitur di halaman ini, termasuk aksi sensitif seperti hapus data, tempel/import/export santri inti, template &amp; import Excel, dan reset semua password.</li>
-            <li style="color:#e6d9c4;"><strong style="color:#f6d9b8;">Admin</strong> bisa semua kecuali aksi sensitif — <strong style="color:#f6d9b8;">hapus data, tempel/import/export santri inti, template &amp; import Excel, dan reset semua password</strong> — yang hanya untuk Super Admin.</li>
-            <li style="color:#e6d9c4;"><strong style="color:#f6d9b8;">Semua pengurus lain</strong> (termasuk Mudir/Mudiroh) juga bisa mengakses halaman ini, tapi sama seperti Mudir — hanya mode lihat: tidak bisa menambah, mengedit, menyimpan, mengubah status, mengunduh PDF, atau menghapus santri.</li>
-            <li style="color:#e6d9c4;">Pengurus berjenis <strong style="color:#f6d9b8;">Pengabdian</strong> dikecualikan — tidak bisa membuka halaman ini sama sekali, apa pun jabatannya.</li>
-          </ul>
-          <p style="margin:14px 0 6px;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#e8b98f;">Kenapa warna kartu &amp; badge beda-beda</p>
-          <ul style="margin:0; padding-left:18px; display:grid; gap:8px; font-size:13px; line-height:1.6;">
-            <li style="color:#e6d9c4;">Warna latar kartu menandai <strong style="color:#f6d9b8;">jenis kelamin</strong>: <strong style="color:#f6d9b8;">biru</strong> = laki-laki, <strong style="color:#f6d9b8;">pink</strong> = perempuan, krem polos = jenis kelamin belum diisi.</li>
-            <li style="color:#e6d9c4;">Kartu jadi <strong style="color:#f6d9b8;">gradasi abu-abu</strong> kalau santrinya tidak dalam status Aktif normal — abu-abu <strong style="color:#f6d9b8;">gelap</strong> (#888) berarti <strong style="color:#f6d9b8;">Nonaktif</strong> (sudah keluar/lulus), abu-abu <strong style="color:#f6d9b8;">terang</strong> (#d0d0d0) berarti <strong style="color:#f6d9b8;">Dibekukan</strong> (cuti/sedang menunggu). Warna gender aslinya tetap kelihatan samar di sisi gradasinya.</li>
-            <li style="color:#e6d9c4;">Badge kecil <strong style="color:#f6d9b8;">Status Akad</strong> (bukan status aktif/nonaktif) punya warna sendiri: krem = <strong style="color:#f6d9b8;">Santri Biasa</strong>, oranye = <strong style="color:#f6d9b8;">Calon Pengabdian</strong>, <strong style="color:#f6d9b8;">biru</strong> = <strong style="color:#f6d9b8;">Pengabdian</strong> (santri yang sedang menjalani masa pengabdian, beda dari "Pengurus Pengabdian" di atas), hijau = <strong style="color:#f6d9b8;">Selesai</strong>.</li>
-          </ul>
-        </section>
         <section class="panel">
           <div class="section-head">
             <h2>Daftar santri</h2>
@@ -594,7 +581,7 @@
           </div>
           <div class="filters" id="filtersPanel">
             <label>
-              Cari nama, NIS, NIK, program
+              Cari nama, NIS, NIK, jenis akad
               <input type="search" id="searchInput" placeholder="Mis. Abdan, 232401..., subsidi">
             </label>
             <label>
@@ -623,6 +610,10 @@
                 <option value="pengabdian">Pengabdian</option>
                 <option value="selesai">Selesai</option>
               </select>
+            </label>
+            <label>
+              Angkatan (tahun)
+              <input type="text" id="angkatanFilter" inputmode="numeric" maxlength="4" placeholder="Semua angkatan" oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)">
             </label>
             <label>
               Urutkan
@@ -672,6 +663,21 @@
           <div class="paging-host" id="paginationTop"></div>
           <div class="list" id="list"></div>
           <div class="paging-host" id="paginationBottom"></div>
+        </section>
+        <section id="pageConceptPanel" style="display:none; padding:18px 20px; border-radius:18px; background:linear-gradient(135deg, #2b1e14, #19120c); color:#f3e9d8; box-shadow:0 14px 32px rgba(0,0,0,0.35);">
+          <span style="display:inline-block; padding:5px 12px; border-radius:999px; background:rgba(185,118,80,0.25); color:#e8b98f; font-size:11px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:10px;">Konsep Halaman · Terlihat hanya untuk Super Admin</span>
+          <ul style="margin:0; padding-left:18px; display:grid; gap:8px; font-size:13px; line-height:1.6;">
+            <li style="color:#e6d9c4;"><strong style="color:#f6d9b8;">Super Admin</strong> bisa mengakses semua fitur di halaman ini, termasuk aksi sensitif seperti hapus data, tempel/import/export santri inti, template &amp; import Excel, dan reset semua password.</li>
+            <li style="color:#e6d9c4;"><strong style="color:#f6d9b8;">Admin</strong> bisa semua kecuali aksi sensitif — <strong style="color:#f6d9b8;">hapus data, tempel/import/export santri inti, template &amp; import Excel, dan reset semua password</strong> — yang hanya untuk Super Admin.</li>
+            <li style="color:#e6d9c4;"><strong style="color:#f6d9b8;">Semua pengurus lain</strong> (termasuk Mudir/Mudiroh) juga bisa mengakses halaman ini, tapi sama seperti Mudir — hanya mode lihat: tidak bisa menambah, mengedit, menyimpan, mengubah status, mengunduh PDF, atau menghapus santri.</li>
+            <li style="color:#e6d9c4;">Pengurus berjenis <strong style="color:#f6d9b8;">Pengabdian</strong> dikecualikan — tidak bisa membuka halaman ini sama sekali, apa pun jabatannya.</li>
+          </ul>
+          <p style="margin:14px 0 6px;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#e8b98f;">Kenapa warna kartu &amp; badge beda-beda</p>
+          <ul style="margin:0; padding-left:18px; display:grid; gap:8px; font-size:13px; line-height:1.6;">
+            <li style="color:#e6d9c4;">Warna latar kartu menandai <strong style="color:#f6d9b8;">jenis kelamin</strong>: <strong style="color:#f6d9b8;">biru</strong> = laki-laki, <strong style="color:#f6d9b8;">pink</strong> = perempuan, krem polos = jenis kelamin belum diisi.</li>
+            <li style="color:#e6d9c4;">Kartu jadi <strong style="color:#f6d9b8;">gradasi abu-abu</strong> kalau santrinya tidak dalam status Aktif normal — abu-abu <strong style="color:#f6d9b8;">gelap</strong> (#888) berarti <strong style="color:#f6d9b8;">Nonaktif</strong> (sudah keluar/lulus), abu-abu <strong style="color:#f6d9b8;">terang</strong> (#d0d0d0) berarti <strong style="color:#f6d9b8;">Dibekukan</strong> (cuti/sedang menunggu). Warna gender aslinya tetap kelihatan samar di sisi gradasinya.</li>
+            <li style="color:#e6d9c4;">Badge kecil <strong style="color:#f6d9b8;">Status Akad</strong> (bukan status aktif/nonaktif) punya warna sendiri: krem = <strong style="color:#f6d9b8;">Santri Biasa</strong>, oranye = <strong style="color:#f6d9b8;">Calon Pengabdian</strong>, <strong style="color:#f6d9b8;">biru</strong> = <strong style="color:#f6d9b8;">Pengabdian</strong> (santri yang sedang menjalani masa pengabdian, beda dari "Pengurus Pengabdian" di atas), hijau = <strong style="color:#f6d9b8;">Selesai</strong>.</li>
+          </ul>
         </section>
       </div>
     </div>
@@ -995,7 +1001,7 @@ Masuk gelombang 1</button>
               <th>NIS</th>
               <th>Program</th>
               <th>No HP</th>
-              <th>Catatan</th>
+              <th>Keterangan status</th>
             </tr>
           </thead>
           <tbody id="quickImportTableBody"></tbody>
@@ -1023,6 +1029,21 @@ Masuk gelombang 1</button>
     </div>
   </div>
 
+  <dialog class="ps-floating-dialog" id="docViewerDialog" data-no-history="true">
+    <div class="dialog-body duplicate-dialog-body ps-dialog-shell">
+      <div class="duplicate-dialog-head ps-dialog-header">
+        <div style="min-width:0;">
+          <h3 id="docViewerTitle">Lihat File</h3>
+          <p style="margin:2px 0 0;font-size:12px;color:var(--muted);">Pratinjau di layar saja — file tidak diunduh.</p>
+        </div>
+      </div>
+      <div id="docViewerBody" class="doc-viewer-body"></div>
+      <div class="toolbar ps-dialog-footer">
+        <button class="secondary" id="docViewerCloseBtn" type="button">Tutup</button>
+      </div>
+    </div>
+  </dialog>
+
   <input class="file-input-proxy" id="importExcelInput" type="file" accept=".xlsx,.xls">
   <script src="../../shared-audit.js"></script>
   <script src="../../shared-access.js"></script>
@@ -1043,16 +1064,16 @@ Masuk gelombang 1</button>
           { key: 'nama_lengkap_kk', label: 'Nama lengkap sesuai KK' },
           { key: 'nama_setelah_diubah', label: 'Nama setelah diubah' },
           { key: 'nama_panggilan', label: 'Nama panggilan' },
-          { key: 'catatan', label: 'Catatan', type: 'textarea' },
+          { key: 'catatan', label: 'Keterangan status', type: 'textarea' },
           { key: 'password', label: 'Password (kosongkan jika tidak ingin mengubah)', type: 'password' },
           { key: 'username', label: 'Username login (opsional, selain NIS)' },
           { key: 'no_induk', label: 'NIS', type: 'digits' },
           { key: 'nik', label: 'NIK', type: 'digits' },
           { key: 'jenis_kelamin_singkat', label: 'Jenis kelamin', type: 'select', options: ['L', 'P'] },
           { key: 'status', label: 'Status', type: 'select', options: ['Active', 'Dibekukan', 'Inactive'] },
-          { key: 'keterangan_status', label: 'Keterangan status', type: 'textarea', placeholder: 'Contoh: cuti / baru keluar (belum lewat satu semester) / pengabdian / lulus / dll' },
+          { key: 'keterangan_status', label: 'Keterangan status (lama)', legacy: true },
           { key: 'periode', label: 'Periode' },
-          { key: 'angkatan', label: 'Angkatan' },
+          { key: 'angkatan', label: 'Angkatan (tahun)', type: 'year' },
           { key: 'akad', label: 'Akad', legacy: true },
           { key: 'status_pengecekan', label: 'Status pengecekan', legacy: true },
           { key: 'nama_lama', label: 'Nama lama di data sebelumnya', legacy: true }
@@ -1074,9 +1095,20 @@ Masuk gelombang 1</button>
       {
         title: 'Data kelahiran',
         fields: [
-          { key: 'tempat_tanggal_lahir', label: 'Tempat tanggal lahir' },
+          { key: 'tempat_tanggal_lahir', label: 'Tempat tanggal lahir', legacy: true },
           { key: 'tempat_lahir', label: 'Tempat lahir' },
           { key: 'tanggal_lahir', label: 'Tanggal lahir', type: 'date' }
+        ]
+      },
+      {
+        title: 'Kesehatan',
+        fields: [
+          { key: 'golongan_darah', label: 'Golongan darah', type: 'select', options: ['A', 'B', 'AB', 'O', 'Tidak tahu'] },
+          { key: 'riwayat_penyakit', label: 'Riwayat penyakit / penyakit bawaan', type: 'textarea', placeholder: 'Cth: Asma sejak kecil; epilepsi; kelainan jantung bawaan; diabetes; hipertensi; maag kronis; thalassemia. Tulis "-" bila tidak ada.' },
+          { key: 'alergi', label: 'Alergi (makanan / obat / lainnya)', type: 'textarea', placeholder: 'Cth: Alergi udang & kepiting; alergi obat penisilin; alergi debu / udara dingin; alergi telur. Tulis "-" bila tidak ada.' },
+          { key: 'kebutuhan_khusus', label: 'Kebutuhan khusus / disabilitas', type: 'textarea', placeholder: 'Cth: Gangguan penglihatan (minus tinggi); gangguan pendengaran; disleksia; keterbatasan gerak; ADHD. Tulis "-" bila tidak ada.' },
+          { key: 'obat_rutin', label: 'Obat / perawatan rutin', type: 'textarea', placeholder: 'Cth: Inhaler salbutamol saat asma kambuh; obat epilepsi 2x sehari; kontrol ke RS tiap 3 bulan. Tulis "-" bila tidak ada.' },
+          { key: 'catatan_kesehatan', label: 'Catatan kesehatan lain', type: 'textarea', placeholder: 'Cth: Riwayat operasi usus buntu 2022; pernah dirawat karena DBD; pantangan makanan pedas; nomor BPJS 000123456789.' }
         ]
       },
       {
@@ -1198,19 +1230,90 @@ Masuk gelombang 1</button>
       updateDialogPhotoPreview(area.dataset.itemName || '', area.dataset.existingUrl || '');
     }
 
+    function isPdfName(name) {
+      return /\.pdf(\?|#|$)/i.test(String(name || ''));
+    }
+
+    let docViewerBlobUrl = '';
+
+    function dataUrlToBlobUrl(dataUrl) {
+      const comma = String(dataUrl || '').indexOf(',');
+      if (comma < 0) return '';
+      const head = dataUrl.slice(0, comma);
+      const mime = (head.match(/data:([^;]+)/) || [, 'application/octet-stream'])[1];
+      const bin = atob(dataUrl.slice(comma + 1));
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i += 1) bytes[i] = bin.charCodeAt(i);
+      return URL.createObjectURL(new Blob([bytes], { type: mime }));
+    }
+
+    // Pratinjau file di layar (tidak mengunduh). isPdf -> iframe, selain itu -> img.
+    function openDocViewer(src, title, isPdf) {
+      const dialog = document.getElementById('docViewerDialog');
+      const body = document.getElementById('docViewerBody');
+      const fullTitle = title || 'Lihat File';
+      const titleEl = document.getElementById('docViewerTitle');
+      titleEl.textContent = fullTitle;
+      titleEl.title = fullTitle;
+      if (!src) {
+        body.innerHTML = '<span class="doc-viewer-empty">File tidak dapat dimuat.</span>';
+      } else if (isPdf) {
+        body.innerHTML = `<iframe src="${escapeHtml(src)}#toolbar=0&navpanes=0" title="${escapeHtml(title || 'PDF')}"></iframe>`;
+      } else {
+        body.innerHTML = `<img src="${escapeHtml(src)}" alt="${escapeHtml(title || 'Gambar')}">`;
+      }
+      if (!dialog.open) dialog.showModal();
+    }
+
+    function closeDocViewer() {
+      const dialog = document.getElementById('docViewerDialog');
+      if (dialog.open) dialog.close();
+    }
+
+    // Dipakai tombol "Lihat" di form edit: cek dulu file yang baru dipilih (pending), kalau tidak ada
+    // pakai file yang sudah tersimpan di server (dari input hidden_<key>).
+    function openDocFileViewer(key) {
+      const pending = pendingDocFiles[key];
+      if (pending && !pending.delete && pending.dataUrl) {
+        const pdf = /^data:application\/pdf/i.test(pending.dataUrl) || isPdfName(pending.name);
+        if (docViewerBlobUrl) { URL.revokeObjectURL(docViewerBlobUrl); docViewerBlobUrl = ''; }
+        if (pdf) { docViewerBlobUrl = dataUrlToBlobUrl(pending.dataUrl); openDocViewer(docViewerBlobUrl, pending.name || 'File', true); }
+        else { openDocViewer(pending.dataUrl, pending.name || 'File', false); }
+        return;
+      }
+      const hidden = document.getElementById('hidden_' + key);
+      const url = hidden ? hidden.value : '';
+      if (!url) { showNotice('Belum ada file untuk dilihat.', 'error'); return; }
+      openDocUrlViewer(url);
+    }
+
+    // Dipakai tombol "Lihat" di dialog "Lihat data santri" (mode baca) dengan URL file langsung.
+    function openDocUrlViewer(url) {
+      if (!url) return;
+      if (docViewerBlobUrl) { URL.revokeObjectURL(docViewerBlobUrl); docViewerBlobUrl = ''; }
+      openDocViewer('../../' + url, String(url).split('/').pop(), isPdfName(url));
+    }
+
     function handleDocFileChange(input) {
       const key = input.dataset.docKey;
       if (!key) return;
       const file = input.files && input.files[0];
       if (!file) return;
-      if (!file.type.startsWith('image/')) { showNotice('Hanya file gambar (JPG, PNG, WEBP, GIF) yang diizinkan.', 'error'); input.value = ''; return; }
+      const isImg = file.type.startsWith('image/');
+      const isPdf = file.type === 'application/pdf' || isPdfName(file.name);
+      if (!isImg && !isPdf) { showNotice('Hanya file gambar (JPG, PNG, WEBP, GIF) atau PDF yang diizinkan.', 'error'); input.value = ''; return; }
       if (file.size > 20 * 1024 * 1024) { showNotice('Ukuran file maksimal 20 MB.', 'error'); input.value = ''; return; }
       const reader = new FileReader();
       reader.onload = () => {
         const dataUrl = String(reader.result || '');
         pendingDocFiles[key] = { dataUrl, name: file.name };
         const previewEl = document.getElementById('docpreview_' + key);
-        if (previewEl) previewEl.innerHTML = `<img src="${dataUrl}" class="doc-preview-img" alt="preview"><button type="button" class="doc-delete-btn" onclick="deleteDocFile('${key}')">Hapus</button>`;
+        if (previewEl) {
+          const inner = isPdf
+            ? `<span class="doc-preview-pdf">📄 ${escapeHtml(file.name || 'PDF')}</span>`
+            : `<img src="${dataUrl}" class="doc-preview-img" alt="preview" onclick="openDocFileViewer('${key}')">`;
+          previewEl.innerHTML = `${inner}<button type="button" class="doc-view-btn" onclick="openDocFileViewer('${key}')">Lihat</button><button type="button" class="doc-delete-btn" onclick="deleteDocFile('${key}')">Hapus</button>`;
+        }
         const nameEl = document.getElementById('docpending_' + key);
         if (nameEl) nameEl.textContent = '';
       };
@@ -1246,14 +1349,6 @@ Masuk gelombang 1</button>
       hasInput: false,
       dirty: false,
       parsed: false
-    };
-    const ISSUE_GROUP_CONFIG = {
-      santri_incomplete_data: true,
-      kegiatan_sop_without_jabatan: true,
-      kegiatan_sop_without_primary_jabatan: true,
-      kegiatan_sop_without_category: true,
-      duplicate_nik: true,
-      duplicate_no_induk: true,
     };
     const uiState = {
       currentNoticeId: '',
@@ -1549,8 +1644,6 @@ Masuk gelombang 1</button>
       }
       return json.data;
     }
-
-    const issuePanelController = createIssuePanelController(api, { issueConfig: ISSUE_GROUP_CONFIG });
 
     function normalizeSantriStatusValue(value) {
       const normalized = String(value || '').trim().toLowerCase();
@@ -1985,7 +2078,6 @@ Masuk gelombang 1</button>
 
       try {
         await loadData();
-        await issuePanelController.load();
       } catch (error) {
         showNotice(error.message || 'Data santri tersimpan, tetapi daftar gagal dimuat ulang.', 'error');
       }
@@ -2053,6 +2145,7 @@ Masuk gelombang 1</button>
           status: document.getElementById('statusFilter').value,
           gender: document.getElementById('genderFilter').value,
           statusAkad: document.getElementById('statusAkadFilter').value,
+          angkatan: document.getElementById('angkatanFilter').value.trim(),
           sort: document.getElementById('sortSelect').value
         });
         const blob = window.PSExport.buildCardSummaryPdfBlob({
@@ -2105,6 +2198,15 @@ Masuk gelombang 1</button>
         const fileUrl = record[field.key + '_file'] || '';
         const hasFile = !!fileUrl;
         const fileHref = fileUrl ? '../../' + fileUrl : '';
+        const filePreview = !hasFile
+          ? `<span class="doc-no-file">Belum ada file</span>`
+          : isPdfName(fileUrl)
+            ? `<span class="doc-preview-pdf">📄 PDF</span>
+               <button type="button" class="doc-view-btn" onclick="openDocFileViewer('${field.key}')">Lihat</button>
+               <button type="button" class="doc-delete-btn" onclick="deleteDocFile('${field.key}')">Hapus</button>`
+            : `<img src="${escapeHtml(fileHref)}" class="doc-preview-img" alt="${escapeHtml(field.label)}" onclick="openDocFileViewer('${field.key}')">
+               <button type="button" class="doc-view-btn" onclick="openDocFileViewer('${field.key}')">Lihat</button>
+               <button type="button" class="doc-delete-btn" onclick="deleteDocFile('${field.key}')">Hapus</button>`;
         return `
           <div>
             <label>
@@ -2114,14 +2216,11 @@ Masuk gelombang 1</button>
             <input type="hidden" name="${field.key}_file" id="hidden_${field.key}" value="${escapeHtml(fileUrl)}">
             <div class="doc-upload-area">
               <div id="docpreview_${field.key}" class="doc-preview-wrap">
-                ${hasFile
-                  ? `<a href="${escapeHtml(fileHref)}" target="_blank" rel="noopener"><img src="${escapeHtml(fileHref)}" class="doc-preview-img" alt="${escapeHtml(field.label)}"></a>
-                     <button type="button" class="doc-delete-btn" onclick="deleteDocFile('${field.key}')">Hapus</button>`
-                  : `<span class="doc-no-file">Belum ada file</span>`}
+                ${filePreview}
               </div>
               <div class="doc-upload-row">
-                <label class="doc-pick-btn" for="docpick_${field.key}">Pilih gambar</label>
-                <input type="file" id="docpick_${field.key}" accept="image/jpeg,image/png,image/webp,image/gif" style="display:none" data-doc-key="${field.key}">
+                <label class="doc-pick-btn" for="docpick_${field.key}">Pilih file (gambar/PDF)</label>
+                <input type="file" id="docpick_${field.key}" accept="image/jpeg,image/png,image/webp,image/gif,application/pdf,.pdf" style="display:none" data-doc-key="${field.key}">
                 <span class="doc-pending-name" id="docpending_${field.key}"></span>
               </div>
             </div>
@@ -2164,10 +2263,38 @@ Masuk gelombang 1</button>
         `;
       }
       if (field.type === 'date') {
+        const m = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        const selDay = m ? String(Number(m[3])) : '';
+        const selMonth = m ? String(Number(m[2])) : '';
+        const selYear = m ? m[1] : '';
+        const badValue = value && !m ? String(value) : '';
+        const nowYear = new Date().getFullYear();
+        const yearStart = field.key === 'tanggal_lahir' ? 1940 : 2000;
+        const yearEnd = nowYear + 5;
+        const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+        let dayOpts = '<option value="">--</option>';
+        for (let d = 1; d <= 31; d += 1) dayOpts += `<option value="${d}" ${String(d) === selDay ? 'selected' : ''}>${d}</option>`;
+        let monthOpts = '<option value="">-- Bulan --</option>';
+        monthNames.forEach((nm, i) => { monthOpts += `<option value="${i + 1}" ${String(i + 1) === selMonth ? 'selected' : ''}>${nm}</option>`; });
+        let yearOpts = '<option value="">-- Tahun --</option>';
+        for (let y = yearEnd; y >= yearStart; y -= 1) yearOpts += `<option value="${y}" ${String(y) === selYear ? 'selected' : ''}>${y}</option>`;
         return `
           <label>
             ${field.label}
-            <input type="date" name="${field.key}" value="${escapeHtml(value)}" ${required}>
+            <div style="display:flex;gap:8px;" data-date-group="${field.key}">
+              <select name="${field.key}__d" aria-label="Tanggal ${escapeHtml(field.label)}" style="flex:0 0 78px;" ${required}>${dayOpts}</select>
+              <select name="${field.key}__m" aria-label="Bulan ${escapeHtml(field.label)}" style="flex:1 1 auto;min-width:0;" ${required}>${monthOpts}</select>
+              <select name="${field.key}__y" aria-label="Tahun ${escapeHtml(field.label)}" style="flex:0 0 92px;" ${required}>${yearOpts}</select>
+            </div>
+          </label>
+          ${badValue ? `<p style="margin:-4px 0 0;font-size:11px;color:var(--muted);font-style:italic;">Data lama tidak terbaca: ${escapeHtml(badValue)} — pilih ulang tanggal/bulan/tahun untuk memperbaiki.</p>` : ''}
+        `;
+      }
+      if (field.type === 'year') {
+        return `
+          <label>
+            ${field.label}
+            <input type="text" name="${field.key}" value="${escapeHtml(value)}" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="off" placeholder="cth. 2024" oninput="this.value=this.value.replace(/\\D/g,'').slice(0,4)" ${required}>
           </label>
         `;
       }
@@ -2205,9 +2332,14 @@ Masuk gelombang 1</button>
           : field.key === 'jenis_kelamin' ? normalizeSantriGenderPanjang(value)
           : String(value);
         const isInactiveStatus = isStatusField && getSantriStatusKey(normalizedValue) === 'inactive';
-        const options = isStatusField && !canToggleInactiveRecords()
+        // Urutan wajib: santri Aktif yang sedang diedit tidak boleh langsung ke Nonaktif (harus Dibekukan dulu).
+        const lockInactiveByOrder = isStatusField && !!(record && record.id) && getSantriStatusKey(normalizedValue) === 'active';
+        let options = isStatusField && !canToggleInactiveRecords()
           ? (isInactiveStatus ? ['Inactive'] : field.options.filter(option => getSantriStatusKey(option) !== 'inactive'))
           : field.options;
+        if (lockInactiveByOrder) {
+          options = options.filter(option => getSantriStatusKey(option) !== 'inactive');
+        }
         const disabled = isStatusField && isInactiveStatus && !canToggleInactiveRecords() ? 'disabled' : '';
         const hiddenValue = isStatusField && isInactiveStatus && !canToggleInactiveRecords()
           ? `<input type="hidden" name="${field.key}" value="Inactive">`
@@ -2228,6 +2360,7 @@ Masuk gelombang 1</button>
             </select>
             ${hiddenValue}
           </label>
+          ${lockInactiveByOrder ? `<p style="margin:-4px 0 0;font-size:11px;color:var(--muted);font-style:italic;">Santri Aktif tidak bisa langsung Nonaktif — ubah dulu ke <strong>Dibekukan</strong>, simpan, baru bisa dinonaktifkan.</p>` : ''}
         `;
       }
       if (field.type === 'password') {
@@ -2289,10 +2422,13 @@ Masuk gelombang 1</button>
       }
       if (field.type === 'file_doc') {
         const fileUrl = record[field.key + '_file'] || '';
+        const safeUrl = escapeHtml(String(fileUrl).replace(/'/g, ''));
         const fileHref = fileUrl ? '../../' + fileUrl : '';
-        const valueHtml = fileUrl
-          ? `<a class="view-doc-link" href="${escapeHtml(fileHref)}" target="_blank" rel="noopener"><img src="${escapeHtml(fileHref)}" alt="${escapeHtml(field.label)}">Lihat file</a>`
-          : empty;
+        const valueHtml = !fileUrl
+          ? empty
+          : isPdfName(fileUrl)
+            ? `<span class="view-doc-link">📄 <button type="button" class="doc-view-btn" onclick="openDocUrlViewer('${safeUrl}')">Lihat PDF</button></span>`
+            : `<span class="view-doc-link"><img src="${escapeHtml(fileHref)}" alt="${escapeHtml(field.label)}" style="cursor:pointer" onclick="openDocUrlViewer('${safeUrl}')"><button type="button" class="doc-view-btn" onclick="openDocUrlViewer('${safeUrl}')">Lihat file</button></span>`;
         return `<div class="view-field"><span class="view-field-label">${escapeHtml(field.label)}</span>${valueHtml}</div>`;
       }
       if (field.type === 'akad_status') {
@@ -2531,7 +2667,7 @@ Masuk gelombang 1</button>
       `, count > 0);
     }
 
-    async function handleBulkToggle(active) {
+    async function handleBulkToggle(active, btn) {
       if (!canToggleInactiveRecords()) {
         showNotice('Hanya Admin dan Super Admin yang bisa mengubah status aktif/nonaktif santri.', 'error');
         return;
@@ -2543,13 +2679,14 @@ Masuk gelombang 1</button>
       }
       const yes = confirm(`${active ? 'Aktifkan' : 'Nonaktifkan'} ${ids.length} santri terpilih?`);
       if (!yes) return;
+      if (btn) btn.disabled = true;
       try {
         await api('bulk.toggle', { sheetKey: DATASET_KEY, ids, active }, 'POST');
         clearSelectedIds();
         await loadData();
-        await issuePanelController.load();
       } catch (error) {
         showNotice(error.message || 'Gagal memproses aksi massal.', 'error');
+        if (btn) btn.disabled = false;
       }
     }
 
@@ -2569,7 +2706,7 @@ Masuk gelombang 1</button>
       return true;
     }
 
-    async function handleBulkDelete() {
+    async function handleBulkDelete(btn) {
       const ids = getSelectedIds();
       if (!ids.length) {
         showNotice('Pilih minimal satu santri.', 'error');
@@ -2577,13 +2714,14 @@ Masuk gelombang 1</button>
       }
       const ok = await confirmHapusPermanenBerlapis(`Hapus permanen ${ids.length} santri terpilih? SEMUA riwayat (nilai, hafalan, absensi, dll) ikut terhapus dan TIDAK BISA dipulihkan.`);
       if (!ok) return;
+      if (btn) btn.disabled = true;
       try {
         await api('bulk.delete', { sheetKey: DATASET_KEY, ids, confirm: 'HAPUS' }, 'POST');
         clearSelectedIds();
         await loadData();
-        await issuePanelController.load();
       } catch (error) {
         showNotice(error.message || 'Gagal menghapus data terpilih.', 'error');
+        if (btn) btn.disabled = false;
       }
     }
 
@@ -2695,13 +2833,14 @@ Masuk gelombang 1</button>
       await loadDuplicateGroups();
     }
 
-    async function deleteDuplicateIds(ids, label) {
+    async function deleteDuplicateIds(ids, label, btn) {
       if (!ids.length) {
         showNotice('Tidak ada data duplikat yang bisa dihapus.', 'error');
         return;
       }
       const ok = await confirmHapusPermanenBerlapis(`Hapus permanen duplikat "${label}"? SEMUA riwayat (nilai, hafalan, absensi, dll) ikut terhapus dan TIDAK BISA dipulihkan.`);
       if (!ok) return;
+      if (btn) btn.disabled = true;
       const noticeId = startTaskNotice(`Menghapus duplikat: ${label}...`, 'info');
       try {
         await api('santri.delete', { id: ids[0], confirm: 'HAPUS' }, 'POST');
@@ -2714,9 +2853,9 @@ Masuk gelombang 1</button>
         finishTaskNotice(noticeId, `Duplikat "${label}" berhasil dihapus.`, 'info', 2600);
         clearSelectedIds();
         loadData();
-        issuePanelController.load();
       } catch (error) {
         finishTaskNotice(noticeId, error.message || 'Gagal menghapus data duplikat.', 'error', 4200);
+        if (btn) btn.disabled = false;
       }
     }
 
@@ -2759,7 +2898,6 @@ Masuk gelombang 1</button>
         clearSelectedIds();
         finishTaskNotice(noticeId, data.message || 'Semua data santri berhasil dihapus.', 'info', 4200);
         await loadData();
-        await issuePanelController.load();
         if (document.getElementById('duplicateDialog').open) {
           await loadDuplicateGroups();
         }
@@ -2776,6 +2914,8 @@ Masuk gelombang 1</button>
       const file = event.target.files && event.target.files[0];
       event.target.value = '';
       if (!file) return;
+      const importBtn = document.getElementById('importExcelButton');
+      importBtn.disabled = true;
       showNotice('Memproses import Excel santri...', 'info');
       try {
         await window.PSExcel.importDataset(api, DATASET_KEY, file, {
@@ -2784,10 +2924,11 @@ Masuk gelombang 1</button>
           }
         });
         await loadData();
-        await issuePanelController.load();
         showNotice('Import Excel santri selesai.', 'info');
       } catch (error) {
         showNotice(error.message || 'Gagal import Excel.', 'error');
+      } finally {
+        importBtn.disabled = false;
       }
     }
 
@@ -2835,7 +2976,7 @@ Masuk gelombang 1</button>
                   ${genderBadge}
                   ${akadBadge}
                 </div>
-                <span class="minimal-list-card-hint">${index + 1} pada halaman ini &nbsp;\u00b7&nbsp; NIS ${escapeHtml(item.noInduk || '-')} &nbsp;\u00b7&nbsp; Program ${escapeHtml(item.program || '-')} &nbsp;\u00b7&nbsp; ${placementHintText} &nbsp;\u00b7&nbsp; Keterangan Status: ${escapeHtml(truncateWords(item.catatan, 7))}</span>
+                <span class="minimal-list-card-hint">${index + 1} pada halaman ini &nbsp;\u00b7&nbsp; NIS ${escapeHtml(item.noInduk || '-')} &nbsp;\u00b7&nbsp; ${placementHintText} &nbsp;\u00b7&nbsp; Keterangan Status: ${escapeHtml(truncateWords(item.catatan, 7))}</span>
               </div>
               <button class="secondary minimal-list-card-toggle" type="button" data-view="${item.id}" aria-label="Lihat data santri ${escapeHtml(item.name || '-')}">Lihat</button>
               <button class="secondary minimal-list-card-toggle${canManage ? '' : ' ps-locked'}" type="button" data-edit="${item.id}" aria-label="Edit santri ${escapeHtml(item.name || '-')}" ${canManage ? '' : 'disabled aria-disabled="true" title="Mudir hanya bisa melihat data santri, tidak bisa mengedit data."'}>Edit</button>
@@ -2850,7 +2991,8 @@ Masuk gelombang 1</button>
               <div class="minimal-list-card-summary">
                 <p><strong>NIS:</strong> ${escapeHtml(item.noInduk || '-')}</p>
                 <p><strong>NIK:</strong> ${escapeHtml(item.nik || '-')}</p>
-                <p><strong>Program:</strong> ${escapeHtml(item.program || '-')}</p>
+                <p><strong>Jenis akad:</strong> ${escapeHtml(item.jenisAkad || '-')}</p>
+                <p><strong>Tanggal masuk:</strong> ${escapeHtml(item.tanggalMasukDianggap ? fmtViewDate(item.tanggalMasukDianggap) : '-')}</p>
                 <p><strong>Keterangan Status:</strong> ${item.catatan ? escapeHtml(item.catatan) : '<em style="color:var(--muted);">Belum ada keterangan status.</em>'}</p>
                 <p><strong>Halaqoh:</strong> ${Number(item.halaqohCountAktifTa || 0)} &nbsp;·&nbsp; <strong>Kelas:</strong> ${Number(item.kelasCountAktifTa || 0)} &nbsp;·&nbsp; <strong>Regu:</strong> ${Number(item.reguCountAktifTa || 0)} <span style="font-size:11px;color:var(--muted);">(Tahun Ajaran Aktif${item.tahunAjaranAktifNama ? ': ' + escapeHtml(item.tahunAjaranAktifNama) : ''})</span></p>
               </div>
@@ -2862,7 +3004,9 @@ Masuk gelombang 1</button>
                 <button class="secondary${canManage ? '' : ' ps-locked'}" type="button" data-catatan="${item.id}" ${canManage ? '' : 'disabled aria-disabled="true" title="Mudir hanya bisa melihat data santri, tidak bisa mengedit keterangan status."'}>Edit Keterangan Status</button>
                 <button class="secondary" type="button" data-history="${item.id}" title="Riwayat pengedit">Riwayat Edit</button>
                 ${statusKey !== 'inactive' ? `<button class="${statusKey === 'dibekukan' ? 'primary' : 'secondary'}${canManage ? '' : ' ps-locked'}" type="button" data-freeze="${item.id}" ${canManage ? '' : 'disabled aria-disabled="true" title="Mudir hanya bisa melihat data santri, tidak bisa mengubah status."'}>${statusKey === 'dibekukan' ? 'Aktifkan normal' : 'Dibekukan'}</button>` : ''}
-                <button class="${item.active ? 'danger' : 'primary'}${canToggleInactive ? '' : ' ps-locked'}" type="button" data-toggle="${item.id}" ${canToggleInactive ? '' : 'disabled aria-disabled="true" title="Mudir hanya bisa melihat data santri, tidak bisa mengubah status aktif/nonaktif."'}>${item.active ? 'Nonaktifkan' : 'Aktifkan'}</button>
+                ${statusKey === 'active'
+                  ? ''
+                  : `<button class="${statusKey === 'inactive' ? 'primary' : 'danger'}${canToggleInactive ? '' : ' ps-locked'}" type="button" data-toggle="${item.id}" ${canToggleInactive ? '' : 'disabled aria-disabled="true" title="Mudir hanya bisa melihat data santri, tidak bisa mengubah status aktif/nonaktif."'}>${statusKey === 'inactive' ? 'Aktifkan' : 'Nonaktifkan'}</button>`}
                 ${canDelete ? `<button class="danger" type="button" data-delete="${item.id}" title="Hapus permanen, hanya Super Admin">Hapus Permanen</button>` : ''}
               </div>
             </div>
@@ -2886,6 +3030,7 @@ Masuk gelombang 1</button>
           status: document.getElementById('statusFilter').value,
           gender: document.getElementById('genderFilter').value,
           statusAkad: document.getElementById('statusAkadFilter').value,
+          angkatan: document.getElementById('angkatanFilter').value.trim(),
           sort: document.getElementById('sortSelect').value
         });
         state.items = data.items || [];
@@ -2927,6 +3072,27 @@ Masuk gelombang 1</button>
       const record = Object.fromEntries(formData.entries());
       record.status = normalizeSantriStatusValue(record.status);
 
+      // Rakit ulang input tanggal 3-dropdown (key__d / key__m / key__y) jadi YYYY-MM-DD.
+      const DATE_GROUP_KEYS = { tanggal_masuk_dianggap: 'Tanggal masuk', tanggal_lahir: 'Tanggal lahir', tanggal_keluar: 'Tanggal keluar Al Bashiroh' };
+      for (const dk of Object.keys(DATE_GROUP_KEYS)) {
+        const dd = String(record[dk + '__d'] || '').trim();
+        const mm = String(record[dk + '__m'] || '').trim();
+        const yy = String(record[dk + '__y'] || '').trim();
+        delete record[dk + '__d']; delete record[dk + '__m']; delete record[dk + '__y'];
+        if (!dd && !mm && !yy) { record[dk] = ''; continue; }
+        if (!dd || !mm || !yy) {
+          showNotice(`Lengkapi tanggal, bulan, dan tahun untuk "${DATE_GROUP_KEYS[dk]}".`, 'error');
+          return;
+        }
+        const dNum = Number(dd), mNum = Number(mm), yNum = Number(yy);
+        const check = new Date(yNum, mNum - 1, dNum);
+        if (check.getFullYear() !== yNum || check.getMonth() !== mNum - 1 || check.getDate() !== dNum) {
+          showNotice(`"${DATE_GROUP_KEYS[dk]}" tidak valid (mis. tanggal 31 di bulan yang hanya 30 hari).`, 'error');
+          return;
+        }
+        record[dk] = `${yy}-${String(mNum).padStart(2, '0')}-${String(dNum).padStart(2, '0')}`;
+      }
+
       if (!record.id) {
         const namaCek = (record.nama_lengkap_akte || record.nama_setelah_diubah || record.nama_panggilan || '').trim();
         if (namaCek) {
@@ -2963,7 +3129,6 @@ Masuk gelombang 1</button>
         await api('santri.save', { record }, 'POST');
         finishTaskNotice(noticeId, `Data santri tersimpan: ${label}.`, 'info');
         await loadData();
-        await issuePanelController.load();
       } catch (error) {
         finishTaskNotice(noticeId, error.message || `Gagal menyimpan santri: ${label}.`, 'error', 4800);
       } finally {
@@ -3127,13 +3292,15 @@ Masuk gelombang 1</button>
 
     let catatanDialogItemId = '';
     let pendingStatusChangeAfterCatatan = null;
-    function openCatatanDialog(item) {
+    function openCatatanDialog(item, pendingLabel) {
       if (!canManageRecords()) {
         showNotice('Hanya Admin dan Super Admin yang bisa mengubah keterangan status santri.', 'error');
         return;
       }
       catatanDialogItemId = item.id;
-      document.getElementById('catatanSubtitle').textContent = item.name || '-';
+      document.getElementById('catatanSubtitle').textContent = pendingLabel
+        ? `${item.name || '-'} — ${pendingLabel}`
+        : (item.name || '-');
       document.getElementById('catatanTextarea').value = item.catatan || '';
       document.getElementById('catatanDialog').showModal();
     }
@@ -3154,9 +3321,9 @@ Masuk gelombang 1</button>
         document.getElementById('catatanDialog').close();
         renderList();
         showNotice('Keterangan status berhasil disimpan.', 'success');
-        if (pending && catatan.trim()) {
-          if (pending.kind === 'toggle') await toggleItem(id);
-          else if (pending.kind === 'freeze') await toggleFrozenItem(id);
+        if (pending) {
+          if (pending.kind === 'toggle') await toggleItem(id, { fromCatatan: true });
+          else if (pending.kind === 'freeze') await toggleFrozenItem(id, { fromCatatan: true });
         }
       } catch (error) {
         showNotice(error.message || 'Gagal menyimpan keterangan status.', 'error');
@@ -3165,7 +3332,7 @@ Masuk gelombang 1</button>
       }
     }
 
-    async function toggleItem(id) {
+    async function toggleItem(id, opts = {}, btn) {
       if (!canToggleInactiveRecords()) {
         showNotice('Hanya Admin dan Super Admin yang bisa mengubah status aktif/nonaktif santri.', 'error');
         return;
@@ -3173,24 +3340,37 @@ Masuk gelombang 1</button>
       const item = state.items.find(entry => entry.id === id);
       if (!item) return;
       const nextActive = !item.active;
-      if (!nextActive && !String(item.catatan || '').trim()) {
-        showNotice('Isi Keterangan Status dulu sebelum menonaktifkan santri ini.', 'info');
+      // Urutan wajib: santri Aktif tidak bisa langsung dinonaktifkan, harus Dibekukan dulu.
+      if (!nextActive && getSantriStatusKey(item.status) === 'active') {
+        showNotice('Santri harus Dibekukan dulu sebelum bisa dinonaktifkan.', 'error');
+        return;
+      }
+      // Setiap perubahan status selalu lewat dialog Keterangan Status dulu (isi atau tidak).
+      if (!opts.fromCatatan) {
         pendingStatusChangeAfterCatatan = { kind: 'toggle', id };
-        openCatatanDialog(item);
+        showNotice('Periksa / ubah Keterangan Status dulu, lalu klik Simpan untuk melanjutkan perubahan status.', 'info');
+        openCatatanDialog(item, nextActive ? 'akan diaktifkan kembali' : 'akan dinonaktifkan');
+        return;
+      }
+      if (!nextActive && !String(item.catatan || '').trim()) {
+        showNotice('Keterangan Status wajib diisi sebelum menonaktifkan santri ini.', 'error');
+        pendingStatusChangeAfterCatatan = { kind: 'toggle', id };
+        openCatatanDialog(item, 'akan dinonaktifkan');
         return;
       }
       const yes = confirm(`${nextActive ? 'Aktifkan' : 'Nonaktifkan'} santri "${item.name}"?`);
       if (!yes) return;
+      if (btn) btn.disabled = true;
       try {
         await api('santri.toggle', { id, active: nextActive }, 'POST');
         await loadData();
-        await issuePanelController.load();
       } catch (error) {
         showNotice(error.message || 'Gagal mengubah status santri.', 'error');
+        if (btn) btn.disabled = false;
       }
     }
 
-    async function toggleFrozenItem(id) {
+    async function toggleFrozenItem(id, opts = {}, btn) {
       if (!canManageRecords()) {
         showNotice('Hanya Admin dan Super Admin yang bisa mengubah status dibekukan.', 'error');
         return;
@@ -3203,10 +3383,17 @@ Masuk gelombang 1</button>
         return;
       }
       const nextStatus = currentStatusKey === 'dibekukan' ? 'Active' : 'Dibekukan';
-      if (nextStatus === 'Dibekukan' && !String(item.catatan || '').trim()) {
-        showNotice('Isi Keterangan Status dulu sebelum membekukan santri ini.', 'info');
+      // Setiap perubahan status selalu lewat dialog Keterangan Status dulu (isi atau tidak).
+      if (!opts.fromCatatan) {
         pendingStatusChangeAfterCatatan = { kind: 'freeze', id };
-        openCatatanDialog(item);
+        showNotice('Periksa / ubah Keterangan Status dulu, lalu klik Simpan untuk melanjutkan perubahan status.', 'info');
+        openCatatanDialog(item, nextStatus === 'Dibekukan' ? 'akan dibekukan' : 'akan diaktifkan normal');
+        return;
+      }
+      if (nextStatus === 'Dibekukan' && !String(item.catatan || '').trim()) {
+        showNotice('Keterangan Status wajib diisi sebelum membekukan santri ini.', 'error');
+        pendingStatusChangeAfterCatatan = { kind: 'freeze', id };
+        openCatatanDialog(item, 'akan dibekukan');
         return;
       }
       const yes = confirm(
@@ -3215,6 +3402,7 @@ Masuk gelombang 1</button>
           : `Bekukan santri "${item.name}"? Santri tetap bisa masuk kelas, halaqoh, dan regu.`
       );
       if (!yes) return;
+      if (btn) btn.disabled = true;
       const noticeId = startTaskNotice(
         currentStatusKey === 'dibekukan'
           ? `Mengaktifkan normal ${item.name}...`
@@ -3232,13 +3420,13 @@ Masuk gelombang 1</button>
           3200
         );
         await loadData();
-        await issuePanelController.load();
       } catch (error) {
         finishTaskNotice(noticeId, error.message || 'Gagal mengubah status dibekukan.', 'error', 4200);
+        if (btn) btn.disabled = false;
       }
     }
 
-    async function deleteItem(id) {
+    async function deleteItem(id, btn) {
       if (!canDeleteRecords()) {
         showNotice('Hanya Super Admin yang bisa menghapus santri.', 'error');
         return;
@@ -3247,13 +3435,14 @@ Masuk gelombang 1</button>
       if (!item) return;
       const ok = await confirmHapusPermanenBerlapis(`Hapus permanen santri "${item.name}"? SEMUA riwayat (nilai, hafalan, absensi, dll) ikut terhapus. Data ini akan hilang total dan TIDAK BISA dipulihkan lagi.`);
       if (!ok) return;
+      if (btn) btn.disabled = true;
       try {
         await api('santri.delete', { id, confirm: 'HAPUS' }, 'POST');
         flashNotice(`Santri "${item.name}" dihapus permanen.`, 'info', 3000);
         await loadData();
-        await issuePanelController.load();
       } catch (error) {
         showNotice(error.message || 'Gagal menghapus santri.', 'error');
+        if (btn) btn.disabled = false;
       }
     }
 
@@ -3280,7 +3469,6 @@ Masuk gelombang 1</button>
       document.getElementById('addButton').addEventListener('click', () => openDialog());
       document.getElementById('refreshButton').addEventListener('click', async () => {
         await loadData();
-        await issuePanelController.load();
       });
       document.getElementById('toolbarCollapseToggle').addEventListener('click', toggleActionToolbar);
       document.getElementById('quickImportButton').addEventListener('click', openQuickImportDialog);
@@ -3293,12 +3481,16 @@ Masuk gelombang 1</button>
       document.getElementById('duplicateNameButton').addEventListener('click', openDuplicateDialog);
       document.getElementById('resetAllPasswordsButton').addEventListener('click', async () => {
         if (!confirm('Reset SEMUA password seluruh santri ke "password123"?\n\nSemua santri harus ganti password setelah ini.')) return;
+        const btn = document.getElementById('resetAllPasswordsButton');
+        btn.disabled = true;
         try {
           showNotice('Mereset semua password santri...', 'info');
           const data = await api('santri.resetAllPasswords', {}, 'POST');
           showNotice(`Selesai. ${data.count} password santri berhasil direset ke default.`, 'success');
         } catch (err) {
           showNotice(err.message || 'Gagal mereset password.', 'error');
+        } finally {
+          btn.disabled = false;
         }
       });
       document.getElementById('deleteAllButton').addEventListener('click', openDeleteAllDialog);
@@ -3320,6 +3512,12 @@ Masuk gelombang 1</button>
       document.getElementById('catatanDialog').addEventListener('cancel', () => { pendingStatusChangeAfterCatatan = null; });
       document.getElementById('saveCatatanBtn').addEventListener('click', saveCatatan);
       document.getElementById('closeViewSantriDialog').addEventListener('click', () => document.getElementById('viewSantriDialog').close());
+      document.getElementById('docViewerCloseBtn').addEventListener('click', closeDocViewer);
+      document.getElementById('docViewerDialog').addEventListener('click', event => { if (event.target === event.currentTarget) closeDocViewer(); });
+      document.getElementById('docViewerDialog').addEventListener('close', () => {
+        document.getElementById('docViewerBody').innerHTML = '';
+        if (docViewerBlobUrl) { URL.revokeObjectURL(docViewerBlobUrl); docViewerBlobUrl = ''; }
+      });
       document.getElementById('deleteAllDialog').addEventListener('close', () => {
         document.getElementById('deleteAllConfirmInput').value = '';
         document.getElementById('confirmDeleteAllButton').disabled = true;
@@ -3369,17 +3567,22 @@ Masuk gelombang 1</button>
         const id = document.querySelector('#form input[name="id"]').value.trim();
         if (!id) { showNotice('Simpan santri terlebih dahulu sebelum mereset password.', 'error'); return; }
         if (!confirm('Reset password santri ini ke "password123"?')) return;
+        const btn = event.target;
+        btn.disabled = true;
         try {
           await api('santri.resetPassword', { id }, 'POST');
           showNotice('Password berhasil direset ke default (password123).', 'success');
         } catch (err) {
           showNotice(err.message || 'Gagal mereset password.', 'error');
+        } finally {
+          btn.disabled = false;
         }
       });
-      document.getElementById('searchInput').addEventListener('input', () => { state.page = 1; loadData(); });
+      document.getElementById('searchInput').addEventListener('input', PSUI.debounce(() => { state.page = 1; loadData(); }, PSUI.AUTOSAVE_DEBOUNCE_MS));
       document.getElementById('statusFilter').addEventListener('change', () => { state.page = 1; loadData(); });
       document.getElementById('genderFilter').addEventListener('change', () => { state.page = 1; loadData(); });
       document.getElementById('statusAkadFilter').addEventListener('change', () => { state.page = 1; loadData(); });
+      document.getElementById('angkatanFilter').addEventListener('input', PSUI.debounce(() => { state.page = 1; loadData(); }, PSUI.AUTOSAVE_DEBOUNCE_MS));
       document.getElementById('sortSelect').addEventListener('change', () => { state.page = 1; loadData(); });
       document.getElementById('pageSizeSelect').addEventListener('change', event => {
         state.pageSize = Number(event.target.value);
@@ -3441,15 +3644,15 @@ Masuk gelombang 1</button>
         return;
       }
       if (freezeId) {
-        toggleFrozenItem(freezeId);
+        toggleFrozenItem(freezeId, {}, actionButton);
         return;
       }
       if (toggleId) {
-        toggleItem(toggleId);
+        toggleItem(toggleId, {}, actionButton);
         return;
       }
       if (deleteId) {
-        deleteItem(deleteId);
+        deleteItem(deleteId, actionButton);
         return;
       }
       if (collapseId) {
@@ -3472,15 +3675,15 @@ Masuk gelombang 1</button>
       const { id } = event.target;
       if (id === 'selectVisibleButton') selectVisibleItems();
       if (id === 'clearSelectedButton') clearSelectedIds();
-      if (id === 'bulkActivateButton') handleBulkToggle(true);
-      if (id === 'bulkDeactivateButton') handleBulkToggle(false);
-      if (id === 'bulkDeleteButton') handleBulkDelete();
+      if (id === 'bulkActivateButton') handleBulkToggle(true, event.target);
+      if (id === 'bulkDeactivateButton') handleBulkToggle(false, event.target);
+      if (id === 'bulkDeleteButton') handleBulkDelete(event.target);
     });
     document.getElementById('duplicateList').addEventListener('click', event => {
       const singleId = event.target.getAttribute('data-duplicate-delete');
       const singleLabel = event.target.getAttribute('data-duplicate-label');
       if (singleId) {
-        deleteDuplicateIds([singleId], singleLabel || 'santri');
+        deleteDuplicateIds([singleId], singleLabel || 'santri', event.target);
       }
     });
     window.addEventListener('beforeunload', event => {
@@ -3495,7 +3698,6 @@ Masuk gelombang 1</button>
       document.getElementById('pageSizeSelect').value = String(state.pageSize);
       syncFiltersVisibility();
       await loadData();
-      await issuePanelController.load();
     });
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});

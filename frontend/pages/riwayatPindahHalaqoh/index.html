@@ -8,7 +8,7 @@
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="../../shared-ui.css">
   <link rel="stylesheet" href="../../shared-shell.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+  <link rel="stylesheet" href="../../vendor/fontawesome/css/all.min.css">
   <script src="../../shared-ui.js"></script>
   <title>Riwayat Pindah Halaqoh</title>
   <style>
@@ -27,20 +27,20 @@
     .toolbar, .meta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; align-items: center; }
 
     .pindah-list { display: grid; gap: 10px; margin-top: 10px; }
-    .pindah-card { border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; background: rgba(242, 222, 154, 0.5); display: flex; gap: 12px; align-items: flex-start; justify-content: space-between; }
-    .pindah-card-main { display: grid; gap: 6px; min-width: 0; }
-    .pindah-card-actions { flex-shrink: 0; display: flex; flex-direction: column; gap: 6px; }
     .pindah-route { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 15px; font-weight: 700; color: var(--ink); }
     .pindah-route i { color: var(--muted); font-size: 13px; }
     .pindah-santri { font-size: 13.5px; font-weight: 700; color: var(--accent); }
     .pindah-meta { font-size: 12.5px; color: var(--muted); }
-    .pindah-alasan { font-size: 13px; color: var(--ink); border-radius: 10px; padding: 8px 10px; }
+    .pindah-alasan { font-size: 13px; color: var(--ink); border-radius: 10px; padding: 8px 10px; background: rgba(255,255,255,0.35); }
     .pindah-belum-selesai { font-size: 12.5px; font-weight: 700; color: var(--warning); background: rgba(181,132,57,0.14); border-radius: 8px; padding: 6px 10px; margin-top: 4px; }
     .pindah-aman { font-size: 12.5px; font-weight: 700; color: var(--success); background: rgba(116,132,108,0.14); border-radius: 8px; padding: 6px 10px; margin-top: 4px; }
     .pindah-dua-halaqoh { font-size: 12.5px; font-weight: 700; color: #33587f; background: rgba(74,110,158,0.14); border-radius: 8px; padding: 6px 10px; margin-top: 4px; }
+    .pindah-duplikat { font-size: 12.5px; font-weight: 700; color: var(--danger); background: rgba(165,90,82,0.14); border-radius: 8px; padding: 8px 10px; margin-top: 4px; line-height: 1.5; }
     .pill { display: inline-block; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; padding: 3px 10px; border-radius: 999px; background: rgba(74,110,158,0.18); color: #33587f; }
     .pill.inactive { background: rgba(123,106,88,0.16); color: var(--muted); }
-    .pindah-card-actions button { padding: 8px 14px; font-size: 12.5px; }
+    .pill.duplikat { background: rgba(165,90,82,0.16); color: var(--danger); }
+    .minimal-list-card.has-duplikat { border-color: rgba(165,90,82,0.55); box-shadow: 0 0 0 1px rgba(165,90,82,0.3); }
+    .minimal-list-card-actions button { padding: 8px 14px; font-size: 12.5px; }
 
     .empty-state { text-align: center; padding: 40px 16px; color: var(--muted); }
     .empty-state i { font-size: 32px; opacity: 0.4; }
@@ -105,6 +105,7 @@
           </div>
           <div class="toolbar" id="actionToolbar">
             <button class="primary" id="addPindahButton" type="button">+ Catat Pindah Halaqoh</button>
+            <button class="secondary" id="toggleExpandButton" type="button" data-expand-state="collapsed">Buka semua</button>
             <button class="secondary" id="refreshButton" type="button">Muat ulang</button>
           </div>
           <div class="paging-host" id="paginationTop"></div>
@@ -196,7 +197,8 @@
     const state = {
       items: [], page: 1, pageSize: 20, total: 0, totalPages: 1,
       q: '', tahunAjaranId: '', status: '', sort: 'tanggal_desc',
-      canManage: false, canDelete: false
+      canManage: false, canDelete: false,
+      expandedIds: new Set()
     };
     const dialogState = { tahunAjaranList: [], santriRefs: [], halaqohByTa: {} };
 
@@ -280,40 +282,90 @@
       return new Date(Date.UTC(+match[1], +match[2] - 1, +match[3])).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric', timeZone: 'UTC' });
     }
 
+    function isItemExpanded(id) {
+      return state.expandedIds.has(id);
+    }
+
+    function pruneExpandedIds() {
+      const visibleIds = new Set(state.items.map(item => item.id));
+      Array.from(state.expandedIds).forEach(id => {
+        if (!visibleIds.has(id)) state.expandedIds.delete(id);
+      });
+    }
+
+    function syncExpandToggleButton() {
+      const button = document.getElementById('toggleExpandButton');
+      if (!button) return;
+      const hasItems = state.items.length > 0;
+      const allExpanded = hasItems && state.items.every(item => state.expandedIds.has(item.id));
+      button.disabled = !hasItems;
+      button.dataset.expandState = allExpanded ? 'expanded' : 'collapsed';
+      button.textContent = allExpanded ? 'Tutup semua' : 'Buka semua';
+    }
+
+    function toggleItemExpanded(id) {
+      if (!id) return;
+      if (state.expandedIds.has(id)) state.expandedIds.delete(id);
+      else state.expandedIds.add(id);
+      renderList();
+    }
+
+    function toggleExpandedList() {
+      const allExpanded = state.items.length > 0 && state.items.every(item => state.expandedIds.has(item.id));
+      if (allExpanded) state.expandedIds.clear();
+      else state.items.forEach(item => state.expandedIds.add(item.id));
+      renderList();
+    }
+
     function renderList() {
       const list = document.getElementById('pindahList');
       if (!state.items.length) {
         list.innerHTML = '<div class="empty-state"><i class="fa-solid fa-shuffle"></i><p style="margin-top:8px;">Belum ada riwayat pindah halaqoh.</p></div>';
         renderPagination();
+        syncExpandToggleButton();
         return;
       }
-      list.innerHTML = state.items.map(item => {
+      list.innerHTML = state.items.map((item, index) => {
         const recordedAt = item.createdAt ? new Date(item.createdAt).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : '-';
+        const expanded = isItemExpanded(item.id);
+        const dup = !!item.duplikatHalaqohSama;
+        const dupDates = (item.duplikatTanggalLain || []).map(formatDate).join(', ');
         return `
-        <div class="pindah-card">
-          <div class="pindah-card-main">
-            <div class="pindah-route">
-              <span class="pindah-santri">${escapeHtml(item.santriName || '-')}</span>
-              <span>${escapeHtml(item.fromHalaqohName || '-')}</span>
-              <i class="fa-solid fa-arrow-right-long"></i>
-              <span>${escapeHtml(item.toHalaqohName || '-')}</span>
-              ${item.tahunAjaranNama ? `<span class="pill">${escapeHtml(item.tahunAjaranNama)}</span>` : ''}
-              <span class="pill${item.active ? '' : ' inactive'}">${escapeHtml(item.status)}</span>
+        <article class="card minimal-list-card ${expanded ? 'is-expanded' : ''}${dup ? ' has-duplikat' : ''}">
+          <div class="minimal-list-card-head">
+            <div class="minimal-list-card-main" data-collapse="${escapeHtml(item.id)}" role="button" tabindex="0" aria-expanded="${expanded ? 'true' : 'false'}" aria-label="${expanded ? 'Tutup detail mutasi' : 'Buka detail mutasi'}">
+              <div class="pindah-route">
+                <span class="pindah-santri">${escapeHtml(item.santriName || '-')}</span>
+                <span>${escapeHtml(item.fromHalaqohName || '-')}</span>
+                <i class="fa-solid fa-arrow-right-long"></i>
+                <span>${escapeHtml(item.toHalaqohName || '-')}</span>
+                ${item.tahunAjaranNama ? `<span class="pill">${escapeHtml(item.tahunAjaranNama)}</span>` : ''}
+                <span class="pill${item.active ? '' : ' inactive'}">${escapeHtml(item.status)}</span>
+                ${dup ? `<span class="pill duplikat"><i class="fa-solid fa-triangle-exclamation"></i> Mutasi ganda</span>` : ''}
+              </div>
+              <span class="minimal-list-card-hint">Tanggal pindah: ${escapeHtml(formatDate(item.tanggalPindah))} &nbsp;·&nbsp; ${index + 1} pada halaman ini</span>
             </div>
-            <div class="pindah-meta">Tanggal pindah: <strong>${escapeHtml(formatDate(item.tanggalPindah))}</strong> &nbsp;·&nbsp; Dicatat oleh ${escapeHtml(item.userName || '-')} pada ${escapeHtml(recordedAt)}</div>
-            <div class="pindah-alasan"><strong>Alasan:</strong> ${escapeHtml(item.alasan || '-')}</div>
-            ${item.belumSelesaiPindah ? `<div class="pindah-belum-selesai"><i class="fa-solid fa-triangle-exclamation"></i> Santri ini belum dihapus dari halaqoh sebelumnya dan belum ada di halaqoh tujuan.</div>` : ''}
-            ${item.amanPindah ? `<div class="pindah-aman"><i class="fa-solid fa-circle-check"></i> Santri sudah sepenuhnya pindah — tidak lagi ada di halaqoh sebelumnya.</div>` : ''}
-            ${item.masihDiKeduanya ? `<div class="pindah-dua-halaqoh"><i class="fa-solid fa-circle-info"></i> Santri masih tercatat sebagai anggota di kedua halaqoh (asal dan tujuan).</div>` : ''}
+            <button class="secondary minimal-list-card-toggle" type="button" data-collapse="${escapeHtml(item.id)}" aria-expanded="${expanded ? 'true' : 'false'}" aria-label="${expanded ? 'Tutup detail mutasi' : 'Buka detail mutasi'}">${expanded ? 'Tutup' : 'Detail'}</button>
           </div>
-          <div class="pindah-card-actions">
-            <button class="secondary${state.canManage ? '' : ' ps-locked'}" type="button" data-edit="${escapeHtml(item.id)}" ${state.canManage ? '' : 'disabled aria-disabled="true" title="Tidak punya akses untuk mengedit."'}>Edit</button>
-            <button class="${item.active ? 'danger' : 'primary'}${state.canManage ? '' : ' ps-locked'}" type="button" data-toggle="${escapeHtml(item.id)}" ${state.canManage ? '' : 'disabled aria-disabled="true" title="Tidak punya akses untuk mengubah status."'}>${item.active ? 'Nonaktifkan' : 'Aktifkan'}</button>
-            <button class="danger${state.canDelete ? '' : ' ps-locked'}" type="button" data-delete="${escapeHtml(item.id)}" ${state.canDelete ? '' : 'disabled aria-disabled="true" title="Hanya Super Admin yang bisa menghapus permanen."'}>Hapus Permanen</button>
+          <div class="minimal-list-card-detail">
+            <div class="minimal-list-card-summary">
+              <div class="pindah-meta">Dicatat oleh ${escapeHtml(item.userName || '-')} pada ${escapeHtml(recordedAt)}</div>
+              <div class="pindah-alasan"><strong>Alasan:</strong> ${escapeHtml(item.alasan || '-')}</div>
+              ${dup ? `<div class="pindah-duplikat"><i class="fa-solid fa-triangle-exclamation"></i> Ada <strong>${Number(item.duplikatCount) || 2} data mutasi AKTIF</strong> untuk santri ini dari halaqoh <strong>${escapeHtml(item.fromHalaqohName || '-')}</strong>${dupDates ? ` (tanggal pindah lain: <strong>${escapeHtml(dupDates)}</strong>)` : ''}. Satu kejadian pindah harusnya cuma 1 baris — nonaktifkan / hapus yang salah, karena data ganda bikin audit hafalan &amp; absensi salah menghitung hari bolong.</div>` : ''}
+              ${item.belumSelesaiPindah ? `<div class="pindah-belum-selesai"><i class="fa-solid fa-triangle-exclamation"></i> Santri ini belum dihapus dari halaqoh sebelumnya dan belum ada di halaqoh tujuan.</div>` : ''}
+              ${item.amanPindah ? `<div class="pindah-aman"><i class="fa-solid fa-circle-check"></i> Santri sudah sepenuhnya pindah — tidak lagi ada di halaqoh sebelumnya.</div>` : ''}
+              ${item.masihDiKeduanya ? `<div class="pindah-dua-halaqoh"><i class="fa-solid fa-circle-info"></i> Santri masih tercatat sebagai anggota di kedua halaqoh (asal dan tujuan).</div>` : ''}
+            </div>
+            <div class="toolbar minimal-list-card-actions">
+              <button class="secondary${state.canManage ? '' : ' ps-locked'}" type="button" data-edit="${escapeHtml(item.id)}" ${state.canManage ? '' : 'disabled aria-disabled="true" title="Tidak punya akses untuk mengedit."'}>Edit</button>
+              <button class="${item.active ? 'danger' : 'primary'}${state.canManage ? '' : ' ps-locked'}" type="button" data-toggle="${escapeHtml(item.id)}" ${state.canManage ? '' : 'disabled aria-disabled="true" title="Tidak punya akses untuk mengubah status."'}>${item.active ? 'Nonaktifkan' : 'Aktifkan'}</button>
+              <button class="danger${state.canDelete ? '' : ' ps-locked'}" type="button" data-delete="${escapeHtml(item.id)}" ${state.canDelete ? '' : 'disabled aria-disabled="true" title="Hanya Super Admin yang bisa menghapus permanen."'}>Hapus Permanen</button>
+            </div>
           </div>
-        </div>`;
+        </article>`;
       }).join('');
       renderPagination();
+      syncExpandToggleButton();
     }
 
     function populateTahunAjaranFilter(options) {
@@ -349,6 +401,7 @@
         state.totalPages = data.totalPages || 1;
         state.canManage = !!data.canManage;
         state.canDelete = !!data.canDelete;
+        pruneExpandedIds();
         populateTahunAjaranFilter(data.tahunAjaranOptions);
         renderList();
       } catch (error) {
@@ -356,20 +409,22 @@
       }
     }
 
-    async function toggleItem(id) {
+    async function toggleItem(id, btn) {
       const item = state.items.find(entry => entry.id === id);
       if (!item) return;
       const nextActive = !item.active;
       if (!confirm(`${nextActive ? 'Aktifkan' : 'Nonaktifkan'} data mutasi "${item.santriName}" (${item.fromHalaqohName} → ${item.toHalaqohName})?`)) return;
+      if (btn) btn.disabled = true;
       try {
         await api('pindahHalaqoh.toggle', { id, active: nextActive }, 'POST');
         await loadData();
       } catch (error) {
         showNotice(error.message || 'Gagal mengubah status data mutasi.', 'error');
+        if (btn) btn.disabled = false;
       }
     }
 
-    async function deleteItem(id) {
+    async function deleteItem(id, btn) {
       const item = state.items.find(entry => entry.id === id);
       if (!item) return;
       const word = prompt(`Ketik HAPUS untuk menghapus permanen data mutasi "${item.santriName}" (${item.fromHalaqohName} → ${item.toHalaqohName}). Tindakan ini tidak bisa dibatalkan.`);
@@ -378,12 +433,14 @@
         showNotice('Konfirmasi tidak sesuai, penghapusan dibatalkan.', 'error');
         return;
       }
+      if (btn) btn.disabled = true;
       try {
         await api('pindahHalaqoh.delete', { id, confirm: word.trim() }, 'POST');
         showNotice('Data mutasi dihapus permanen.', 'info');
         await loadData();
       } catch (error) {
         showNotice(error.message || 'Gagal menghapus data mutasi.', 'error');
+        if (btn) btn.disabled = false;
       }
     }
 
@@ -406,6 +463,8 @@
         showNotice('Tanggal pindah wajib diisi.', 'error');
         return;
       }
+      const submitBtn = event.submitter || event.currentTarget.querySelector('button[type="submit"]');
+      if (submitBtn) submitBtn.disabled = true;
       try {
         const result = await api('pindahHalaqoh.edit', { id, tanggal, alasan }, 'POST');
         document.getElementById('editPindahDialog').close();
@@ -413,6 +472,7 @@
         showNotice(result.message || 'Data mutasi berhasil diperbarui.', 'success');
       } catch (error) {
         showNotice(error.message || 'Gagal menyimpan perubahan.', 'error');
+        if (submitBtn) submitBtn.disabled = false;
       }
     }
 
@@ -421,11 +481,23 @@
 
     document.getElementById('pindahList').addEventListener('click', event => {
       const btn = event.target.closest('[data-edit], [data-toggle], [data-delete]');
-      if (!btn) return;
-      if (btn.hasAttribute('data-edit')) openEditPindahDialog(btn.getAttribute('data-edit'));
-      else if (btn.hasAttribute('data-toggle')) toggleItem(btn.getAttribute('data-toggle'));
-      else if (btn.hasAttribute('data-delete')) deleteItem(btn.getAttribute('data-delete'));
+      if (btn) {
+        if (btn.hasAttribute('data-edit')) openEditPindahDialog(btn.getAttribute('data-edit'));
+        else if (btn.hasAttribute('data-toggle')) toggleItem(btn.getAttribute('data-toggle'), btn);
+        else if (btn.hasAttribute('data-delete')) deleteItem(btn.getAttribute('data-delete'), btn);
+        return;
+      }
+      const collapseTrigger = event.target.closest('[data-collapse]');
+      if (collapseTrigger) toggleItemExpanded(collapseTrigger.getAttribute('data-collapse'));
     });
+    document.getElementById('pindahList').addEventListener('keydown', event => {
+      const collapseTarget = event.target.closest('[data-collapse]');
+      if (!collapseTarget || collapseTarget.tagName === 'BUTTON') return;
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      event.preventDefault();
+      toggleItemExpanded(collapseTarget.getAttribute('data-collapse'));
+    });
+    document.getElementById('toggleExpandButton').addEventListener('click', toggleExpandedList);
 
     function populateSelect(sel, options, placeholder) {
       sel.innerHTML = `<option value="">${escapeHtml(placeholder)}</option>` +
@@ -496,6 +568,8 @@
         showNotice('Lengkapi halaqoh asal, santri, halaqoh tujuan, dan tanggal pindah.', 'error');
         return;
       }
+      const submitBtn = event.submitter || event.currentTarget.querySelector('button[type="submit"]');
+      if (submitBtn) submitBtn.disabled = true;
       try {
         const result = await api('halaqoh.pindahkanSantri', { santriId, fromHalaqohId, toHalaqohId, tanggal, alasan }, 'POST');
         document.getElementById('pindahDialog').close();
@@ -504,6 +578,7 @@
         showNotice(result.message || 'Santri berhasil dipindahkan.', 'success');
       } catch (error) {
         showNotice(error.message || 'Gagal memindahkan santri.', 'error');
+        if (submitBtn) submitBtn.disabled = false;
       }
     }
 
@@ -513,11 +588,7 @@
     document.getElementById('pindahTaSelect').addEventListener('change', onTaChange);
     document.getElementById('pindahAsalSelect').addEventListener('change', onAsalChange);
 
-    let searchTimer = null;
-    document.getElementById('searchInput').addEventListener('input', event => {
-      clearTimeout(searchTimer);
-      searchTimer = setTimeout(() => { state.q = event.target.value.trim(); state.page = 1; loadData(); }, 350);
-    });
+    document.getElementById('searchInput').addEventListener('input', PSUI.debounce(event => { state.q = event.target.value.trim(); state.page = 1; loadData(); }, PSUI.AUTOSAVE_DEBOUNCE_MS));
     document.getElementById('tahunAjaranFilter').addEventListener('change', event => { state.tahunAjaranId = event.target.value; state.page = 1; loadData(); });
     document.getElementById('statusFilter').addEventListener('change', event => { state.status = event.target.value; state.page = 1; loadData(); });
     document.getElementById('sortSelect').addEventListener('change', event => { state.sort = event.target.value; state.page = 1; loadData(); });

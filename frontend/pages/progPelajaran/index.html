@@ -702,7 +702,10 @@
 
     document.getElementById('confirmHapusEntryOk').addEventListener('click', function() {
       if (!_hapusEntryId) return;
+      this.disabled = true;
+      var btn = this;
       api('santriPelajaran.delete', { id: _hapusEntryId }, function(res) {
+        btn.disabled = false;
         document.getElementById('confirmHapusEntryDialog').style.display = 'none';
         if (!res.ok) { showToast(res.error || 'Gagal menghapus', 'error'); return; }
         showToast('Data dihapus', 'success');
@@ -722,7 +725,7 @@
     document.getElementById('addEntryBtn').addEventListener('click', function() { openAddEntry('', ''); });
     document.getElementById('refreshDetailBtn').addEventListener('click', function() { if (_currentSantriId) loadDetail(_currentSantriId); });
     document.getElementById('refreshBtn').addEventListener('click', function() { _page = 1; loadSantriList(); });
-    document.getElementById('searchInput').addEventListener('input', function() { _page = 1; loadSantriList(); });
+    document.getElementById('searchInput').addEventListener('input', PSUI.debounce(function() { _page = 1; loadSantriList(); }, PSUI.AUTOSAVE_DEBOUNCE_MS));
     document.getElementById('statusFilter').addEventListener('change', function() { _page = 1; loadSantriList(); });
     document.getElementById('genderFilter').addEventListener('change', function() { _page = 1; loadSantriList(); });
     document.getElementById('statusAkadFilter').addEventListener('change', function() { _page = 1; loadSantriList(); });

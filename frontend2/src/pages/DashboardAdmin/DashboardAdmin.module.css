@@ -1,0 +1,173 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.title {
+  margin: 0;
+  font-size: 18px;
+}
+
+.notice {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.noticeError {
+  color: var(--color-danger);
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: var(--spacing-sm);
+}
+
+.statCard {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.statCardMuted {
+  opacity: 0.7;
+}
+
+.statNum {
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.statLabel {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.sections {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.section {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  cursor: pointer;
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+}
+
+.sectionTitle {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 10px;
+  border-radius: 99px;
+}
+
+.badgeOk {
+  background: #dff5df;
+  color: #1e7e34;
+}
+
+.badgeWarn {
+  background: #fdecc8;
+  color: #8a5a00;
+}
+
+.badgeInfo {
+  background: var(--color-primary-soft);
+  color: #6b5108;
+}
+
+.sectionBody {
+  border-top: 1px solid var(--color-border);
+  padding: var(--spacing-sm) var(--spacing-md);
+}
+
+.hint {
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+  margin: 0 0 var(--spacing-sm);
+}
+
+.issueRow {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 0;
+  border-bottom: 1px dashed var(--color-border);
+  font-size: 12.5px;
+}
+
+.issueRow:last-child {
+  border-bottom: none;
+}
+
+.issueName {
+  font-weight: 600;
+}
+
+.issueDetail {
+  color: var(--color-text-muted);
+}
+
+.tagWarn {
+  color: var(--color-danger);
+  font-weight: 600;
+}
+
+.emptyOk {
+  font-size: 12.5px;
+  color: var(--color-success);
+  padding: 6px 0;
+}
+
+.pagination {
+  display: flex;
+  gap: 4px;
+  margin-top: var(--spacing-sm);
+  flex-wrap: wrap;
+}
+
+.pagination button {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  border-radius: var(--radius-sm);
+  padding: 2px 8px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.pagination button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.pageActive {
+  background: var(--color-primary);
+  color: #fff;
+  border-color: var(--color-primary) !important;
+}

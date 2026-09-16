@@ -1,0 +1,849 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.headerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+}
+
+.title {
+  margin: 0;
+  font-size: 18px;
+}
+
+.addBtn {
+  background: var(--color-primary);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 8px 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.addBtn:hover {
+  background: var(--color-primary-strong);
+}
+
+.toolbar {
+  display: flex;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+}
+
+.toolbar input {
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  min-width: 220px;
+}
+
+.toolbar button {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  border-radius: var(--radius-sm);
+  padding: 8px 14px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.toolbar button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.toolbarNote {
+  margin: -4px 0 0;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+.headerHelpBtns {
+  display: flex;
+  gap: 6px;
+}
+
+.helpBtn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.infoCopy {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+/* ── filters ─────────────────────────────────────────────────── */
+
+.filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: var(--spacing-sm);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+}
+
+/* ── numbered pagination ─────────────────────────────────────── */
+
+.paging {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+}
+
+.paging > button {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.paging > button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.pageCenter {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.pageNumbers {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.pageBtn {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  border-radius: var(--radius-sm);
+  padding: 4px 9px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.pageBtnActive {
+  background: var(--color-primary);
+  color: #fff;
+  border-color: var(--color-primary);
+}
+
+.pageSummary {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+/* ── card head/detail (collapse) ────────────────────────────── */
+
+.cardHead {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-sm);
+}
+
+.cardMain {
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.newBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 99px;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  background: #dff5df;
+  color: #1e7e34;
+}
+
+.hint {
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+}
+
+.cardDetail {
+  margin-top: var(--spacing-sm);
+  padding-top: var(--spacing-sm);
+  border-top: 1px dashed var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.metaRow {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.pillWarn {
+  background: #fdecc8 !important;
+  color: #8a5a00 !important;
+}
+
+.summaryBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+}
+
+.summaryBlock p {
+  margin: 0;
+}
+
+/* ── warna kartu per gender x status (persis frontend lama) ─────
+   Selector digabung dengan .card (bukan berdiri sendiri) supaya spesifisitasnya
+   lebih tinggi dari .card { background: ... } di bawah -- kalau cuma .rowMale
+   sendirian, urutan CSS Module bisa bikin background .card menang duluan
+   walau class-nya sama-sama kepasang di elemen yang sama. */
+
+.card.rowMale {
+  background: #ddeeff;
+  border-color: rgba(70, 130, 180, 0.25);
+}
+
+.card.rowFemale {
+  background: #ffe4f0;
+  border-color: rgba(200, 100, 140, 0.25);
+}
+
+.card.rowMaleInactive {
+  background: linear-gradient(135deg, #888 0%, #cce6ff 100%);
+  border-color: rgba(70, 130, 180, 0.25);
+}
+
+.card.rowFemaleInactive {
+  background: linear-gradient(135deg, #888 0%, #ffd6e8 100%);
+  border-color: rgba(200, 100, 140, 0.25);
+}
+
+.card.rowMaleFrozen {
+  background: linear-gradient(135deg, #d0d0d0 0%, #cce6ff 100%);
+  border-color: rgba(70, 130, 180, 0.25);
+}
+
+.card.rowFemaleFrozen {
+  background: linear-gradient(135deg, #d0d0d0 0%, #ffd6e8 100%);
+  border-color: rgba(200, 100, 140, 0.25);
+}
+
+.card.rowNogenderInactive {
+  background: linear-gradient(135deg, #888 0%, rgba(255, 248, 230, 0.96) 100%);
+}
+
+.card.rowNogenderFrozen {
+  background: linear-gradient(135deg, #d0d0d0 0%, rgba(255, 248, 230, 0.96) 100%);
+}
+
+.notice {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.noticeError {
+  color: var(--color-danger);
+}
+
+/* ── list / card ─────────────────────────────────────────────── */
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+}
+
+.nameRow {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+  margin-bottom: var(--spacing-xs);
+}
+
+.name {
+  margin: 0;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.pill {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 99px;
+}
+
+.pillActive {
+  background: #dff5df;
+  color: #1e7e34;
+}
+
+.pillFrozen {
+  background: #fdecc8;
+  color: #8a5a00;
+}
+
+.pillInactive {
+  background: #f3e2e2;
+  color: var(--color-danger);
+}
+
+.summary {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin: 0 0 var(--spacing-sm);
+}
+
+.actions {
+  display: flex;
+  gap: var(--spacing-xs);
+  flex-wrap: wrap;
+}
+
+.actions button {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.actions button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.danger {
+  color: var(--color-danger);
+  border-color: var(--color-danger) !important;
+}
+
+/* ── dialog shells ───────────────────────────────────────────── */
+
+.dialog,
+.bigDialog,
+.smallDialog {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+}
+
+.dialog::backdrop,
+.bigDialog::backdrop,
+.smallDialog::backdrop {
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.dialog {
+  width: min(520px, 92vw);
+  max-height: 86vh;
+  overflow-y: auto;
+}
+
+.bigDialog {
+  width: min(720px, 94vw);
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.smallDialog {
+  width: min(420px, 92vw);
+  max-height: 86vh;
+  overflow-y: auto;
+}
+
+.dialogTitle {
+  margin: 0 0 4px;
+  font-size: 16px;
+}
+
+.dialogSubtitle {
+  margin: 0 0 var(--spacing-md);
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+}
+
+.dialogActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-md);
+  position: sticky;
+  bottom: 0;
+  background: var(--color-surface);
+  padding-top: var(--spacing-sm);
+}
+
+.dialogActions button {
+  border-radius: var(--radius-sm);
+  padding: 8px 14px;
+  cursor: pointer;
+}
+
+.primary {
+  background: var(--color-primary);
+  color: #fff;
+  border: none !important;
+  font-weight: 600;
+}
+
+.primary:hover {
+  background: var(--color-primary-strong);
+}
+
+.secondary {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+}
+
+/* ── avatar (edit/lihat) ─────────────────────────────────────── */
+
+.avatarRow {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--color-primary-soft);
+  color: var(--color-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 18px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatarActions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  font-size: 12px;
+}
+
+/* ── form sections (Edit & Lihat) ────────────────────────────── */
+
+.section {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--spacing-sm);
+  padding: 6px var(--spacing-sm);
+}
+
+.section summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+  padding: 6px 0;
+}
+
+.fieldGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--spacing-sm) var(--spacing-md);
+  padding: var(--spacing-xs) 0 var(--spacing-sm);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  font-size: 12.5px;
+  grid-column: span 1;
+}
+
+.field input,
+.field select,
+.field textarea {
+  padding: 7px 9px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font: inherit;
+}
+
+.fieldNote {
+  margin: -2px 0 0;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+.dateGroup {
+  display: flex;
+  gap: 6px;
+}
+
+.dateGroup select {
+  min-width: 0;
+}
+
+.numberRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.numberRow input {
+  flex: 1;
+  min-width: 0;
+}
+
+.suffix {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+/* ── file_doc field ──────────────────────────────────────────── */
+
+.docField {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.docUploadArea {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+}
+
+.docNoFile {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.docPreviewLine {
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.docViewBtn,
+.docDeleteBtn,
+.docPickBtn {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.docDeleteBtn {
+  color: var(--color-danger);
+  border-color: var(--color-danger);
+}
+
+/* ── view mode ───────────────────────────────────────────────── */
+
+.viewField {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12.5px;
+}
+
+.viewLabel {
+  color: var(--color-text-muted);
+  font-size: 11px;
+}
+
+.viewValue {
+  font-weight: 600;
+}
+
+.viewEmpty {
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+.akadBadge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 99px;
+  font-weight: 700;
+  font-size: 12.5px;
+  width: fit-content;
+}
+
+/* ── penempatan ──────────────────────────────────────────────── */
+
+.placementsTaNote {
+  margin: -4px 0 4px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.placementGroup {
+  margin-bottom: var(--spacing-sm);
+}
+
+.placementGroupTitle {
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.placementsEmpty {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.placementItem {
+  padding: 6px 0;
+  border-bottom: 1px dashed var(--color-border);
+  font-size: 12.5px;
+}
+
+.placementDetail {
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+  margin-top: 2px;
+}
+
+/* ── riwayat edit ────────────────────────────────────────────── */
+
+.historyList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.historyItem {
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+}
+
+.historyName {
+  font-weight: 700;
+  font-size: 12.5px;
+}
+
+.historyMeta {
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+  margin-top: 2px;
+}
+
+.historyAt {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  margin-top: 1px;
+}
+
+/* ── doc viewer ──────────────────────────────────────────────── */
+
+.docViewerDialog {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 0;
+  width: min(640px, 94vw);
+  max-height: 90vh;
+}
+
+.docViewerDialog::backdrop {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.docViewerHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.docViewerTitle {
+  font-size: 13px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.docViewerHeader button {
+  border: none;
+  background: none;
+  font-size: 18px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.docViewerBody {
+  padding: var(--spacing-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-height: calc(90vh - 50px);
+  overflow: auto;
+}
+
+.docViewerBody img {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.docViewerBody iframe {
+  width: min(600px, 86vw);
+  height: 70vh;
+  border: none;
+}
+
+.docViewerEmpty {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+/* ── nama duplikat ───────────────────────────────────────────── */
+
+.duplicateGroup {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  margin-bottom: var(--spacing-sm);
+}
+
+.duplicateGroupName {
+  margin: 0 0 2px;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.duplicateNote {
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+  margin: 0 0 4px;
+}
+
+.duplicateRecommendation {
+  font-size: 12px;
+  color: var(--color-success);
+  font-weight: 600;
+  margin: 0 0 6px;
+}
+
+.duplicateCandidate {
+  border-top: 1px dashed var(--color-border);
+  padding: 6px 0;
+  font-size: 12px;
+}
+
+.duplicateCandidateBest {
+  background: rgba(46, 125, 50, 0.06);
+}
+
+.duplicateMeta {
+  margin: 2px 0;
+  color: var(--color-text-muted);
+  font-size: 11.5px;
+}
+
+/* ── tempel santri inti ──────────────────────────────────────── */
+
+.quickImportTableWrap {
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.quickImportTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11.5px;
+}
+
+.quickImportTable th,
+.quickImportTable td {
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+  vertical-align: top;
+}
+
+.quickImportTable th {
+  background: var(--color-bg);
+  text-transform: uppercase;
+  font-size: 10px;
+  color: var(--color-text-muted);
+}
+
+.quickImportRowInvalid {
+  background: #fff5f5;
+}
+
+.quickImportIssueError {
+  color: var(--color-danger);
+}
+
+.quickImportIssueWarn {
+  color: #8a5a00;
+}

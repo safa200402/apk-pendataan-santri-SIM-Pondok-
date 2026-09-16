@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pendataan-santri-static-v61';
+const CACHE_NAME = 'pendataan-santri-static-v98';
 const APP_SHELL = [
   './',
   './index.html',
@@ -23,6 +23,8 @@ const APP_SHELL = [
   './pages/rekapAbsensiPengurus/',
   './pages/nilaiUjian/',
   './pages/editSoal/',
+  './pages/quizDigital/',
+  './pages/santri/quizSantri/',
   './pages/halaqohAbsensi/',
   './pages/ujianHafalan/',
   './pages/hafalanHarian/',
@@ -37,6 +39,7 @@ const APP_SHELL = [
   './pages/kaldik/',
   './pages/editKaldik/',
   './pages/kegiatanSop/',
+  './pages/catatanku/',
   './pages/aksesInfo/',
   './pages/skemaDb/',
   './shared-ui.css',
@@ -49,6 +52,8 @@ const APP_SHELL = [
   './shared-shell.js',
   './vendor/quill/quill.js',
   './vendor/quill/quill.snow.css',
+  './vendor/howler/howler.min.js',
+  './audio/klik.wav',
   './manifest.webmanifest',
   './icons/icon.png',
   './icons/icon-192.svg',

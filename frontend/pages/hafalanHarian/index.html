@@ -9,7 +9,9 @@
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="../../shared-ui.css">
   <link rel="stylesheet" href="../../shared-shell.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+  <!-- Font Awesome di-inject shared-shell.js dari /vendor/fontawesome (lokal, se-origin).
+       Jangan pasang <link> ke cdnjs di sini: itu render-blocking + nunggu jaringan luar,
+       dan bikin window 'load' (yang men-trigger loadDashboard) telat berdetik-detik. -->
   <script src="../../shared-ui.js"></script>
   <script src="../../shared-access.js"></script>
   <script src="../../shared-nav.js"></script>
@@ -68,6 +70,16 @@
       font-size: 12px; font-weight: 700;
       letter-spacing: 0.08em; text-transform: uppercase;
     }
+    /* Angka halaman saja (daftar santri di dialog & picker Riwayat Hafalan Santri) — meniru pagination halaqoh */
+    .num-paging { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 6px; margin-bottom: 18px; }
+    .num-paging button {
+      min-width: 34px; height: 34px; padding: 0 10px;
+      border-radius: 10px; border: 1.5px solid var(--line);
+      background: var(--paper); color: var(--ink);
+      font-size: 13px; font-weight: 700; cursor: pointer;
+    }
+    .num-paging button:hover:not(.active) { background: rgba(185, 118, 80, 0.12); }
+    .num-paging button.active { background: var(--accent); color: #fff; border-color: var(--accent); cursor: default; }
 
     /* Halaqoh cards */
     .halaqoh-grid {
@@ -93,6 +105,19 @@
     html body .minimal-list-card.card-inactive {
       opacity: 0.66;
     }
+
+    /* Baris audit kuning per kartu halaqoh -- niru pages/perkembanganSantri (.attendance-audit) */
+    .attendance-audit {
+      padding: 0 15px 12px;
+      margin-top: -4px;
+      font-size: 11.5px;
+      color: var(--warning);
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+      line-height: 1.5;
+    }
+    .attendance-audit i { margin-top: 2px; flex-shrink: 0; }
 
     /* Full-screen dialog */
     #hafalanDialog {
@@ -493,14 +518,6 @@
 
     /* Action toolbar */
     #actionToolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: flex-start; }
-    .toolbar-extra-action { display: none; }
-    .toolbar-extra-action.is-visible { display: inline; animation: subtle-reveal 0.18s ease; }
-    @keyframes subtle-reveal { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
-    .toolbar-collapse-toggle {
-      min-width: 44px; width: 44px; min-height: 44px; padding: 0;
-      display: inline-flex; align-items: center; justify-content: center;
-      font-size: 24px; line-height: 1; flex: 0 0 44px !important;
-    }
 
     /* Mode toggle — Harian / Hafalan Sebelumnya */
     .dialog-mode-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
@@ -564,7 +581,7 @@
               <i class="fa-solid fa-users"></i> Hafalan Santri
             </button>
             <button class="ps-btn ps-border-radius-lg secondary" id="openPanduanBtn" title="Panduan Jenis Hafalan per Halaqoh" aria-label="Panduan Jenis Hafalan per Halaqoh" style="gap:8px;padding:10px 16px;min-height:44px;">
-              <i class="fa-solid fa-circle-question"></i> ?
+              <i class="fa-solid fa-circle-question"></i>
             </button>
             <button class="ps-btn ps-border-radius-lg secondary toolbar-extra-action" id="openTopZiyadahBtn" style="gap:8px;padding:10px 18px;min-height:44px;">
               <i class="fa-solid fa-trophy"></i> Top Ziyadah
@@ -572,7 +589,6 @@
             <button id="hapusSemuaBtn" class="ps-btn ps-border-radius-lg toolbar-extra-action" data-super-admin="true" style="gap:8px;padding:10px 18px;min-height:44px;" onclick="hapusSemuaData()">
               <i class="fa-solid fa-trash"></i> Hapus Semua Data
             </button>
-            <button class="ps-btn ps-border-radius-lg secondary toolbar-collapse-toggle" id="toolbarCollapseToggle" type="button" aria-expanded="false" aria-label="Buka aksi tambahan">+</button>
           </div>
         </section>
 
@@ -584,8 +600,8 @@
               <select id="tahunAjaranFilter"></select>
             </label>
             <label>
-              Cari nama halaqoh, pengampu, atau santri
-              <input type="search" id="halaqohSearchInput" placeholder="Mis. tahfidz, ustadz, ikhwan, atau nama santri">
+              Cari nama halaqoh, pengampu, badal, atau santri
+              <input type="search" id="halaqohSearchInput" placeholder="Mis. tahfidz, ustadz, ikhwan, badal, atau nama santri">
             </label>
             <label>
               Gender
@@ -1226,18 +1242,17 @@
       isAdmin: false,
       isSuperAdmin: false,
       canBulkCatatan: false,
-      toolbarExpanded: false,
       tahunAjaranList: [],
       tahunAjaranFilter: '',
       genderFilter: '',
       searchQuery: '',
       page: 1,
-      pageSize: 1,
+      pageSize: 10,
       totalPages: 1,
       total: 0,
       santriSearch: '',
       santriPage: 1,
-      santriPageSize: 20,
+      santriPageSize: 10,
       selectedSantriId: null,
       isAwalMode: false,
       dateMode: 'hari'
@@ -1305,6 +1320,33 @@
       });
     }
 
+    /* Deret tombol angka saja (tanpa panah / teks "x / y"), meniru "pagination halaqoh":
+       jendela maksimal 10 angka di sekitar halaman aktif. `fnName` = nama fungsi global
+       yang dipanggil saat sebuah angka diklik. */
+    function renderNumberPaging(currentPage, totalPages, fnName) {
+      if (totalPages <= 1) return '';
+      const start = Math.max(1, Math.min(currentPage - 4, totalPages - 9));
+      const end = Math.min(totalPages, start + 9);
+      let html = '<div class="num-paging">';
+      for (let p = start; p <= end; p++) {
+        html += p === currentPage
+          ? `<button type="button" class="active">${p}</button>`
+          : `<button type="button" onclick="${fnName}(${p})">${p}</button>`;
+      }
+      return html + '</div>';
+    }
+
+    /* Baris audit kuning per kartu -- definisi "bolong" disamakan backend dgn popup nag
+       "Kelola Audit" (collectHafalanGapItems_), ikut saklar hafalanActive + TA aktif. */
+    function getHafalanAuditHtml(h) {
+      const audit = h.audit;
+      if (!audit || !audit.active || !audit.missingCount) return '';
+      return `<div class="attendance-audit">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <span>${audit.missingCount}x hari belum lengkap hafalan harian sejak ${escHtml(fmtDateLong(audit.since))}</span>
+      </div>`;
+    }
+
     /* ── Halaqoh cards ── */
     function renderCards() {
       const area = document.getElementById('cardsArea');
@@ -1316,8 +1358,8 @@
       const g2class = g => g.includes('ikhwan') ? 'entity-gender-ikhwan' : g.includes('akhowat') || g.includes('akhwat') ? 'entity-gender-akhowat' : '';
       area.innerHTML = '<div class="list">' + state.halaqohList.map(h => {
         const pengampuText = h.pengampuNames && h.pengampuNames.length ? h.pengampuNames.join(', ') : '—';
-        const todayPill = h.todayCount > 0
-          ? `<span class="today-pill has-entries"><i class="fa-solid fa-check"></i>${h.todayCount} entri hari ini</span>`
+        const badalText = h.badalNames && h.badalNames.length
+          ? ` &nbsp;·&nbsp; <i class="fa-solid fa-user-clock"></i> Badal: ${escHtml(h.badalNames.join(', '))}`
           : '';
         const g = (h.genderGroup || '').toLowerCase();
         const gClass = g2class(g);
@@ -1327,13 +1369,13 @@
             <div class="minimal-list-card-head">
               <div class="minimal-list-card-main" style="cursor:pointer" onclick="openHalaqoh('${escHtml(h.id)}')">
                 <strong class="minimal-list-card-name">${escHtml(h.name)}</strong>
-                <span class="minimal-list-card-hint"><i class="fa-solid fa-person-chalkboard"></i> ${escHtml(pengampuText)} &nbsp;·&nbsp; <i class="fa-solid fa-users"></i> ${h.santriCount} santri</span>
+                <span class="minimal-list-card-hint"><i class="fa-solid fa-person-chalkboard"></i> ${escHtml(pengampuText)} &nbsp;·&nbsp; <i class="fa-solid fa-users"></i> ${h.santriCount} santri${badalText}</span>
               </div>
-              ${todayPill}
               <button class="secondary minimal-list-card-toggle" type="button" title="Cek Kontinuitas Hafalan" aria-label="Cek Kontinuitas Hafalan" onclick="openKontinuitas('${escHtml(h.id)}')" style="padding:8px 12px;"><i class="fa-solid fa-link-slash"></i></button>
               <button class="secondary minimal-list-card-toggle" type="button" title="Riwayat Hafalan Santri" aria-label="Riwayat Hafalan Santri" onclick="openRiwayatHalaqoh('${escHtml(h.id)}')" style="padding:8px 12px;"><i class="fa-solid fa-clock-rotate-left"></i></button>
               <button class="secondary minimal-list-card-toggle" type="button" onclick="openHalaqoh('${escHtml(h.id)}')">Buka</button>
             </div>
+            ${getHafalanAuditHtml(h)}
           </article>`;
       }).join('') + '</div>';
     }
@@ -1352,22 +1394,6 @@
       }
     }
 
-    function syncActionToolbar() {
-      const toolbar = document.getElementById('actionToolbar');
-      const toggle = document.getElementById('toolbarCollapseToggle');
-      const extras = document.querySelectorAll('#actionToolbar .toolbar-extra-action');
-      if (!toolbar || !toggle) return;
-      toolbar.classList.toggle('is-expanded', !!state.toolbarExpanded);
-      extras.forEach(btn => btn.classList.toggle('is-visible', !!state.toolbarExpanded));
-      toggle.setAttribute('aria-expanded', state.toolbarExpanded ? 'true' : 'false');
-      toggle.setAttribute('aria-label', state.toolbarExpanded ? 'Tutup aksi tambahan' : 'Buka aksi tambahan');
-      toggle.textContent = state.toolbarExpanded ? '−' : '+';
-    }
-
-    function toggleActionToolbar() {
-      state.toolbarExpanded = !state.toolbarExpanded;
-      syncActionToolbar();
-    }
 
     function hapusSemuaData() {
       if (!state.isSuperAdmin) return;
@@ -1413,7 +1439,9 @@
     async function loadDashboard() {
       document.getElementById('cardsArea').innerHTML = '<div class="empty-state"><i class="fa-solid fa-spinner fa-spin"></i><p style="margin-top:8px;font-weight:600;">Memuat halaqoh...</p></div>';
       try {
-        const data = await api('hafalan.harian.list', {
+        // Action ringan khusus daftar kartu: tidak menyentuh tabel entri hafalanHarian
+        // (tak ada badge "entri hari ini"), cukup halaqoh + tahunAjaranList.
+        const data = await api('hafalan.harian.halaqoh.list', {
           tahunAjaranId: state.tahunAjaranFilter || '',
           genderGroup: state.genderFilter || '',
           q: state.searchQuery || '',
@@ -1464,8 +1492,8 @@
       const dmBulanBtn = document.getElementById('dateModeBulanBtn');
       if (mhBtn) { mhBtn.classList.add('active'); maBtn.classList.remove('active'); }
       state.dateMode = 'hari';
-      if (dmHariBtn) dmHariBtn.classList.add('active');
-      if (dmBulanBtn) dmBulanBtn.classList.remove('active');
+      if (dmHariBtn) { dmHariBtn.classList.add('active'); dmHariBtn.disabled = false; dmHariBtn.style.display = ''; }
+      if (dmBulanBtn) { dmBulanBtn.classList.remove('active'); dmBulanBtn.disabled = false; dmBulanBtn.style.display = ''; }
       if (dateEl) dateEl.style.display = '';
       if (monthEl) monthEl.style.display = 'none';
 
@@ -1534,6 +1562,21 @@
 
       document.getElementById('modeHarianBtn').classList.toggle('active', !state.isAwalMode);
       document.getElementById('modeAwalBtn').classList.toggle('active', state.isAwalMode);
+
+      // "Hafalan Sebelumnya" (posisi awal) tidak terikat tanggal dan bisa berisi entri lintas
+      // bulan, jadi selalu pakai tampilan "Hari" (daftar chip datar + tombol input), bukan grid
+      // Bulan. Toggle Hari/Bulan disembunyikan selama mode ini aktif.
+      const dmHariBtn = document.getElementById('dateModeHariBtn');
+      const dmBulanBtn = document.getElementById('dateModeBulanBtn');
+      if (state.isAwalMode) {
+        state.dateMode = 'hari';
+        if (dmHariBtn) { dmHariBtn.classList.add('active'); dmHariBtn.disabled = true; dmHariBtn.style.display = 'none'; }
+        if (dmBulanBtn) { dmBulanBtn.classList.remove('active'); dmBulanBtn.disabled = true; dmBulanBtn.style.display = 'none'; }
+        document.getElementById('dialogMonth').style.display = 'none';
+      } else {
+        if (dmHariBtn) { dmHariBtn.disabled = false; dmHariBtn.style.display = ''; }
+        if (dmBulanBtn) { dmBulanBtn.disabled = false; dmBulanBtn.style.display = ''; }
+      }
       const dateEl = document.getElementById('dialogDate');
       if (dateEl) dateEl.style.display = state.isAwalMode ? 'none' : '';
 
@@ -1739,17 +1782,15 @@
 
     function renderSantriPagination(page, totalPages) {
       const el = document.getElementById('santriPagination');
-      if (!el || totalPages <= 1) { if (el) el.innerHTML = ''; return; }
-      let html = '';
-      if (page > 1) html += `<button class="ps-btn secondary ps-border-radius-lg" style="padding:7px 14px;font-size:13px;" onclick="setSantriPage(${page - 1})">‹</button>`;
-      html += `<span style="font-size:13px;font-weight:600;color:var(--muted);padding:0 4px;">${page} / ${totalPages}</span>`;
-      if (page < totalPages) html += `<button class="ps-btn secondary ps-border-radius-lg" style="padding:7px 14px;font-size:13px;" onclick="setSantriPage(${page + 1})">›</button>`;
-      el.innerHTML = html;
+      if (!el) return;
+      el.innerHTML = renderNumberPaging(page, totalPages, 'setSantriPage');
     }
 
     function setSantriPage(p) {
       state.santriPage = p;
       renderSantriList();
+      const body = document.getElementById('dialogContent');
+      if (body && body.parentElement) body.parentElement.scrollTop = 0;
     }
 
     /* ── Santri setoran panel (per-santri day view + awal mode) ── */
@@ -3286,12 +3327,12 @@
       const sel = document.getElementById('rekapHalaqoh');
       sel.innerHTML = '<option value="">Memuat...</option>';
       try {
-        const data = await api('hafalan.harian.list', { tahunAjaranId, page: 1, pageSize: 50 });
+        const data = await api('hafalan.harian.halaqoh.list', { tahunAjaranId, page: 1, pageSize: 50 });
         const list = data.halaqohList || [];
         sel.innerHTML = '<option value="">-- Pilih Halaqoh --</option>' +
           list.map(h => `<option value="${escHtml(h.id)}">${escHtml(h.name)}</option>`).join('');
         if (list.length) sel.value = list[0].id;
-        loadRekap();
+        reloadRekap();
       } catch (e) {
         sel.innerHTML = '<option value="">-- Pilih Halaqoh --</option>';
         document.getElementById('rekapBody').innerHTML = `<div><div class="empty-state"><i class="fa-solid fa-triangle-exclamation" style="color:var(--danger);"></i><p style="margin-top:8px;color:var(--danger);font-weight:600;">${escHtml(e.message)}</p></div></div>`;
@@ -3302,14 +3343,29 @@
       document.getElementById('rekapDialog').close();
     }
 
+    /* ── Pagination SERVER-SIDE untuk Rekap Akumulasi (1 fetch per klik halaman) ── */
+    let rekapPageItems = [];
+    let rekapPage = 1;
+    let rekapTotalPages = 1;
+    let rekapRowCount = 0;
+    let rekapTotals = null;
+    let rekapCtx = { periodLabel: '', halaqohName: '' };
+    const REKAP_PAGE_SIZE = 10;
+
+    function reloadRekap() { rekapPage = 1; loadRekap(); }
+
     /* ── Hafalan Santri (semua) ── */
-    let rsAllItems = [];
+    let rsAllItems = [];   // hanya berisi item halaman aktif (pagination server-side)
+    let rsPage = 1;
+    let rsTotalPages = 1;
+    const RS_PAGE_SIZE = 10;
 
     function openRekapSemua() {
       const rsSel = document.getElementById('rsHalaqoh');
       rsSel.innerHTML = '<option value="">Semua Halaqoh</option>' +
         state.halaqohList.map(h => `<option value="${escHtml(h.id)}">${escHtml(h.name)}</option>`).join('');
       document.getElementById('rsNama').value = '';
+      rsPage = 1;
       document.getElementById('rekapSemuaDialog').showModal();
       loadRekapSemua();
     }
@@ -3323,10 +3379,13 @@
       const halaqohId = document.getElementById('rsHalaqoh').value;
       const tahunAjaranId = state.tahunAjaranFilter || '';
       const jenis = document.getElementById('rsJenis').value;
+      const nama = document.getElementById('rsNama').value || '';
       body.innerHTML = '<div><div class="empty-state"><i class="fa-solid fa-spinner fa-spin"></i><p style="margin-top:8px;font-weight:600;">Memuat...</p></div></div>';
       try {
-        const data = await api('hafalan.harian.rekap.semua', { halaqohId, tahunAjaranId, jenis });
+        const data = await api('hafalan.harian.rekap.semua', { halaqohId, tahunAjaranId, jenis, nama, page: rsPage, pageSize: RS_PAGE_SIZE });
         rsAllItems = data.items || [];
+        rsPage = data.page || 1;
+        rsTotalPages = data.totalPages || 1;
         renderRekapSemua();
       } catch (e) {
         body.innerHTML = `<div><div class="empty-state"><i class="fa-solid fa-triangle-exclamation" style="color:var(--danger);"></i><p style="margin-top:8px;color:var(--danger);font-weight:600;">${escHtml(e.message)}</p></div></div>`;
@@ -3346,13 +3405,15 @@
 
     function renderRekapSemua() {
       const body = document.getElementById('rsBody');
-      const q = (document.getElementById('rsNama').value || '').toLowerCase().trim();
       const jenis = document.getElementById('rsJenis').value;
-      const items = q ? rsAllItems.filter(r => r.santriName.toLowerCase().includes(q)) : rsAllItems;
+      const items = rsAllItems;
       if (!items.length) {
         body.innerHTML = '<div><div class="empty-state"><i class="fa-solid fa-users" style="font-size:36px;opacity:0.3;display:block;margin-bottom:12px;"></i><p style="font-weight:600;">Tidak ada data.</p></div></div>';
         return;
       }
+
+      const totalPages = rsTotalPages;
+      const rsStart = (rsPage - 1) * RS_PAGE_SIZE;
 
       let rows, thead;
       const NON_QURAN_LABEL = { hadits: ['No.', 'hadits'], mufrodat: ['Level', 'level'], adzkar: ['No.', 'adzkar'] };
@@ -3365,7 +3426,7 @@
             return `<span style="display:inline-flex;align-items:center;background:rgba(99,102,241,0.1);color:#4f46e5;border-radius:8px;padding:2px 8px;font-size:12px;font-weight:700;white-space:nowrap;">${escHtml(label)}</span>`;
           }).join(' ');
           return `<tr>
-            <td><span class="badge" style="background:var(--line);color:var(--muted);">${i + 1}</span></td>
+            <td><span class="badge" style="background:var(--line);color:var(--muted);">${rsStart + i + 1}</span></td>
             <td>
               <div style="font-weight:700;">${escHtml(r.santriName)}</div>
               <div style="font-size:11px;color:var(--muted);margin-top:2px;">${escHtml(r.halaqohName || '—')}</div>
@@ -3393,7 +3454,7 @@
             : '';
           const deskripsi = buildDeskripsiHafalan(r.perJuz || []);
           return `<tr>
-            <td><span class="badge" style="background:var(--line);color:var(--muted);">${i + 1}</span></td>
+            <td><span class="badge" style="background:var(--line);color:var(--muted);">${rsStart + i + 1}</span></td>
             <td>
               <div style="font-weight:700;">${escHtml(r.santriName)}</div>
               <div style="font-size:11px;color:var(--muted);margin-top:2px;">${escHtml(r.halaqohName || '—')}</div>
@@ -3410,10 +3471,18 @@
         thead = `<tr><th>#</th><th>Nama Santri</th><th>Deskripsi Hafalan</th><th>Detail per Juz</th><th style="text-align:right;">Total</th></tr>`;
       }
 
+      const pager = renderNumberPaging(rsPage, totalPages, 'setRsPage');
       body.innerHTML = `<div><div class="table-wrap"><table>
         <thead>${thead}</thead>
         <tbody>${rows}</tbody>
-      </table></div></div>`;
+      </table></div>${pager ? `<div style="margin-top:14px;">${pager}</div>` : ''}</div>`;
+    }
+
+    function setRsPage(p) {
+      rsPage = p;
+      loadRekapSemua();
+      const b = document.getElementById('rsBody');
+      if (b) b.scrollTop = 0;
     }
 
     function updateRekapPeriodControls() {
@@ -3466,15 +3535,20 @@
       }
       body.innerHTML = '<div><div class="empty-state"><i class="fa-solid fa-spinner fa-spin"></i><p style="margin-top:8px;font-weight:600;">Memuat...</p></div></div>';
       try {
-        const data = await api('hafalan.harian.rekap', { halaqohId, dateFrom: range.dateFrom, dateTo: range.dateTo });
-        renderRekapTable(data.items || [], range, halaqohId);
+        const data = await api('hafalan.harian.rekap', { halaqohId, dateFrom: range.dateFrom, dateTo: range.dateTo, page: rekapPage, pageSize: REKAP_PAGE_SIZE });
+        rekapPageItems = data.items || [];
+        rekapPage = data.page || 1;
+        rekapTotalPages = data.totalPages || 1;
+        rekapRowCount = data.total || 0;
+        rekapTotals = data.totals || null;
+        rekapCtx = computeRekapCtx(range);
+        renderRekapPage();
       } catch (e) {
         body.innerHTML = `<div><div class="empty-state"><i class="fa-solid fa-triangle-exclamation" style="color:var(--danger);"></i><p style="margin-top:8px;color:var(--danger);font-weight:600;">${escHtml(e.message)}</p></div></div>`;
       }
     }
 
-    function renderRekapTable(items, range, halaqohId) {
-      const body = document.getElementById('rekapBody');
+    function computeRekapCtx(range) {
       const halaqohSel = document.getElementById('rekapHalaqoh');
       const halaqohName = halaqohSel.selectedOptions[0] ? halaqohSel.selectedOptions[0].textContent : '';
       const taSel = document.getElementById('rekapTahunAjaran');
@@ -3493,19 +3567,21 @@
       } else {
         periodLabel = `${fmtDate(range.dateFrom)} — ${fmtDate(range.dateTo)}`;
       }
-      if (!items.length) {
+      return { periodLabel, halaqohName };
+    }
+
+    function renderRekapPage() {
+      const body = document.getElementById('rekapBody');
+      if (!rekapRowCount) {
         body.innerHTML = '<div><div class="empty-state"><i class="fa-solid fa-book-open-reader"></i><p style="margin-top:10px;font-weight:600;">Tidak ada data hafalan untuk periode ini.</p></div></div>';
         return;
       }
-      const sorted = [...items].sort((a, b) => b.total - a.total);
-      const totZ = sorted.reduce((s, r) => s + r.ziyadah, 0);
-      const totS = sorted.reduce((s, r) => s + r.sabaqi, 0);
-      const totM = sorted.reduce((s, r) => s + r.manzili, 0);
-      const totMu = sorted.reduce((s, r) => s + (r.murojaah || 0), 0);
-      const totT = sorted.reduce((s, r) => s + r.total, 0);
-      const totE = sorted.reduce((s, r) => s + r.entries, 0);
+      const t = rekapTotals || {};
+      const start = (rekapPage - 1) * REKAP_PAGE_SIZE;
+      const pageRows = rekapPageItems;
+      const pager = renderNumberPaging(rekapPage, rekapTotalPages, 'setRekapPage');
       body.innerHTML = `<div>
-        <p style="margin:0 0 12px;font-size:12.5px;font-weight:700;color:var(--muted);">${escHtml(periodLabel)}${halaqohName ? ' · ' + escHtml(halaqohName) : ''}</p>
+        <p style="margin:0 0 12px;font-size:12.5px;font-weight:700;color:var(--muted);">${escHtml(rekapCtx.periodLabel)}${rekapCtx.halaqohName ? ' · ' + escHtml(rekapCtx.halaqohName) : ''}</p>
         <div class="table-wrap">
           <table>
             <thead><tr>
@@ -3519,9 +3595,9 @@
               <th style="text-align:center;">Entri</th>
             </tr></thead>
             <tbody>
-              ${sorted.map((r, i) => `
+              ${pageRows.map((r, i) => `
                 <tr>
-                  <td><span class="badge" style="background:var(--line);color:var(--muted);">${i + 1}</span></td>
+                  <td><span class="badge" style="background:var(--line);color:var(--muted);">${start + i + 1}</span></td>
                   <td style="font-weight:700;">${escHtml(r.santriName)}</td>
                   <td class="td-num">${fmtNum(r.ziyadah)}</td>
                   <td class="td-num">${fmtNum(r.sabaqi)}</td>
@@ -3533,17 +3609,24 @@
             </tbody>
             <tfoot>
               <tr style="border-top:2px solid var(--line);">
-                <td colspan="2" style="padding:10px 14px;font-size:11px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);">Total (${sorted.length} santri)</td>
-                <td class="td-num" style="font-weight:800;">${fmtNum(totZ)}</td>
-                <td class="td-num" style="font-weight:800;">${fmtNum(totS)}</td>
-                <td class="td-num" style="font-weight:800;">${fmtNum(totM)}</td>
-                <td class="td-num" style="font-weight:800;">${fmtNum(totMu)}</td>
-                <td class="td-num" style="font-weight:800;color:var(--accent);">${fmtNum(totT)}</td>
-                <td class="td-num" style="font-weight:800;color:var(--muted);">${totE}</td>
+                <td colspan="2" style="padding:10px 14px;font-size:11px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);">Total (${rekapRowCount} santri)</td>
+                <td class="td-num" style="font-weight:800;">${fmtNum(t.totZ)}</td>
+                <td class="td-num" style="font-weight:800;">${fmtNum(t.totS)}</td>
+                <td class="td-num" style="font-weight:800;">${fmtNum(t.totM)}</td>
+                <td class="td-num" style="font-weight:800;">${fmtNum(t.totMu)}</td>
+                <td class="td-num" style="font-weight:800;color:var(--accent);">${fmtNum(t.totT)}</td>
+                <td class="td-num" style="font-weight:800;color:var(--muted);">${t.totE}</td>
               </tr>
             </tfoot>
           </table>
-        </div></div>`;
+        </div>${pager ? `<div style="margin-top:14px;">${pager}</div>` : ''}</div>`;
+    }
+
+    function setRekapPage(p) {
+      rekapPage = p;
+      loadRekap();
+      const b = document.getElementById('rekapBody');
+      if (b) b.scrollTop = 0;
     }
 
     /* ── Panduan Jenis Hafalan per Halaqoh ── */
@@ -3558,7 +3641,7 @@
       updateTzPeriodControls();
       updateTzZiyadahUlangVisibility();
       document.getElementById('topZiyadahDialog').showModal();
-      loadTopZiyadah();
+      reloadTopZiyadah();
     }
     function closeTopZiyadah() {
       closeSantriDetail();
@@ -3616,26 +3699,43 @@
       body.innerHTML = '<div><div class="empty-state"><i class="fa-solid fa-spinner fa-spin"></i><p style="margin-top:8px;font-weight:600;">Memuat...</p></div></div>';
       try {
         const tahunAjaranId = state.tahunAjaranFilter || '';
-        const data = await api('hafalan.harian.top.ziyadah', { dateFrom: range.dateFrom, dateTo: range.dateTo, topN, gender, jenisFilter, treatZiyadahUlangAsZiyadah, tahunAjaranId });
+        const data = await api('hafalan.harian.top.ziyadah', { dateFrom: range.dateFrom, dateTo: range.dateTo, topN, gender, jenisFilter, treatZiyadahUlangAsZiyadah, tahunAjaranId, page: tzPage, pageSize: TZ_PAGE_SIZE });
         tzCurrentRange = range;
-        renderTopZiyadahTable(data.items || [], jenisFilter);
+        tzRows = data.items || [];
+        tzJenisFilter = jenisFilter;
+        tzPage = data.page || 1;
+        tzTotalPages = data.totalPages || 1;
+        tzRowCount = data.total || 0;
+        renderTzPage();
       } catch (e) {
         body.innerHTML = `<div><div class="empty-state"><i class="fa-solid fa-triangle-exclamation" style="color:var(--danger);"></i><p style="margin-top:8px;color:var(--danger);font-weight:600;">${escHtml(e.message)}</p></div></div>`;
       }
     }
-    function renderTopZiyadahTable(items, jenisFilter) {
+    let tzRows = [];
+    let tzJenisFilter = 'ziyadah';
+    let tzPage = 1;
+    let tzTotalPages = 1;
+    let tzRowCount = 0;
+    const TZ_PAGE_SIZE = 10;
+
+    function reloadTopZiyadah() { tzPage = 1; loadTopZiyadah(); }
+
+    function renderTzPage() {
       const body = document.getElementById('tzBody');
-      if (!items.length) {
+      if (!tzRowCount) {
         body.innerHTML = '<div><div class="empty-state"><i class="fa-solid fa-book-open-reader"></i><p style="margin-top:10px;font-weight:600;">Tidak ada data hafalan untuk periode ini.</p></div></div>';
         return;
       }
-      const isHadits = jenisFilter === 'hadits';
+      const isHadits = tzJenisFilter === 'hadits';
       const colLabel = isHadits
         ? `<i class="fa-solid fa-arrow-up" style="color:var(--accent);"></i> Hadits`
         : `<i class="fa-solid fa-arrow-up" style="color:var(--accent);"></i> Total Ziyadah Dikurangi Hafalan Lama`;
       const valKey = isHadits ? 'hadits' : 'ziyadah';
       const medals = ['🥇', '🥈', '🥉'];
       const rowBg = ['rgba(255,215,0,0.08)', 'rgba(192,192,192,0.08)', 'rgba(205,127,50,0.08)'];
+      const start = (tzPage - 1) * TZ_PAGE_SIZE;
+      const pageRows = tzRows;
+      const pager = renderNumberPaging(tzPage, tzTotalPages, 'setTzPage');
       body.innerHTML = `<div>
         <div class="table-wrap">
           <table>
@@ -3647,22 +3747,32 @@
               <th style="text-align:center;">Detail</th>
             </tr></thead>
             <tbody>
-              ${items.map((r, i) => `
-                <tr${i < 3 ? ` style="background:${rowBg[i]};"` : ''} style="cursor:pointer;" onclick="openSantriDetail('${escHtml(r.santriId)}')" title="Klik untuk lihat detail setoran">
+              ${pageRows.map((r, idx) => {
+                const rank = start + idx;
+                return `
+                <tr${rank < 3 ? ` style="background:${rowBg[rank]};"` : ''} style="cursor:pointer;" onclick="openSantriDetail('${escHtml(r.santriId)}')" title="Klik untuk lihat detail setoran">
                   <td style="text-align:center;">
-                    ${i < 3
-                      ? `<span class="rank-medal ${['gold','silver','bronze'][i]}">${medals[i]}</span>`
-                      : `<span class="rank-medal rank-n">${i + 1}</span>`}
+                    ${rank < 3
+                      ? `<span class="rank-medal ${['gold','silver','bronze'][rank]}">${medals[rank]}</span>`
+                      : `<span class="rank-medal rank-n">${rank + 1}</span>`}
                   </td>
                   <td style="font-weight:700;">${escHtml(r.santriName)}</td>
                   <td style="font-size:12px;color:var(--muted);">${escHtml(r.halaqohName)}${r.pengampuNames ? `<br><span style="opacity:0.8;">${escHtml(r.pengampuNames)}</span>` : ''}${r.badalNames ? `<br><span style="opacity:0.65;">Badal: ${escHtml(r.badalNames)}</span>` : ''}</td>
                   <td class="td-num" style="font-weight:800;color:var(--accent);">${fmtNum(r[valKey] || 0)}</td>
                   <td style="text-align:center;"><i class="fa-solid fa-circle-info" style="color:var(--muted);"></i></td>
-                </tr>`).join('')}
+                </tr>`;
+              }).join('')}
             </tbody>
           </table>
-        </div>
+        </div>${pager ? `<div style="margin-top:14px;">${pager}</div>` : ''}
       </div>`;
+    }
+
+    function setTzPage(p) {
+      tzPage = p;
+      loadTopZiyadah();
+      const b = document.getElementById('tzBody');
+      if (b) b.scrollTop = 0;
     }
 
     /* ── Detail setoran per-santri (dari Top Ziyadah) ── */
@@ -3708,9 +3818,12 @@
     /* ── Riwayat Hafalan Santri per Halaqoh (tombol di kartu halaqoh) ── */
     let rhHalaqoh = null;
     let rhCurrentSantriId = null;
+    let rhPickerPage = 1;
+    const RH_PICKER_PAGE_SIZE = 10;
 
     function openRiwayatHalaqoh(halaqohId) {
       rhHalaqoh = (state.halaqohList || []).find(h => h.id === halaqohId) || null;
+      rhPickerPage = 1;
       document.getElementById('rhHalaqohName').textContent = rhHalaqoh ? rhHalaqoh.name : '';
       renderRhPicker();
       document.getElementById('rhPicker').style.display = '';
@@ -3730,7 +3843,23 @@
         wrap.innerHTML = '<div class="empty-state"><i class="fa-solid fa-users" style="font-size:36px;opacity:0.3;display:block;margin-bottom:12px;"></i><p style="font-weight:600;">Belum ada santri di halaqoh ini.</p></div>';
         return;
       }
-      wrap.innerHTML = ids.map((id, i) => `<div class="rh-santri-item" data-rh-santri="${escHtml(id)}" style="padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:600;" onmouseover="this.style.background='rgba(185,118,80,0.12)'" onmouseout="this.style.background=''">${escHtml(names[i] || '-')}</div>`).join('');
+      const totalPages = Math.max(1, Math.ceil(ids.length / RH_PICKER_PAGE_SIZE));
+      if (rhPickerPage > totalPages) rhPickerPage = 1;
+      const start = (rhPickerPage - 1) * RH_PICKER_PAGE_SIZE;
+      const end = Math.min(ids.length, start + RH_PICKER_PAGE_SIZE);
+      let html = '';
+      for (let i = start; i < end; i++) {
+        html += `<div class="rh-santri-item" data-rh-santri="${escHtml(ids[i])}" style="padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:600;" onmouseover="this.style.background='rgba(185,118,80,0.12)'" onmouseout="this.style.background=''">${escHtml(names[i] || '-')}</div>`;
+      }
+      const pg = renderNumberPaging(rhPickerPage, totalPages, 'setRhPickerPage');
+      wrap.innerHTML = html + (pg ? `<div style="margin-top:12px;">${pg}</div>` : '');
+    }
+
+    function setRhPickerPage(p) {
+      rhPickerPage = p;
+      renderRhPicker();
+      const wrap = document.getElementById('rhPicker');
+      if (wrap) wrap.scrollTop = 0;
     }
 
     function backToRhPicker() {
@@ -3995,6 +4124,10 @@
     window.openEditEntryFromSSP = openEditEntryFromSSP;
     window.deleteEntryFromSSP = deleteEntryFromSSP;
     window.setSantriPage = setSantriPage;
+    window.setRhPickerPage = setRhPickerPage;
+    window.setRsPage = setRsPage;
+    window.setRekapPage = setRekapPage;
+    window.setTzPage = setTzPage;
     window.saveAwalSection = saveAwalSection;
 
     /* ── Init ── */
@@ -4013,7 +4146,6 @@
       // Halaqoh/Admin/SuperAdmin yang boleh isi catatan banyak hari sekaligus dalam 1x post.
       state.canBulkCatatan = !!(perms && (perms.isSuperAdmin || perms.isAdmin || perms.isHalaqohCoordinator));
       renderHapusSemuaBtn();
-      syncActionToolbar();
 
       mountShell(initialSession);
 
@@ -4047,11 +4179,11 @@
       });
 
       // Halaqoh search input
-      document.getElementById('halaqohSearchInput').addEventListener('input', function () {
+      document.getElementById('halaqohSearchInput').addEventListener('input', PSUI.debounce(function () {
         state.searchQuery = this.value;
         state.page = 1;
         loadDashboard();
-      });
+      }, PSUI.AUTOSAVE_DEBOUNCE_MS));
 
       // Pagination page button clicks
       document.addEventListener('click', function (e) {
@@ -4080,6 +4212,7 @@
       document.getElementById('dialogMonth').addEventListener('change', loadDialogData);
 
       document.getElementById('dateModeHariBtn').addEventListener('click', function () {
+        if (state.isAwalMode) return; // dikunci di mode Hafalan Sebelumnya
         if (state.dateMode === 'hari') return;
         state.dateMode = 'hari';
         document.getElementById('dateModeHariBtn').classList.add('active');
@@ -4089,6 +4222,7 @@
         loadDialogData();
       });
       document.getElementById('dateModeBulanBtn').addEventListener('click', function () {
+        if (state.isAwalMode) return; // dikunci di mode Hafalan Sebelumnya
         if (state.dateMode === 'bulan') return;
         state.dateMode = 'bulan';
         document.getElementById('dateModeBulanBtn').classList.add('active');
@@ -4113,33 +4247,31 @@
       });
 
       // Santri search
-      document.getElementById('santriSearch').addEventListener('input', function () {
+      document.getElementById('santriSearch').addEventListener('input', PSUI.debounce(function () {
         state.santriSearch = this.value;
         state.santriPage = 1;
         renderSantriList();
-      });
+      }, PSUI.AUTOSAVE_DEBOUNCE_MS));
 
       // Hafalan Santri dialog events
       document.getElementById('openRekapSemuaBtn').addEventListener('click', openRekapSemua);
       document.getElementById('rekapSemuaCloseBtn').addEventListener('click', closeRekapSemua);
       document.getElementById('rekapSemuaDialog').addEventListener('cancel', (e) => { e.preventDefault(); closeRekapSemua(); });
-      document.getElementById('rsHalaqoh').addEventListener('change', loadRekapSemua);
-      document.getElementById('rsJenis').addEventListener('change', loadRekapSemua);
-      document.getElementById('rsNama').addEventListener('input', renderRekapSemua);
-
-      document.getElementById('toolbarCollapseToggle').addEventListener('click', toggleActionToolbar);
+      document.getElementById('rsHalaqoh').addEventListener('change', function () { rsPage = 1; loadRekapSemua(); });
+      document.getElementById('rsJenis').addEventListener('change', function () { rsPage = 1; loadRekapSemua(); });
+      document.getElementById('rsNama').addEventListener('input', PSUI.debounce(function () { rsPage = 1; loadRekapSemua(); }, PSUI.AUTOSAVE_DEBOUNCE_MS));
 
       // Rekap dialog events
       document.getElementById('openRekapBtn').addEventListener('click', openRekap);
       document.getElementById('rekapCloseBtn').addEventListener('click', closeRekap);
       document.getElementById('rekapDialog').addEventListener('cancel', (e) => { e.preventDefault(); closeRekap(); });
       document.getElementById('rekapTahunAjaran').addEventListener('change', function () { loadRekapHalaqohOptions(this.value); });
-      document.getElementById('rekapPeriodType').addEventListener('change', function () { updateRekapPeriodControls(); loadRekap(); });
-      document.getElementById('rekapHalaqoh').addEventListener('change', loadRekap);
-      document.getElementById('rekapPekanN').addEventListener('change', loadRekap);
-      document.getElementById('rekapBulan').addEventListener('change', loadRekap);
-      document.getElementById('rekapDateFrom').addEventListener('change', loadRekap);
-      document.getElementById('rekapDateTo').addEventListener('change', loadRekap);
+      document.getElementById('rekapPeriodType').addEventListener('change', function () { updateRekapPeriodControls(); reloadRekap(); });
+      document.getElementById('rekapHalaqoh').addEventListener('change', reloadRekap);
+      document.getElementById('rekapPekanN').addEventListener('change', reloadRekap);
+      document.getElementById('rekapBulan').addEventListener('change', reloadRekap);
+      document.getElementById('rekapDateFrom').addEventListener('change', reloadRekap);
+      document.getElementById('rekapDateTo').addEventListener('change', reloadRekap);
 
       // Top Ziyadah dialog events — auto-reload on any filter change
       document.getElementById('openTopZiyadahBtn').addEventListener('click', openTopZiyadah);
@@ -4171,15 +4303,15 @@
       document.getElementById('openPanduanBtn').addEventListener('click', openPanduan);
       document.getElementById('panduanCloseBtn').addEventListener('click', closePanduan);
       document.getElementById('panduanDialog').addEventListener('cancel', (e) => { e.preventDefault(); closePanduan(); });
-      document.getElementById('tzPeriodType').addEventListener('change', function () { updateTzPeriodControls(); loadTopZiyadah(); });
-      document.getElementById('tzPekanN').addEventListener('change', loadTopZiyadah);
-      document.getElementById('tzBulan').addEventListener('change', loadTopZiyadah);
-      document.getElementById('tzDateFrom').addEventListener('change', loadTopZiyadah);
-      document.getElementById('tzDateTo').addEventListener('change', loadTopZiyadah);
-      document.getElementById('tzJenis').addEventListener('change', function () { updateTzZiyadahUlangVisibility(); loadTopZiyadah(); });
-      document.getElementById('tzZiyadahUlang').addEventListener('change', loadTopZiyadah);
-      document.getElementById('tzGender').addEventListener('change', loadTopZiyadah);
-      document.getElementById('tzTopN').addEventListener('change', loadTopZiyadah);
+      document.getElementById('tzPeriodType').addEventListener('change', function () { updateTzPeriodControls(); reloadTopZiyadah(); });
+      document.getElementById('tzPekanN').addEventListener('change', reloadTopZiyadah);
+      document.getElementById('tzBulan').addEventListener('change', reloadTopZiyadah);
+      document.getElementById('tzDateFrom').addEventListener('change', reloadTopZiyadah);
+      document.getElementById('tzDateTo').addEventListener('change', reloadTopZiyadah);
+      document.getElementById('tzJenis').addEventListener('change', function () { updateTzZiyadahUlangVisibility(); reloadTopZiyadah(); });
+      document.getElementById('tzZiyadahUlang').addEventListener('change', reloadTopZiyadah);
+      document.getElementById('tzGender').addEventListener('change', reloadTopZiyadah);
+      document.getElementById('tzTopN').addEventListener('change', reloadTopZiyadah);
 
       // Entry overlay events
       document.getElementById('entryPanelBackdrop').addEventListener('click', closeEntryDialog);
@@ -4191,14 +4323,21 @@
         syncNilaiVisibility(this.value);
       });
 
-      window.addEventListener('load', async () => {
+      // Mulai fetch daftar halaqoh begitu DOM siap -- jangan nunggu event 'load' (yang baru
+      // kelar setelah semua font/gambar/@import selesai), biar spinner cepat berganti kartu.
+      const boot = async () => {
         await loadDashboard();
         const openHalaqohId = new URLSearchParams(location.search).get('openHalaqoh');
         if (openHalaqohId) {
           history.replaceState(null, '', location.pathname);
           await openHalaqoh(openHalaqohId);
         }
-      });
+      };
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', boot);
+      } else {
+        boot();
+      }
     }
   </script>
 </body>

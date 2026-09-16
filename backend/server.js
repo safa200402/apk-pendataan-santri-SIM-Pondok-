@@ -3,15 +3,35 @@ var fs = require('node:fs');
 var os = require('node:os');
 var crypto = require('node:crypto');
 var execFile = require('node:child_process').execFile;
+var spawn = require('node:child_process').spawn;
 var bcrypt = require('bcryptjs');
 var express = require('express');
 var DatabaseSync = require('node:sqlite').DatabaseSync;
 var AdmZip = require('adm-zip');
+// http-proxy-middleware: dipakai buat mem-proxy dev server Vite frontend2 (React, lihat FRONTEND2_DIR)
+// lewat prefix /v2 di server yang sama. Dibungkus try/catch spt archiver/ffmpeg-static supaya
+// server utama tetap nyala walau paket ini belum ke-install (mis. `npm install` belum dijalankan).
+var createProxyMiddleware = null;
+try { createProxyMiddleware = require('http-proxy-middleware').createProxyMiddleware; } catch (_) { createProxyMiddleware = null; }
+// archiver: zip streaming ke disk (dipakai buat MEMBUAT backup) -- adm-zip menampung seluruh
+// file + hasil zip di RAM sekaligus, gampang kena OOM/SIGKILL di shared hosting begitu folder
+// media (video pengumuman dll) membesar. require dibungkus try/catch supaya server tetap
+// nyala walau `npm install` belum dijalankan di host; kalau null, jatuh balik ke adm-zip.
+var archiver = null;
+try { archiver = require('archiver'); } catch (_) { archiver = null; }
 var FFMPEG_PATH = null;
 try { FFMPEG_PATH = require('ffmpeg-static'); } catch (_) { FFMPEG_PATH = null; }
 
 var ROOT_DIR = path.resolve(__dirname, '..');
 var FRONTEND_DIR = path.join(ROOT_DIR, 'frontend');
+// frontend2: rewrite React (Vite) yang dibangun paralel di samping frontend/ lama, TANPA
+// menggantikannya. Dev server Vite-nya di-spawn otomatis (lihat startFrontend2DevServer_)
+// dan diakses lewat proxy /v2 di server yang sama, bukan lewat express.static biasa --
+// karena isinya perlu di-build (JSX) dulu, beda dari frontend/ yang statis apa adanya.
+var FRONTEND2_DIR = path.join(ROOT_DIR, 'frontend2');
+var FRONTEND2_DEV_PORT = 5174;
+var frontend2Proxy = null; // di-assign di createExpressApp_() kalau http-proxy-middleware ada
+var frontend2ChildProcess = null;
 var DATA_DIR = path.join(__dirname, 'data');
 var JD_DIR = path.join(FRONTEND_DIR, 'jam_digital');
 var JD_LOGO_DIR = path.join(JD_DIR, 'logo');
@@ -22,6 +42,31 @@ var DB_PATH = process.env.DB_PATH || path.join(DATA_DIR, 'pendataan-santri.sqlit
 var MAINTENANCE_PATH = path.join(DATA_DIR, 'maintenance.json');
 var maintenanceState = { active: false, message: '', setBy: '', setAt: '' };
 try { maintenanceState = JSON.parse(fs.readFileSync(MAINTENANCE_PATH, 'utf8')); } catch (e) {}
+// appTheme: satu-satunya sumber warna/font/ukuran tampilan frontend2 (React) -- diedit lewat
+// halaman Pengaturan Tampilan, dibaca semua sesi pengurus yang login (bukan per-browser),
+// supaya berlaku sama utk semua orang spt branding lain (mis. portal.brand).
+var APP_THEME_PATH = path.join(DATA_DIR, 'appTheme.json');
+var APP_THEME_DEFAULTS = {
+  colors: {
+    primary: '#c49a2c',
+    primaryStrong: '#d8b34a',
+    primarySoft: '#efd890',
+    danger: '#c0392b',
+    success: '#2e7d32',
+    warning: '#e65100',
+    bg: '#f7f5f0',
+    surface: '#ffffff',
+    text: '#333333',
+    textMuted: '#6b6b6b',
+    border: '#e2ddd0'
+  },
+  fontFamily: "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
+  uiScale: 1,
+  setBy: '',
+  setAt: ''
+};
+var appThemeState = Object.assign({}, APP_THEME_DEFAULTS);
+try { appThemeState = Object.assign({}, APP_THEME_DEFAULTS, JSON.parse(fs.readFileSync(APP_THEME_PATH, 'utf8'))); } catch (e) {}
 var AUDIT_SETTINGS_PATH = path.join(DATA_DIR, 'auditSettings.json');
 var AUDIT_SETTINGS_DEFAULTS = {
   halaqohActive: true, halaqohBlocksJurnal: true,
@@ -36,7 +81,19 @@ var AUDIT_SETTINGS_DEFAULTS = {
   akademikReguActive: true, akademikReguBlocksJurnal: true, akademikReguDibekukanWajib: false,
   nilaiWajibActive: true, nilaiWajibBlocksJurnal: true,
   silabusActive: true, silabusBlocksJurnal: true,
+  // [] (default) = semua jenis kelas siang diaudit (perilaku lama, backward compatible).
+  // Diisi array string jenis (persis nilai kolom `jenis` kelasSiang, "" = kelas tanpa
+  // keterangan jenis) kalau admin mau audit kelas HANYA milik jenis tertentu saja. Dipakai
+  // bareng oleh 4 audit terkait kelas siang: absensi kelas, silabus, nilai wajib, DAN
+  // "santri tidak tepat 3 kelas siang" (kelas jenis di luar daftar ini tidak ikut dihitung
+  // ke kuota 3) -- keputusan user 2026-09-05, biar konsisten semuanya.
+  kelasJenisAudited: [],
   auditCutoffOffsetDays: 1,
+  // false (default sejak 2026-08-08) = santri Dibekukan DIKECUALIKAN dari audit per-santri
+  // (hafalan/perkembangan/tasmi'/nilai wajib). true = santri Dibekukan tetap ikut ditagih
+  // seperti santri aktif. Diatur di halaman Kelola Audit. Tidak memengaruhi audit absensi
+  // per-entitas maupun 3 audit keanggotaan (yang punya toggle ...DibekukanWajib sendiri).
+  dibekukanKenaAudit: false,
   setBy: '', setAt: ''
 };
 var auditSettingsState = Object.assign({}, AUDIT_SETTINGS_DEFAULTS);
@@ -74,6 +131,9 @@ var AUDIT_BAWAHAN_SETTINGS_DEFAULTS = {
   akademikKelasBawahanActive: true,
   akademikHalaqohBawahanActive: true,
   akademikReguBawahanActive: true,
+  // Info harian "siapa input pelanggaran hari ini" (2026-08-29) -- lihat
+  // collectPelanggaranInputTodayItems_ & AUDIT_BAWAHAN_KINDS_ di bawah.
+  pelanggaranInputActive: true,
   // extraAudiences (2026-08-07): tiap kind awalnya cuma ditagih ke 1 jabatan tetap (lihat
   // permKey di AUDIT_BAWAHAN_KINDS_). Ini tambahan OPSIONAL, diatur admin/pengelola lewat
   // halaman -- map kind -> array role-key (lihat AUDIT_BAWAHAN_ROLE_OPTIONS_) yang JUGA
@@ -84,9 +144,424 @@ var AUDIT_BAWAHAN_SETTINGS_DEFAULTS = {
 };
 var auditBawahanSettingsState = Object.assign({}, AUDIT_BAWAHAN_SETTINGS_DEFAULTS);
 try { auditBawahanSettingsState = Object.assign({}, AUDIT_BAWAHAN_SETTINGS_DEFAULTS, JSON.parse(fs.readFileSync(AUDIT_BAWAHAN_SETTINGS_PATH, 'utf8'))); } catch (e) {}
+// Kelola Addons (2026-09-12, diperluas 2026-09-13): fitur opsional yang bisa dinyala/matikan
+// Admin/Super Admin lewat halaman pages/kelolaAddons, tanpa perlu ubah kode. Mematikan addon
+// TIDAK PERNAH menghapus data yang sudah tersimpan, cuma menyembunyikan menu & menolak actionnya.
+// ADDONS_REGISTRY_ = fitur yang BENERAN bisa dimatikan (mandiri, tidak dipakai modul lain).
+// ADDONS_LOCKED_REGISTRY_ = sisa halaman aplikasi (hampir semua) yang TETAP ditampilkan di
+// halaman Kelola Addons (biar kelihatan lengkap/transparan) tapi togglenya dikunci, masing-masing
+// dengan alasan jujur kenapa (data inti dipakai modul lain, ATAU sudah py audit/lockout sendiri
+// yang belum aman dilepas-pasang bareng addon ini, ATAU memang alat pengaturan sistem itu sendiri).
+// Keduanya digabung jadi satu daftar oleh handleAddonsSettingsGet_.
+var ADDONS_SETTINGS_PATH = path.join(DATA_DIR, 'addonsSettings.json');
+var ADDONS_REGISTRY_ = [
+  {
+    key: 'bankSoal', field: 'bankSoalActive', nama: 'Bank Soal', halaman: ['Bank Soal'],
+    deskripsi: 'Tempat menyimpan kumpulan soal (dokumen/gambar/teks) yang bisa dipakai berulang oleh pengajar & Akademik.',
+    konsekuensiAktif: 'Menu "Bank Soal" muncul lagi di sidebar semua pengurus. Soal yang pernah tersimpan sebelumnya (kalau ada) ikut terlihat lagi.',
+    konsekuensiNonaktif: 'Menu "Bank Soal" hilang dari sidebar dan halamannya tidak bisa dibuka. Soal yang sudah tersimpan TIDAK dihapus, cuma disembunyikan sampai diaktifkan lagi.',
+    manageDesc: 'Level 1 -- melihat daftar soal tetap terbuka untuk semua pengurus. Ini mengatur siapa yang boleh UPLOAD soal baru. Bawaan (kalau belum diatur): Admin, Super Admin, Akademik, atau jabatan Pengajar/Ustadz/Ustadzah/Guru.',
+    // Level 2 (2026-09-13): "boleh edit/hapus soal SIAPA SAJA (bukan cuma upload-annya sendiri)".
+    // Bawaan lama (hardcode di handleBankSoalUpdate_/Delete_/QuillSave_): Admin/Super
+    // Admin/Akademik boleh soal siapa pun; pengajar biasa cuma boleh edit/hapus soal upload-annya
+    // sendiri (dicek dari kolom uploaded_by, BUKAN jabatan -- field ini cuma menggantikan siapa
+    // yang di-BYPASS dari batasan "punya sendiri" itu).
+    extraLevels: [
+      {
+        key: 'manageAllSoal', label: 'Kelola Semua Soal', field: 'bankSoalManageAllSoalJabatanIds',
+        desc: 'Level 2 -- siapa yang boleh EDIT/HAPUS soal siapa pun (bukan cuma soal upload-annya sendiri). Pengajar yang tidak masuk daftar ini tetap cuma bisa edit/hapus soal upload-annya sendiri. Bawaan (kalau belum diatur): Admin, Super Admin, atau Akademik.'
+      }
+    ]
+  },
+  {
+    key: 'jadwalIbadah', field: 'jadwalIbadahActive', nama: 'Jadwal Ibadah', halaman: ['Jadwal Ibadah'],
+    deskripsi: "Jadwal tetap Imam & Kultum per hari per waktu sholat, jadwal Khutbah Jum'at, dan carousel otomatis di halaman Beranda.",
+    konsekuensiAktif: 'Menu "Jadwal Ibadah" muncul lagi untuk semua pengurus, dan carousel jadwal Imam/Kultum/Khutbah otomatis tampil lagi di Beranda santri & pengurus.',
+    konsekuensiNonaktif: 'Menu "Jadwal Ibadah" hilang dari sidebar, halamannya tidak bisa dibuka, dan carousel di Beranda ikut berhenti tampil. Data jadwal yang sudah diisi TIDAK dihapus.',
+    manageDesc: 'Melihat jadwal tetap terbuka untuk semua pengurus. Ini mengatur siapa yang boleh MENGISI/UBAH jadwal Imam/Kultum/Khutbah. Bawaan (kalau belum diatur): Admin, Super Admin, atau Koordinator Halaqoh.'
+  },
+  {
+    key: 'jamDigital', field: 'jamDigitalActive', nama: 'Jam Digital', halaman: ['Jam Digital', 'Jam Digital Remote'],
+    deskripsi: 'Layar jam digital masjid/pesantren (jadwal sholat, running text, pengumuman) untuk dipasang di TV/monitor, beserta panel remote control-nya.',
+    konsekuensiAktif: 'Menu "Jam Digital" & "Jam Digital Remote" muncul lagi untuk Admin/Operator, dan layar kiosk publik di /jam-digital kembali menampilkan data.',
+    konsekuensiNonaktif: 'Layar kiosk publik (/jam-digital) & panel remote-nya berhenti berfungsi (menampilkan pesan nonaktif), dan menunya hilang dari sidebar pengurus. Pengaturan yang sudah diisi (logo, teks berjalan, dll) TIDAK dihapus.',
+    manageDesc: 'Layar kiosk publik tetap bisa dilihat siapa saja. Ini mengatur siapa yang boleh MENGONTROL panel remote (ubah teks berjalan, logo, dll). Bawaan (kalau belum diatur): Admin, Super Admin, atau jabatan Operator Jam Digital.'
+  },
+  {
+    key: 'madingDigital', field: 'madingDigitalActive', nama: 'Mading Digital', halaman: ['Mading Digital', 'Kelola Mading', 'Mading Publik'],
+    deskripsi: 'Papan mading digital untuk publikasi konten (tulisan/foto/video) ke pengurus, santri, dan publik.',
+    konsekuensiAktif: 'Menu "Mading Digital" & "Kelola Mading" muncul lagi, dan halaman publik Mading kembali menampilkan konten yang pernah diterbitkan.',
+    konsekuensiNonaktif: 'Menu "Mading Digital" & "Kelola Mading" hilang dari sidebar, dan halaman publik Mading berhenti menampilkan konten. Konten yang sudah dipublikasikan TIDAK dihapus.',
+    manageDesc: 'Ini mengatur siapa yang boleh membuka "Kelola Mading" (terbit/edit konten) -- menu "Mading Digital" (baca-baca) tetap terbuka untuk pengurus & santri. Bawaan (kalau belum diatur): Admin, Super Admin, atau jabatan yang mengandung kata "Mading".'
+  },
+  {
+    key: 'pengumumanSurvey', field: 'pengumumanSurveyActive', nama: 'Pengumuman & Survey', halaman: ['Kelola Pengumuman', 'Kelola Survey'],
+    deskripsi: 'Popup pengumuman/pengingat dan survey wajib bertarget jabatan tertentu untuk pengurus/santri.',
+    konsekuensiAktif: 'Menu "Kelola Pengumuman" & "Kelola Survey" muncul lagi, dan popup pengumuman/survey yang sudah dibuat mulai muncul lagi ke penerimanya.',
+    konsekuensiNonaktif: 'Menu "Kelola Pengumuman" & "Kelola Survey" hilang, dan SEMUA popup pengumuman/survey berhenti muncul ke siapa pun (termasuk yang wajib direspon). Data yang sudah dibuat TIDAK dihapus.',
+    manageDesc: 'Kedua halaman ini SELURUHNYA halaman pengelola (bukan sekadar lihat) -- daftar jabatan ini menentukan siapa yang boleh membukanya sama sekali. Bawaan (kalau belum diatur): Admin, Super Admin, atau Mudir. Menghapus pengumuman/survey tetap Super Admin only, tidak ikut diatur di sini.'
+  },
+  {
+    key: 'catatanku', field: 'catatankuActive', nama: 'Catatanku', halaman: ['Catatanku'],
+    deskripsi: 'Editor dokumen & catatan pribadi/berbagi untuk Mudir/Admin/Super Admin, dengan autosave & riwayat versi.',
+    konsekuensiAktif: 'Menu "Catatanku" muncul lagi, dan dokumen/catatan yang sudah dibuat bisa dibuka lagi.',
+    konsekuensiNonaktif: 'Menu "Catatanku" hilang dan halamannya tidak bisa dibuka. Dokumen/catatan yang sudah dibuat TIDAK dihapus.',
+    manageDesc: 'Membuka halaman & melihat dokumen yang dibagikan ke kamu tetap terbuka untuk semua pengurus. Ini mengatur siapa yang boleh MEMBUAT dokumen baru. Bawaan (kalau belum diatur): Mudir, Admin, Super Admin.'
+  },
+  {
+    key: 'quizDigital', field: 'quizDigitalActive', nama: 'Quiz Digital', halaman: ['Quiz Digital', 'Quiz Santri (santri)'],
+    deskripsi: 'Guru membuat kuis digital (PG/isian/dokumen) per kelas, santri mengerjakan lewat menu Quiz Santri, skor otomatis.',
+    konsekuensiAktif: 'Menu "Quiz Digital" muncul lagi untuk pengajar, dan menu "Quiz Santri" muncul lagi untuk santri.',
+    konsekuensiNonaktif: 'Menu "Quiz Digital" & "Quiz Santri" hilang dari sidebar dan tidak bisa dibuka. Kuis & hasil yang sudah ada TIDAK dihapus.',
+    manageDesc: 'Level 1 -- siapa boleh MASUK Quiz Digital sama sekali (santri pakai halaman terpisah, tidak terpengaruh). Bawaan (kalau belum diatur): Admin, Super Admin, Mudir, Akademik, atau jabatan Pengajar.',
+    // Level 2 (2026-09-13): "kelas mana yang boleh dikelola" -- BEDA dari level 1 (siapa boleh
+    // masuk sama sekali). Bawaan lama (hardcode di canManageQuizKelas_): Admin/Super
+    // Admin/Akademik/Mudir boleh kelas MANA PUN; pengajar biasa cuma kelas yang diampunya sendiri
+    // (dicek dari data penugasan kelas, session.kelasIds -- field ini TIDAK mengubah itu, cuma
+    // menggantikan siapa yang di-BYPASS dari batasan "kelas sendiri" itu).
+    extraLevels: [
+      {
+        key: 'manageAllKelas', label: 'Kelola Semua Kelas', field: 'quizDigitalManageAllKelasJabatanIds',
+        desc: 'Level 2 -- siapa yang boleh mengelola quiz di kelas MANA PUN (bukan cuma kelas yang diajarnya sendiri). Pengajar yang tidak masuk daftar ini tetap cuma bisa mengelola quiz kelasnya sendiri. Bawaan (kalau belum diatur): Admin, Super Admin, Akademik, atau Mudir.'
+      }
+    ]
+  },
+  {
+    key: 'rekapZoom', field: 'rekapZoomActive', nama: 'Rekap Zoom', halaman: ['Rekap Zoom'],
+    deskripsi: 'Pencatatan rekap kehadiran & kunjungan kegiatan zoom/daring santri.',
+    konsekuensiAktif: 'Menu "Rekap Zoom" muncul lagi untuk semua pengurus.',
+    konsekuensiNonaktif: 'Menu "Rekap Zoom" hilang dari sidebar dan halamannya tidak bisa dibuka. Data rekap yang sudah tersimpan TIDAK dihapus.',
+    manageDesc: 'Bawaan (kalau belum diatur): SEMUA pengurus boleh mencatat rekap -- belum pernah dibatasi sebelumnya. Isi daftar ini kalau mau membatasi ke jabatan tertentu saja.'
+  },
+  {
+    key: 'bukuDigital', field: 'bukuDigitalActive', nama: 'Buku Digital', halaman: ['Buku Digital'],
+    deskripsi: 'Perpustakaan buku digital (upload dokumen/e-book) yang bisa dibaca pengurus sesuai hak akses.',
+    konsekuensiAktif: 'Menu "Buku Digital" muncul lagi untuk semua pengurus.',
+    konsekuensiNonaktif: 'Menu "Buku Digital" hilang dari sidebar dan halamannya tidak bisa dibuka. Buku yang sudah diunggah TIDAK dihapus.',
+    manageDesc: 'Membuka halaman & membaca buku tetap terbuka untuk semua pengurus. Ini mengatur siapa yang boleh UPLOAD/EDIT/HAPUS buku. Bawaan (kalau belum diatur): Admin, Super Admin, atau Akademik.'
+  },
+  {
+    key: 'raportRekamJejak', field: 'raportRekamJejakActive', nama: 'Raport & Rekam Jejak', halaman: ['Input Kelas Level', 'Akhlak & Kepribadian', 'Deskripsi Santri', 'Raport & Rekam Jejak'],
+    deskripsi: 'Input tingkat/marhalah kelas, akhlak & kepribadian, deskripsi santri, sampai cetak Raport & Rekam Jejak gabungan.',
+    konsekuensiAktif: 'Menu "Input Kelas Level", "Akhlak & Kepribadian", "Deskripsi Santri", dan "Raport & Rekam Jejak" muncul lagi (termasuk untuk santri lihat rekam jejaknya sendiri).',
+    konsekuensiNonaktif: 'Ke-4 menu di atas hilang dari sidebar dan halamannya tidak bisa dibuka (termasuk untuk santri). Data yang sudah diisi TIDAK dihapus.',
+    manageDesc: 'Level 1 -- melihat & mencetak "Raport & Rekam Jejak" gabungan tetap terbuka untuk semua pengurus (view-only). Ini mengatur siapa yang boleh MENGISI Kelas Level/Akhlak/Deskripsi sama sekali. Bawaan (kalau belum diatur): Admin, Super Admin, Akademik/Pengajar (Kelas Level) dan Kesantrian/Pembina Regu (Akhlak & Deskripsi).',
+    // Level 2 (2026-09-13): "regu mana yang boleh diisi Akhlak/Deskripsinya" -- BEDA dari level 1.
+    // Bawaan lama (hardcode di raportRegusAccessible_): Admin/Super Admin/Kesantrian boleh regu
+    // MANA PUN; Pembina Regu biasa cuma regu yang dia bina (data penugasan, session pembinaReguIds
+    // -- BUKAN jabatan). TIDAK memengaruhi Input Kelas Level (tidak per-regu) maupun Perkembangan
+    // Santri (locked group "reguPerkembangan" terpisah, sengaja belum py level akses).
+    extraLevels: [
+      {
+        key: 'manageAllRegu', label: 'Kelola Semua Regu (Akhlak & Deskripsi)', field: 'raportRekamJejakManageAllReguJabatanIds',
+        desc: 'Level 2 -- siapa yang boleh isi Akhlak & Deskripsi untuk regu MANA PUN (bukan cuma regu yang dibinanya sendiri). Pembina Regu yang tidak masuk daftar ini tetap cuma bisa isi regunya sendiri. Tidak berlaku untuk Input Kelas Level (bukan per-regu). Bawaan (kalau belum diatur): Admin, Super Admin, atau Kesantrian.'
+      }
+    ]
+  }
+];
+// Sisa halaman aplikasi -- ditampilkan di Kelola Addons TAPI TERKUNCI (tidak ada action=
+// khusus yang diblokir, tidak ada field aktif/nonaktif). Dikelompokkan per rumpun fitur biar
+// tidak 60-an baris satu-satu; masing-masing WAJIB py alasan jujur & spesifik.
+var ADDONS_LOCKED_REGISTRY_ = [
+  {
+    key: 'akunSesi', nama: 'Akun & Sesi', halaman: ['Login', 'Login Santri', 'Logout', 'Profil Akun', 'Ganti Kata Sandi', 'Profil Saya (santri)'],
+    deskripsi: 'Masuk, keluar, dan kelola akun pribadi.',
+    alasanTerkunci: 'Dipakai untuk masuk & mengelola akun SEMUA pengguna (pengurus maupun santri) -- bukan fitur opsional.'
+  },
+  {
+    key: 'berandaDashboard', nama: 'Beranda & Dashboard', halaman: ['Beranda', 'Dashboard Super Admin', 'Dashboard Admin', 'Dashboard Akademik', 'Dashboard Kesantrian', 'Dashboard Koordinator Halaqoh', 'Dashboard SDM'],
+    deskripsi: 'Halaman utama & ringkasan otomatis dari modul-modul lain.',
+    alasanTerkunci: 'Isinya menyesuaikan sendiri begitu modul sumbernya (Bank Soal, Jadwal Ibadah, dst) dinonaktifkan lewat addon terkait -- dashboard-nya sendiri tidak perlu tombol on/off.'
+  },
+  {
+    key: 'dataIntiStruktur', nama: 'Data Inti Santri, Pengurus & Struktur', halaman: ['Daftar Santri', 'Edit Pengurus', 'Master Jabatan', 'Struktur Organisasi', 'Edit Halaqoh', 'Edit Kelas', 'Edit Regu', 'Data Kelompok', 'Data Kelompok Manual'],
+    deskripsi: 'Data induk santri, pengurus, jabatan, dan struktur halaqoh/kelas/regu.',
+    alasanTerkunci: 'Data dasar yang dipakai HAMPIR SEMUA modul lain (absensi, hafalan, nilai, raport, dll). Menonaktifkannya akan merusak modul-modul tersebut.'
+  },
+  {
+    key: 'kalenderAkademik', nama: 'Kalender Akademik', halaman: ['Kalender Akademik', 'Edit Kalender Akademik', 'Tahun Ajaran'],
+    deskripsi: 'Kalender akademik & tahun ajaran aktif.',
+    alasanTerkunci: 'Tidak bisa dimatikan (dipakai sebagai acuan tanggal oleh hampir semua sistem audit & laporan), TAPI siapa yang boleh lihat/isi acara bisa diatur di bawah. Tahun Ajaran & hapus-semua acara TIDAK ikut diatur di sini -- tetap Admin/Super Admin only, terlalu sensitif untuk dilonggarkan lewat jabatan.',
+    levels: [
+      { key: 'view', label: 'Lihat Kalender', field: 'kalenderAkademikViewJabatanIds', desc: 'Siapa yang boleh membuka halaman Kalender Akademik (lihat acara). Bawaan (kalau belum diatur): SEMUA pengurus (santri selalu boleh lihat, tidak terpengaruh pengaturan ini).' },
+      { key: 'manage', label: 'Kelola Acara', field: 'kalenderAkademikManageJabatanIds', desc: 'Siapa yang boleh menambah/mengubah/menghapus acara lewat Edit Kalender Akademik. Bawaan (kalau belum diatur): Admin, Super Admin, Akademik, atau Mudir.' }
+    ]
+  },
+  {
+    key: 'misiTahfizh', nama: 'Hafalan, Ujian Hafalan & Nilai UAS Halaqoh', halaman: ['Hafalan Harian', 'Absensi Halaqoh', 'Ujian Hafalan', 'Nilai UAS'],
+    deskripsi: 'Setoran hafalan harian, absensi halaqoh, ujian hafalan mingguan, dan nilai UAS.',
+    alasanTerkunci: 'Tidak bisa dimatikan (bagian dari misi utama pesantren tahfizh), TAPI siapa yang boleh mengisi bisa diatur di bawah.',
+    levels: [
+      { key: 'manage', label: 'Kelola', field: 'misiTahfizhManageJabatanIds', desc: "Siapa boleh mengisi Hafalan Harian, Absensi Halaqoh, Ujian Hafalan, dan Nilai UAS. Bawaan (kalau belum diatur): Admin, Super Admin, Koordinator Halaqoh, Pengampu Halaqoh, atau Mudir (Ujian Hafalan juga Penguji Hafalan)." },
+      { key: 'manageAllHalaqoh', label: 'Kelola Semua Halaqoh', field: 'misiTahfizhManageAllHalaqohJabatanIds', desc: 'Siapa boleh mengisi Hafalan Harian, Absensi Halaqoh, dan Ujian Hafalan untuk halaqoh MANA PUN (bukan cuma halaqoh yang diampunya sendiri). Bawaan (kalau belum diatur): Admin, Super Admin, atau Koordinator Halaqoh (Ujian Hafalan juga Penguji Hafalan).' }
+    ]
+  },
+  {
+    key: 'halaqohTasmi', nama: "Halaqoh Tasmi'", halaman: ['Edit Halaqoh Tasmi', "Setoran Tasmi'"],
+    deskripsi: "Kelompok & setoran tasmi' (murojaah hafalan mingguan) santri.",
+    alasanTerkunci: 'Tidak bisa dimatikan (audit tasmi\' tetap jalan terpisah), TAPI siapa yang boleh mengisi bisa diatur di bawah.',
+    levels: [
+      { key: 'manageStruktur', label: 'Kelola Struktur Halaqoh', field: 'halaqohTasmiManageStrukturJabatanIds', desc: "Siapa boleh menambah/mengubah kelompok Halaqoh Tasmi' (Edit Halaqoh Tasmi). Bawaan (kalau belum diatur): Admin, Super Admin, Koordinator Halaqoh, atau Mudir." },
+      { key: 'manageSetoran', label: "Isi Setoran Tasmi'", field: 'halaqohTasmiManageSetoranJabatanIds', desc: "Siapa boleh mengisi Setoran Tasmi' harian. Bawaan (kalau belum diatur): Admin, Super Admin, Koordinator Halaqoh, Pengampu Halaqoh, atau Mudir." },
+      { key: 'manageAllHalaqoh', label: "Kelola Semua Halaqoh Tasmi'", field: 'halaqohTasmiManageAllHalaqohJabatanIds', desc: "Siapa boleh mengisi setoran tasmi' untuk halaqoh MANA PUN (bukan cuma halaqoh yang diampunya sendiri). Bawaan (kalau belum diatur): Admin, Super Admin, atau Koordinator Halaqoh." }
+    ]
+  },
+  {
+    key: 'kelasSiangNilai', nama: 'Absensi, Silabus & Nilai Ujian Kelas Siang', halaman: ['Absensi Kelas Siang', 'Edit Soal Nilai UP', 'Nilai Ujian'],
+    deskripsi: 'Absensi kelas siang, materi silabus, dan nilai ujian wajib.',
+    alasanTerkunci: 'Tidak bisa dimatikan (dipakai referensi Kelola Audit), TAPI siapa yang boleh mengisi bisa diatur di bawah.',
+    levels: [
+      { key: 'manage', label: 'Kelola', field: 'kelasSiangNilaiManageJabatanIds', desc: 'Siapa boleh mengisi Absensi Kelas Siang, Edit Soal Nilai UP, dan Nilai Ujian. Bawaan (kalau belum diatur): Admin, Akademik, Mudir, atau jabatan Pengajar yang mengajar kelas siang tersebut.' },
+      { key: 'manageAllKelas', label: 'Kelola Semua Kelas', field: 'kelasSiangNilaiManageAllKelasJabatanIds', desc: 'Siapa boleh mengisi Absensi/Nilai/Soal untuk kelas siang MANA PUN (bukan cuma kelas yang diajarnya sendiri). Bawaan (kalau belum diatur): Admin, Super Admin, atau Akademik.' }
+    ]
+  },
+  {
+    key: 'reguPerkembangan', nama: 'Absensi & Perkembangan Regu', halaman: ['Absensi Regu', 'Perkembangan Santri', 'Template Perkembangan'],
+    deskripsi: 'Absensi regu harian dan catatan perkembangan santri per pekan.',
+    alasanTerkunci: 'Tidak bisa dimatikan (audit regu & perkembangan tetap jalan terpisah), TAPI siapa yang boleh mengisi bisa diatur di bawah.',
+    levels: [
+      { key: 'manage', label: 'Kelola', field: 'reguPerkembanganManageJabatanIds', desc: 'Siapa boleh mengisi Absensi Regu, Perkembangan Santri, dan Template Perkembangan. Bawaan (kalau belum diatur): Admin, Super Admin, Kesantrian, Pembina Regu, atau Mudir.' },
+      { key: 'manageAllRegu', label: 'Kelola Semua Regu', field: 'reguPerkembanganManageAllReguJabatanIds', desc: 'Siapa boleh isi Absensi Regu & Perkembangan Santri untuk regu MANA PUN (bukan cuma regu yang dibinanya sendiri). Bawaan (kalau belum diatur): Admin, Super Admin, atau Kesantrian.' }
+    ]
+  },
+  {
+    key: 'pelanggaranKondisi', nama: 'Pelanggaran & Kondisi Santri', halaman: ['Pelanggaran', 'Jenis Pelanggaran', 'Santri Sakit', 'Izin Pulang', 'Kondisi Santri (santri)'],
+    deskripsi: 'Pencatatan pelanggaran, kondisi sakit, dan izin pulang santri.',
+    alasanTerkunci: 'Tidak bisa dimatikan (dipantau Kelola Audit Bawahan & dipakai dashboard Kesantrian), TAPI siapa yang boleh akses bisa diatur di bawah.',
+    levels: [
+      { key: 'input', label: 'Input Pelanggaran', field: 'pelanggaranKondisiInputJabatanIds', desc: 'Siapa boleh membuka & mencatat Pelanggaran. Bawaan (kalau belum diatur): SEMUA pengurus.' },
+      { key: 'manage', label: 'Kelola Sakit/Izin/Jenis', field: 'pelanggaranKondisiManageJabatanIds', desc: 'Siapa boleh membuka & mencatat Santri Sakit, Izin Pulang, dan mengatur master Jenis Pelanggaran. Bawaan (kalau belum diatur): Admin, Super Admin, atau Kesantrian (Santri Sakit juga bagian Kesehatan).' }
+    ]
+  },
+  {
+    key: 'sdmJurnal', nama: 'Jurnal & Absensi Pengurus (SDM)', halaman: ['Jurnal SDM', 'Input Absensi Pengurus', 'Koordinat Absensi', 'Cek Absensi Pengurus', 'Jadwal Harian Pengurus', 'Jadwal Fingerprint', 'Edit Kegiatan & SOP'],
+    deskripsi: 'Jurnal kegiatan harian, absensi, dan jadwal kerja pengurus.',
+    alasanTerkunci: 'Jurnal SDM adalah bagian dari sistem LOCKOUT: banyak audit lain (hafalan, absensi, dll) memblokir akses ke halaman ini kalau pengurus punya tunggakan. Mematikan modul ini berisiko mengunci pengurus tanpa jalan keluar.'
+  },
+  {
+    key: 'sistemAudit', nama: 'Sistem Audit', halaman: ['Kelola Audit', 'Kelola Audit Bawahan'],
+    deskripsi: 'Pengaturan popup audit backlog & pemantauan bawahan.',
+    alasanTerkunci: 'Tidak bisa dimatikan (ini alat pengaturan sistem audit itu sendiri, bukan fitur yang diaudit), TAPI siapa yang boleh membuka & mengubah pengaturannya bisa diatur di bawah.',
+    levels: [
+      { key: 'manage', label: 'Kelola Pengaturan Audit', field: 'sistemAuditManageJabatanIds', desc: 'Siapa boleh membuka Kelola Audit & Kelola Audit Bawahan (nyala/matiin popup audit per jenis). Bawaan (kalau belum diatur): Admin, Super Admin, Mudir (Kelola Audit) / Admin, Super Admin (Kelola Audit Bawahan).' }
+    ]
+  },
+  {
+    key: 'pengaturanSistem', nama: 'Pengaturan Sistem & Super Admin', halaman: ['Pengaturan Portal', 'Panel Super Admin', 'Backup & Restore', 'Skema Database', 'Info Akses', 'Info Halaman', 'Kelola Addons'],
+    deskripsi: 'Alat pengaturan & pemeliharaan sistem tingkat aplikasi.',
+    alasanTerkunci: 'Ini alat pengaturan & pemeliharaan sistem itu sendiri (termasuk halaman Kelola Addons ini) -- bukan fitur operasional pengurus yang wajar dimatikan. SENGAJA tidak dibuka juga untuk pengaturan level akses (beda dari kelompok terkunci lain) -- sebagian halamannya (Panel Super Admin, Skema Database, Info Akses/Halaman) memang hanya untuk Super Admin, dan kelompok ini memuat Kelola Addons sendiri sehingga beresiko admin mengunci dirinya sendiri kalau salah atur.'
+  },
+  {
+    key: 'riwayatLog', nama: 'Riwayat / Log Perubahan', halaman: ['Riwayat', 'Riwayat Pindah Halaqoh', 'Riwayat Pindah Regu'],
+    deskripsi: 'Catatan riwayat perubahan data (audit trail) di seluruh aplikasi.',
+    alasanTerkunci: 'Tidak bisa dimatikan (kehilangan halaman ini berarti kehilangan jejak akuntabilitas), TAPI siapa yang boleh lihat/kelola bisa diatur di bawah. Hapus riwayat (satuan/semua) TIDAK ikut diatur -- tetap Super Admin only.',
+    levels: [
+      { key: 'view', label: 'Lihat Riwayat', field: 'riwayatLogViewJabatanIds', desc: 'Siapa boleh membuka halaman Riwayat (log perubahan data secara umum). Bawaan (kalau belum diatur): SEMUA pengurus.' },
+      { key: 'manage', label: 'Kelola Riwayat Pindah', field: 'riwayatLogManageJabatanIds', desc: 'Siapa boleh membuka & mengedit Riwayat Pindah Halaqoh/Regu. Bawaan (kalau belum diatur): Admin, Super Admin, Mudir, plus Koordinator Halaqoh (utk Halaqoh) / Kesantrian (utk Regu).' }
+    ]
+  },
+  {
+    key: 'masterPelajaran', nama: 'Pelajaran & Master Data Akademik', halaman: ['Master Pelajaran', 'Program Pelajaran'],
+    deskripsi: 'Master data mata pelajaran & program pengajaran.',
+    alasanTerkunci: 'Tidak bisa dimatikan (dipakai sebagai referensi oleh Nilai Ujian, Bank Soal, dan Kelas Siang), TAPI siapa yang boleh lihat/kelola bisa diatur di bawah. Hapus mata pelajaran TIDAK ikut diatur -- tetap Super Admin only.',
+    levels: [
+      { key: 'view', label: 'Lihat', field: 'masterPelajaranViewJabatanIds', desc: 'Siapa boleh membuka Master Pelajaran/Program Pelajaran. Bawaan (kalau belum diatur): Admin, Super Admin, Akademik, atau Mudir.' },
+      { key: 'manage', label: 'Kelola', field: 'masterPelajaranManageJabatanIds', desc: 'Siapa boleh menambah/mengubah mata pelajaran & program. Bawaan (kalau belum diatur): Admin, Super Admin, atau Akademik.' }
+    ]
+  }
+];
+var ADDONS_SETTINGS_DEFAULTS = (function () {
+  var d = { setBy: '', setAt: '' };
+  ADDONS_REGISTRY_.forEach(function (a) {
+    d[a.field] = true;
+    // null = belum diatur (ikut aturan bawaan lama); lihat canManageAddon_.
+    d[a.key + 'ManageJabatanIds'] = null;
+    // extraLevels (opsional, mis. quizDigital.manageAllKelas) -- level TAMBAHAN di luar level
+    // 'manage' standar, tiap addon boleh punya 0 atau lebih.
+    (a.extraLevels || []).forEach(function (lv) { d[lv.field] = null; });
+  });
+  // Kelompok terkunci yang punya `levels` (lihat ADDONS_LOCKED_REGISTRY_) -- on/off-nya TETAP
+  // tidak bisa diatur (selalu aktif), tapi tiap level akses (view/manage/dst) py field jabatan
+  // sendiri, sama persis polanya dgn addon toggleable.
+  ADDONS_LOCKED_REGISTRY_.forEach(function (a) {
+    (a.levels || []).forEach(function (lv) { d[lv.field] = null; });
+  });
+  return d;
+})();
+var addonsSettingsState = Object.assign({}, ADDONS_SETTINGS_DEFAULTS);
+try { addonsSettingsState = Object.assign({}, ADDONS_SETTINGS_DEFAULTS, JSON.parse(fs.readFileSync(ADDONS_SETTINGS_PATH, 'utf8'))); } catch (e) {}
+function findAddonRegistryEntry_(key) {
+  for (var i = 0; i < ADDONS_REGISTRY_.length; i++) {
+    if (ADDONS_REGISTRY_[i].key === key) return ADDONS_REGISTRY_[i];
+  }
+  return null;
+}
+function isAddonActive_(key) {
+  var addon = findAddonRegistryEntry_(key);
+  if (!addon) return true; // key tak dikenal/terkunci -> jangan blokir apa pun, aman default
+  return addonsSettingsState[addon.field] !== false;
+}
+// Dipakai di `permissions.addonsActive` (lihat computePermissions_/buildSessionPermissions_)
+// supaya PAGE_RULES di frontend/shared-access.js bisa gating tanpa panggilan API terpisah.
+function buildAddonsActiveMap_() {
+  var map = {};
+  ADDONS_REGISTRY_.forEach(function (a) { map[a.key] = isAddonActive_(a.key); });
+  return map;
+}
+// Peta action= (dispatcher handleRequest_) -> key addon, dicek di checkAddonEnabledForAction_
+// (dipanggil tepat setelah authorizeAction_ supaya pesan errornya jelas beda dari "akses
+// ditolak"). ADDON_ACTION_EXACT_ = action tunggal yang tidak berbagi prefix rapi dengan family-nya
+// (mis. jadwal.ibadah.* vs jadwal.khutbah.* tetap ditulis penuh, rekamJejak.*/raport.* juga).
+// ADDON_ACTION_PREFIXES_ = family action ber-prefix (quiz.*, catatan.*, dst) -- dicocokkan
+// dengan startsWith, urutan tidak penting karena tiap prefix feature sudah unik satu sama lain.
+var ADDON_ACTION_EXACT_ = {
+  'banksoal.list': 'bankSoal', 'banksoal.save': 'bankSoal', 'banksoal.update': 'bankSoal',
+  'banksoal.delete': 'bankSoal', 'banksoal.quill.save': 'bankSoal',
+  'jadwal.ibadah.get': 'jadwalIbadah', 'jadwal.ibadah.saveSlot': 'jadwalIbadah', 'jadwal.ibadah.saveMeta': 'jadwalIbadah',
+  'jadwal.ibadah.beranda.carousel': 'jadwalIbadah', 'jadwal.khutbah.list': 'jadwalIbadah', 'jadwal.khutbah.save': 'jadwalIbadah',
+  'jadwal.khutbah.delete': 'jadwalIbadah', 'jadwal.khutbah.quickImportPreview': 'jadwalIbadah', 'jadwal.khutbah.quickImport': 'jadwalIbadah',
+  'rekamJejak.santriList': 'raportRekamJejak', 'rekamJejak.data': 'raportRekamJejak', 'raport.data': 'raportRekamJejak'
+};
+var ADDON_ACTION_PREFIXES_ = {
+  'content.': 'madingDigital',
+  'pengumuman.': 'pengumumanSurvey', 'survey.': 'pengumumanSurvey',
+  'catatan.': 'catatanku',
+  'quiz.': 'quizDigital', 'quizFolder.': 'quizDigital',
+  'zoom.': 'rekapZoom',
+  'buku.': 'bukuDigital',
+  'kelasLevel.': 'raportRekamJejak', 'akhlak.': 'raportRekamJejak', 'deskripsi.': 'raportRekamJejak'
+};
+// "Jabatan Pengelola" per addon (2026-09-13): Admin/Super Admin bisa MENGGANTIKAN TOTAL siapa
+// yang boleh MENGELOLA (bukan cuma memakai) tiap addon toggleable, lewat halaman Kelola Addons --
+// disimpan di addonsSettingsState[`${key}ManageJabatanIds`]. null (default) = belum diatur, IKUT
+// aturan bawaan lama persis seperti sebelum fitur ini ada (beda-beda tiap action, makanya dikirim
+// sebagai fallbackFn per call-site, bukan 1 fungsi generik per addon). Array (bahkan kosong []) =
+// MENGGANTIKAN TOTAL aturan lama -- hanya pengurus yang punya salah satu id jabatan di daftar itu
+// yang boleh, array kosong berarti tidak ada satu jabatan pun yang boleh. Super Admin SELALU boleh
+// apa pun terlepas dari pengaturan ini -- supaya mustahil admin tidak sengaja mengunci diri
+// sendiri/semua orang dari suatu addon gara-gara salah isi daftar jabatan.
+function sessionHasAnyJabatanId_(session, jabatanIds) {
+  if (!jabatanIds || !jabatanIds.length) return false;
+  var mineSet = {};
+  ((session && session.jabatanIds) || []).forEach(function (id) { mineSet[cleanString_(id)] = true; });
+  return jabatanIds.some(function (id) { return mineSet[cleanString_(id)]; });
+}
+// Generalisasi canManageAddon_ (2026-09-13): dipakai juga oleh ADDONS_LOCKED_REGISTRY_ yang
+// punya `levels` (mis. kalenderAkademik py level 'view' & 'manage') -- groupKey bisa addon
+// toggleable ATAU locked-group key, level cocok dgn `field` di definisi levels (mis.
+// 'kalenderAkademikViewJabatanIds'). Kelompok terkunci yang TIDAK punya `levels` (paling
+// banyak) tetap sepenuhnya statis, tidak pernah lewat fungsi ini sama sekali.
+function canAccessLevel_(session, groupKey, level, fallbackFn) {
+  if (!session || !session.permissions) return false;
+  if (session.permissions.isSuperAdmin) return true;
+  var fieldName = groupKey + level.charAt(0).toUpperCase() + level.slice(1) + 'JabatanIds';
+  var ids = addonsSettingsState[fieldName];
+  if (Array.isArray(ids)) return sessionHasAnyJabatanId_(session, ids);
+  return fallbackFn ? !!fallbackFn(session) : false;
+}
+function canManageAddon_(session, addonKey, fallbackFn) {
+  return canAccessLevel_(session, addonKey, 'manage', fallbackFn);
+}
+// Fallback "siapa boleh mengelola" per addon SEBELUM fitur Jabatan Pengelola ada -- dipakai di
+// authorizeAction_ (persis, action per action) dan di sini untuk permissions.addonsCanManage
+// (sinyal kasar per addon, dipakai frontend buat gating halaman yang SELURUHNYA halaman
+// pengelola, mis. kelolaMading/pengumuman/survey/quizDigital/rekapZoom/jamDigitalRemote).
+// KEKECUALIAN: raportRekamJejak py 2 aturan bawaan berbeda per sub-halaman (kelasLevel vs
+// akhlak/deskripsi) -- authorizeAction_ TETAP pakai fallback presisi masing-masing di
+// call-site-nya sendiri (BUKAN fungsi gabungan di bawah), fungsi gabungan di sini cuma dipakai
+// utk sinyal kasar addonsCanManage.
+var ADDON_MANAGE_FALLBACK_ = {
+  bankSoal: function (s) { return !!(s.permissions && s.permissions.canUploadSoal); },
+  jadwalIbadah: function (s) { return !!(s.permissions && s.permissions.canManageJadwalIbadah); },
+  jamDigital: function (s) { var p = s.permissions; return !!(p && (p.isAdmin || p.canAccessJamDigital)); },
+  madingDigital: function (s) { return !!(s.permissions && s.permissions.canManageContent); },
+  pengumumanSurvey: function (s) { var p = s.permissions; return !!(p && (p.isAdmin || p.isMudir)); },
+  catatanku: function (s) { return catatanCanCreate_(s); },
+  quizDigital: function (s) { var p = s.permissions; return !!(p && (p.canManageNilaiUp || p.isMudir)); },
+  rekapZoom: function () { return true; },
+  bukuDigital: function (s) { return !!(s.permissions && s.permissions.canManageBuku); },
+  raportRekamJejak: function (s) { var p = s.permissions; return !!(p && (p.canManageKelasLevel || p.canManageAkhlak || p.isPembinaRegu)); }
+};
+// Dipakai di `permissions.addonsCanManage` -- lihat komentar addonsActive di dekatnya.
+function buildAddonsCanManageMap_(session) {
+  var map = {};
+  ADDONS_REGISTRY_.forEach(function (a) {
+    map[a.key] = canManageAddon_(session, a.key, ADDON_MANAGE_FALLBACK_[a.key]);
+  });
+  return map;
+}
+// Fallback per level utk 4 kelompok LOCKED yang sudah py `levels` di ADDONS_LOCKED_REGISTRY_
+// (Kalender Akademik, Riwayat/Log, Master Pelajaran, Sistem Audit) -- dipakai authorizeAction_
+// (persis per action) & permissions.lockedLevelAccess (sinyal kasar utk PAGE_RULES frontend).
+// Kelompok LOCKED lain (tanpa `levels`, mayoritas) sengaja TIDAK ada di sini -- tetap statis.
+var LOCKED_LEVEL_FALLBACK_ = {
+  kalenderAkademik: {
+    view: function () { return true; }, // bawaan: semua pengurus (santri diatur terpisah)
+    manage: function (s) { var p = s.permissions; return !!(p && (p.isAdmin || p.isAcademic)); }
+  },
+  riwayatLog: {
+    view: function () { return true; }, // bawaan: semua pengurus
+    // Kasar (gabungan canManageHalaqoh|canManageRegu, dipakai UI/PAGE_RULES saja) -- action-level
+    // di authorizeAction_ tetap pakai fallback presisi per sisi (halaqoh vs regu) di call-site-nya.
+    manage: function (s) { var p = s.permissions; return !!(p && (p.isAdmin || p.isHalaqohCoordinator || p.isPengampuHalaqoh || p.isKsantrian)); }
+  },
+  masterPelajaran: {
+    view: function (s) { var p = s.permissions; return !!(p && (p.canManagePelajaran || p.isMudir)); },
+    manage: function (s) { return !!(s.permissions && s.permissions.canManagePelajaran); }
+  },
+  sistemAudit: {
+    manage: function (s) { var p = s.permissions; return !!(p && (p.isAdmin || p.isMudir)); }
+  },
+  misiTahfizh: {
+    manage: function (s) { var p = s.permissions; return !!(p && (p.isAdmin || p.isHalaqohCoordinator || p.isPengampuHalaqoh || p.isPengujiHafalan)); },
+    manageAllHalaqoh: function (s) { var p = s.permissions; return !!(p && (p.isAdmin || p.isHalaqohCoordinator || p.isPengujiHafalan)); }
+  },
+  halaqohTasmi: {
+    manageStruktur: function (s) { var p = s.permissions; return !!(p && (p.isAdmin || p.isHalaqohCoordinator)); },
+    manageSetoran: function (s) { var p = s.permissions; return !!(p && (p.isAdmin || p.isHalaqohCoordinator || p.isPengampuHalaqoh)); },
+    manageAllHalaqoh: function (s) { var p = s.permissions; return !!(p && (p.isAdmin || p.isHalaqohCoordinator)); }
+  },
+  kelasSiangNilai: {
+    manage: function (s) { var p = s.permissions; return !!(p && (p.canManageKelasSiang || p.canManageNilaiUp)); },
+    manageAllKelas: function (s) { var p = s.permissions; return !!(p && (p.isAdmin || p.isAcademic)); }
+  },
+  reguPerkembangan: {
+    manage: function (s) { var p = s.permissions; return !!(p && (p.isAdmin || p.isKsantrian || p.isPembinaRegu)); },
+    manageAllRegu: function (s) { var p = s.permissions; return !!(p && (p.isAdmin || p.isKsantrian)); }
+  },
+  pelanggaranKondisi: {
+    input: function () { return true; }, // bawaan: semua pengurus (pelanggaran.save)
+    // Kasar (gabungan canAccessSantriSakit|canAccessIzinPulang|jenisPelanggaran, dipakai UI saja)
+    // -- action-level tetap pakai fallback presisi per sisi di call-site-nya masing-masing.
+    manage: function (s) { var p = s.permissions; return !!(p && (p.isAdmin || p.isKsantrian || p.isBagianKesehatan)); }
+  }
+};
+function buildLockedLevelAccessMap_(session) {
+  var map = {};
+  Object.keys(LOCKED_LEVEL_FALLBACK_).forEach(function (groupKey) {
+    map[groupKey] = {};
+    Object.keys(LOCKED_LEVEL_FALLBACK_[groupKey]).forEach(function (levelKey) {
+      map[groupKey][levelKey] = canAccessLevel_(session, groupKey, levelKey, LOCKED_LEVEL_FALLBACK_[groupKey][levelKey]);
+    });
+  });
+  return map;
+}
+function checkAddonEnabledForAction_(action) {
+  var addonKey = ADDON_ACTION_EXACT_[action];
+  if (!addonKey) {
+    for (var prefix in ADDON_ACTION_PREFIXES_) {
+      if (action.indexOf(prefix) === 0) { addonKey = ADDON_ACTION_PREFIXES_[prefix]; break; }
+    }
+  }
+  if (!addonKey || isAddonActive_(addonKey)) return;
+  var addon = findAddonRegistryEntry_(addonKey);
+  throw createError_('Fitur "' + (addon ? addon.nama : addonKey) + '" sedang dinonaktifkan oleh Admin lewat Kelola Addons.', 403);
+}
 var BACKUP_SETTINGS_PATH = path.join(DATA_DIR, 'backupSettings.json');
 var BACKUP_INTERVAL_OPTIONS_HOURS = [6, 12, 24, 48];
-var backupSettingsState = { enabled: true, intervalHours: 24, lastAutoBackupAt: '' };
+// selectedFolders: null = semua folder media ikut (default/lama); array = HANYA nama folder
+// (lihat BACKUP_FILE_DIRS_) yg diikutkan, dipakai bareng oleh backup manual & otomatis.
+var backupSettingsState = { enabled: true, intervalHours: 24, lastAutoBackupAt: '', selectedFolders: null };
 try {
   var loadedBackupSettings = JSON.parse(fs.readFileSync(BACKUP_SETTINGS_PATH, 'utf8'));
   if (loadedBackupSettings && typeof loadedBackupSettings === 'object') {
@@ -94,9 +569,21 @@ try {
     backupSettingsState.intervalHours = BACKUP_INTERVAL_OPTIONS_HOURS.indexOf(parseInt(loadedBackupSettings.intervalHours, 10)) !== -1
       ? parseInt(loadedBackupSettings.intervalHours, 10) : 24;
     backupSettingsState.lastAutoBackupAt = String(loadedBackupSettings.lastAutoBackupAt || '');
+    backupSettingsState.selectedFolders = Array.isArray(loadedBackupSettings.selectedFolders)
+      ? loadedBackupSettings.selectedFolders.map(String) : null;
   }
 } catch (e) {}
 var autoBackupTimerHandle = null;
+// Status job backup yang sedang berjalan (in-memory, hilang saat proses restart). Backup
+// dijalankan di latar belakang -- endpoint backup.create langsung balas, frontend polling
+// backup.status sampai selesai. Cuma 1 job boleh jalan sekaligus (guard `running`).
+// cancelRequested/_cancelFn dipakai backup.cancel -- _cancelFn cuma terisi di jalur streaming
+// (archiver), jalur legacy (adm-zip) sinkron & tidak bisa diinterupsi di tengah jalan.
+var backupJobState = {
+  running: false, phase: 'idle', trigger: '',
+  startedAt: '', finishedAt: '', currentFile: '', bytes: 0,
+  result: null, error: '', cancelRequested: false, _cancelFn: null
+};
 var PORT = parseInt(process.env.PORT || '3000', 10);
 var APP_HOST = String(process.env.APP_HOST || '').trim();
 var APP_TIMEZONE = process.env.APP_TIMEZONE || process.env.TZ || 'Asia/Jakarta';
@@ -149,8 +636,8 @@ var KELAS_DOCS_DIR = path.join(FRONTEND_DIR, KELAS_DOCS_DIR_NAME);
 var SANTRI_DOCS_DIR_NAME = 'santri-docs';
 var SANTRI_DOCS_DIR = path.join(FRONTEND_DIR, SANTRI_DOCS_DIR_NAME);
 var MAX_SANTRI_DOC_BYTES = 20 * 1024 * 1024;
-var ALLOWED_SANTRI_DOC_MIME_MAP = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif' };
-var ALLOWED_SANTRI_DOC_EXTENSIONS = { 'jpg': 'jpg', 'jpeg': 'jpg', 'png': 'png', 'webp': 'webp', 'gif': 'gif' };
+var ALLOWED_SANTRI_DOC_MIME_MAP = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif', 'application/pdf': 'pdf' };
+var ALLOWED_SANTRI_DOC_EXTENSIONS = { 'jpg': 'jpg', 'jpeg': 'jpg', 'png': 'png', 'webp': 'webp', 'gif': 'gif', 'pdf': 'pdf' };
 var IZIN_PULANG_FOTOS_DIR_NAME = 'izin-pulang-fotos';
 var IZIN_PULANG_FOTOS_DIR = path.join(FRONTEND_DIR, IZIN_PULANG_FOTOS_DIR_NAME);
 var SANTRI_SAKIT_FOTOS_DIR_NAME = 'santri-sakit-fotos';
@@ -185,6 +672,20 @@ var MAX_PENGUMUMAN_VIDEO_BYTES = 1024 * 1024 * 1024;
 var MAX_PENGUMUMAN_MEDIA_ITEMS = 8;
 var ALLOWED_PENGUMUMAN_IMAGE_MIME_MAP = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif' };
 var ALLOWED_PENGUMUMAN_VIDEO_MIME_MAP = { 'video/mp4': 'mp4', 'video/webm': 'webm', 'video/quicktime': 'mov' };
+// ── Catatan & Dokumen (pages/catatanku) ──────────────────────────────────────
+// Dokumen pribadi per pengurus (editor Quill), bisa dibagikan ke user/jabatan/semua.
+// Gambar di dalam dokumen disimpan sebagai file terpisah di folder ini (bukan base64).
+var CATATAN_MEDIA_DIR_NAME = 'catatan-media';
+var CATATAN_MEDIA_DIR = path.join(FRONTEND_DIR, CATATAN_MEDIA_DIR_NAME);
+var MAX_CATATAN_IMAGE_BYTES = 8 * 1024 * 1024;
+var CATATAN_MAX_VERSIONS = 80;
+var CATATAN_VERSION_MIN_GAP_MS = 2 * 60 * 1000;
+var ALLOWED_CATATAN_IMAGE_MIME_MAP = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif' };
+// ── Quiz Digital: media (suara latar per quiz) ──────────────────────────────
+var QUIZ_MEDIA_DIR_NAME = 'quiz-media';
+var QUIZ_MEDIA_DIR = path.join(FRONTEND_DIR, QUIZ_MEDIA_DIR_NAME);
+var MAX_QUIZ_AUDIO_BYTES = 5 * 1024 * 1024;
+var ALLOWED_QUIZ_AUDIO_MIME_MAP = { 'audio/mpeg': 'mp3', 'audio/mp3': 'mp3', 'audio/mp4': 'm4a', 'audio/x-m4a': 'm4a', 'audio/aac': 'm4a', 'audio/ogg': 'ogg', 'audio/wav': 'wav', 'audio/x-wav': 'wav', 'audio/webm': 'webm' };
 var PRIMARY_PROTECTED_PENGURUS_ID = '1';
 var SYSTEM_SUPER_ADMIN_JABATAN_NAME = 'Super Admin';
 var SYSTEM_SUPER_ADMIN_JABATAN_DESCRIPTION = 'Jabatan sistem untuk akun admin utama.';
@@ -192,20 +693,22 @@ var SYSTEM_SUPER_ADMIN_JABATAN_DESCRIPTION = 'Jabatan sistem untuk akun admin ut
 var BACKUP_DIR = path.join(DATA_DIR, 'backups');
 var BACKUP_MAX_COUNT = 20;
 var BACKUP_FILE_DIRS_ = [
-  { src: PORTAL_LOGO_DIR, name: PORTAL_LOGO_DIR_NAME },
-  { src: PROFILE_PHOTO_DIR, name: PROFILE_PHOTO_DIR_NAME },
-  { src: KELAS_DOCS_DIR, name: KELAS_DOCS_DIR_NAME },
-  { src: SANTRI_DOCS_DIR, name: SANTRI_DOCS_DIR_NAME },
-  { src: IZIN_PULANG_FOTOS_DIR, name: IZIN_PULANG_FOTOS_DIR_NAME },
-  { src: SANTRI_SAKIT_FOTOS_DIR, name: SANTRI_SAKIT_FOTOS_DIR_NAME },
-  { src: PELANGGARAN_FOTOS_DIR, name: PELANGGARAN_FOTOS_DIR_NAME },
-  { src: ABSENSI_PENGURUS_FOTOS_DIR, name: ABSENSI_PENGURUS_FOTOS_DIR_NAME },
-  { src: BUKU_DIGITAL_DIR, name: BUKU_DIGITAL_DIR_NAME },
-  { src: BANK_SOAL_DIR, name: BANK_SOAL_DIR_NAME },
-  { src: JD_LOGO_DIR, name: 'jam-digital-logo' },
-  { src: JD_AUDIO_DIR, name: 'jam-digital-audio' },
-  { src: VIDEO_DIR, name: 'jam-digital-videos' },
-  { src: PENGUMUMAN_MEDIA_DIR, name: PENGUMUMAN_MEDIA_DIR_NAME },
+  { src: PORTAL_LOGO_DIR, name: PORTAL_LOGO_DIR_NAME, label: 'Logo Portal' },
+  { src: PROFILE_PHOTO_DIR, name: PROFILE_PHOTO_DIR_NAME, label: 'Foto Profil Pengurus' },
+  { src: KELAS_DOCS_DIR, name: KELAS_DOCS_DIR_NAME, label: 'Dokumen Kelas' },
+  { src: SANTRI_DOCS_DIR, name: SANTRI_DOCS_DIR_NAME, label: 'Dokumen Santri (KK/Akte/dll)' },
+  { src: IZIN_PULANG_FOTOS_DIR, name: IZIN_PULANG_FOTOS_DIR_NAME, label: 'Foto Izin Pulang' },
+  { src: SANTRI_SAKIT_FOTOS_DIR, name: SANTRI_SAKIT_FOTOS_DIR_NAME, label: 'Foto Santri Sakit' },
+  { src: PELANGGARAN_FOTOS_DIR, name: PELANGGARAN_FOTOS_DIR_NAME, label: 'Foto Pelanggaran' },
+  { src: ABSENSI_PENGURUS_FOTOS_DIR, name: ABSENSI_PENGURUS_FOTOS_DIR_NAME, label: 'Foto Absensi Pengurus' },
+  { src: BUKU_DIGITAL_DIR, name: BUKU_DIGITAL_DIR_NAME, label: 'Buku Digital' },
+  { src: BANK_SOAL_DIR, name: BANK_SOAL_DIR_NAME, label: 'Bank Soal' },
+  { src: JD_LOGO_DIR, name: 'jam-digital-logo', label: 'Logo Jam Digital' },
+  { src: JD_AUDIO_DIR, name: 'jam-digital-audio', label: 'Audio Jam Digital' },
+  { src: VIDEO_DIR, name: 'jam-digital-videos', label: 'Video Jam Digital' },
+  { src: PENGUMUMAN_MEDIA_DIR, name: PENGUMUMAN_MEDIA_DIR_NAME, label: 'Media Pengumuman' },
+  { src: CATATAN_MEDIA_DIR, name: CATATAN_MEDIA_DIR_NAME, label: 'Media Catatan & Dokumen' },
+  { src: QUIZ_MEDIA_DIR, name: QUIZ_MEDIA_DIR_NAME, label: 'Media Quiz (suara latar)' },
 ];
 
 fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -221,9 +724,27 @@ fs.mkdirSync(ABSENSI_PENGURUS_FOTOS_DIR, { recursive: true });
 fs.mkdirSync(BUKU_DIGITAL_DIR, { recursive: true });
 fs.mkdirSync(BANK_SOAL_DIR, { recursive: true });
 fs.mkdirSync(PENGUMUMAN_MEDIA_DIR, { recursive: true });
+fs.mkdirSync(CATATAN_MEDIA_DIR, { recursive: true });
+fs.mkdirSync(QUIZ_MEDIA_DIR, { recursive: true });
+
+// Pragma koneksi: dijalankan tiap kali objek DatabaseSync dibuat (boot + setelah restore).
+// journal_mode WAL persisten di file DB, sisanya per-koneksi jadi harus di-set ulang.
+//   synchronous=NORMAL : aman dipadukan dgn WAL (fsync cuma saat checkpoint), write jauh lebih ringan
+//   busy_timeout=5000  : tunggu 5 dtk kalau DB lagi dikunci, bukan langsung lempar "database is locked"
+//   cache_size=-16000  : page cache ~16 MB (nilai negatif = KB), kurangi baca ulang dari disk
+//   temp_store=MEMORY   : index/sort sementara di RAM
+//   mmap_size          : 256 MB memory-mapped I/O, baca lebih cepat
+function applyDbConnectionPragmas_(db) {
+  db.exec('PRAGMA journal_mode = WAL;');
+  db.exec('PRAGMA synchronous = NORMAL;');
+  db.exec('PRAGMA busy_timeout = 5000;');
+  db.exec('PRAGMA cache_size = -16000;');
+  db.exec('PRAGMA temp_store = MEMORY;');
+  db.exec('PRAGMA mmap_size = 268435456;');
+}
 
 var DB = new DatabaseSync(DB_PATH);
-DB.exec('PRAGMA journal_mode = WAL;');
+applyDbConnectionPragmas_(DB);
 try { DB.exec('ALTER TABLE "santri" RENAME COLUMN "pengajar" TO "infaq_pengajar"'); } catch (_) {}
 try { DB.exec('ALTER TABLE "kegiatanSop" DROP COLUMN "category"'); } catch (_) {}
 ['id_jabatan', 'id_jabatan_utama', 'id_pengurus', 'id_pengurus_utama', 'sop_body', 'sop_updated_at'].forEach(function (col) {
@@ -246,9 +767,11 @@ process.nextTick(function () {
     ensureSchema_();
     backfillSantriTimestamps_();
     backfillJadwalIbadahTahunAjaran_();
+    migrateNilaiWajibUjianTahunAjaran_();
     migrateSantriDefaultPasswords_();
     seedDefaultPelanggaranJenis_();
     scheduleAutoBackup_();
+    scheduleCatatanTrashSweep_();
   } catch (e) {
     console.error('[startup] init error:', e.message || e);
   }
@@ -434,6 +957,12 @@ var SCHEMAS = {
       { key: 'akad_tambahan_alasan', header: 'ALASAN MASA BELAJAR TAMBAHAN' },
       { key: 'jenis_akad', header: 'JENIS AKAD' },
       { key: 'catatan_akad', header: 'CATATAN TENTANG AKAD' },
+      { key: 'golongan_darah', header: 'GOLONGAN DARAH' },
+      { key: 'riwayat_penyakit', header: 'RIWAYAT PENYAKIT / PENYAKIT BAWAAN' },
+      { key: 'alergi', header: 'ALERGI (MAKANAN/OBAT/LAINNYA)' },
+      { key: 'kebutuhan_khusus', header: 'KEBUTUHAN KHUSUS / DISABILITAS' },
+      { key: 'obat_rutin', header: 'OBAT / PERAWATAN RUTIN' },
+      { key: 'catatan_kesehatan', header: 'CATATAN KESEHATAN LAIN' },
       { key: 'admin_kk_file', header: 'FILE KK ADMINISTRASI' },
       { key: 'admin_ktp_file', header: 'FILE KTP ADMINISTRASI' },
       { key: 'admin_akta_file', header: 'FILE AKTA ADMINISTRASI' },
@@ -649,6 +1178,128 @@ var SCHEMAS = {
       { key: 'updated_by_id', header: 'updated_by_id' },
       { key: 'updated_by_name', header: 'updated_by_name' },
       { key: 'edit_history', header: 'edit_history' },
+      { key: 'created_at', header: 'created_at' },
+      { key: 'updated_at', header: 'updated_at' }
+    ]
+  },
+  // ── Quiz Digital (halaman "Quiz Digital" di section Kelas; dijawab santri lewat
+  //    pages/santri/quizSantri). Dua tipe: 'drill' (latihan, feedback langsung, tidak
+  //    dinilai) & 'examination' (ujian, dinilai 0-100). questions_json: array
+  //    [{id, type:'mc'|'short', text, options?:[string], correctIndex?:int,
+  //     correctAnswers?:[string], explanation:string, points:number}].
+  //    config_json: {maxAttempts, timeLimitMinutes, shuffleQuestions, shuffleOptions,
+  //     allowBack, showResultMode:'langsung'|'rilis', showAnswersMode:'langsung'|'rilis'|'tidak',
+  //     pesertaMode:'semua'|'pilih', pesertaSantriIds:[id], sertakanDibekukan:bool}.
+  //    publish_state: 'draft'|'terbit'|'ditutup'. status: Aktif/Nonaktif (soft, filter default). ──
+  quiz: {
+    sheetName: 'quiz',
+    appendOnExisting: true,
+    columns: [
+      { key: 'id', header: 'id' },
+      { key: 'kelas_id', header: 'kelas_id' },
+      { key: 'tahun_ajaran_id', header: 'tahun_ajaran_id' },
+      { key: 'title', header: 'title' },
+      { key: 'description', header: 'description' },
+      { key: 'tipe', header: 'tipe' },
+      { key: 'questions_json', header: 'questions_json' },
+      { key: 'config_json', header: 'config_json' },
+      { key: 'open_at', header: 'open_at' },
+      { key: 'close_at', header: 'close_at' },
+      { key: 'publish_state', header: 'publish_state' },
+      { key: 'released_at', header: 'released_at' },
+      { key: 'released_by_id', header: 'released_by_id' },
+      { key: 'released_by_name', header: 'released_by_name' },
+      // folder_id: id baris quizFolder ('' = "Tanpa Folder"). deleted_at/by_*: tempat sampah
+      // per-kelas — quiz dgn deleted_at terisi disembunyikan dari santri & daftar biasa,
+      // dipulihkan (quiz.restore) atau dihapus permanen (quiz.delete). Auto-purge 30 hari
+      // lewat sweepTrashedQuizzes_().
+      { key: 'folder_id', header: 'folder_id' },
+      { key: 'color', header: 'color' },
+      { key: 'deleted_at', header: 'deleted_at' },
+      { key: 'deleted_by_id', header: 'deleted_by_id' },
+      { key: 'deleted_by_name', header: 'deleted_by_name' },
+      { key: 'status', header: 'status' },
+      { key: 'created_by_id', header: 'created_by_id' },
+      { key: 'created_by_name', header: 'created_by_name' },
+      { key: 'updated_by_id', header: 'updated_by_id' },
+      { key: 'updated_by_name', header: 'updated_by_name' },
+      { key: 'edit_history', header: 'edit_history' },
+      { key: 'created_at', header: 'created_at' },
+      { key: 'updated_at', header: 'updated_at' }
+    ]
+  },
+  // Folder quiz per kelas (bertingkat via parent_id, '' = folder akar). color = token palet
+  // (lihat QUIZ_FOLDER_COLORS_). Dikelola pengelola quiz kelas ybs. Saat folder dihapus,
+  // subfolder & quiz di dalamnya "naik" satu tingkat ke parent_id folder itu.
+  quizFolder: {
+    sheetName: 'quizFolder',
+    appendOnExisting: true,
+    columns: [
+      { key: 'id', header: 'id' },
+      { key: 'kelas_id', header: 'kelas_id' },
+      { key: 'tahun_ajaran_id', header: 'tahun_ajaran_id' },
+      { key: 'parent_id', header: 'parent_id' },
+      { key: 'name', header: 'name' },
+      { key: 'color', header: 'color' },
+      { key: 'sort_order', header: 'sort_order' },
+      { key: 'status', header: 'status' },
+      { key: 'created_by_id', header: 'created_by_id' },
+      { key: 'created_by_name', header: 'created_by_name' },
+      { key: 'updated_by_id', header: 'updated_by_id' },
+      { key: 'updated_by_name', header: 'updated_by_name' },
+      { key: 'edit_history', header: 'edit_history' },
+      { key: 'created_at', header: 'created_at' },
+      { key: 'updated_at', header: 'updated_at' }
+    ]
+  },
+  // 1 baris per (quiz, santri, attempt). answers_json: array
+  // [{questionId, type, answer, autoCorrect:bool, manualOverride:'benar'|'salah'|'', earnedPoints, maxPoints}].
+  // order_json: {questionIds:[...], optionOrder:{questionId:[idxAsli,...]}} -- urutan acak yg
+  // dikunci per attempt supaya konsisten saat santri refresh. status_kerja: 'berlangsung'|'selesai'.
+  // Sengaja TANPA kolom created_by/edit_history & masuk RIWAYAT_EXCLUDED_SHEETS_ (jawaban santri
+  // bervolume tinggi, tidak perlu jejak audit per-baris).
+  quizJawaban: {
+    sheetName: 'quizJawaban',
+    appendOnExisting: true,
+    columns: [
+      { key: 'id', header: 'id' },
+      { key: 'quiz_id', header: 'quiz_id' },
+      { key: 'kelas_id', header: 'kelas_id' },
+      { key: 'santri_id', header: 'santri_id' },
+      { key: 'santri_nama', header: 'santri_nama' },
+      { key: 'attempt_no', header: 'attempt_no' },
+      { key: 'order_json', header: 'order_json' },
+      { key: 'answers_json', header: 'answers_json' },
+      { key: 'auto_score', header: 'auto_score' },
+      { key: 'final_score', header: 'final_score' },
+      { key: 'correct_count', header: 'correct_count' },
+      { key: 'total_count', header: 'total_count' },
+      { key: 'status_kerja', header: 'status_kerja' },
+      { key: 'graded_by_id', header: 'graded_by_id' },
+      { key: 'graded_by_name', header: 'graded_by_name' },
+      { key: 'graded_at', header: 'graded_at' },
+      { key: 'started_at', header: 'started_at' },
+      { key: 'submitted_at', header: 'submitted_at' },
+      { key: 'status', header: 'status' },
+      { key: 'created_at', header: 'created_at' },
+      { key: 'updated_at', header: 'updated_at' }
+    ]
+  },
+  // 1 baris per (quiz dokumen, santri). finished_at terisi = sudah menamatkan 1x baca -> timer
+  // per-slide tak lagi mengunci. current_slide = posisi terakhir (resume). Tanpa audit per-baris.
+  quizBacaan: {
+    sheetName: 'quizBacaan',
+    appendOnExisting: true,
+    columns: [
+      { key: 'id', header: 'id' },
+      { key: 'quiz_id', header: 'quiz_id' },
+      { key: 'kelas_id', header: 'kelas_id' },
+      { key: 'santri_id', header: 'santri_id' },
+      { key: 'santri_nama', header: 'santri_nama' },
+      { key: 'current_slide', header: 'current_slide' },
+      { key: 'started_at', header: 'started_at' },
+      { key: 'finished_at', header: 'finished_at' },
+      { key: 'status', header: 'status' },
       { key: 'created_at', header: 'created_at' },
       { key: 'updated_at', header: 'updated_at' }
     ]
@@ -877,15 +1528,29 @@ var SCHEMAS = {
       { key: 'title', header: 'title' },
       { key: 'message', header: 'message' },
       { key: 'target_jabatan_ids', header: 'target_jabatan_ids' },
+      // JSON array id pengurus yang DIKECUALIKAN dari pengumuman ini -- walau jabatannya cocok
+      // target_jabatan_ids, mereka tidak akan dapat popup-nya sama sekali. Kosong/'[]' = tidak
+      // ada pengecualian (perilaku lama). Difilter di handlePengumumanOwed_.
+      { key: 'kecuali_pengurus_ids', header: 'kecuali_pengurus_ids' },
       { key: 'is_unlimited', header: 'is_unlimited' },
       { key: 'max_show_count', header: 'max_show_count' },
       { key: 'is_fullscreen', header: 'is_fullscreen' },
+      // Lama waktu tunggu (detik) sebelum popup boleh ditutup. Kosong/'0' = tidak ada timer
+      // (perilaku lama). Kalau > 0: tombol x / klik di luar / Esc tidak menutup popup sampai
+      // hitung mundur habis, dan (kalau wajib_respon='1') tombol Kirim Respon ikut nonaktif
+      // selama itu. Lihat gating di showNextAnnouncement, frontend/shared-shell.js.
+      { key: 'wait_seconds', header: 'wait_seconds' },
       // Default TIDAK wajib (nilai lama/kosong dianggap '0', sama seperti perilaku sebelum
       // kolom ini ada) -- kalau di-set '1', popup tidak bisa ditutup (klik di luar/tombol x)
       // sebelum pengurus kirim minimal 1 respon lewat panel Respon yg sudah ada (bukan quiz
       // spt survey -- reuse pengumuman.respond apa adanya). Lihat gating di showNextAnnouncement,
       // frontend/shared-shell.js.
       { key: 'wajib_respon', header: 'wajib_respon' },
+      // Aturan tambahan validasi isi respon (JSON) — HANYA berlaku kalau wajib_respon='1'.
+      // { minKata, minKarakter, wajibAngka, angkaMin, angkaMaks, wajibQuick }. Kosong/'' =
+      // tidak ada aturan tambahan (perilaku lama: cukup teks respon tidak kosong). Dicek di
+      // handlePengumumanRespond_ (gate asli server) + mirror di shared-shell.js utk feedback cepat.
+      { key: 'respon_rules', header: 'respon_rules' },
       { key: 'color_type', header: 'color_type' },
       { key: 'media', header: 'media' },
       { key: 'start_date', header: 'start_date' },
@@ -1904,6 +2569,33 @@ var SCHEMAS = {
       { key: 'updated_at', header: 'updated_at' }
     ]
   },
+  // Tabel dedikasi aturan "Nilai Wajib Ujian" (pages/nilaiUjian, router backend/nilaiwajib.js).
+  // Menggantikan pemakaian tabel generik "nilaiWajib" di atas: kolomnya identik + 1 tambahan
+  // "tahun_ajaran_id" supaya tiap aturan terikat ke tahun ajaran. Model: ikut TA aktif otomatis
+  // -- aturan dibuat/tampil untuk TA yang sedang aktif saja. Data lama dari "nilaiWajib"
+  // dipindahkan sekali jalan lewat migrateNilaiWajibUjianTahunAjaran_() (di-assign ke TA aktif).
+  nilaiWajibUjian: {
+    sheetName: 'nilaiWajibUjian',
+    appendOnExisting: true,
+    columns: [
+      { key: 'id', header: 'id' },
+      { key: 'jenis', header: 'jenis' },
+      { key: 'sesi', header: 'sesi' },
+      { key: 'id_kelas', header: 'id_kelas' },
+      { key: 'tahun_ajaran_id', header: 'tahun_ajaran_id' },
+      { key: 'tanggal', header: 'tanggal' },
+      { key: 'max_terlambat', header: 'max_terlambat' },
+      { key: 'catatan', header: 'catatan' },
+      { key: 'status', header: 'status' },
+      { key: 'created_by_id', header: 'created_by_id' },
+      { key: 'created_by_name', header: 'created_by_name' },
+      { key: 'updated_by_id', header: 'updated_by_id' },
+      { key: 'updated_by_name', header: 'updated_by_name' },
+      { key: 'edit_history', header: 'edit_history' },
+      { key: 'created_at', header: 'created_at' },
+      { key: 'updated_at', header: 'updated_at' }
+    ]
+  },
 };
 
 var STATUS_LABELS = {
@@ -1930,6 +2622,10 @@ var STATUS_LABELS = {
   content: { active: 'Published', inactive: 'Draft' },
   pengumuman: { active: 'Aktif', inactive: 'Nonaktif' },
   survey: { active: 'Aktif', inactive: 'Nonaktif' },
+  quiz: { active: 'Aktif', inactive: 'Nonaktif' },
+  quizFolder: { active: 'Aktif', inactive: 'Nonaktif' },
+  quizJawaban: { active: 'Aktif', inactive: 'Nonaktif' },
+  quizBacaan: { active: 'Aktif', inactive: 'Nonaktif' },
   santriSakit: { active: 'Sakit', sembuh: 'Sembuh' },
   izinPulang: { active: 'Izin', kembali: 'Sudah Kembali' },
   pelanggaranJenis: { active: 'Aktif', inactive: 'Nonaktif' },
@@ -1951,7 +2647,8 @@ var STATUS_LABELS = {
   jadwalHarianPengurus: { active: 'Aktif', inactive: 'Dihapus' },
   fingerprintLog: { active: 'Aktif', inactive: 'Dihapus' },
   jadwalFingerprintOverride: { active: 'Aktif', inactive: 'Dihapus' },
-  nilaiWajib: { active: 'Aktif', inactive: 'Nonaktif' }
+  nilaiWajib: { active: 'Aktif', inactive: 'Nonaktif' },
+  nilaiWajibUjian: { active: 'Aktif', inactive: 'Nonaktif' }
 };
 
 function doGet(e) {
@@ -1964,6 +2661,7 @@ function doPost(e) {
 
 function handleRequest_(e, method) {
   currentAuditSession_ = null;
+  riwayatNameCache_ = {};
   try {
     ensureSchema_();
     var request = parseRequest_(e, method);
@@ -1990,6 +2688,11 @@ function handleRequest_(e, method) {
     }
 
     if (action === 'content.public.list') {
+      // Sebelum authenticateRequest_/checkAddonEnabledForAction_ (action ini publik, dipakai
+      // madingPublik.html tanpa login) -- gerbang addon Mading Digital dicek manual di sini.
+      if (!isAddonActive_('madingDigital')) {
+        return jsonResponse_({ ok: false, error: { message: 'Fitur Mading Digital sedang dinonaktifkan.', code: 503 } });
+      }
       return jsonResponse_(handleContentPublicList_(request));
     }
 
@@ -2006,6 +2709,7 @@ function handleRequest_(e, method) {
     var session = authenticateRequest_(request.token, allowSantriAction_(action), request.scopeLabel);
     currentAuditSession_ = session;
     authorizeAction_(session, action, request);
+    checkAddonEnabledForAction_(action);
 
     if (maintenanceState.active && !isMaintenanceSafe_(action)) {
       throw createError_('Sistem sedang dalam maintenance. Perubahan data dinonaktifkan sementara. Silakan coba beberapa saat lagi.', 503);
@@ -2020,6 +2724,12 @@ function handleRequest_(e, method) {
         return jsonResponse_(handleBackupList_(session));
       case 'backup.create':
         return jsonResponse_(handleBackupCreate_(session));
+      case 'backup.status':
+        return jsonResponse_(handleBackupStatus_(session));
+      case 'backup.cancel':
+        return jsonResponse_(handleBackupCancel_(session));
+      case 'backup.sources':
+        return jsonResponse_(handleBackupSources_(session));
       case 'backup.delete':
         return jsonResponse_(handleBackupDelete_(request, session));
       case 'backup.settings.get':
@@ -2318,6 +3028,40 @@ function handleRequest_(e, method) {
         return jsonResponse_(handleKegiatanSopLampiranSave_(request));
       case 'kegiatanSopLampiran.delete':
         return jsonResponse_(handleKegiatanSopLampiranDelete_(request, session));
+      case 'catatan.refs':
+        return jsonResponse_(handleCatatanRefs_(request, session));
+      case 'catatan.list':
+        return jsonResponse_(handleCatatanList_(request, session));
+      case 'catatan.get':
+        return jsonResponse_(handleCatatanGet_(request, session));
+      case 'catatan.create':
+        return jsonResponse_(handleCatatanCreate_(request, session));
+      case 'catatan.saveContent':
+        return jsonResponse_(handleCatatanSaveContent_(request, session));
+      case 'catatan.rename':
+        return jsonResponse_(handleCatatanRename_(request, session));
+      case 'catatan.setDescription':
+        return jsonResponse_(handleCatatanSetDescription_(request, session));
+      case 'catatan.pin':
+        return jsonResponse_(handleCatatanPin_(request, session));
+      case 'catatan.share.list':
+        return jsonResponse_(handleCatatanShareList_(request, session));
+      case 'catatan.share.set':
+        return jsonResponse_(handleCatatanShareSet_(request, session));
+      case 'catatan.versions':
+        return jsonResponse_(handleCatatanVersions_(request, session));
+      case 'catatan.version.get':
+        return jsonResponse_(handleCatatanVersionGet_(request, session));
+      case 'catatan.version.restore':
+        return jsonResponse_(handleCatatanVersionRestore_(request, session));
+      case 'catatan.delete':
+        return jsonResponse_(handleCatatanDelete_(request, session));
+      case 'catatan.discardEmpty':
+        return jsonResponse_(handleCatatanDiscardEmpty_(request, session));
+      case 'catatan.restore':
+        return jsonResponse_(handleCatatanRestore_(request, session));
+      case 'catatan.purge':
+        return jsonResponse_(handleCatatanPurge_(request, session));
       case 'jabatan.names':
         return jsonResponse_(handleJabatanNames_());
       case 'jabatan.struktur':
@@ -2328,6 +3072,12 @@ function handleRequest_(e, method) {
         return jsonResponse_(handleKaldikSave_(request, session));
       case 'kaldik.delete':
         return jsonResponse_(handleKaldikDelete_(request, session));
+      case 'kaldik.quickImportPreview':
+        return jsonResponse_(handleKaldikQuickImportPreview_(request, session));
+      case 'kaldik.quickImport':
+        return jsonResponse_(handleKaldikQuickImport_(request, session));
+      case 'kaldik.deleteAll':
+        return jsonResponse_(handleKaldikDeleteAll_(request, session));
       case 'nilaiup.list':
         return jsonResponse_(handleNilaiUpList_(request, session));
       case 'nilaiup.save':
@@ -2412,6 +3162,14 @@ function handleRequest_(e, method) {
         return jsonResponse_({ ok: true, timestamp: nowIso_(), data: auditSettingsState });
       case 'audit.settings.set':
         return jsonResponse_(handleAuditSettingsSet_(request, session));
+      case 'appTheme.get':
+        return jsonResponse_({ ok: true, timestamp: nowIso_(), data: appThemeState });
+      case 'appTheme.set':
+        return jsonResponse_(handleAppThemeSet_(request, session));
+      case 'addons.settings.get':
+        return jsonResponse_(handleAddonsSettingsGet_());
+      case 'addons.settings.set':
+        return jsonResponse_(handleAddonsSettingsSet_(request, session));
       case 'auditBawahan.list':
         return jsonResponse_(handleAuditBawahanList_(session));
       case 'auditBawahan.settings.get':
@@ -2452,12 +3210,72 @@ function handleRequest_(e, method) {
         return jsonResponse_(handleSurveyCompletionDelete_(request));
       case 'survey.completion.deleteAll':
         return jsonResponse_(handleSurveyCompletionDeleteAll_(request));
+      case 'quiz.browse':
+        return jsonResponse_(handleQuizBrowse_(request, session));
+      case 'quiz.get':
+        return jsonResponse_(handleQuizGet_(request, session));
+      case 'quiz.save':
+        return jsonResponse_(handleQuizSave_(request, session));
+      case 'quiz.duplicate':
+        return jsonResponse_(handleQuizDuplicate_(request, session));
+      case 'quiz.toggle':
+        return jsonResponse_(handleQuizToggle_(request, session));
+      case 'quiz.publish':
+        return jsonResponse_(handleQuizPublish_(request, session));
+      case 'quiz.releaseResults':
+        return jsonResponse_(handleQuizReleaseResults_(request, session));
+      case 'quiz.results':
+        return jsonResponse_(handleQuizResults_(request, session));
+      case 'quiz.results.notDone':
+        return jsonResponse_(handleQuizResultsNotDone_(request, session));
+      case 'quiz.grade':
+        return jsonResponse_(handleQuizGrade_(request, session));
+      case 'quiz.trash':
+        return jsonResponse_(handleQuizTrash_(request, session));
+      case 'quiz.restore':
+        return jsonResponse_(handleQuizRestore_(request, session));
+      case 'quiz.delete':
+        return jsonResponse_(handleQuizPermanentDelete_(request, session));
+      case 'quiz.setFolder':
+        return jsonResponse_(handleQuizSetFolder_(request, session));
+      case 'quizFolder.children':
+        return jsonResponse_(handleQuizFolderChildren_(request, session));
+      case 'quizFolder.get':
+        return jsonResponse_(handleQuizFolderGet_(request, session));
+      case 'quizFolder.save':
+        return jsonResponse_(handleQuizFolderSave_(request, session));
+      case 'quizFolder.duplicate':
+        return jsonResponse_(handleQuizFolderDuplicate_(request, session));
+      case 'quizFolder.delete':
+        return jsonResponse_(handleQuizFolderDelete_(request, session));
+      case 'quiz.santri.list':
+        return jsonResponse_(handleQuizSantriList_(request, session));
+      case 'quiz.santri.browse':
+        return jsonResponse_(handleQuizSantriBrowse_(request, session));
+      case 'quiz.santri.get':
+        return jsonResponse_(handleQuizSantriGet_(request, session));
+      case 'quiz.santri.start':
+        return jsonResponse_(handleQuizSantriStart_(request, session));
+      case 'quiz.santri.answer':
+        return jsonResponse_(handleQuizSantriAnswer_(request, session));
+      case 'quiz.santri.submit':
+        return jsonResponse_(handleQuizSantriSubmit_(request, session));
+      case 'quiz.santri.result':
+        return jsonResponse_(handleQuizSantriResult_(request, session));
+      case 'quiz.santri.doc.get':
+        return jsonResponse_(handleQuizSantriDocGet_(request, session));
+      case 'quiz.santri.doc.progress':
+        return jsonResponse_(handleQuizSantriDocProgress_(request, session));
+      case 'quiz.doc.readers':
+        return jsonResponse_(handleQuizDocReaders_(request, session));
       case 'portal.brand.get':
         return jsonResponse_(handlePortalBrandGet_(session));
       case 'portal.brand.save':
         return jsonResponse_(handlePortalBrandSave_(request, session));
       case 'hafalan.harian.list':
         return jsonResponse_(handleHafalanHarianList_(request, session));
+      case 'hafalan.harian.halaqoh.list':
+        return jsonResponse_(handleHafalanHarianHalaqohList_(request, session));
       case 'hafalan.harian.rekap':
         return jsonResponse_(handleHafalanHarianRekap_(request, session));
       case 'hafalan.harian.rekap.semua':
@@ -3336,6 +4154,7 @@ function buildSantriListItems_(request) {
   var statusFilter = normalizeSantriStatusFilter_(request.status);
   var genderFilter = cleanString_(request.gender).toLowerCase();
   var statusAkadFilter = cleanString_(request.statusAkad);
+  var angkatanFilter = cleanString_(request.angkatan);
   var sortMode = normalizeListSortMode_('santri', request.sort);
 
   var items = dataset.santri.map(function (item) {
@@ -3360,17 +4179,24 @@ function buildSantriListItems_(request) {
     if (statusAkadFilter && item.statusAkad !== statusAkadFilter) {
       return false;
     }
+    if (angkatanFilter && cleanString_(item.angkatan).indexOf(angkatanFilter) === -1) {
+      return false;
+    }
     if (!q) {
       return true;
     }
     var haystack = [
       item.id,
       item.name,
+      item.namaLengkapKk,
+      item.namaLengkap,
       item.namaPanggilan,
       item.noInduk,
       item.nik,
       item.token,
       item.program,
+      item.jenisAkad,
+      item.angkatan,
       item.noHp
     ].join(' ').toLowerCase();
     return haystack.indexOf(q) !== -1;
@@ -3995,9 +4821,14 @@ function taSelectorList_(dataset) {
 }
 
 // allowKsantrian: bila true, kesantrian juga bisa akses semua regu (untuk akhlak & deskripsi)
+// Dipakai Absensi Regu & Perkembangan Santri (kelompok "reguPerkembangan") -- satu-satunya
+// pemanggil yang tersisa (Akhlak/Deskripsi/raportRekamJejak sudah py salinan sendiri,
+// raportRegusAccessible_, supaya level akses mereka tidak saling mempengaruhi).
 function accessibleReguForSession_(session, dataset, allowKsantrian) {
   var p = session.permissions || {};
-  var all = !!(p.isAdmin || p.isSuperAdmin || (allowKsantrian && p.isKsantrian));
+  var all = canAccessLevel_(session, 'reguPerkembangan', 'manageAllRegu', function (s) {
+    var sp = s.permissions; return !!(sp && (sp.isAdmin || (allowKsantrian && sp.isKsantrian)));
+  });
   var regus = (dataset.regu || []).filter(function (r) { return r.active; });
   if (!all) {
     var allowed = p.pembinaReguIds || [];
@@ -4027,6 +4858,38 @@ function assertReguAccess_(session, dataset, reguId, allowKsantrian) {
   return regu;
 }
 
+// Level 2 "Kelola Semua Regu" khusus Akhlak & Deskripsi (raportRekamJejak) -- SENGAJA salinan
+// terpisah dari accessibleReguForSession_/reguListItems_/assertReguAccess_ di atas, BUKAN
+// menambah parameter di fungsi yang sama, karena fungsi-fungsi itu JUGA dipakai Perkembangan
+// Santri (locked group "reguPerkembangan") yang sengaja belum dibuka level aksesnya -- kalau
+// diubah bareng, level akses Akhlak/Deskripsi ini akan diam-diam ikut mengubah Perkembangan
+// Santri juga. Lihat ADDONS_REGISTRY_.raportRekamJejak.extraLevels.
+function raportRegusAccessible_(session, dataset) {
+  var bypass = canAccessLevel_(session, 'raportRekamJejak', 'manageAllRegu', function (s) {
+    var p = s.permissions; return !!(p && (p.isAdmin || p.isKsantrian));
+  });
+  var regus = (dataset.regu || []).filter(function (r) { return r.active; });
+  if (!bypass) {
+    var allowed = (session.permissions && session.permissions.pembinaReguIds) || [];
+    regus = regus.filter(function (r) { return allowed.indexOf(r.id) !== -1; });
+  }
+  return { all: bypass, regus: regus };
+}
+function raportReguListItems_(session, dataset) {
+  return raportRegusAccessible_(session, dataset).regus.map(function (r) {
+    var pembinaNames = (r.pembinaIds || []).map(function (id) {
+      var pg = dataset.indexes.pengurusById[id];
+      return pg ? cleanString_(pg.name) : '';
+    }).filter(Boolean);
+    return { id: r.id, name: r.name, genderGroup: r.genderGroup, santriCount: (r.santriIds || []).length, pembinaNames: pembinaNames };
+  }).sort(function (a, b) { return a.name.localeCompare(b.name); });
+}
+function assertRaportReguAccess_(session, dataset, reguId) {
+  var regu = raportRegusAccessible_(session, dataset).regus.filter(function (r) { return r.id === reguId; })[0];
+  if (!regu) throw createError_('Regu tidak ditemukan atau di luar akses Anda.', 403);
+  return regu;
+}
+
 /* ----- Perkembangan (cerita harian, untuk Rekam Jejak) ----- */
 function handlePerkembanganReguList_(request, session) {
   var dataset = loadDataset_();
@@ -4038,22 +4901,17 @@ function handlePerkembanganReguList_(request, session) {
   });
   var today = nowIso_().slice(0, 10);
   var perkembanganState = readSheetState_('perkembanganBulanan');
-  // weekCountsByRegu[reguId][seninYmd][santriId] = jumlah entri santri itu di pekan itu --
-  // dipakai computePerkembanganAudit_ (per-santri, pekan Senin-Ahad, sama dgn collectPerkembanganGapItems_).
-  var weekCountsByRegu = {};
-  perkembanganState.rows.forEach(function (row) {
-    if (cleanString_(row.status) === STATUS_LABELS.perkembanganBulanan.inactive) return;
-    var rid = cleanString_(row.id_regu);
-    var sid = cleanString_(row.id_santri);
-    var tanggal = normalizeDateOnly_(row.tanggal);
-    if (!rid || !sid || !tanggal) return;
-    var weekKey = getMondayOfWeek_(tanggal);
-    if (!weekCountsByRegu[rid]) weekCountsByRegu[rid] = {};
-    if (!weekCountsByRegu[rid][weekKey]) weekCountsByRegu[rid][weekKey] = {};
-    weekCountsByRegu[rid][weekKey][sid] = (weekCountsByRegu[rid][weekKey][sid] || 0) + 1;
-  });
+  // weekCountsBySantri[seninYmd][santriId] = jumlah entri santri itu di pekan itu, digabung
+  // LINTAS SEMUA regu (bukan lagi per id_regu entri) -- dipakai computePerkembanganAudit_,
+  // sinkron dgn collectPerkembanganGapItems_ & chip per-pekan handlePerkembanganSantriList_:
+  // catatan santri yg pernah pindah regu tetap kehitung utk regu barunya.
+  var weekCountsBySantri = buildPerkembanganCountByWeekSantri_(perkembanganState.rows);
   var reguList = regus.map(function (r) {
     var pembinaNames = (r.pembinaIds || []).map(function (id) {
+      var pg = dataset.indexes.pengurusById[id];
+      return pg ? cleanString_(pg.name) : '';
+    }).filter(Boolean);
+    var badalNames = (r.badalIds || []).map(function (id) {
       var pg = dataset.indexes.pengurusById[id];
       return pg ? cleanString_(pg.name) : '';
     }).filter(Boolean);
@@ -4064,15 +4922,38 @@ function handlePerkembanganReguList_(request, session) {
     var ta = dataset.indexes.tahunAjaranById[r.tahunAjaranId];
     return {
       id: r.id, name: r.name, genderGroup: r.genderGroup,
-      santriCount: (r.santriIds || []).length, pembinaNames: pembinaNames, santriNames: santriNames,
+      santriCount: (r.santriIds || []).length, pembinaNames: pembinaNames, badalNames: badalNames, santriNames: santriNames,
       tahunAjaranId: cleanString_(r.tahunAjaranId),
       tahunAjaranName: ta ? (ta.namaDisplay || ta.nama) : '',
       status: r.status, active: r.active,
       updatedAt: cleanString_(r.record && r.record.updated_at),
-      audit: computePerkembanganAudit_(r, weekCountsByRegu[r.id] || {}, dataset, today)
+      audit: computePerkembanganAudit_(r, weekCountsBySantri, dataset, today)
     };
   }).sort(function (a, b) { return a.name.localeCompare(b.name); });
   return { ok: true, timestamp: nowIso_(), data: { reguList: reguList, tahunAjaranList: taSelectorList_(dataset) } };
+}
+
+// Semua Senin pekan (kalender Senin-Minggu) yg overlap dgn bulan (YYYY-MM) tsb, termasuk
+// pekan yg lintas ke bulan sebelum/sesudahnya -- versi backend dari getAllWeeksInMonth di
+// frontend (perkembanganSantri/index.html), SENGAJA dibikin identik biar batas pekan chip
+// per-pekan di daftar santri sinkron dgn breakdown pekan di dalam detail entri per-santri &
+// dgn audit perkembangan (collectPerkembanganGapItems_, sama-sama pakai getMondayOfWeek_).
+function getAllWeekMondaysInMonth_(bulan) {
+  if (!/^\d{4}-\d{2}$/.test(bulan || '')) return [];
+  var parts = bulan.split('-').map(Number);
+  var y = parts[0], m = parts[1];
+  var firstDay = bulan + '-01';
+  var lastDayDate = new Date(y, m, 0);
+  var lastDay = [lastDayDate.getFullYear(), String(lastDayDate.getMonth() + 1).padStart(2, '0'), String(lastDayDate.getDate()).padStart(2, '0')].join('-');
+  var firstMonday = getMondayOfWeek_(firstDay);
+  var lastMonday = getMondayOfWeek_(lastDay);
+  var weeks = [];
+  var cursor = firstMonday;
+  while (cursor <= lastMonday) {
+    weeks.push(cursor);
+    cursor = shiftDateOnly_(cursor, 7);
+  }
+  return weeks;
 }
 
 function handlePerkembanganSantriList_(request, session) {
@@ -4080,6 +4961,12 @@ function handlePerkembanganSantriList_(request, session) {
   var reguId = cleanString_(request.reguId);
   var regu = assertReguAccess_(session, dataset, reguId, true);
   var bulan = cleanString_(request.bulan); // 'YYYY-MM' opsional
+  // minPerWeek dibaca dari setting audit (perkembanganMinPerWeek) MURNI utk kasih tanda
+  // "kurang" di chip per-pekan (keputusan user 2026-08-29, ganti chip tunggal "X catatan
+  // sebulan" jadi 4-5 chip per pekan) -- TIDAK terkait aktif/tidaknya audit-nya sendiri
+  // (auditSettingsState.perkembanganActive), chip ini murni indikator visual di halaman ini.
+  var minPerWeek = parseInt(auditSettingsState.perkembanganMinPerWeek, 10) || 2;
+  var weekMondays = getAllWeekMondaysInMonth_(bulan);
   // Hitung entryCount per SANTRI (bukan per santri+id_regu) -- kalau santri pernah
   // pindah regu, catatan lama yg direkam di bawah regu SEBELUMNYA tetap ikut dihitung
   // selama santrinya sekarang ada di roster regu yg sedang dibuka ini (rosterIds).
@@ -4088,19 +4975,34 @@ function handlePerkembanganSantriList_(request, session) {
   (regu.santriIds || []).forEach(function (sid) { rosterIds[cleanString_(sid)] = true; });
   var state = readSheetState_('perkembanganBulanan');
   var byS = {};
+  var bySWeek = {}; // { santriId: { weekMonday: count } } -- HITUNG PERSIS berdasar pekan
+  // (bukan bulan kalender), makanya entri dari bulan tetangga yg pekannya overlap tetap
+  // ikut dihitung -- sama spt groupEntriesByWeek di frontend & collectPerkembanganGapItems_.
   state.rows.forEach(function (row) {
     if (cleanString_(row.status) === STATUS_LABELS.perkembanganBulanan.inactive) return;
     var sid = cleanString_(row.id_santri);
     if (!rosterIds[sid]) return;
+    var tanggal = normalizeDateOnly_(row.tanggal);
+    if (tanggal && weekMondays.length) {
+      var wk = getMondayOfWeek_(tanggal);
+      if (weekMondays.indexOf(wk) !== -1) {
+        if (!bySWeek[sid]) bySWeek[sid] = {};
+        bySWeek[sid][wk] = (bySWeek[sid][wk] || 0) + 1;
+      }
+    }
     if (bulan && cleanString_(row.tanggal).slice(0, 7) !== bulan) return;
     byS[sid] = (byS[sid] || 0) + 1;
   });
   var santriList = (regu.santriIds || []).map(function (sid) {
     var s = dataset.indexes.santriById[sid];
     if (!s) return null;
-    return { id: s.id, name: cleanString_(s.name), noInduk: cleanString_(s.noInduk), statusKey: getSantriStatusKey_(s.status), entryCount: byS[sid] || 0 };
+    var weeks = weekMondays.map(function (wk) {
+      var count = (bySWeek[sid] && bySWeek[sid][wk]) || 0;
+      return { weekStart: wk, weekEnd: shiftDateOnly_(wk, 6), count: count, met: count >= minPerWeek };
+    });
+    return { id: s.id, name: cleanString_(s.name), noInduk: cleanString_(s.noInduk), statusKey: getSantriStatusKey_(s.status), entryCount: byS[sid] || 0, weeks: weeks };
   }).filter(Boolean).sort(function (a, b) { return a.name.localeCompare(b.name); });
-  return { ok: true, timestamp: nowIso_(), data: { regu: { id: regu.id, name: regu.name }, santriList: santriList } };
+  return { ok: true, timestamp: nowIso_(), data: { regu: { id: regu.id, name: regu.name }, santriList: santriList, minPerWeek: minPerWeek } };
 }
 
 function handlePerkembanganEntryList_(request, session) {
@@ -4115,6 +5017,17 @@ function handlePerkembanganEntryList_(request, session) {
     throw createError_('Santri tidak ada di regu ini.', 400);
   }
   var bulan = cleanString_(request.bulan);
+  // Filter per PEKAN yg overlap `bulan` (bukan cocok persis bulan kalender) -- SAMA
+  // definisinya dgn getAllWeekMondaysInMonth_/getMondayOfWeek_ yg dipakai
+  // handlePerkembanganSantriList_ (chip per-pekan) & groupEntriesByWeek di frontend (yg
+  // nampilin week-group utk SEMUA pekan yg overlap bulan itu, termasuk pekan yg nyerempet
+  // ke bulan tetangga). Dulu filter di sini pakai tanggal.slice(0,7)===bulan PERSIS, jadi
+  // pekan tepi (mis. 27 Jul-2 Agu) yg muncul sbg week-group kosong melompong pas bulan
+  // Agustus dibuka -- catatannya "ketinggalan" krn tanggalnya masih Juli, padahal week-group
+  // itu SUDAH ditampilkan (bug dilaporkan user 2026-08-29). Fix: entrinya boleh muncul di
+  // KEDUA bulan yg diapit pekan tsb (Juli & Agustus), konsisten dgn week-group yg jg
+  // ditampilkan di keduanya.
+  var weekMondays = bulan ? getAllWeekMondaysInMonth_(bulan) : [];
   var state = readSheetState_('perkembanganBulanan');
   // SENGAJA tidak lagi mensyaratkan row.id_regu === reguId -- kalau santri ini pernah
   // pindah regu, catatan lama yg dulu direkam di bawah regu SEBELUMNYA tetap ikut
@@ -4122,9 +5035,11 @@ function handlePerkembanganEntryList_(request, session) {
   // lihat pengecekan di atas). Ini jawaban atas permintaan: data perkembangan tetap
   // tampil selama regunya (yg SEKARANG) bisa diakses, terlepas riwayat regu lama.
   var entries = state.rows.filter(function (row) {
-    return cleanString_(row.status) !== STATUS_LABELS.perkembanganBulanan.inactive &&
-      cleanString_(row.id_santri) === santriId &&
-      (!bulan || cleanString_(row.tanggal).slice(0, 7) === bulan);
+    if (cleanString_(row.status) === STATUS_LABELS.perkembanganBulanan.inactive) return false;
+    if (cleanString_(row.id_santri) !== santriId) return false;
+    if (!bulan) return true;
+    var tanggal = normalizeDateOnly_(row.tanggal);
+    return !!tanggal && weekMondays.indexOf(getMondayOfWeek_(tanggal)) !== -1;
   }).map(function (row) {
     return { id: cleanString_(row.id), tanggal: cleanString_(row.tanggal), teks: cleanString_(row.teks) };
   }).sort(function (a, b) { return (b.tanggal || '').localeCompare(a.tanggal || ''); });
@@ -4171,14 +5086,14 @@ function handleAkhlakReguList_(request, session) {
   var dataset = loadDataset_();
   return {
     ok: true, timestamp: nowIso_(),
-    data: { reguList: reguListItems_(session, dataset, true), aspek: AKHLAK_ASPEK, grades: AKHLAK_GRADE, gradeKet: AKHLAK_GRADE_KET }
+    data: { reguList: raportReguListItems_(session, dataset), aspek: AKHLAK_ASPEK, grades: AKHLAK_GRADE, gradeKet: AKHLAK_GRADE_KET }
   };
 }
 
 function handleAkhlakSantriList_(request, session) {
   var dataset = loadDataset_();
   var reguId = cleanString_(request.reguId);
-  var regu = assertReguAccess_(session, dataset, reguId, true);
+  var regu = assertRaportReguAccess_(session, dataset, reguId);
   var tahunAjaranId = resolveTahunAjaranId_(request.tahunAjaranId, dataset);
   var state = readSheetState_('akhlakNilai');
   var byS = {};
@@ -4209,7 +5124,7 @@ function handleAkhlakSave_(request, session) {
   var record = parseRecordPayload_(request);
   var santriId = cleanString_(record.santriId);
   var reguId = cleanString_(record.reguId);
-  var regu = assertReguAccess_(session, dataset, reguId, true);
+  var regu = assertRaportReguAccess_(session, dataset, reguId);
   if ((regu.santriIds || []).indexOf(santriId) === -1) throw createError_('Santri tidak ada di regu ini.', 400);
   var tahunAjaranId = resolveTahunAjaranId_(record.tahunAjaranId, dataset);
   requireTahunAjaranNotLocked_(tahunAjaranId);
@@ -4237,13 +5152,13 @@ function handleAkhlakSave_(request, session) {
 /* ----- Deskripsi raport + template ----- */
 function handleDeskripsiReguList_(request, session) {
   var dataset = loadDataset_();
-  return { ok: true, timestamp: nowIso_(), data: { reguList: reguListItems_(session, dataset, true) } };
+  return { ok: true, timestamp: nowIso_(), data: { reguList: raportReguListItems_(session, dataset) } };
 }
 
 function handleDeskripsiSantriList_(request, session) {
   var dataset = loadDataset_();
   var reguId = cleanString_(request.reguId);
-  var regu = assertReguAccess_(session, dataset, reguId, true);
+  var regu = assertRaportReguAccess_(session, dataset, reguId);
   var tahunAjaranId = resolveTahunAjaranId_(request.tahunAjaranId, dataset);
   var state = readSheetState_('deskripsiRaport');
   var byS = {};
@@ -4268,7 +5183,7 @@ function handleDeskripsiSave_(request, session) {
   var record = parseRecordPayload_(request);
   var santriId = cleanString_(record.santriId);
   var reguId = cleanString_(record.reguId);
-  var regu = assertReguAccess_(session, dataset, reguId, true);
+  var regu = assertRaportReguAccess_(session, dataset, reguId);
   if ((regu.santriIds || []).indexOf(santriId) === -1) throw createError_('Santri tidak ada di regu ini.', 400);
   var tahunAjaranId = resolveTahunAjaranId_(record.tahunAjaranId, dataset);
   requireTahunAjaranNotLocked_(tahunAjaranId);
@@ -4545,7 +5460,7 @@ function handleRekamJejakData_(request, session) {
   }).sort(function (a, b) { return (a.tanggal || '').localeCompare(b.tanggal || ''); });
 
   // Hafalan bulan ini (exclude posisi awal)
-  var hState = readSheetState_('hafalanHarian');
+  var hState = readSheetStateWhere_('hafalanHarian', '"id_santri" = ?', [santriId]);
   var hafItems = hState.rows.map(normalizeHafalanHarian_).filter(function (it) {
     return it.active && it.santriId === santriId &&
       !(it.jenis && it.jenis.indexOf('awal_') === 0) &&
@@ -4597,10 +5512,17 @@ function handleRekamJejakData_(request, session) {
       pembinaNames: uniqueList_(pembinaNames),
       musyrifNames: uniqueList_(musyrifNames),
       halaqohName: halaqohList.length ? halaqohList[0].name : '',
-      perkembangan: perkembangan.slice((perkPage - 1) * pageSize, perkPage * pageSize),
+      // TIDAK dipotong per halaman (beda dr hafalan/ujian di bawah) -- kedua pemanggil
+      // rekamJejak.data (di sini & pages/raport&rekamJejak/index.html) sama-sama pakai ini
+      // utk generate SHEET CETAK 1 bulan penuh, tidak pernah kirim perkembanganPage sama
+      // sekali, jadi dulu diam-diam kepotong 10 baris pertama tiap bulan tanpa ada cara
+      // lihat sisanya (dilaporkan user 2026-08-29).
+      perkembangan: perkembangan,
       perkembanganTotal: perkembangan.length,
       perkembanganPage: perkPage,
-      hafalan: hafalan.slice((hafPage - 1) * pageSize, hafPage * pageSize),
+      // TIDAK dipotong per halaman -- sama alasan spt perkembangan di atas (kedua pemanggil
+      // rekamJejak.data generate sheet cetak 1 bulan penuh, tidak pernah kirim hafalanPage).
+      hafalan: hafalan,
       hafalanTotal: hafalan.length,
       hafalanPage: hafPage,
       hafalanTotals: hTotals,
@@ -4743,7 +5665,7 @@ function handleRaportData_(request, session) {
   };
 
   // ── HAL 3: Pencapaian (hafalanHarian periode TA) + sertifikasi + deskripsi ──
-  var hState = readSheetState_('hafalanHarian');
+  var hState = readSheetStateWhere_('hafalanHarian', '"id_santri" = ?', [santriId]);
   var hItems = hState.rows.map(normalizeHafalanHarian_).filter(function (it) {
     if (!it.active || it.santriId !== santriId) return false;
     if (it.jenis && it.jenis.indexOf('awal_') === 0) return false;
@@ -5002,7 +5924,7 @@ function handleSantriDetailPdfData_(request, session) {
   }));
 
   // ── Pencapaian Hafalan Harian (ringkasan TA, bukan per-hari) ──
-  var hState = readSheetState_('hafalanHarian');
+  var hState = readSheetStateWhere_('hafalanHarian', '"id_santri" = ?', [santriId]);
   var hItems = hState.rows.map(normalizeHafalanHarian_).filter(function (it) {
     return it.active && it.santriId === santriId && it.jenis.indexOf('awal_') !== 0 && inTaRange(it.tanggal);
   });
@@ -5785,16 +6707,11 @@ function normalizeKaldik_(row) {
 
 function requireKaldikEdit_(session) {
   requirePengurus_(session);
-  var p = session.permissions || {};
-  if (p.isAdmin || p.canDelete) return;
-  var jabatanLabels = session.jabatanLabels || [];
-  var keywords = ACCESS_CONTROL.academicJabatanKeywords || ['akademik'];
-  var hasAkademik = jabatanLabels.some(function (label) {
-    return keywords.some(function (kw) {
-      return (label || '').toLowerCase().indexOf(kw.toLowerCase()) !== -1;
-    });
+  var ok = canAccessLevel_(session, 'kalenderAkademik', 'manage', function (s) {
+    var p = s.permissions || {};
+    return !!(p.isAdmin || p.canDelete || p.isAcademic);
   });
-  if (!hasAkademik) throw createError_('Akses ditolak. Hanya Admin dan Akademik yang dapat mengedit Kaldik.', 403);
+  if (!ok) throw createError_('Akses ditolak. Hanya Admin, Akademik, atau jabatan yang diatur di Kelola Addons yang dapat mengedit Kaldik.', 403);
 }
 
 function handleKaldikList_() {
@@ -5841,6 +6758,194 @@ function handleKaldikDelete_(request, session) {
   if (!existing) throw createError_('Acara tidak ditemukan.', 404);
   deleteSheetRows_(state, [existing._rowNumber]);
   return { ok: true, timestamp: nowIso_(), data: { id: id, message: 'Acara dihapus.' } };
+}
+
+function requireKaldikDeleteAll_(session) {
+  requirePengurus_(session);
+  var p = session.permissions || {};
+  if (p.isAdmin || p.isSuperAdmin) return;
+  throw createError_('Aksi ini hanya untuk Admin dan Super Admin.', 403);
+}
+
+function handleKaldikDeleteAll_(request, session) {
+  requireKaldikDeleteAll_(session);
+  var scope = cleanString_(request.scope) || 'all';
+  var kaldikState = readSheetState_('kaldik');
+
+  var rangeStart = '';
+  var rangeEnd = '';
+  var scopeLabel = 'Semua acara kalender akademik';
+
+  if (scope === 'range') {
+    rangeStart = assertValidDateOnly_(request.tanggalMulai, 'Tanggal mulai');
+    rangeEnd = assertValidDateOnly_(request.tanggalSelesai, 'Tanggal selesai');
+    if (rangeEnd < rangeStart) throw createError_('Tanggal selesai tidak boleh sebelum tanggal mulai.', 400);
+    scopeLabel = 'Acara pada rentang ' + rangeStart + ' s/d ' + rangeEnd;
+  } else if (scope === 'tahunAjaran') {
+    var taId = cleanString_(request.tahunAjaranId);
+    if (!taId) throw createError_('Tahun ajaran wajib dipilih.', 400);
+    var taState = readSheetState_('tahunAjaran');
+    var taRow = findSheetRowById_(taState.rows, taId);
+    if (!taRow) throw createError_('Tahun ajaran tidak ditemukan.', 404);
+    var ta = normalizeTahunAjaran_(taRow);
+    if (!ta.tanggalMulai || !ta.tanggalSelesai) {
+      throw createError_('Tahun ajaran ini belum memiliki tanggal mulai/selesai, tidak bisa dipakai untuk hapus otomatis.', 400);
+    }
+    rangeStart = ta.tanggalMulai;
+    rangeEnd = ta.tanggalSelesai;
+    scopeLabel = 'Acara pada ' + (ta.namaDisplay || ta.nama);
+  } else {
+    scope = 'all';
+  }
+
+  var rowNumbers = [];
+  kaldikState.rows.forEach(function (row) {
+    if (scope === 'all') {
+      rowNumbers.push(row._rowNumber);
+      return;
+    }
+    var evStart = cleanString_(row.tanggal_mulai);
+    var evEnd = cleanString_(row.tanggal_selesai) || evStart;
+    if (evStart > rangeEnd || evEnd < rangeStart) return;
+    rowNumbers.push(row._rowNumber);
+  });
+
+  if (rowNumbers.length) {
+    deleteSheetRows_(kaldikState, rowNumbers);
+  }
+
+  return {
+    ok: true,
+    timestamp: nowIso_(),
+    data: {
+      count: rowNumbers.length,
+      message: rowNumbers.length
+        ? scopeLabel + ' — ' + rowNumbers.length + ' acara berhasil dihapus permanen.'
+        : scopeLabel + ' — tidak ada acara yang cocok, atau sudah kosong.'
+    }
+  };
+}
+
+// ── Tempel Data Kaldik ────────────────────────────────────────────────────────────
+// Sama pola dgn parseJadwalKhutbahTempelText_ (jadwal.khutbah.quickImportPreview/Import) --
+// blok dipisah baris kosong, tiap baris "LABEL: value" di-uppercase & spasi/dash jadi
+// underscore. BEDA dari khutbah: kaldik TIDAK py 1-entri-per-tanggal (banyak acara bisa
+// tanggal sama, lihat data nyata "Idul Fitri" & "Perpulangan pengurus" sama2 9 Mar), jadi
+// TIDAK ada logika "update existing" -- tempel SELALU nambah baris baru, duplikat cuma
+// dikasih warning (bukan blokir).
+function parseKaldikTempelText_(text) {
+  var blocks = text.split(/\n[ \t]*\n/);
+  var entries = [];
+  blocks.forEach(function (block) {
+    block = block.trim();
+    if (!block) return;
+    var lines = block.split('\n');
+    var entry = {};
+    lines.forEach(function (line) {
+      var colonIdx = line.indexOf(':');
+      if (colonIdx < 1) return;
+      var key = line.slice(0, colonIdx).trim().toUpperCase().replace(/[\s-]+/g, '_');
+      var val = line.slice(colonIdx + 1).trim();
+      entry[key] = val;
+    });
+    if (entry['TANGGAL_MULAI']) entries.push(entry);
+  });
+  return entries;
+}
+
+var KALDIK_WARNA_KEYS_ = { merah: 1, kuning: 1, hijau: 1, biru: 1, ungu: 1, oranye: 1 };
+
+function handleKaldikQuickImportPreview_(request, session) {
+  requireKaldikEdit_(session);
+  var record = parseRecordPayload_(request);
+  var text = String(record.text || '').trim();
+  if (!text) throw createError_('Teks tempelan kosong.', 400);
+  var entries = parseKaldikTempelText_(text);
+  if (!entries.length) throw createError_('Tidak ada record yang bisa diparsing. Pastikan tiap blok punya baris TANGGAL MULAI: dan dipisah baris kosong antar blok.', 400);
+
+  var kaldikState = readSheetState_('kaldik');
+  var existingSet = {};
+  kaldikState.rows.forEach(function (r) {
+    existingSet[cleanString_(r.judul).toLowerCase() + '|' + cleanString_(r.tanggal_mulai)] = true;
+  });
+
+  var seenInBatch = {};
+  var previews = entries.map(function (entry, idx) {
+    var warnings = [], errors = [];
+    var judul = cleanString_(entry['JUDUL'] || '');
+    var tanggalMulaiRaw = cleanString_(entry['TANGGAL_MULAI'] || '');
+    var tanggalSelesaiRaw = cleanString_(entry['TANGGAL_SELESAI'] || '');
+    var deskripsi = cleanString_(entry['DESKRIPSI'] || '');
+    var warnaRaw = cleanString_(entry['WARNA'] || '').toLowerCase();
+
+    if (!judul) errors.push('JUDUL wajib diisi.');
+
+    var tanggalMulai = '';
+    if (!tanggalMulaiRaw) {
+      errors.push('TANGGAL MULAI wajib diisi.');
+    } else {
+      try { tanggalMulai = assertValidDateOnly_(tanggalMulaiRaw, 'Tanggal mulai'); }
+      catch (e) { errors.push('Format TANGGAL MULAI "' + tanggalMulaiRaw + '" tidak valid (pakai YYYY-MM-DD).'); }
+    }
+
+    var tanggalSelesai = tanggalMulai;
+    if (tanggalSelesaiRaw) {
+      try {
+        tanggalSelesai = assertValidDateOnly_(tanggalSelesaiRaw, 'Tanggal selesai');
+        if (tanggalMulai && tanggalSelesai < tanggalMulai) {
+          errors.push('TANGGAL SELESAI tidak boleh sebelum TANGGAL MULAI.');
+        }
+      } catch (e) { errors.push('Format TANGGAL SELESAI "' + tanggalSelesaiRaw + '" tidak valid (pakai YYYY-MM-DD).'); }
+    }
+
+    var warna = 'biru';
+    if (warnaRaw) {
+      if (KALDIK_WARNA_KEYS_[warnaRaw]) warna = warnaRaw;
+      else warnings.push('WARNA "' + warnaRaw + '" tidak dikenal, dipakai default "biru". Pilihan: merah/kuning/hijau/biru/ungu/oranye.');
+    }
+
+    if (judul && tanggalMulai) {
+      var dupKey = judul.toLowerCase() + '|' + tanggalMulai;
+      if (seenInBatch[dupKey]) warnings.push('Judul & tanggal mulai yang sama muncul lebih dari sekali di tempelan ini.');
+      seenInBatch[dupKey] = true;
+      if (existingSet[dupKey]) warnings.push('Sudah ada acara dengan judul & tanggal mulai yang sama -- akan tetap ditambahkan sebagai entri baru (bukan menimpa).');
+    }
+
+    return {
+      index: idx + 1,
+      judul: judul, tanggalMulai: tanggalMulai || tanggalMulaiRaw, tanggalSelesai: tanggalSelesai || tanggalSelesaiRaw,
+      deskripsi: deskripsi, warna: warna,
+      warnings: warnings, errors: errors,
+      canSave: errors.length === 0
+    };
+  });
+  return { ok: true, timestamp: nowIso_(), data: { previews: previews } };
+}
+
+function handleKaldikQuickImport_(request, session) {
+  requireKaldikEdit_(session);
+  var record = parseRecordPayload_(request);
+  var entries = Array.isArray(record.entries) ? record.entries : [];
+  if (!entries.length) throw createError_('Tidak ada data untuk disimpan.', 400);
+  var state = readSheetState_('kaldik');
+  var now = nowIso_();
+  var saved = 0;
+  entries.forEach(function (e) {
+    var judul = cleanString_(e.judul || '');
+    var tanggalMulai = cleanString_(e.tanggalMulai || '');
+    if (!judul || !tanggalMulai) return;
+    tanggalMulai = assertValidDateOnly_(tanggalMulai, 'Tanggal mulai');
+    var tanggalSelesaiRaw = cleanString_(e.tanggalSelesai || '');
+    var tanggalSelesai = tanggalSelesaiRaw ? assertValidDateOnly_(tanggalSelesaiRaw, 'Tanggal selesai') : tanggalMulai;
+    if (tanggalSelesai < tanggalMulai) return;
+    var deskripsi = cleanString_(e.deskripsi || '');
+    var warnaKey = cleanString_(e.warna || '').toLowerCase();
+    var warna = KALDIK_WARNA_KEYS_[warnaKey] ? warnaKey : 'biru';
+    var payload = { id: String(nextId_(state.rows)), judul: judul, deskripsi: deskripsi, tanggal_mulai: tanggalMulai, tanggal_selesai: tanggalSelesai, warna: warna, created_at: now, updated_at: now };
+    appendSheetRow_(state, payload);
+    saved += 1;
+  });
+  return { ok: true, timestamp: now, data: { saved: saved, message: saved + ' acara berhasil ditempel.' } };
 }
 
 function handleDeleteAllData_(session) {
@@ -5953,8 +7058,10 @@ function handleSantriSave_(request, session) {
   delete writable.akad;
   delete writable.status_pengecekan;
   delete writable.nama_lama;
+  delete writable.keterangan_status;
   delete writable.tanggal_masuk_asli;
   delete writable.tanggal_masuk;
+  delete writable.tempat_tanggal_lahir;
   delete writable.program;
   delete writable.jaminan_uang;
   delete writable.jaminan_kk;
@@ -6023,6 +7130,11 @@ function handleSantriSave_(request, session) {
   nextStatus = normalizeStatusForSheet_('santri', writable.status || (existing ? existing.status : 'Active'));
   assertSantriInactiveStatusChangeAllowed_(session, existing ? existing.status : '', nextStatus);
   var nextStatusKeyForCatatanCheck_ = getSantriStatusKey_(nextStatus);
+  // Urutan wajib: santri Aktif tidak boleh langsung dinonaktifkan (harus Dibekukan dulu). Hanya
+  // berlaku saat mengubah santri yang sudah ada; santri baru tetap boleh dibuat langsung Nonaktif.
+  if (existing && nextStatusKeyForCatatanCheck_ === 'inactive' && getSantriStatusKey_(existing.status) === 'active') {
+    throw createError_('Santri harus Dibekukan dulu sebelum bisa dinonaktifkan.', 400);
+  }
   if (nextStatusKeyForCatatanCheck_ === 'inactive' || nextStatusKeyForCatatanCheck_ === 'dibekukan') {
     var effectiveCatatanForStatus_ = Object.prototype.hasOwnProperty.call(writable, 'catatan')
       ? cleanString_(writable.catatan)
@@ -6127,7 +7239,7 @@ function handleSantriAutoSetUsernames_(session) {
   var skipped = 0;
   state.rows.forEach(function (row) {
     if (isUsernameValid_(row.username)) { skipped += 1; return; }
-    var baseName = getValidName_([row.nama_setelah_diubah, row.nama_lengkap_akte, row.nama_panggilan]);
+    var baseName = getValidName_([row.nama_setelah_diubah, row.nama_lengkap_kk, row.nama_lengkap_akte, row.nama_panggilan]);
     var base = baseName
       .toLowerCase()
       .replace(/[^a-z0-9\s]/g, '')
@@ -6290,7 +7402,7 @@ function handleSantriExportCredentials_(session, request) {
     } else {
       passwordStatus = pw === DEFAULT_PASS ? 'password123' : 'custom';
     }
-    var nama = cleanString_(row.nama_setelah_diubah) || cleanString_(row.nama_lengkap_akte) || cleanString_(row.nama_panggilan);
+    var nama = santriDisplayName_(row);
     return {
       nama: nama,
       username: cleanString_(row.username),
@@ -6804,7 +7916,7 @@ function logHalaqohMutasiSantri_(existingHalaqoh, writable, halaqohState) {
   var santriNameById = {};
   santriState.rows.forEach(function (r) {
     var id = cleanString_(r.id);
-    santriNameById[id] = cleanString_(r.nama_setelah_diubah) || cleanString_(r.nama_lengkap_akte) || cleanString_(r.nama_panggilan) || ('#' + id);
+    santriNameById[id] = santriDisplayName_(r) || ('#' + id);
   });
 
   var thisName = cleanString_(writable.name || existingHalaqoh.name) || ('#' + existingHalaqoh.id);
@@ -6924,7 +8036,7 @@ function handleHalaqohPindahkanSantri_(request) {
   var santriState = readSheetState_('santri');
   var santriRow = findSheetRowById_(santriState.rows, santriId);
   var santriName = santriRow
-    ? (cleanString_(santriRow.nama_setelah_diubah) || cleanString_(santriRow.nama_lengkap_akte) || cleanString_(santriRow.nama_panggilan) || ('#' + santriId))
+    ? (santriDisplayName_(santriRow) || ('#' + santriId))
     : ('#' + santriId);
   var fromName = cleanString_(fromRow.name) || ('#' + fromRow.id);
   var toName = cleanString_(toRow.name) || ('#' + toRow.id);
@@ -7014,6 +8126,20 @@ function handlePindahHalaqohList_(request, session) {
     halaqohSantriIdsById[cleanString_(h.id)] = parseIdList_(h.id_santri);
   });
 
+  // Deteksi mutasi GANDA: >1 baris AKTIF utk santri yang sama & halaqoh ASAL yang sama (mis.
+  // 1 kejadian pindah kecatat 2x dgn tanggal beda). Ini bikin rekonstruksi roster per-tanggal
+  // di audit hafalan/absensi (reconstructHalaqohMembershipIds_) salah: santri "dikembalikan" ke
+  // halaqoh asal utk tanggal di antara kedua tanggal pindah itu, jadi hari-hari itu ketagih
+  // audit padahal santrinya sudah pindah. Dihitung LINTAS SEMUA baris (bukan cuma halaman ini)
+  // supaya pasangannya tetap kedeteksi walau beda halaman / kefilter.
+  var mutasiAktifPerSantriAsal = {};
+  state.rows.forEach(function (r) {
+    if (!isActiveStatus_(r.status)) return;
+    var key = cleanString_(r.id_santri) + '|' + cleanString_(r.id_halaqoh_asal);
+    if (!mutasiAktifPerSantriAsal[key]) mutasiAktifPerSantriAsal[key] = [];
+    mutasiAktifPerSantriAsal[key].push(r);
+  });
+
   var page = Math.max(1, parseInt(request.page, 10) || 1);
   var pageSize = Math.max(1, Math.min(200, parseInt(request.pageSize, 10) || 30));
   var total = filtered.length;
@@ -7023,6 +8149,17 @@ function handlePindahHalaqohList_(request, session) {
     var sid = cleanString_(r.id_santri);
     var stillInAsal = (halaqohSantriIdsById[cleanString_(r.id_halaqoh_asal)] || []).indexOf(sid) !== -1;
     var notInTujuan = (halaqohSantriIdsById[cleanString_(r.id_halaqoh_tujuan)] || []).indexOf(sid) === -1;
+    var dupGroup = isActiveStatus_(r.status)
+      ? (mutasiAktifPerSantriAsal[sid + '|' + cleanString_(r.id_halaqoh_asal)] || [])
+      : [];
+    var dupHalaqohSama = dupGroup.length > 1;
+    var dupTanggalLain = dupHalaqohSama
+      ? dupGroup
+          .filter(function (o) { return cleanString_(o.id) !== cleanString_(r.id); })
+          .map(function (o) { return normalizeDateOnly_(o.tanggal_pindah); })
+          .filter(Boolean)
+          .sort()
+      : [];
     return {
       id: r.id,
       santriId: r.id_santri,
@@ -7040,6 +8177,9 @@ function handlePindahHalaqohList_(request, session) {
       belumSelesaiPindah: stillInAsal && notInTujuan,
       amanPindah: !stillInAsal && !notInTujuan,
       masihDiKeduanya: stillInAsal && !notInTujuan,
+      duplikatHalaqohSama: dupHalaqohSama,
+      duplikatCount: dupHalaqohSama ? dupGroup.length : 0,
+      duplikatTanggalLain: dupTanggalLain,
       userName: r.user_name,
       createdAt: r.created_at
     };
@@ -7245,7 +8385,25 @@ function computeSantriHafalanDetailByTA_(dataset, tahunAjaranId) {
     }
   }
 
-  var hState = readSheetState_('hafalanHarian');
+  // Pre-narrow SUPERSET (lihat handleHafalanHarianRekapSemua_): id_halaqoh IN (halaqoh aktif)
+  // AND (TA ini OR tanggal dalam rentang TA OR baris awal_). Hanya menyingkirkan baris yang
+  // pasti ditolak filter JS di bawah -> hasil identik. tanggal ISO -> perbandingan aman.
+  var chdHalaqohIds = Object.keys(halaqohFilter);
+  var hState = { rows: [] };
+  if (chdHalaqohIds.length) {
+    var chdWhereParts = ['"id_halaqoh" IN (' + chdHalaqohIds.map(function () { return '?'; }).join(', ') + ')'];
+    var chdWhereParams = chdHalaqohIds.slice();
+    var chdNarrowOr = [];
+    var chdNarrowParams = [];
+    if (tahunAjaranId) { chdNarrowOr.push('"tahun_ajaran_id" = ?'); chdNarrowParams.push(tahunAjaranId); }
+    if (normFrom && normTo) { chdNarrowOr.push('("tanggal" >= ? AND "tanggal" <= ?)'); chdNarrowParams.push(normFrom, normTo); }
+    if (chdNarrowOr.length) {
+      chdNarrowOr.push('"jenis" GLOB \'awal_*\'');
+      chdWhereParts.push('(' + chdNarrowOr.join(' OR ') + ')');
+      chdWhereParams = chdWhereParams.concat(chdNarrowParams);
+    }
+    hState = readSheetStateWhere_('hafalanHarian', chdWhereParts.join(' AND '), chdWhereParams);
+  }
   var QURAN_JENIS = ['ziyadah', 'ziyadah_ulang', 'sabaqi', 'manzili', 'muroja_umum', 'awal_quran'];
   var byS = {};
   hState.rows.map(normalizeHafalanHarian_).forEach(function (item) {
@@ -7515,8 +8673,9 @@ function collectPengurusHalaqohTasmiIds_(pengurusId, dataset) {
 
 function getAccessibleHalaqohTasmi_(session, dataset) {
   var allHalaqohTasmi = (dataset.halaqohTasmi || []).filter(function (h) { return h.active; });
-  var p = session && session.permissions;
-  if (p && (p.isSuperAdmin || p.isAdmin || p.isHalaqohCoordinator)) {
+  if (canAccessLevel_(session, 'halaqohTasmi', 'manageAllHalaqoh', function (s) {
+    var p = s.permissions; return !!(p && (p.isAdmin || p.isHalaqohCoordinator));
+  })) {
     return allHalaqohTasmi;
   }
   var idMap = {};
@@ -7526,8 +8685,10 @@ function getAccessibleHalaqohTasmi_(session, dataset) {
 
 function canAccessTasmiSetoran_(session) {
   if (!session || session.role !== 'pengurus' || !session.permissions) return false;
-  var p = session.permissions;
-  return !!(p.isSuperAdmin || p.isAdmin || p.isHalaqohCoordinator || p.isPengampuHalaqoh || p.canManageHalaqoh);
+  return canAccessLevel_(session, 'halaqohTasmi', 'manageSetoran', function (s) {
+    var p = s.permissions;
+    return !!(p.isAdmin || p.isHalaqohCoordinator || p.isPengampuHalaqoh);
+  });
 }
 
 // Download PDF rekap semua halaqoh dibatasi ke role dengan cakupan lintas-halaqoh saja
@@ -7661,11 +8822,40 @@ function buildTasmiEntryByDateIndex_(rows, bulan, santriIdSet, ownHalaqohId) {
   return byDate;
 }
 
+// Gender halaqoh tasmi' ditulis bebas (mis. "Akhowat", "Putri", dst) -- normalisasi jadi 3
+// kunci baku spy filter gender di frontend (normalizeGenderKey, tasmiSetoran/index.html)
+// & di sini SELALU sinkron. Diambil apa adanya dari situ, jangan diubah salah satu tanpa yg lain.
+function normalizeTasmiGenderKey_(value) {
+  var t = cleanString_(value).toLowerCase();
+  if (['ikhwan', 'putra', 'laki-laki', 'laki', 'male', 'l'].some(function (k) { return t.indexOf(k) !== -1; })) return 'ikhwan';
+  if (['akhowat', 'akhwat', 'putri', 'perempuan', 'female', 'p', 'wanita'].some(function (k) { return t.indexOf(k) !== -1; })) return 'akhowat';
+  if (['campur', 'mixed', 'mix', 'gabungan'].some(function (k) { return t.indexOf(k) !== -1; })) return 'campur';
+  return '';
+}
+
 function handleTasmiSetoranHalaqohList_(request, session) {
   if (!canAccessTasmiSetoran_(session)) throw createError_('Tidak punya akses ke setoran tasmi\'.', 403);
   var dataset = loadDataset_();
-  var items = getAccessibleHalaqohTasmi_(session, dataset).map(function (h) {
+  // Badge audit kuning per kartu -- definisi "bolong" DISAMAKAN persis dgn popup nag
+  // "Kelola Audit" (collectTasmiGapItems_): cuma hari Sabtu, kelengkapan statusTasmi +
+  // catatan utk 'tidak', santri dibekukan dikecualikan, batas s/d auditCutoffDate_().
+  // Ikut saklar auditSettingsState.tasmiActive: kalau audit tasmi dimatikan, badge jg tidak muncul.
+  var auditActive = !!auditSettingsState.tasmiActive;
+  var cutoffDate = auditCutoffDate_();
+  var filledSantriByDate = auditActive ? buildTasmiFilledSantriByDate_(readSheetState_('tasmiSetoran').rows) : {};
+  var dibekukanSet = auditActive ? getDibekukanSantriIdSet_() : {};
+  var allItems = getAccessibleHalaqohTasmi_(session, dataset).map(function (h) {
     var enriched = enrichHalaqohTasmi_(h, dataset);
+    var audit = { active: false, since: '', missingCount: 0, missingDatesSample: [] };
+    if (auditActive) {
+      var taRow = dataset.indexes.tahunAjaranById[enriched.tahunAjaranId];
+      var taStartDate = taRow ? normalizeDateOnly_(taRow.tanggalMulai) : '';
+      // Sama seperti popup nag yg cuma jalan di TA aktif -- halaqoh TA lama tidak dinagih.
+      if (taStartDate && taRow.isAktif) {
+        var gap = computeTasmiGapDates_(enriched.santriIds, enriched.record && enriched.record.created_at, filledSantriByDate, dibekukanSet, taStartDate, cutoffDate);
+        audit = { active: true, since: gap.since, missingCount: gap.missingDates.length, missingDatesSample: gap.missingDates.slice(0, 5) };
+      }
+    }
     return {
       id: enriched.id,
       name: enriched.name,
@@ -7674,11 +8864,49 @@ function handleTasmiSetoranHalaqohList_(request, session) {
       tahunAjaranNama: enriched.tahunAjaranNama,
       santriCount: enriched.santriCount,
       pengampuLabels: enriched.pengampuLabels,
-      badalLabels: enriched.badalLabels
+      badalLabels: enriched.badalLabels,
+      audit: audit
     };
   });
-  items.sort(function (a, b) { return (a.name || '').localeCompare(b.name || ''); });
-  return { ok: true, timestamp: nowIso_(), data: { items: items } };
+  allItems.sort(function (a, b) { return (a.name || '').localeCompare(b.name || ''); });
+
+  // Deep-link dari popup audit ("Bereskan" -> ?openHalaqoh=ID, lihat AUDIT_KIND_CONFIG.tasmi
+  // di shared-shell.js) minta 1 halaqoh SPESIFIK terlepas dari filter/halaman yg aktif --
+  // begitu id dikirim, balikin cuma itu (kalau kebetulan boleh diakses), skip filter & paging.
+  var wantedId = cleanString_(request.id);
+  if (wantedId) {
+    var wanted = allItems.filter(function (item) { return item.id === wantedId; });
+    return { ok: true, timestamp: nowIso_(), data: { items: wanted, total: wanted.length, page: 1, totalPages: 1, pageSize: wanted.length || 1 } };
+  }
+
+  // Paging dipindah ke backend (keputusan user 2026-08-29) -- dulu frontend fetch SEMUA
+  // halaqoh sekaligus lalu slice di browser, sekarang cuma 1 halaman per request. Filter
+  // (search/gender/tahunAjaranId) HARUS ikut dikerjakan di sini juga (bukan cuma paging),
+  // supaya jumlah & isi per halaman tetap benar -- definisinya disamakan PERSIS dgn logika
+  // lama di frontend (getFilteredHalaqohItems/halaqohSearchText/normalizeGenderKey,
+  // tasmiSetoran/index.html) supaya perilaku user tidak berubah.
+  var tahunAjaranId = cleanString_(request.tahunAjaranId);
+  var genderFilter = normalizeTasmiGenderKey_(request.gender);
+  var query = cleanString_(request.search || request.q).toLowerCase();
+  var filtered = allItems.filter(function (item) {
+    if (tahunAjaranId && item.tahunAjaranId !== tahunAjaranId) return false;
+    if (genderFilter && normalizeTasmiGenderKey_(item.genderGroup) !== genderFilter) return false;
+    if (query) {
+      var pengampuText = (item.pengampuLabels && item.pengampuLabels.length) ? item.pengampuLabels.join(', ') : 'Belum ada pengampu';
+      var haystack = [item.name, pengampuText, (item.badalLabels || []).join(' '), item.tahunAjaranNama].join(' ').toLowerCase();
+      if (haystack.indexOf(query) === -1) return false;
+    }
+    return true;
+  });
+
+  var page = Math.max(1, parseInt(request.page, 10) || 1);
+  var pageSize = Math.max(1, Math.min(100, parseInt(request.pageSize, 10) || 10));
+  var total = filtered.length;
+  var totalPages = Math.max(1, Math.ceil(total / pageSize));
+  if (page > totalPages) page = totalPages;
+  var pageItems = filtered.slice((page - 1) * pageSize, page * pageSize);
+
+  return { ok: true, timestamp: nowIso_(), data: { items: pageItems, total: total, page: page, totalPages: totalPages, pageSize: pageSize } };
 }
 
 function handleTasmiSetoranList_(request, session) {
@@ -8306,7 +9534,7 @@ function handleReguPindahkanSantri_(request) {
   var santriState = readSheetState_('santri');
   var santriRow = findSheetRowById_(santriState.rows, santriId);
   var santriName = santriRow
-    ? (cleanString_(santriRow.nama_setelah_diubah) || cleanString_(santriRow.nama_lengkap_akte) || cleanString_(santriRow.nama_panggilan) || ('#' + santriId))
+    ? (santriDisplayName_(santriRow) || ('#' + santriId))
     : ('#' + santriId);
   var fromName = cleanString_(fromRow.name) || ('#' + fromRow.id);
   var toName = cleanString_(toRow.name) || ('#' + toRow.id);
@@ -8961,8 +10189,10 @@ function handleHalaqohAttendanceDashboard_(request, session) {
   if (tahunAjaranId) {
     accessible = accessible.filter(function (h) { return h.tahunAjaranId === tahunAjaranId; });
   }
+  // Dibangun SEKALI di sini (bukan per kartu) -- badge audit tiap kartu baca dari map ini.
+  var filledDatesByHalaqoh = buildAbsensiFilledDatesByEntity_('absensiHalaqoh', 'id_halaqoh');
   var items = accessible.map(function (halaqoh) {
-    return buildHalaqohAttendanceCardView_(halaqoh, recordsByHalaqohId[halaqoh.id] || [], dataset, today);
+    return buildHalaqohAttendanceCardView_(halaqoh, recordsByHalaqohId[halaqoh.id] || [], dataset, today, filledDatesByHalaqoh);
   }).sort(function (a, b) {
     return (a.name || '').localeCompare(b.name || '');
   });
@@ -9176,8 +10406,10 @@ function handleKelasAttendanceDashboard_(request, session) {
   if (tahunAjaranId) {
     accessible = accessible.filter(function (k) { return k.tahunAjaranId === tahunAjaranId; });
   }
+  // Dibangun SEKALI di sini (bukan per kartu) -- badge audit tiap kartu baca dari map ini.
+  var filledDatesByKelas = buildAbsensiFilledDatesByEntity_('absensiKelas', 'id_kelas');
   var items = accessible.map(function (kelas) {
-    return buildKelasAttendanceCardView_(kelas, recordsByKelasId[kelas.id] || [], dataset, today);
+    return buildKelasAttendanceCardView_(kelas, recordsByKelasId[kelas.id] || [], dataset, today, filledDatesByKelas);
   }).sort(function (a, b) {
     return (a.name || '').localeCompare(b.name || '');
   });
@@ -9971,6 +11203,14 @@ function pengumumanTargetIds_(row) {
   } catch (e) { return []; }
 }
 
+// Id pengurus yang dikecualikan dari pengumuman ini (lihat kolom kecuali_pengurus_ids).
+function pengumumanExcludedPengurusIds_(row) {
+  try {
+    var ids = JSON.parse(cleanString_(row.kecuali_pengurus_ids) || '[]');
+    return Array.isArray(ids) ? ids.map(cleanString_).filter(Boolean) : [];
+  } catch (e) { return []; }
+}
+
 function pengumumanTargetsSession_(row, sessionJabatanIds) {
   var targetIds = pengumumanTargetIds_(row);
   if (!targetIds.length) return false;
@@ -9984,6 +11224,15 @@ var PENGUMUMAN_COLOR_TYPES = ['biasa', 'merah', 'jingga', 'hijau'];
 function normalizePengumumanColorType_(value) {
   var v = cleanString_(value).toLowerCase();
   return PENGUMUMAN_COLOR_TYPES.indexOf(v) !== -1 ? v : 'biasa';
+}
+
+// Lama waktu tunggu popup (detik). Dibulatkan ke int >= 0; 0 = tidak ada timer. Dibatasi
+// 3600 (1 jam) supaya tidak bisa dipakai "mengunci" pengurus terlalu lama lewat nilai ekstrem.
+var PENGUMUMAN_MAX_WAIT_SECONDS = 3600;
+function normalizePengumumanWaitSeconds_(value) {
+  var n = parseInt(value, 10);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return Math.min(n, PENGUMUMAN_MAX_WAIT_SECONDS);
 }
 
 function isManagedPengumumanMediaUrl_(mediaUrl) {
@@ -10047,9 +11296,50 @@ function normalizePengumumanDate_(value) {
   return PENGUMUMAN_DATE_RE.test(v) ? v : '';
 }
 
-function buildPengumumanView_(row, jabatanNameById) {
+// Aturan tambahan utk respon pengumuman "wajib direspon". Semua opsional. minKata/minKarakter
+// dinormalkan ke bilangan bulat > 0 (0 = tidak dibatasi); angkaMin/angkaMaks jadi angka biasa
+// (boleh negatif/desimal) atau null kalau tak diisi, dan cuma dipakai kalau wajibAngka. Balikan
+// SELALU objek lengkap dgn default aman — kalau raw kosong/rusak semua aturan mati. Dipakai
+// bareng oleh buildPengumumanView_ (panel admin), handlePengumumanSave_, handlePengumumanOwed_
+// (dikirim ke pengurus), dan handlePengumumanRespond_ (penegakan).
+function normalizePengumumanResponRules_(raw) {
+  var src = raw;
+  if (typeof src === 'string') {
+    try { src = JSON.parse(cleanString_(src) || '{}'); } catch (e) { src = {}; }
+  }
+  if (!src || typeof src !== 'object' || Array.isArray(src)) src = {};
+
+  function nonNegInt_(v) {
+    var n = parseInt(v, 10);
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  }
+  function finiteOrNull_(v) {
+    if (v === '' || v === null || v === undefined) return null;
+    var n = Number(String(v).replace(',', '.').trim());
+    return Number.isFinite(n) ? n : null;
+  }
+
+  var wajibAngka = isTruthy_(src.wajibAngka || src.wajib_angka);
+  return {
+    minKata: nonNegInt_(src.minKata != null ? src.minKata : src.min_kata),
+    minKarakter: nonNegInt_(src.minKarakter != null ? src.minKarakter : src.min_karakter),
+    wajibAngka: wajibAngka,
+    angkaMin: wajibAngka ? finiteOrNull_(src.angkaMin != null ? src.angkaMin : src.angka_min) : null,
+    angkaMaks: wajibAngka ? finiteOrNull_(src.angkaMaks != null ? src.angkaMaks : src.angka_maks) : null,
+    wajibQuick: isTruthy_(src.wajibQuick || src.wajib_quick)
+  };
+}
+
+// true kalau hasil normalize di atas tidak punya SATU pun aturan aktif (dipakai utk memutuskan
+// menyimpan '' alih-alih JSON kosong yg tak berguna).
+function pengumumanResponRulesEmpty_(rules) {
+  return !rules.minKata && !rules.minKarakter && !rules.wajibAngka && !rules.wajibQuick;
+}
+
+function buildPengumumanView_(row, jabatanNameById, pengurusNameById) {
   var status = normalizeStatusForSheet_('pengumuman', row.status || STATUS_LABELS.pengumuman.inactive);
   var targetIds = pengumumanTargetIds_(row);
+  var excludedIds = pengumumanExcludedPengurusIds_(row);
   var isUnlimited = cleanString_(row.is_unlimited) === '1';
   return {
     id: cleanString_(row.id),
@@ -10057,10 +11347,14 @@ function buildPengumumanView_(row, jabatanNameById) {
     message: cleanString_(row.message),
     targetJabatanIds: targetIds,
     targetJabatanLabels: targetIds.map(function (jid) { return (jabatanNameById && jabatanNameById[jid]) || ('#' + jid); }),
+    kecualiPengurusIds: excludedIds,
+    kecualiPengurusLabels: excludedIds.map(function (pid) { return (pengurusNameById && pengurusNameById[pid]) || ('#' + pid); }),
     isUnlimited: isUnlimited,
     maxShowCount: isUnlimited ? null : (parseInt(row.max_show_count, 10) || 1),
     isFullscreen: cleanString_(row.is_fullscreen) === '1',
+    waitSeconds: normalizePengumumanWaitSeconds_(row.wait_seconds),
     wajibRespon: cleanString_(row.wajib_respon) === '1',
+    responRules: normalizePengumumanResponRules_(row.respon_rules),
     colorType: normalizePengumumanColorType_(row.color_type),
     media: parsePengumumanMedia_(row),
     startDate: normalizePengumumanDate_(row.start_date),
@@ -10077,6 +11371,8 @@ function handlePengumumanList_(request) {
   var jabatanState = readSheetState_('jabatan');
   var jabatanNameById = {};
   jabatanState.rows.forEach(function (row) { jabatanNameById[cleanString_(row.id)] = cleanString_(row.name); });
+  var pengurusNameById = {};
+  readSheetState_('pengurus').rows.forEach(function (row) { pengurusNameById[cleanString_(row.id)] = cleanString_(row.name); });
   var responCountByPengumumanId = {};
   readSheetState_('pengumumanRespon').rows.forEach(function (row) {
     var pid = cleanString_(row.pengumuman_id);
@@ -10085,7 +11381,7 @@ function handlePengumumanList_(request) {
   var q = cleanString_(request.q).toLowerCase();
   var items = pengumumanState.rows
     .map(function (row) {
-      var view = buildPengumumanView_(row, jabatanNameById);
+      var view = buildPengumumanView_(row, jabatanNameById, pengurusNameById);
       view.responCount = responCountByPengumumanId[view.id] || 0;
       return view;
     })
@@ -10122,6 +11418,20 @@ function handlePengumumanSave_(request, session) {
   if (!targetIds.length) throw createError_('Pilih minimal satu jabatan target.', 400);
   writable.target_jabatan_ids = JSON.stringify(targetIds);
 
+  // Daftar pengurus yang dikecualikan (opsional). Divalidasi ke id pengurus yang benar-benar ada;
+  // yang tak dikenal / duplikat dibuang diam-diam. Boleh kosong.
+  var validPengurusIds = {};
+  readSheetState_('pengurus').rows.forEach(function (row) { validPengurusIds[cleanString_(row.id)] = true; });
+  var rawKecualiIds = Array.isArray(record.kecuali_pengurus_ids) ? record.kecuali_pengurus_ids
+    : (Array.isArray(record.kecualiPengurusIds) ? record.kecualiPengurusIds : []);
+  var seenKecali = {};
+  var kecualiIds = rawKecualiIds.map(cleanString_).filter(function (id) {
+    if (!id || !validPengurusIds[id] || seenKecali[id]) return false;
+    seenKecali[id] = true;
+    return true;
+  });
+  writable.kecuali_pengurus_ids = kecualiIds.length ? JSON.stringify(kecualiIds) : '';
+
   writable.is_unlimited = isTruthy_(record.is_unlimited || record.isUnlimited) ? '1' : '0';
   if (writable.is_unlimited === '1') {
     writable.max_show_count = '';
@@ -10132,7 +11442,30 @@ function handlePengumumanSave_(request, session) {
   }
 
   writable.is_fullscreen = isTruthy_(record.is_fullscreen || record.isFullscreen) ? '1' : '0';
+
+  // Waktu tunggu (detik) sebelum popup boleh ditutup. Checkbox "pakai waktu" di form dikirim
+  // sbg has_wait; kalau mati -> selalu '0'. Kalau hidup -> wajib angka >= 1 (dibatasi di server).
+  if (isTruthy_(record.has_wait || record.hasWait)) {
+    var waitSeconds = parseInt(record.wait_seconds || record.waitSeconds, 10);
+    if (!Number.isFinite(waitSeconds) || waitSeconds < 1) {
+      throw createError_('Lama waktu tunggu wajib diisi (angka detik > 0) kalau opsi waktu tunggu diaktifkan.', 400);
+    }
+    writable.wait_seconds = String(normalizePengumumanWaitSeconds_(waitSeconds));
+  } else {
+    writable.wait_seconds = '0';
+  }
+
   writable.wajib_respon = isTruthy_(record.wajib_respon || record.wajibRespon) ? '1' : '0';
+  if (writable.wajib_respon === '1') {
+    var responRules = normalizePengumumanResponRules_(record.respon_rules || record.responRules);
+    if (responRules.wajibAngka && responRules.angkaMin !== null && responRules.angkaMaks !== null
+        && responRules.angkaMin > responRules.angkaMaks) {
+      throw createError_('Nilai minimal tidak boleh lebih besar dari nilai maksimal pada aturan respon angka.', 400);
+    }
+    writable.respon_rules = pengumumanResponRulesEmpty_(responRules) ? '' : JSON.stringify(responRules);
+  } else {
+    writable.respon_rules = '';
+  }
   writable.color_type = normalizePengumumanColorType_(record.color_type || record.colorType);
 
   var rawMedia = Array.isArray(record.media) ? record.media : [];
@@ -10214,9 +11547,11 @@ function handlePengumumanOwed_(session) {
   });
 
   var today = nowIso_().slice(0, 10);
+  var mySessionId = cleanString_(session.id);
   var items = pengumumanState.rows
     .filter(function (row) { return isActiveStatus_(normalizeStatusForSheet_('pengumuman', row.status)); })
     .filter(function (row) { return pengumumanTargetsSession_(row, session.jabatanIds); })
+    .filter(function (row) { return pengumumanExcludedPengurusIds_(row).indexOf(mySessionId) === -1; })
     .filter(function (row) {
       var startDate = normalizePengumumanDate_(row.start_date);
       var endDate = normalizePengumumanDate_(row.end_date);
@@ -10237,7 +11572,9 @@ function handlePengumumanOwed_(session) {
         title: cleanString_(row.title),
         message: cleanString_(row.message),
         isFullscreen: cleanString_(row.is_fullscreen) === '1',
+        waitSeconds: normalizePengumumanWaitSeconds_(row.wait_seconds),
         wajibRespon: cleanString_(row.wajib_respon) === '1',
+        responRules: normalizePengumumanResponRules_(row.respon_rules),
         colorType: normalizePengumumanColorType_(row.color_type),
         media: parsePengumumanMedia_(row)
       };
@@ -10277,6 +11614,15 @@ function auditCutoffDate_() {
   return shiftDateOnly_(nowIso_().slice(0, 10), -offset);
 }
 
+// Filter jenis kelas siang yang ikut diaudit (auditSettingsState.kelasJenisAudited, lihat
+// AUDIT_SETTINGS_DEFAULTS) -- list kosong = semua jenis diaudit (default lama, backward
+// compatible). "" mewakili kelas tanpa keterangan jenis.
+function isKelasJenisAudited_(jenis) {
+  var list = auditSettingsState.kelasJenisAudited;
+  if (!Array.isArray(list) || !list.length) return true;
+  return list.indexOf(cleanString_(jenis)) !== -1;
+}
+
 // Konfigurasi tiap jenis "entitas pengajaran" yang diaudit -- halaqoh, kelas siang, & regu
 // punya struktur data identik (entitas dgn daftar pengampu utama + badal + sheet absensi
 // terpisah yg mereferensi baliknya lewat FK), jadi cukup satu fungsi generik dgn config per
@@ -10287,51 +11633,74 @@ var ABSENSI_OWED_CONFIGS = [
   { kind: 'regu', entitySheet: 'regu', pengampuColumn: 'id_pembina', badalColumn: 'id_pembina_badal', absensiSheet: 'absensiRegu', absensiFkColumn: 'id_regu' }
 ];
 
+// ── Absensi entitas: definisi "bolong" bersama ───────────────────────────────────
+// SATU sumber kebenaran utk 3 tempat yg WAJIB identik: collectAbsensiGapItems_ (popup
+// self-audit "Audit Diri"), collectAbsensiGapItemsAllEntities_ (Kelola Audit Bawahan), &
+// computeAttendanceAudit_ (badge kuning per kartu di pages/halaqohAbsensi + pages/kelasAbsensi).
+// Sebelum 2026-09-07 badge kartu punya implementasi terpisah yg beda di 5 hal (cutoff pakai
+// "hari ini" mentah, tidak cek saklar halaqohActive/kelasActive, tidak cek filter jenis kelas,
+// tidak gate TA aktif, hitung baris absensi Nonaktif sbg "terisi") -- semua disatukan kesini.
+
+// { [entityId]: { [tanggalYmd]: true } } dari baris absensi entitas (halaqoh/kelas/regu)
+// berstatus AKTIF -- 1 baris apa pun di tanggal itu = "sudah diabsen" (tidak dibedakan
+// per-pengampu/sesi). Baris Nonaktif DIKECUALIKAN (2026-09-07): baris absensi yg dihapus/
+// dinonaktifkan tidak lagi dianggap mengisi hari itu (dulu collector hitung SEMUA baris,
+// badge kartu cuma yg aktif -- sekarang dua-duanya cuma yg aktif).
+function buildAbsensiFilledDatesByEntity_(absensiSheet, fkColumn) {
+  var out = {};
+  readSheetState_(absensiSheet).rows.forEach(function (row) {
+    if (!isActiveStatus_(row.status)) return;
+    var entityId = cleanString_(row[fkColumn]);
+    var tanggal = normalizeDateOnly_(row.tanggal);
+    if (!entityId || !tanggal) return;
+    if (!out[entityId]) out[entityId] = {};
+    out[entityId][tanggal] = true;
+  });
+  return out;
+}
+
+// Tanggal-tanggal "bolong" absensi utk SATU entitas. Rentang: AWAL TA (SELALU -- tidak
+// dimajukan ke created_at entitas, keputusan user 2026-09-07 disamakan dgn audit perkembangan;
+// konsekuensi: entitas yg dibuat pertengahan TA langsung py backlog sejak awal TA) s/d
+// cutoffDate (auditCutoffDate_(), ikut setting auditCutoffOffsetDays). TIAP HARI termasuk
+// weekend/hari libur wajib ada absensi (keputusan lama, beda dari audit hafalan/tasmi yg
+// mengecualikan weekend). Return { since, missingDates } -- kosong kalau TA belum mulai.
+function computeAbsensiEntityGapDates_(entityId, filledDatesByEntity, taStartDate, cutoffDate) {
+  var out = { since: taStartDate || '', missingDates: [] };
+  if (!taStartDate || taStartDate > cutoffDate) return out;
+  var filled = filledDatesByEntity[entityId] || {};
+  var cursor = taStartDate;
+  while (cursor <= cutoffDate) {
+    if (!filled[cursor]) out.missingDates.push(cursor);
+    cursor = shiftDateOnly_(cursor, 1);
+  }
+  return out;
+}
+
 // Cek 1 jenis entitas (halaqoh atau kelas siang) di tahun ajaran aktif di mana pengurus ini
 // jadi pengampu/pengajar UTAMA ATAU BADAL (badal ikut ditagih juga -- keputusan 2026-07-28,
-// karena badal juga ikut bertanggung jawab kalau kelas/halaqoh itu bolong absensinya): dari
-// tanggal berlakunya (awal TA, atau tanggal entitas dibuat kalau itu lebih baru) sampai
-// kemarin, cari tanggal yang SAMA SEKALI belum ada baris absensi (siapa pun yg isi, tidak
-// dibedakan per-pengampu; tidak ada pengecualian utk weekend/hari libur -- sesuai keputusan:
-// harus diisi tiap hari).
+// karena badal juga ikut bertanggung jawab kalau kelas/halaqoh itu bolong absensinya).
+// Definisi "bolong" ada di computeAbsensiEntityGapDates_ (dipakai bareng badge kartu).
 function collectAbsensiGapItems_(config, activeTaId, taStartDate, yesterday, pengurusId) {
   var entityState = readSheetState_(config.entitySheet);
   var mine = entityState.rows.filter(function (row) {
     if (isTruthy_(row.is_deleted)) return false;
     if (cleanString_(row.tahun_ajaran_id) !== activeTaId) return false;
     if (!isActiveStatus_(normalizeStatusForSheet_(config.entitySheet, row.status))) return false;
+    if (config.kind === 'kelas' && !isKelasJenisAudited_(row.jenis)) return false;
     return parseIdList_(row[config.pengampuColumn]).indexOf(pengurusId) !== -1 ||
       parseIdList_(row[config.badalColumn]).indexOf(pengurusId) !== -1;
   });
   if (!mine.length) return [];
 
-  var absensiState = readSheetState_(config.absensiSheet);
-  var filledDatesByEntity = {};
-  absensiState.rows.forEach(function (row) {
-    var entityId = cleanString_(row[config.absensiFkColumn]);
-    var tanggal = normalizeDateOnly_(row.tanggal);
-    if (!entityId || !tanggal) return;
-    if (!filledDatesByEntity[entityId]) filledDatesByEntity[entityId] = {};
-    filledDatesByEntity[entityId][tanggal] = true;
-  });
+  var filledDatesByEntity = buildAbsensiFilledDatesByEntity_(config.absensiSheet, config.absensiFkColumn);
 
   var items = [];
   mine.forEach(function (row) {
     var id = cleanString_(row.id);
-    var createdDate = normalizeDateOnly_(row.created_at);
-    var startDate = createdDate && createdDate > taStartDate ? createdDate : taStartDate;
-    if (startDate > yesterday) return; // entitas baru dibuat, belum ada hari penuh yang lewat
-
-    var filled = filledDatesByEntity[id] || {};
-    var missingCount = 0;
-    var missingDates = [];
-    var cursor = startDate;
-    while (cursor <= yesterday) {
-      if (!filled[cursor]) { missingCount += 1; missingDates.push(cursor); }
-      cursor = shiftDateOnly_(cursor, 1);
-    }
-    if (missingCount > 0) {
-      items.push({ kind: config.kind, id: id, name: cleanString_(row.name), missingCount: missingCount, missingDates: missingDates });
+    var gap = computeAbsensiEntityGapDates_(id, filledDatesByEntity, taStartDate, yesterday);
+    if (gap.missingDates.length > 0) {
+      items.push({ kind: config.kind, id: id, name: cleanString_(row.name), missingCount: gap.missingDates.length, missingDates: gap.missingDates });
     }
   });
   return items;
@@ -10373,8 +11742,8 @@ function groupGapEntitiesByPengurus_(gapEntries) {
 // 'kelas' ATAU 'halaqoh', lihat ABSENSI_OWED_CONFIGS) di TA aktif, lalu hasil gap-nya
 // dikelompokkan PER PENGAMPU (pengampu utama + badal) lewat groupGapEntitiesByPengurus_
 // supaya atasan (Akademik utk 'kelas', Koordinator Halaqoh utk 'halaqoh') bisa lihat siapa
-// saja bawahannya yang bolong. Definisi "bolong" identik dgn collectAbsensiGapItems_
-// (harian ketat, awal TA s/d kemarin).
+// saja bawahannya yang bolong. Definisi "bolong" identik dgn collectAbsensiGapItems_ &
+// badge kartu (computeAbsensiEntityGapDates_).
 function collectAbsensiGapItemsAllEntities_(kind, activeTaId, taStartDate, yesterday) {
   var config = ABSENSI_OWED_CONFIGS.filter(function (c) { return c.kind === kind; })[0];
   if (!config) return [];
@@ -10382,41 +11751,24 @@ function collectAbsensiGapItemsAllEntities_(kind, activeTaId, taStartDate, yeste
   var entities = entityState.rows.filter(function (row) {
     if (isTruthy_(row.is_deleted)) return false;
     if (cleanString_(row.tahun_ajaran_id) !== activeTaId) return false;
+    if (config.kind === 'kelas' && !isKelasJenisAudited_(row.jenis)) return false;
     return isActiveStatus_(normalizeStatusForSheet_(config.entitySheet, row.status));
   });
   if (!entities.length) return [];
 
-  var absensiState = readSheetState_(config.absensiSheet);
-  var filledDatesByEntity = {};
-  absensiState.rows.forEach(function (row) {
-    var entityId = cleanString_(row[config.absensiFkColumn]);
-    var tanggal = normalizeDateOnly_(row.tanggal);
-    if (!entityId || !tanggal) return;
-    if (!filledDatesByEntity[entityId]) filledDatesByEntity[entityId] = {};
-    filledDatesByEntity[entityId][tanggal] = true;
-  });
+  var filledDatesByEntity = buildAbsensiFilledDatesByEntity_(config.absensiSheet, config.absensiFkColumn);
 
   var gapEntries = [];
   entities.forEach(function (row) {
     var id = cleanString_(row.id);
-    var createdDate = normalizeDateOnly_(row.created_at);
-    var startDate = createdDate && createdDate > taStartDate ? createdDate : taStartDate;
-    if (startDate > yesterday) return; // entitas baru dibuat, belum ada hari penuh yang lewat
+    var gap = computeAbsensiEntityGapDates_(id, filledDatesByEntity, taStartDate, yesterday);
+    if (!gap.missingDates.length) return;
 
-    var filled = filledDatesByEntity[id] || {};
-    var missingCount = 0;
-    var missingDates = [];
-    var cursor = startDate;
-    while (cursor <= yesterday) {
-      if (!filled[cursor]) { missingCount += 1; missingDates.push(cursor); }
-      cursor = shiftDateOnly_(cursor, 1);
-    }
-    if (!missingCount) return;
-
+    var missingCount = gap.missingDates.length;
     var responsibleIds = uniqueList_(parseIdList_(row[config.pengampuColumn]).concat(parseIdList_(row[config.badalColumn])));
     // warn: >=5 hari bolong (kumulatif sejak awal TA) -- ambang simbol peringatan ⚠️ di popup
     // Kelola Audit Bawahan, keputusan user 2026-08-07.
-    gapEntries.push({ responsibleIds: responsibleIds, entity: { id: id, name: cleanString_(row.name), missingCount: missingCount, missingDates: missingDates, warn: missingCount >= 5 } });
+    gapEntries.push({ responsibleIds: responsibleIds, entity: { id: id, name: cleanString_(row.name), missingCount: missingCount, missingDates: gap.missingDates, warn: missingCount >= 5 } });
   });
   return groupGapEntitiesByPengurus_(gapEntries);
 }
@@ -10441,6 +11793,11 @@ function collectAbsensiGapItemsAllEntities_(kind, activeTaId, taStartDate, yeste
 // yang sudah tidak hadir -- beda dari audit absensi entitas (kind halaqoh/kelas/regu di
 // ABSENSI_OWED_CONFIGS) yang levelnya per-ENTITAS bukan per-santri, jadi tidak terpengaruh.
 function getDibekukanSantriIdSet_() {
+  // Toggle "santri dibekukan tetap kena audit" (Kelola Audit): kalau ON -> set kosong,
+  // sehingga semua .filter(function(id){ return !dibekukanSet[id]; }) di audit per-santri
+  // jadi no-op & santri dibekukan ikut ditagih seperti santri aktif. Default OFF = tetap
+  // dikecualikan (perilaku sejak 2026-08-08).
+  if (isTruthy_(auditSettingsState.dibekukanKenaAudit)) return {};
   var set = {};
   readSheetState_('santri').rows.forEach(function (row) {
     if (getSantriStatusKey_(row.status) === 'dibekukan') set[cleanString_(row.id)] = true;
@@ -10454,6 +11811,43 @@ var HAFALAN_GAP_COUNTING_JENIS_ = {
   tahsin_sendiri: true, tahsin_jamai: true,
   catatan: true
 };
+
+// Tanggal-tanggal "bolong" hafalan harian utk SATU halaqoh -- diekstrak supaya definisi
+// "bolong" identik di 3 pemakai: collectHafalanGapItems_ (popup Kelola Audit),
+// collectHafalanGapItemsAllPengampu_ (Kelola Audit Bawahan), dan badge audit kuning per
+// kartu di handleHafalanHarianHalaqohList_ (halaman hafalanHarian). Aturan: per-santri-
+// roster (roster direkonstruksi per tanggal via riwayatPindahHalaqoh, jadi santri yang baru
+// pindah masuk tidak ditagih utk tanggal sebelum dia jadi anggota), Sabtu & Ahad
+// dikecualikan (libur), santri Dibekukan dikecualikan (getDibekukanSantriIdSet_), rentang
+// startDate..cutoffDate. startDate SELALU taStartDate (awal TA) -- param createdAt (created_at
+// halaqoh) SENGAJA tidak lagi dipakai utk memajukan mulai (keputusan user 2026-09-07,
+// disamakan dgn audit perkembangan). Konsekuensi: halaqoh yg dibuat pertengahan TA langsung
+// py backlog sejak awal TA. `since` = startDate. filledSantriByDate DIGABUNG LINTAS HALAQOH
+// oleh pemanggil (keputusan user 2026-08-11), helper ini tidak memfilter per id_halaqoh.
+function computeHafalanHarianGapDates_(rosterIds, halaqohId, createdAt, filledSantriByDate, dibekukanSet, pindahRows, taStartDate, cutoffDate) {
+  var startDate = taStartDate;
+  var out = { since: startDate || '', missingDates: [] };
+  if (!rosterIds || !rosterIds.length || !startDate || startDate > cutoffDate) return out;
+  var mutasiHalaqohIni = (pindahRows || []).filter(function (r) {
+    return cleanString_(r.id_halaqoh_asal) === halaqohId || cleanString_(r.id_halaqoh_tujuan) === halaqohId;
+  });
+  var byDate = filledSantriByDate || {};
+  var cursor = startDate;
+  while (cursor <= cutoffDate) {
+    var hari = getHariNamaFromDate_(cursor);
+    if (hari !== 'sabtu' && hari !== 'ahad') {
+      var rosterIdsForDate = reconstructHalaqohMembershipIds_(rosterIds, halaqohId, mutasiHalaqohIni, cursor)
+        .filter(function (santriId) { return !dibekukanSet[santriId]; });
+      if (rosterIdsForDate.length) {
+        var filledSantriSet = byDate[cursor] || {};
+        var allFilled = rosterIdsForDate.every(function (santriId) { return !!filledSantriSet[santriId]; });
+        if (!allFilled) out.missingDates.push(cursor);
+      }
+    }
+    cursor = shiftDateOnly_(cursor, 1);
+  }
+  return out;
+}
 function collectHafalanGapItems_(activeTaId, taStartDate, yesterday, pengurusId) {
   var halaqohState = readSheetState_('halaqoh');
   var mine = halaqohState.rows.filter(function (row) {
@@ -10465,7 +11859,10 @@ function collectHafalanGapItems_(activeTaId, taStartDate, yesterday, pengurusId)
   });
   if (!mine.length) return [];
 
-  var hafalanState = readSheetState_('hafalanHarian');
+  // Cukup baris dalam jendela [awal TA .. kemarin]: computeHafalanHarianGapDates_ tidak pernah
+  // melihat tanggal di luar rentang itu, jadi menarik seluruh riwayat lintas TA hanya menambah
+  // biaya sia-sia. tanggal tersimpan ISO 'YYYY-MM-DD' -> perbandingan string aman.
+  var hafalanState = readSheetStateWhere_('hafalanHarian', '"tanggal" >= ? AND "tanggal" <= ?', [taStartDate, yesterday]);
   // filledSantriByDate: KEPUTUSAN USER 2026-08-11 -- "sudah setor" digabung LINTAS HALAQOH,
   // bukan per-halaqoh entri direkam. Kalau santri sudah punya entri Wajib/Catatan di halaqoh
   // MANAPUN hari itu (mis. santri ikut 2 halaqoh sekaligus, entrinya kepencet di salah satu),
@@ -10493,41 +11890,11 @@ function collectHafalanGapItems_(activeTaId, taStartDate, yesterday, pengurusId)
     var rosterIds = parseIdList_(row.id_santri);
     if (!rosterIds.length) return; // belum ada santri di roster, tidak mungkin dianggap gap
 
-    var createdDate = normalizeDateOnly_(row.created_at);
-    var startDate = createdDate && createdDate > taStartDate ? createdDate : taStartDate;
-    if (startDate > yesterday) return;
-
-    // Roster santri (row.id_santri) berubah dari waktu ke waktu lewat mutasi
-    // halaqoh.pindahkanSantri -- pakai roster SEKARANG mentah-mentah utk SELURUH rentang
-    // tanggal bakal salah menagih santri yang baru pindah MASUK utk tanggal SEBELUM dia
-    // jadi anggota halaqoh ini (bug nyata: pengampu "Hannan" ditagih 12+ hari bolong utk
-    // santri yang baru pindah masuk 2026-08-03, padahal hari² itu dia masih di halaqoh
-    // lain). Jadi roster direkonstruksi ULANG per tanggal pakai riwayatPindahHalaqoh,
-    // bukan dipakai statis dari luar loop (lihat reconstructHalaqohMembershipIds_).
-    var mutasiHalaqohIni = pindahRows.filter(function (r) {
-      return cleanString_(r.id_halaqoh_asal) === id || cleanString_(r.id_halaqoh_tujuan) === id;
-    });
-
-    var missingCount = 0;
-    var missingDates = [];
-    var cursor = startDate;
-    while (cursor <= yesterday) {
-      var hari = getHariNamaFromDate_(cursor);
-      if (hari !== 'sabtu' && hari !== 'ahad') { // Sabtu & Ahad libur, tidak ditagih (keputusan 2026-08-03)
-        // Santri dibekukan dikecualikan (keputusan 2026-08-08, lihat getDibekukanSantriIdSet_)
-        // -- kalau SEMUA yg tersisa sudah dibekukan, tanggal itu tidak dianggap gap sama sekali.
-        var rosterIdsForDate = reconstructHalaqohMembershipIds_(rosterIds, id, mutasiHalaqohIni, cursor)
-          .filter(function (santriId) { return !dibekukanSet[santriId]; });
-        if (rosterIdsForDate.length) {
-          var filledSantriSet = filledSantriByDate[cursor] || {};
-          var allFilled = rosterIdsForDate.every(function (santriId) { return !!filledSantriSet[santriId]; });
-          if (!allFilled) { missingCount += 1; missingDates.push(cursor); }
-        }
-      }
-      cursor = shiftDateOnly_(cursor, 1);
-    }
-    if (missingCount > 0) {
-      items.push({ kind: 'hafalan', id: id, name: cleanString_(row.name), missingCount: missingCount, missingDates: missingDates });
+    // Definisi "bolong" (roster per tanggal, Sabtu/Ahad libur, santri dibekukan dikecualikan)
+    // dipindah ke helper bersama supaya identik dgn badge kartu di halaman hafalanHarian.
+    var gap = computeHafalanHarianGapDates_(rosterIds, id, row.created_at, filledSantriByDate, dibekukanSet, pindahRows, taStartDate, yesterday);
+    if (gap.missingDates.length > 0) {
+      items.push({ kind: 'hafalan', id: id, name: cleanString_(row.name), missingCount: gap.missingDates.length, missingDates: gap.missingDates });
     }
   });
   return items;
@@ -10547,7 +11914,8 @@ function collectHafalanGapItemsAllPengampu_(activeTaId, taStartDate, yesterday) 
   });
   if (!entities.length) return [];
 
-  var hafalanState = readSheetState_('hafalanHarian');
+  // Cukup baris dalam jendela [awal TA .. kemarin] (lihat collectHafalanGapItems_).
+  var hafalanState = readSheetStateWhere_('hafalanHarian', '"tanggal" >= ? AND "tanggal" <= ?', [taStartDate, yesterday]);
   // filledSantriByDate: sama seperti collectHafalanGapItems_ -- digabung LINTAS HALAQOH
   // (keputusan user 2026-08-11), bukan per-halaqoh entri direkam.
   var filledSantriByDate = {};
@@ -10570,38 +11938,14 @@ function collectHafalanGapItemsAllPengampu_(activeTaId, taStartDate, yesterday) 
     var rosterIds = parseIdList_(row.id_santri);
     if (!rosterIds.length) return; // belum ada santri di roster, tidak mungkin dianggap gap
 
-    var createdDate = normalizeDateOnly_(row.created_at);
-    var startDate = createdDate && createdDate > taStartDate ? createdDate : taStartDate;
-    if (startDate > yesterday) return;
+    // Definisi "bolong" dipindah ke helper bersama (lihat computeHafalanHarianGapDates_) --
+    // identik dgn collectHafalanGapItems_ & badge kartu halaman hafalanHarian.
+    var gap = computeHafalanHarianGapDates_(rosterIds, id, row.created_at, filledSantriByDate, dibekukanSet, pindahRows, taStartDate, yesterday);
+    if (!gap.missingDates.length) return;
 
-    // Sama seperti collectHafalanGapItems_ -- roster direkonstruksi per tanggal, bukan
-    // dipakai statis, biar santri yang baru pindah masuk tidak ditagih utk tanggal sebelum
-    // dia jadi anggota halaqoh ini. Santri dibekukan juga dikecualikan (lihat
-    // getDibekukanSantriIdSet_).
-    var mutasiHalaqohIni = pindahRows.filter(function (r) {
-      return cleanString_(r.id_halaqoh_asal) === id || cleanString_(r.id_halaqoh_tujuan) === id;
-    });
-
-    var missingCount = 0;
-    var missingDates = [];
-    var cursor = startDate;
-    while (cursor <= yesterday) {
-      var hari = getHariNamaFromDate_(cursor);
-      if (hari !== 'sabtu' && hari !== 'ahad') {
-        var rosterIdsForDate = reconstructHalaqohMembershipIds_(rosterIds, id, mutasiHalaqohIni, cursor)
-          .filter(function (santriId) { return !dibekukanSet[santriId]; });
-        if (rosterIdsForDate.length) {
-          var filledSantriSet = filledSantriByDate[cursor] || {};
-          var allFilled = rosterIdsForDate.every(function (santriId) { return !!filledSantriSet[santriId]; });
-          if (!allFilled) { missingCount += 1; missingDates.push(cursor); }
-        }
-      }
-      cursor = shiftDateOnly_(cursor, 1);
-    }
-    if (!missingCount) return;
-
+    var missingCount = gap.missingDates.length;
     var responsibleIds = uniqueList_(parseIdList_(row.id_pengampu_halaqoh).concat(parseIdList_(row.id_pengampu_badal)));
-    gapEntries.push({ responsibleIds: responsibleIds, entity: { id: id, name: cleanString_(row.name), missingCount: missingCount, missingDates: missingDates, warn: missingCount >= 5 } });
+    gapEntries.push({ responsibleIds: responsibleIds, entity: { id: id, name: cleanString_(row.name), missingCount: missingCount, missingDates: gap.missingDates, warn: missingCount >= 5 } });
   });
   return groupGapEntitiesByPengurus_(gapEntries);
 }
@@ -10616,6 +11960,25 @@ function getMondayOfWeek_(dateOnly) {
   return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-');
 }
 
+// { [seninYmd]: { [santriId]: jumlahEntri } } dari baris perkembanganBulanan -- digabung
+// PER SANTRI lintas SEMUA regu (tidak dipisah per id_regu), entri berstatus 'Dihapus'
+// diabaikan. Dipakai bersama oleh collectPerkembanganGapItems_, collectPerkembanganGapItemsAllPembina_
+// & handlePerkembanganReguList_ (badge kartu regu) supaya definisi "sudah diisi" identik &
+// catatan santri yg pindah regu di tengah TA tetap kehitung utk regu barunya.
+function buildPerkembanganCountByWeekSantri_(rows) {
+  var countByWeekSantri = {};
+  (rows || []).forEach(function (row) {
+    if (cleanString_(row.status) === STATUS_LABELS.perkembanganBulanan.inactive) return;
+    var santriId = cleanString_(row.id_santri);
+    var tanggal = normalizeDateOnly_(row.tanggal);
+    if (!santriId || !tanggal) return;
+    var weekKey = getMondayOfWeek_(tanggal);
+    if (!countByWeekSantri[weekKey]) countByWeekSantri[weekKey] = {};
+    countByWeekSantri[weekKey][santriId] = (countByWeekSantri[weekKey][santriId] || 0) + 1;
+  });
+  return countByWeekSantri;
+}
+
 // Audit input perkembangan santri (pembina regu) -- beda dari audit lain yg per-HARI, ini
 // per-PEKAN kalender (Senin-Minggu): tiap pekan yg SUDAH SELESAI (Minggu-nya <= kemarin)
 // sejak awal TA, SEMUA santri di roster regu itu (kolom id_santri di baris regu, sama
@@ -10623,6 +11986,10 @@ function getMondayOfWeek_(dateOnly) {
 // itu -- kalau ada 1 saja santri yg kurang, pekan itu dianggap gap utk regu tsb. Pekan
 // yg masih berjalan (Minggu-nya > kemarin) TIDAK dihitung -- baru dinilai stlh selesai.
 // minPerWeek bisa diatur di halaman Kelola Audit (auditSettingsState.perkembanganMinPerWeek).
+// Catatan santri dihitung PER SANTRI lintas SEMUA regu (bukan lagi difilter id_regu entri,
+// keputusan user 2026-08-31): kalau santri pindah regu di tengah TA, catatan yg direkam di
+// bawah regu LAMA-nya tetap ikut memenuhi kewajiban regu barunya -- konsisten dgn chip
+// per-pekan di daftar santri (handlePerkembanganSantriList_) yg sudah lebih dulu begitu.
 function collectPerkembanganGapItems_(activeTaId, taStartDate, yesterday, pengurusId, minPerWeek) {
   var reguState = readSheetState_('regu');
   var mine = reguState.rows.filter(function (row) {
@@ -10635,17 +12002,7 @@ function collectPerkembanganGapItems_(activeTaId, taStartDate, yesterday, pengur
   if (!mine.length) return [];
 
   var perkembanganState = readSheetState_('perkembanganBulanan');
-  var countByReguWeekSantri = {};
-  perkembanganState.rows.forEach(function (row) {
-    var reguId = cleanString_(row.id_regu);
-    var santriId = cleanString_(row.id_santri);
-    var tanggal = normalizeDateOnly_(row.tanggal);
-    if (!reguId || !santriId || !tanggal) return;
-    var weekKey = getMondayOfWeek_(tanggal);
-    if (!countByReguWeekSantri[reguId]) countByReguWeekSantri[reguId] = {};
-    if (!countByReguWeekSantri[reguId][weekKey]) countByReguWeekSantri[reguId][weekKey] = {};
-    countByReguWeekSantri[reguId][weekKey][santriId] = (countByReguWeekSantri[reguId][weekKey][santriId] || 0) + 1;
-  });
+  var countByWeekSantri = buildPerkembanganCountByWeekSantri_(perkembanganState.rows);
 
   var dibekukanSet = getDibekukanSantriIdSet_();
   var items = [];
@@ -10657,18 +12014,21 @@ function collectPerkembanganGapItems_(activeTaId, taStartDate, yesterday, pengur
     var rosterIds = parseIdList_(row.id_santri).filter(function (santriId) { return !dibekukanSet[santriId]; });
     if (!rosterIds.length) return;
 
-    var createdDate = normalizeDateOnly_(row.created_at);
-    var startDate = createdDate && createdDate > taStartDate ? createdDate : taStartDate;
+    // startDate SELALU awal TA aktif -- TIDAK lagi dimajukan ke tanggal regu dibuat kalau
+    // regu-nya baru (keputusan user 2026-08-29, disederhanakan: "di regu ada berapa santri,
+    // apakah sudah terisi sesuai peraturan", tanpa pengecualian utk regu baru). Konsekuensi
+    // yg disadari: regu yg dibuat pertengahan TA langsung py backlog sejak awal TA jg begitu
+    // dibuat (beda dari sebelumnya yg pakai max(taStartDate, regu.created_at)).
+    var startDate = taStartDate;
     if (startDate > yesterday) return;
 
-    var weekCountsByWeek = countByReguWeekSantri[id] || {};
     var missingCount = 0;
     var missingWeeks = [];
     var cursorMonday = getMondayOfWeek_(startDate);
     while (true) {
       var weekSunday = shiftDateOnly_(cursorMonday, 6);
       if (weekSunday > yesterday) break; // pekan berjalan, belum dinilai
-      var weekCounts = weekCountsByWeek[cursorMonday] || {};
+      var weekCounts = countByWeekSantri[cursorMonday] || {};
       var allMet = rosterIds.every(function (santriId) { return (weekCounts[santriId] || 0) >= minPerWeek; });
       if (!allMet) { missingCount += 1; missingWeeks.push({ start: cursorMonday, end: weekSunday }); }
       cursorMonday = shiftDateOnly_(cursorMonday, 7);
@@ -10684,8 +12044,8 @@ function collectPerkembanganGapItems_(activeTaId, taStartDate, yesterday, pengur
 // pengurus, jalan ke SEMUA regu aktif di TA aktif, hasil gap-nya dikelompokkan PER PEMBINA
 // (pembina utama + badal) lewat groupGapEntitiesByPengurus_ supaya Kesantrian bisa lihat siapa
 // saja bawahannya (pembina regu) yang bolong isi perkembangan santri. Definisi "bolong" identik
-// dgn collectPerkembanganGapItems_ (per-pekan Senin-Minggu, roster STATIS spt aslinya --
-// bukan direkonstruksi per-tanggal, lihat [[project-perkembangan-audit-direct-roster-edit-bug]]).
+// dgn collectPerkembanganGapItems_ (per-pekan Senin-Minggu, roster STATIS -- tapi catatan
+// dihitung per santri lintas SEMUA regu lewat buildPerkembanganCountByWeekSantri_).
 function collectPerkembanganGapItemsAllPembina_(activeTaId, taStartDate, yesterday, minPerWeek) {
   var reguState = readSheetState_('regu');
   var entities = reguState.rows.filter(function (row) {
@@ -10696,17 +12056,7 @@ function collectPerkembanganGapItemsAllPembina_(activeTaId, taStartDate, yesterd
   if (!entities.length) return [];
 
   var perkembanganState = readSheetState_('perkembanganBulanan');
-  var countByReguWeekSantri = {};
-  perkembanganState.rows.forEach(function (row) {
-    var reguId = cleanString_(row.id_regu);
-    var santriId = cleanString_(row.id_santri);
-    var tanggal = normalizeDateOnly_(row.tanggal);
-    if (!reguId || !santriId || !tanggal) return;
-    var weekKey = getMondayOfWeek_(tanggal);
-    if (!countByReguWeekSantri[reguId]) countByReguWeekSantri[reguId] = {};
-    if (!countByReguWeekSantri[reguId][weekKey]) countByReguWeekSantri[reguId][weekKey] = {};
-    countByReguWeekSantri[reguId][weekKey][santriId] = (countByReguWeekSantri[reguId][weekKey][santriId] || 0) + 1;
-  });
+  var countByWeekSantri = buildPerkembanganCountByWeekSantri_(perkembanganState.rows);
 
   var dibekukanSet = getDibekukanSantriIdSet_();
   var gapEntries = [];
@@ -10716,18 +12066,18 @@ function collectPerkembanganGapItemsAllPembina_(activeTaId, taStartDate, yesterd
     var rosterIds = parseIdList_(row.id_santri).filter(function (santriId) { return !dibekukanSet[santriId]; });
     if (!rosterIds.length) return;
 
-    var createdDate = normalizeDateOnly_(row.created_at);
-    var startDate = createdDate && createdDate > taStartDate ? createdDate : taStartDate;
+    // startDate SELALU awal TA aktif -- sama spt collectPerkembanganGapItems_ di atas,
+    // lihat komentarnya (TIDAK lagi pengecualian utk regu yg baru dibuat pertengahan TA).
+    var startDate = taStartDate;
     if (startDate > yesterday) return;
 
-    var weekCountsByWeek = countByReguWeekSantri[id] || {};
     var missingCount = 0;
     var missingWeeks = [];
     var cursorMonday = getMondayOfWeek_(startDate);
     while (true) {
       var weekSunday = shiftDateOnly_(cursorMonday, 6);
       if (weekSunday > yesterday) break;
-      var weekCounts = weekCountsByWeek[cursorMonday] || {};
+      var weekCounts = countByWeekSantri[cursorMonday] || {};
       var allMet = rosterIds.every(function (santriId) { return (weekCounts[santriId] || 0) >= minPerWeek; });
       if (!allMet) { missingCount += 1; missingWeeks.push({ start: cursorMonday, end: weekSunday }); }
       cursorMonday = shiftDateOnly_(cursorMonday, 7);
@@ -10753,6 +12103,81 @@ function getNextSaturdayOnOrAfter_(dateOnly) {
   return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-');
 }
 
+// ── Setoran tasmi': definisi "bolong" bersama ─────────────────────────────────────
+// Dipakai 3 tempat yg definisi "bolong"-nya WAJIB identik: collectTasmiGapItems_ (popup
+// nag self-audit), collectTasmiGapItemsAllPengampu_ (Kelola Audit Bawahan), &
+// handleTasmiSetoranHalaqohList_ (badge kuning di kartu halaman tasmiSetoran).
+
+var TASMI_VALID_STATUS_ = { lulus: true, gagal: true, tidak: true };
+
+// { [tanggalYmd]: { [santriId]: true } } -- santri dianggap "sudah tasmi" Sabtu itu kalau
+// py entri dgn statusTasmi valid (lulus/gagal/tidak; khusus 'tidak' catatan per-santri jg
+// wajib) di halaqoh tasmi' MANA PUN hari itu. Digabung LINTAS SEMUA halaqoh tasmi' (bukan
+// difilter id_halaqoh_tasmi) -- pola sama dgn filledSantriByDate di collectHafalanGapItems_
+// & buildPerkembanganCountByWeekSantri_. Inilah yg bikin santri yg pindah antar halaqoh
+// tasmi' tidak ditagih ulang di halaqoh barunya utk Sabtu sebelum dia pindah: setoran yg
+// terekam di halaqoh lamanya tetap terhitung (keputusan user 2026-08-31).
+function buildTasmiFilledSantriByDate_(tasmiRows) {
+  var byDate = {};
+  (tasmiRows || []).forEach(function (row) {
+    if (cleanString_(row.status) === STATUS_LABELS.tasmiSetoran.inactive) return;
+    var tanggal = normalizeDateOnly_(row.tanggal);
+    if (!tanggal) return;
+    var entries;
+    try { entries = JSON.parse(cleanString_(row.entries_json) || '[]'); } catch (e) { entries = []; }
+    entries.forEach(function (entry) {
+      var sid = cleanString_(entry && entry.santriId);
+      if (!sid) return;
+      var statusTasmi = cleanString_(entry && entry.statusTasmi);
+      if (!TASMI_VALID_STATUS_[statusTasmi]) return;
+      if (statusTasmi === 'tidak' && !cleanString_(entry && entry.catatan)) return;
+      if (!byDate[tanggal]) byDate[tanggal] = {};
+      byDate[tanggal][sid] = true;
+    });
+  });
+  return byDate;
+}
+
+// Sabtu-Sabtu "bolong" utk 1 halaqoh tasmi'. rosterSantriIds = parseIdList_(row.id_santri)
+// mentah (fungsi ini yg memfilter santri dibekukan) -- SELALU roster SEKARANG, halaqohTasmi
+// tidak py riwayat perpindahan bertanggal (beda dari halaqoh biasa/riwayatPindahHalaqoh),
+// jadi TIDAK BISA direkonstruksi siapa anggotanya di tanggal lampau. filledSantriByDate =
+// buildTasmiFilledSantriByDate_(semua baris tasmiSetoran) -- "sudah tasmi" digabung LINTAS
+// SEMUA halaqoh tasmi' per santri+Sabtu, jadi santri yg pindah antar halaqoh tasmi' tidak
+// ditagih ulang di halaqoh barunya utk Sabtu sebelum dia pindah (keputusan user 2026-08-31,
+// pola sama dgn collectHafalanGapItems_/perkembangan). Sabtu dianggap beres kalau SEMUA
+// santri roster non-beku sudah "sudah tasmi" (statusTasmi valid; 'tidak' butuh catatan --
+// dicek di dalam builder). Rentang: Sabtu on/after AWAL TA (SELALU -- param createdAt SENGAJA
+// tidak lagi dipakai utk memajukan mulai, keputusan user 2026-09-07, disamakan dgn audit
+// perkembangan; konsekuensi: halaqoh tasmi' yg dibuat pertengahan TA langsung py backlog
+// sejak awal TA) s/d cutoffDate. CATATAN: updatedAt (batas bawah = "tanggal halaqoh terakhir
+// diedit") DICABUT 2026-08-31 -- dulu dipakai sbg akal2an supaya edit roster manual tidak
+// nagih retroaktif, tapi efek sampingnya edit APAPUN (mis. ganti nama) ikut menyembunyikan
+// backlog genuine. Sekarang tak perlu lagi krn setoran di halaqoh lama santri itu sudah ikut
+// terhitung. Return { since, missingDates } -- missingDates [] kalau roster kosong / belum mulai.
+function computeTasmiGapDates_(rosterSantriIds, createdAt, filledSantriByDate, dibekukanSet, taStartDate, cutoffDate) {
+  var rosterIds = (rosterSantriIds || []).filter(function (sid) { return !dibekukanSet[sid]; });
+  var startDate = taStartDate;
+  // 'since' yg dikembalikan SELALU hari Sabtu (jadwal tasmi' cuma Sabtu) -- awal TA bisa
+  // jatuh di hari apa saja, jadi dibulatkan maju ke Sabtu on/after startDate dulu sebelum
+  // dipakai sbg 'since'.
+  if (!rosterIds.length || !startDate || startDate > cutoffDate) {
+    var earlySince = startDate ? getNextSaturdayOnOrAfter_(startDate) : (taStartDate || '');
+    return { since: earlySince, missingDates: [] };
+  }
+  var byDate = filledSantriByDate || {};
+  var missingDates = [];
+  var cursor = getNextSaturdayOnOrAfter_(startDate);
+  var firstSaturday = cursor;
+  while (cursor <= cutoffDate) {
+    var filledSet = byDate[cursor] || {};
+    var allComplete = rosterIds.every(function (santriId) { return !!filledSet[santriId]; });
+    if (!allComplete) missingDates.push(cursor);
+    cursor = shiftDateOnly_(cursor, 7);
+  }
+  return { since: firstSaturday, missingDates: missingDates };
+}
+
 // Audit status setoran tasmi' -- BEDA dari audit lain: cuma dicek hari SABTU (jadwal
 // tasmi' pekanan yg sudah baku di sistem ini), dan yg diperiksa BUKAN cuma "ada barisnya
 // atau tidak" tapi KELENGKAPAN datanya per santri: tiap santri di roster halaqoh tasmi'
@@ -10771,55 +12196,15 @@ function collectTasmiGapItems_(activeTaId, taStartDate, yesterday, pengurusId) {
   });
   if (!mine.length) return [];
 
-  var tasmiState = readSheetState_('tasmiSetoran');
-  var entriesByHalaqohDate = {};
-  tasmiState.rows.forEach(function (row) {
-    if (cleanString_(row.status) === STATUS_LABELS.tasmiSetoran.inactive) return;
-    var halaqohId = cleanString_(row.id_halaqoh_tasmi);
-    var tanggal = normalizeDateOnly_(row.tanggal);
-    if (!halaqohId || !tanggal) return;
-    var entries;
-    try { entries = JSON.parse(cleanString_(row.entries_json) || '[]'); } catch (e) { entries = []; }
-    var bySantri = {};
-    entries.forEach(function (entry) {
-      var sid = cleanString_(entry && entry.santriId);
-      if (!sid) return;
-      bySantri[sid] = { statusTasmi: cleanString_(entry && entry.statusTasmi), catatan: cleanString_(entry && entry.catatan) };
-    });
-    if (!entriesByHalaqohDate[halaqohId]) entriesByHalaqohDate[halaqohId] = {};
-    entriesByHalaqohDate[halaqohId][tanggal] = bySantri;
-  });
-
-  var VALID_STATUS_TASMI = { lulus: true, gagal: true, tidak: true };
+  var filledSantriByDate = buildTasmiFilledSantriByDate_(readSheetState_('tasmiSetoran').rows);
   var dibekukanSet = getDibekukanSantriIdSet_();
   var items = [];
   mine.forEach(function (row) {
     var id = cleanString_(row.id);
-    // Santri dibekukan dikecualikan (lihat getDibekukanSantriIdSet_).
-    var rosterIds = parseIdList_(row.id_santri).filter(function (santriId) { return !dibekukanSet[santriId]; });
-    if (!rosterIds.length) return;
-
-    var createdDate = normalizeDateOnly_(row.created_at);
-    var startDate = createdDate && createdDate > taStartDate ? createdDate : taStartDate;
-    if (startDate > yesterday) return;
-
-    var byDate = entriesByHalaqohDate[id] || {};
-    var missingCount = 0;
-    var missingDates = [];
-    var cursor = getNextSaturdayOnOrAfter_(startDate);
-    while (cursor <= yesterday) {
-      var bySantri = byDate[cursor] || {};
-      var allComplete = rosterIds.every(function (santriId) {
-        var entry = bySantri[santriId];
-        if (!entry || !VALID_STATUS_TASMI[entry.statusTasmi]) return false;
-        if (entry.statusTasmi === 'tidak' && !entry.catatan) return false;
-        return true;
-      });
-      if (!allComplete) { missingCount += 1; missingDates.push(cursor); }
-      cursor = shiftDateOnly_(cursor, 7);
-    }
-    if (missingCount > 0) {
-      items.push({ kind: 'tasmi', id: id, name: cleanString_(row.name), missingCount: missingCount, missingDates: missingDates });
+    // Santri dibekukan dikecualikan di dalam computeTasmiGapDates_ (lihat getDibekukanSantriIdSet_).
+    var gap = computeTasmiGapDates_(parseIdList_(row.id_santri), row.created_at, filledSantriByDate, dibekukanSet, taStartDate, yesterday);
+    if (gap.missingDates.length) {
+      items.push({ kind: 'tasmi', id: id, name: cleanString_(row.name), missingCount: gap.missingDates.length, missingDates: gap.missingDates });
     }
   });
   return items;
@@ -10840,57 +12225,18 @@ function collectTasmiGapItemsAllPengampu_(activeTaId, taStartDate, yesterday) {
   });
   if (!entities.length) return [];
 
-  var tasmiState = readSheetState_('tasmiSetoran');
-  var entriesByHalaqohDate = {};
-  tasmiState.rows.forEach(function (row) {
-    if (cleanString_(row.status) === STATUS_LABELS.tasmiSetoran.inactive) return;
-    var halaqohId = cleanString_(row.id_halaqoh_tasmi);
-    var tanggal = normalizeDateOnly_(row.tanggal);
-    if (!halaqohId || !tanggal) return;
-    var entries;
-    try { entries = JSON.parse(cleanString_(row.entries_json) || '[]'); } catch (e) { entries = []; }
-    var bySantri = {};
-    entries.forEach(function (entry) {
-      var sid = cleanString_(entry && entry.santriId);
-      if (!sid) return;
-      bySantri[sid] = { statusTasmi: cleanString_(entry && entry.statusTasmi), catatan: cleanString_(entry && entry.catatan) };
-    });
-    if (!entriesByHalaqohDate[halaqohId]) entriesByHalaqohDate[halaqohId] = {};
-    entriesByHalaqohDate[halaqohId][tanggal] = bySantri;
-  });
-
-  var VALID_STATUS_TASMI = { lulus: true, gagal: true, tidak: true };
+  var filledSantriByDate = buildTasmiFilledSantriByDate_(readSheetState_('tasmiSetoran').rows);
   var dibekukanSet = getDibekukanSantriIdSet_();
   var gapEntries = [];
   entities.forEach(function (row) {
     var id = cleanString_(row.id);
-    // Santri dibekukan dikecualikan (lihat getDibekukanSantriIdSet_).
-    var rosterIds = parseIdList_(row.id_santri).filter(function (santriId) { return !dibekukanSet[santriId]; });
-    if (!rosterIds.length) return;
+    // Santri dibekukan dikecualikan di dalam computeTasmiGapDates_ (lihat getDibekukanSantriIdSet_).
+    var gap = computeTasmiGapDates_(parseIdList_(row.id_santri), row.created_at, filledSantriByDate, dibekukanSet, taStartDate, yesterday);
+    if (!gap.missingDates.length) return;
 
-    var createdDate = normalizeDateOnly_(row.created_at);
-    var startDate = createdDate && createdDate > taStartDate ? createdDate : taStartDate;
-    if (startDate > yesterday) return;
-
-    var byDate = entriesByHalaqohDate[id] || {};
-    var missingCount = 0;
-    var missingDates = [];
-    var cursor = getNextSaturdayOnOrAfter_(startDate);
-    while (cursor <= yesterday) {
-      var bySantri = byDate[cursor] || {};
-      var allComplete = rosterIds.every(function (santriId) {
-        var entry = bySantri[santriId];
-        if (!entry || !VALID_STATUS_TASMI[entry.statusTasmi]) return false;
-        if (entry.statusTasmi === 'tidak' && !entry.catatan) return false;
-        return true;
-      });
-      if (!allComplete) { missingCount += 1; missingDates.push(cursor); }
-      cursor = shiftDateOnly_(cursor, 7);
-    }
-    if (!missingCount) return;
-
+    var missingCount = gap.missingDates.length;
     var responsibleIds = uniqueList_(parseIdList_(row.id_pengampu_halaqoh).concat(parseIdList_(row.id_pengampu_badal)));
-    gapEntries.push({ responsibleIds: responsibleIds, entity: { id: id, name: cleanString_(row.name), missingCount: missingCount, missingDates: missingDates, warn: missingCount >= 5 } });
+    gapEntries.push({ responsibleIds: responsibleIds, entity: { id: id, name: cleanString_(row.name), missingCount: missingCount, missingDates: gap.missingDates, warn: missingCount >= 5 } });
   });
   return groupGapEntitiesByPengurus_(gapEntries);
 }
@@ -10946,6 +12292,7 @@ function collectSantriMembershipMismatchItems_(entitySheet, activeTaId, expected
     if (isTruthy_(row.is_deleted)) return;
     if (cleanString_(row.tahun_ajaran_id) !== activeTaId) return;
     if (!isActiveStatus_(normalizeStatusForSheet_(entitySheet, row.status))) return;
+    if (entitySheet === 'kelasSiang' && !isKelasJenisAudited_(row.jenis)) return;
     parseIdList_(row[memberField]).forEach(function (sid) {
       countBySantri[sid] = (countBySantri[sid] || 0) + 1;
     });
@@ -10957,7 +12304,7 @@ function collectSantriMembershipMismatchItems_(entitySheet, activeTaId, expected
     var statusKey = getSantriStatusKey_(row.status);
     if (statusKey !== 'active' && statusKey !== 'dibekukan') return;
     var count = countBySantri[cleanString_(row.id)] || 0;
-    var nama = cleanString_(row.nama_setelah_diubah) || cleanString_(row.nama_lengkap_akte) || cleanString_(row.nama_panggilan);
+    var nama = santriDisplayName_(row);
     // keterangan_status = catatan bebas isian admin (lihat placeholder di daftarSantri:
     // "cuti / barusan keluar / lulus / dll") -- dipakai sbg label spesifik pengganti kata
     // generik "Dibekukan" di dialog rincian kalau diisi (keputusan user 2026-08-03).
@@ -11021,14 +12368,16 @@ function collectNilaiWajibGapItems_(activeTaId, pengurusId) {
     if (isTruthy_(row.is_deleted)) return false;
     if (cleanString_(row.tahun_ajaran_id) !== activeTaId) return false;
     if (!isActiveStatus_(normalizeStatusForSheet_('kelasSiang', row.status))) return false;
+    if (!isKelasJenisAudited_(row.jenis)) return false;
     return parseIdList_(row.id_pengajar).indexOf(pengurusId) !== -1 ||
       parseIdList_(row.id_pengajar_badal).indexOf(pengurusId) !== -1;
   });
   if (!mine.length) return [];
 
   var todayStr = nowIso_().slice(0, 10);
-  var aturanList = readSheetState_('nilaiWajib').rows.filter(function (row) {
-    if (!isActiveStatus_(normalizeStatusForSheet_('nilaiWajib', row.status))) return false;
+  var aturanList = readSheetState_('nilaiWajibUjian').rows.filter(function (row) {
+    if (!isActiveStatus_(normalizeStatusForSheet_('nilaiWajibUjian', row.status))) return false;
+    if (cleanString_(row.tahun_ajaran_id) !== activeTaId) return false; // aturan ikut TA aktif
     if (cleanString_(row.id_kelas)) return false; // hanya aturan GLOBAL (lihat backend/nilaiwajib.js)
     var tanggal = cleanString_(row.tanggal);
     // Aturan lama (dibuat sebelum tanggal ujian diwajibkan) yg kebetulan masih kosong
@@ -11109,8 +12458,9 @@ function collectNilaiWajibGapItems_(activeTaId, pengurusId) {
 // backend/nilaiwajib.js).
 function collectNilaiWajibGapItemsAllPengajar_(activeTaId) {
   var todayStr = nowIso_().slice(0, 10);
-  var aturanList = readSheetState_('nilaiWajib').rows.filter(function (row) {
-    if (!isActiveStatus_(normalizeStatusForSheet_('nilaiWajib', row.status))) return false;
+  var aturanList = readSheetState_('nilaiWajibUjian').rows.filter(function (row) {
+    if (!isActiveStatus_(normalizeStatusForSheet_('nilaiWajibUjian', row.status))) return false;
+    if (cleanString_(row.tahun_ajaran_id) !== activeTaId) return false; // aturan ikut TA aktif
     if (cleanString_(row.id_kelas)) return false; // hanya aturan GLOBAL
     var tanggal = cleanString_(row.tanggal);
     if (!tanggal) return false;
@@ -11130,6 +12480,7 @@ function collectNilaiWajibGapItemsAllPengajar_(activeTaId) {
   var kelasRows = kelasState.rows.filter(function (row) {
     if (isTruthy_(row.is_deleted)) return false;
     if (cleanString_(row.tahun_ajaran_id) !== activeTaId) return false;
+    if (!isKelasJenisAudited_(row.jenis)) return false;
     return isActiveStatus_(normalizeStatusForSheet_('kelasSiang', row.status));
   });
   if (!kelasRows.length) return [];
@@ -11199,6 +12550,7 @@ function collectSilabusGapItems_(activeTaId, pengurusId) {
     if (isTruthy_(row.is_deleted)) return false;
     if (cleanString_(row.tahun_ajaran_id) !== activeTaId) return false;
     if (!isActiveStatus_(normalizeStatusForSheet_('kelasSiang', row.status))) return false;
+    if (!isKelasJenisAudited_(row.jenis)) return false;
     return parseIdList_(row.id_pengajar).indexOf(pengurusId) !== -1 ||
       parseIdList_(row.id_pengajar_badal).indexOf(pengurusId) !== -1;
   });
@@ -11242,6 +12594,7 @@ function collectSilabusGapItemsAllPengajar_(activeTaId) {
   var kelasRows = kelasState.rows.filter(function (row) {
     if (isTruthy_(row.is_deleted)) return false;
     if (cleanString_(row.tahun_ajaran_id) !== activeTaId) return false;
+    if (!isKelasJenisAudited_(row.jenis)) return false;
     return isActiveStatus_(normalizeStatusForSheet_('kelasSiang', row.status));
   });
   if (!kelasRows.length) return [];
@@ -11408,8 +12761,8 @@ function assertNoPendingAudit_(session) {
 // halaman Kelola Audit. Sama seperti maintenance mode, disimpan ke file JSON (bukan sheet)
 // karena ini pengaturan sistem tunggal, bukan daftar record.
 function handleAuditSettingsSet_(request, session) {
-  if (!session || !session.permissions || !(session.permissions.isAdmin || session.permissions.isSuperAdmin || session.permissions.isMudir)) {
-    throw createError_('Hanya Admin/Super Admin/Mudir yang dapat mengubah pengaturan audit absensi.', 403);
+  if (!canAccessLevel_(session, 'sistemAudit', 'manage', function (s) { var p = s.permissions; return !!(p && (p.isAdmin || p.isMudir)); })) {
+    throw createError_('Hanya Admin/Super Admin/Mudir (atau jabatan yang diatur di Kelola Addons) yang dapat mengubah pengaturan audit absensi.', 403);
   }
   var nextCutoffOffsetDays = auditSettingsState.auditCutoffOffsetDays;
   if (request.audit_cutoff_offset_days !== undefined) {
@@ -11426,6 +12779,18 @@ function handleAuditSettingsSet_(request, session) {
       throw createError_('Minimal input per pekan harus angka antara 1 dan 14.', 400);
     }
     nextMinPerWeek = parsedMinPerWeek;
+  }
+  var nextKelasJenisAudited = auditSettingsState.kelasJenisAudited;
+  if (request.kelas_jenis_audited !== undefined) {
+    var rawKelasJenisList = Array.isArray(request.kelas_jenis_audited) ? request.kelas_jenis_audited : [];
+    var seenKelasJenis = {};
+    nextKelasJenisAudited = [];
+    rawKelasJenisList.forEach(function (j) {
+      var cleaned = cleanString_(j).slice(0, 60);
+      if (seenKelasJenis[cleaned]) return;
+      seenKelasJenis[cleaned] = true;
+      nextKelasJenisAudited.push(cleaned);
+    });
   }
   auditSettingsState = {
     halaqohActive: request.halaqoh_active !== undefined ? isTruthy_(request.halaqoh_active) : auditSettingsState.halaqohActive,
@@ -11456,12 +12821,164 @@ function handleAuditSettingsSet_(request, session) {
     nilaiWajibBlocksJurnal: request.nilai_wajib_blocks_jurnal !== undefined ? isTruthy_(request.nilai_wajib_blocks_jurnal) : auditSettingsState.nilaiWajibBlocksJurnal,
     silabusActive: request.silabus_active !== undefined ? isTruthy_(request.silabus_active) : auditSettingsState.silabusActive,
     silabusBlocksJurnal: request.silabus_blocks_jurnal !== undefined ? isTruthy_(request.silabus_blocks_jurnal) : auditSettingsState.silabusBlocksJurnal,
+    dibekukanKenaAudit: request.dibekukan_kena_audit !== undefined ? isTruthy_(request.dibekukan_kena_audit) : auditSettingsState.dibekukanKenaAudit,
+    kelasJenisAudited: nextKelasJenisAudited,
     auditCutoffOffsetDays: nextCutoffOffsetDays,
     setBy: session.namaLengkap || session.name || '',
     setAt: nowIso_()
   };
   try { fs.writeFileSync(AUDIT_SETTINGS_PATH, JSON.stringify(auditSettingsState), 'utf8'); } catch (e) {}
   return { ok: true, timestamp: nowIso_(), data: auditSettingsState };
+}
+
+var APP_THEME_HEX_RE = /^#[0-9a-fA-F]{6}$/;
+var APP_THEME_FONT_RE = /^[a-zA-Z0-9 ,'"._-]{1,200}$/;
+var APP_THEME_COLOR_KEYS = ['primary', 'primaryStrong', 'primarySoft', 'danger', 'success', 'warning', 'bg', 'surface', 'text', 'textMuted', 'border'];
+
+function handleAppThemeSet_(request, session) {
+  if (!canAccessLevel_(session, 'appTheme', 'manage', function (s) { var p = s.permissions; return !!(p && p.isAdmin); })) {
+    throw createError_('Hanya Admin/Super Admin yang dapat mengubah tampilan aplikasi (warna, font, ukuran).', 403);
+  }
+  var nextColors = Object.assign({}, appThemeState.colors);
+  var rawColors = request.colors;
+  if (rawColors && typeof rawColors === 'string') {
+    try { rawColors = JSON.parse(rawColors); } catch (e) { rawColors = null; }
+  }
+  if (rawColors && typeof rawColors === 'object') {
+    APP_THEME_COLOR_KEYS.forEach(function (key) {
+      var value = rawColors[key];
+      if (value === undefined) return;
+      var cleaned = cleanString_(value);
+      if (!APP_THEME_HEX_RE.test(cleaned)) {
+        throw createError_('Warna "' + key + '" harus format hex #RRGGBB.', 400);
+      }
+      nextColors[key] = cleaned;
+    });
+  }
+  var nextFontFamily = appThemeState.fontFamily;
+  if (request.font_family !== undefined) {
+    var cleanedFont = cleanString_(request.font_family);
+    if (!APP_THEME_FONT_RE.test(cleanedFont)) {
+      throw createError_('Font tidak valid. Gunakan huruf, angka, spasi, koma, tanda kutip, atau tanda hubung saja (maks 200 karakter).', 400);
+    }
+    nextFontFamily = cleanedFont;
+  }
+  var nextUiScale = appThemeState.uiScale;
+  if (request.ui_scale !== undefined) {
+    var parsedScale = parseFloat(request.ui_scale);
+    if (!Number.isFinite(parsedScale) || parsedScale < 0.5 || parsedScale > 2) {
+      throw createError_('Ukuran tampilan harus angka antara 50% dan 200%.', 400);
+    }
+    nextUiScale = parsedScale;
+  }
+  appThemeState = {
+    colors: nextColors,
+    fontFamily: nextFontFamily,
+    uiScale: nextUiScale,
+    setBy: session.namaLengkap || session.name || '',
+    setAt: nowIso_()
+  };
+  try { fs.writeFileSync(APP_THEME_PATH, JSON.stringify(appThemeState), 'utf8'); } catch (e) {}
+  return { ok: true, timestamp: nowIso_(), data: appThemeState };
+}
+
+// Kelola Addons: nyala/matiin fitur opsional (lihat ADDONS_REGISTRY_ & ADDON_ACTION_EXACT_/
+// ADDON_ACTION_PREFIXES_ di dekat definisi addonsSettingsState). GET dibuka bareng SET
+// (satu-satunya cara halaman ini tahu status sekarang), makanya dua-duanya sama-sama
+// Admin/Super Admin only di authorizeAction_. Responsnya menggabungkan addon yang BENERAN
+// bisa dimatikan (ADDONS_REGISTRY_, toggleable:true) dengan sisa halaman aplikasi yang cuma
+// ditampilkan buat transparansi tapi terkunci (ADDONS_LOCKED_REGISTRY_, toggleable:false) --
+// biar halaman Kelola Addons bisa menampilkan hampir semua halaman dalam satu daftar.
+// `levels` seragam utk addon toggleable (selalu 1 level 'manage') maupun locked-group (0+
+// level custom, lihat field `levels` di ADDONS_LOCKED_REGISTRY_) -- masing-masing level py
+// jabatanIds sendiri (null = ikut aturan bawaan/fallbackFn, array = MENGGANTIKAN TOTAL, lihat
+// canAccessLevel_). Locked-group TANPA `levels` (paling banyak) dapat array kosong = benar2
+// tidak ada apa pun yang bisa diatur, cuma tampil buat transparansi.
+function buildLevelsForItem_(key, levelDefs) {
+  return (levelDefs || []).map(function (lv) {
+    return { key: lv.key, label: lv.label, desc: lv.desc, jabatanIds: addonsSettingsState[lv.field] || null };
+  });
+}
+function findLockedGroupEntry_(key) {
+  for (var i = 0; i < ADDONS_LOCKED_REGISTRY_.length; i++) {
+    if (ADDONS_LOCKED_REGISTRY_[i].key === key) return ADDONS_LOCKED_REGISTRY_[i];
+  }
+  return null;
+}
+function handleAddonsSettingsGet_() {
+  var items = ADDONS_REGISTRY_.map(function (a) {
+    return {
+      key: a.key,
+      nama: a.nama,
+      halaman: a.halaman,
+      deskripsi: a.deskripsi,
+      toggleable: true,
+      aktif: addonsSettingsState[a.field] !== false,
+      konsekuensiAktif: a.konsekuensiAktif,
+      konsekuensiNonaktif: a.konsekuensiNonaktif,
+      alasanTerkunci: null,
+      levels: buildLevelsForItem_(a.key, [{ key: 'manage', label: 'Jabatan Pengelola', field: a.key + 'ManageJabatanIds', desc: a.manageDesc }].concat(a.extraLevels || []))
+    };
+  }).concat(ADDONS_LOCKED_REGISTRY_.map(function (a) {
+    return {
+      key: a.key,
+      nama: a.nama,
+      halaman: a.halaman,
+      deskripsi: a.deskripsi,
+      toggleable: false,
+      aktif: true,
+      konsekuensiAktif: null,
+      konsekuensiNonaktif: null,
+      alasanTerkunci: a.alasanTerkunci,
+      levels: buildLevelsForItem_(a.key, a.levels)
+    };
+  }));
+  return { ok: true, timestamp: nowIso_(), data: { items: items, setBy: addonsSettingsState.setBy, setAt: addonsSettingsState.setAt } };
+}
+
+function handleAddonsSettingsSet_(request, session) {
+  var key = cleanString_(request.key || '');
+  var addon = findAddonRegistryEntry_(key);
+  var lockedGroup = !addon ? findLockedGroupEntry_(key) : null;
+  if (!addon && !lockedGroup) {
+    throw createError_('Addon "' + key + '" tidak dikenali.', 400);
+  }
+  // `aktif` (on/off) HANYA berlaku utk addon toggleable -- kelompok terkunci sama sekali tidak
+  // punya field aktif/nonaktif, on/off-nya memang tidak pernah bisa diubah lewat sini.
+  if (request.aktif !== undefined) {
+    if (!addon) throw createError_('Bagian "' + key + '" adalah halaman inti dan tidak bisa dinonaktifkan.', 403);
+    addonsSettingsState[addon.field] = isTruthy_(request.aktif);
+  }
+  // Level akses (jabatanIds) SENGAJA independen dari `aktif` -- hanya field yang benar-benar
+  // dikirim yang disentuh, supaya toggle Aktif/Nonaktif tidak diam-diam mereset jabatan, dan
+  // sebaliknya. `level` default 'manage' (satu-satunya level yang dipunyai addon toggleable);
+  // kelompok terkunci WAJIB kirim `level` yang cocok dengan salah satu `levels` di registry-nya.
+  if (request.jabatanIds !== undefined) {
+    var levelKey = cleanString_(request.level || 'manage');
+    var levelDef = addon
+      ? (levelKey === 'manage'
+          ? { field: addon.key + 'ManageJabatanIds' }
+          : (addon.extraLevels || []).filter(function (lv) { return lv.key === levelKey; })[0])
+      : (lockedGroup.levels || []).filter(function (lv) { return lv.key === levelKey; })[0];
+    if (!levelDef) throw createError_('Level akses "' + levelKey + '" tidak tersedia untuk "' + key + '".', 400);
+    var raw = request.jabatanIds;
+    if (raw === null) {
+      addonsSettingsState[levelDef.field] = null; // reset -> ikut aturan bawaan lagi
+    } else if (Array.isArray(raw)) {
+      var seenIds = {}; var cleanIds = [];
+      raw.forEach(function (id) {
+        var c = cleanString_(id);
+        if (c && !seenIds[c]) { seenIds[c] = true; cleanIds.push(c); }
+      });
+      addonsSettingsState[levelDef.field] = cleanIds; // MENGGANTIKAN TOTAL (boleh kosong)
+    } else {
+      throw createError_('jabatanIds harus null atau daftar id jabatan.', 400);
+    }
+  }
+  addonsSettingsState.setBy = session.namaLengkap || session.name || '';
+  addonsSettingsState.setAt = nowIso_();
+  try { fs.writeFileSync(ADDONS_SETTINGS_PATH, JSON.stringify(addonsSettingsState), 'utf8'); } catch (e) {}
+  return handleAddonsSettingsGet_();
 }
 
 // Siapa yang boleh BUKA HALAMAN PENGATURAN & toggle ON/OFF -- HANYA Admin, Super Admin
@@ -11480,7 +12997,12 @@ function handleAuditSettingsSet_(request, session) {
 // di-scope di UI.
 function canManageAuditBawahan_(session) {
   var perms = (session && (session.rawPermissions || session.permissions)) || {};
-  return !!(perms.isAdmin || perms.isSuperAdmin);
+  // Shim {jabatanIds, permissions: RAW} -- sengaja bukan `session` apa adanya, supaya level akses
+  // "Sistem Audit" (Kelola Addons) ikut memakai rawPermissions, konsisten dgn alasan di atas
+  // (rawPermissions dipakai FUNGSI INI sejak awal, BUKAN baru ditambahkan bareng canAccessLevel_).
+  return canAccessLevel_(session && { jabatanIds: session.jabatanIds, permissions: perms }, 'sistemAudit', 'manage', function () {
+    return !!(perms.isAdmin);
+  });
 }
 
 // Konfigurasi tiap item "Kelola Audit Bawahan" -- settingKey (field di auditBawahanSettingsState),
@@ -11541,6 +13063,45 @@ function withAuditBawahanRoleOptions_(state) {
 }
 function withAuditBawahanRoleOptionsInResponse_(response) {
   return Object.assign({}, response, { data: withAuditBawahanRoleOptions_(response.data) });
+}
+
+// Kind BEDA dari 11 kind lain di bawah: INFO POSITIF (bukan gap/kekurangan) -- daftar
+// pengurus yang MENGINPUT pelanggaran HARI INI (bukan akumulasi sejak awal TA, bukan
+// "bolong"/menagih kekurangan). Dipakai Bagian Hukuman buat pantau siapa saja yang lapor
+// pelanggaran hari itu (keputusan user 2026-08-29). hasWarn/warn SELALU false -- tidak ada
+// ambang "parah" krn ini bukan audit menagih (lihat `summaryLabel` di kindConfig & pemakaiannya
+// di frontend/shared-shell.js utk teks "belum menyelesaikan tugas" yg disesuaikan). Dikelompokkan
+// per input_by_id (field dedicated di sheet pelanggaran; created_by_id generik nilainya sama
+// persis krn di-set dari session yg sama saat handlePelanggaranSave_, tapi input_by_id lebih
+// eksplisit maksudnya), difilter created_at (kapan RECORD dibuat di sistem) BUKAN kolom
+// `tanggal` (tanggal KEJADIAN pelanggaran -- bisa beda hari dari kapan diinput, petugas kadang
+// input mundur).
+function collectPelanggaranInputTodayItems_() {
+  var today = nowIso_().slice(0, 10);
+  var pengurusState = readSheetState_('pengurus');
+  var nameById = {};
+  pengurusState.rows.forEach(function (row) { nameById[cleanString_(row.id)] = cleanString_(row.name); });
+
+  var state = readSheetState_('pelanggaran');
+  var counts = {};
+  state.rows.forEach(function (row) {
+    if (!isActiveStatus_(normalizeStatusForSheet_('pelanggaran', row.status))) return;
+    if (cleanString_(row.created_at).slice(0, 10) !== today) return;
+    var id = cleanString_(row.input_by_id);
+    if (!id) return;
+    counts[id] = (counts[id] || 0) + 1;
+  });
+  var list = Object.keys(counts).map(function (id) {
+    return {
+      pengurusId: id,
+      pengurusName: nameById[id] || '(tidak diketahui)',
+      entities: [{ name: 'Input hari ini', missingCount: counts[id], warn: false }],
+      totalMissing: counts[id],
+      hasWarn: false
+    };
+  });
+  list.sort(function (a, b) { return b.totalMissing - a.totalMissing || a.pengurusName.localeCompare(b.pengurusName, 'id'); });
+  return list;
 }
 
 var AUDIT_BAWAHAN_KINDS_ = [
@@ -11606,6 +13167,18 @@ var AUDIT_BAWAHAN_KINDS_ = [
     kind: 'akademikRegu', settingKey: 'akademikReguBawahanActive', permKey: 'isKsantrian',
     title: 'Santri Aktif Tidak Tepat 1 Regu', target: 'Santri', unitLabel: 'regu aktif', roleLabel: 'Kesantrian',
     collect: function (activeTaId) { return collectMembershipMismatchGapItemsForBawahan_('regu', activeTaId, 1, !!auditSettingsState.akademikReguDibekukanWajib); }
+  },
+  // Info harian (bukan gap) -- lihat collectPelanggaranInputTodayItems_ di atas. permKey
+  // 'isBagianHukuman' krn itu domain pemilik pelanggaran/hukuman (canAssignHukuman = isAdmin
+  // || isBagianHukuman) -- BEDA dari input pelanggaran itu sendiri yg boleh SEMUA pengurus
+  // (canInputPelanggaran = canAccessPanel), makanya "siapa yg MUNCUL di daftar" ini tidak
+  // difilter jabatan (siapa saja input, muncul), cuma "siapa yg BOLEH LIHAT daftar ini" yg
+  // digerbang jabatan spt kind lain.
+  {
+    kind: 'pelanggaranInput', settingKey: 'pelanggaranInputActive', permKey: 'isBagianHukuman',
+    title: 'Input Pelanggaran Hari Ini', target: 'Pengurus', unitLabel: 'pelanggaran diinput', roleLabel: 'Bagian Hukuman',
+    summaryLabel: 'menginput pelanggaran hari ini',
+    collect: function () { return collectPelanggaranInputTodayItems_(); }
   }
 ];
 
@@ -11664,7 +13237,7 @@ function handleAuditBawahanList_(session) {
             var label = AUDIT_BAWAHAN_ROLE_KEY_SET_[r];
             if (label && viewerRoleLabels.indexOf(label) === -1) viewerRoleLabels.push(label);
           });
-          items.push({ kind: kindConfig.kind, title: kindConfig.title, target: kindConfig.target, roleLabel: viewerRoleLabels.join(' & ') || kindConfig.roleLabel, unitLabel: kindConfig.unitLabel, hasWarn: hasWarn, bawahan: bawahan });
+          items.push({ kind: kindConfig.kind, title: kindConfig.title, target: kindConfig.target, roleLabel: viewerRoleLabels.join(' & ') || kindConfig.roleLabel, unitLabel: kindConfig.unitLabel, summaryLabel: kindConfig.summaryLabel || '', hasWarn: hasWarn, bawahan: bawahan });
         }
       });
     }
@@ -11824,6 +13397,7 @@ function handleAuditBawahanSettingsSet_(request, session) {
     akademikKelasBawahanActive: request.akademik_kelas_bawahan_active !== undefined ? isTruthy_(request.akademik_kelas_bawahan_active) : auditBawahanSettingsState.akademikKelasBawahanActive,
     akademikHalaqohBawahanActive: request.akademik_halaqoh_bawahan_active !== undefined ? isTruthy_(request.akademik_halaqoh_bawahan_active) : auditBawahanSettingsState.akademikHalaqohBawahanActive,
     akademikReguBawahanActive: request.akademik_regu_bawahan_active !== undefined ? isTruthy_(request.akademik_regu_bawahan_active) : auditBawahanSettingsState.akademikReguBawahanActive,
+    pelanggaranInputActive: request.pelanggaran_input_active !== undefined ? isTruthy_(request.pelanggaran_input_active) : auditBawahanSettingsState.pelanggaranInputActive,
     // Dipertahankan (bukan field yg diubah lewat handler ini) -- tanpa baris ini, extraAudiences
     // ke-reset ke {} tiap kali toggle aktif/nonaktif kind mana pun lewat handler ini.
     extraAudiences: auditBawahanSettingsState.extraAudiences,
@@ -11909,6 +13483,34 @@ function handlePengumumanRespond_(request, session) {
   if (quickType && !PENGUMUMAN_QUICK_TYPES[quickType]) throw createError_('Jenis respon tidak valid.', 400);
   var note = cleanString_(request.note).slice(0, 1000);
   if (!note) throw createError_('Isi teks respon terlebih dahulu.', 400);
+
+  // Aturan tambahan hanya ditegakkan kalau pengumuman ini memang ditandai wajib_respon
+  // (aturan disimpan '' utk pengumuman biasa, jadi normalize balikin semua-mati juga aman).
+  if (cleanString_(pengumumanRow.wajib_respon) === '1') {
+    var rules = normalizePengumumanResponRules_(pengumumanRow.respon_rules);
+    if (rules.wajibQuick && !quickType) {
+      throw createError_('Pilih dulu salah satu respon cepat (Sudah Paham / Ada Pertanyaan).', 400);
+    }
+    if (rules.wajibAngka) {
+      var numVal = Number(note.replace(',', '.').trim());
+      if (!Number.isFinite(numVal)) throw createError_('Respon harus berupa angka.', 400);
+      if (rules.angkaMin !== null && numVal < rules.angkaMin) {
+        throw createError_('Respon minimal harus bernilai ' + rules.angkaMin + '.', 400);
+      }
+      if (rules.angkaMaks !== null && numVal > rules.angkaMaks) {
+        throw createError_('Respon maksimal harus bernilai ' + rules.angkaMaks + '.', 400);
+      }
+    }
+    if (rules.minKata) {
+      var wordCount = note.split(/\s+/).filter(Boolean).length;
+      if (wordCount < rules.minKata) {
+        throw createError_('Respon minimal ' + rules.minKata + ' kata (baru ' + wordCount + ' kata).', 400);
+      }
+    }
+    if (rules.minKarakter && note.length < rules.minKarakter) {
+      throw createError_('Respon minimal ' + rules.minKarakter + ' karakter (baru ' + note.length + ' karakter).', 400);
+    }
+  }
 
   var responState = readSheetState_('pengumumanRespon');
   var now = nowIso_();
@@ -12323,6 +13925,2322 @@ function handleSurveyCompletionDeleteAll_(request) {
   if (!surveyId) throw createError_('ID survey wajib diisi.', 400);
   deleteRowsMatchingField_('surveyCompletion', 'survey_id', surveyId);
   return { ok: true, timestamp: nowIso_(), data: { message: 'Semua data penyelesaian survey ini dihapus.' } };
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Quiz Digital ─ dibuat guru per kelas (section Kelas), dikerjakan santri lewat
+// pages/santri/quizSantri. Tipe 'drill' (latihan, feedback langsung, tak dinilai) &
+// 'examination' (ujian, skor 0-100). Kunci jawaban + penjelasan TIDAK PERNAH dikirim
+// ke santri sebelum waktunya (pola sama seperti survey). ─────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+
+// 'materi' = Halaman Materi: blok teks kaya (Quill) yang hanya dibaca santri, TANPA jawaban &
+// TIDAK dinilai. Ikut nomor urut blok, tapi dilewati saat pengacakan soal & tidak dihitung ke skor.
+// 'wordbank' = Isian Bank Kata: kalimat rumpang [[jawaban]] diisi dgn ketuk chip kata (nilai per-rumpang / parsial).
+// 'sentence' = Susun Kalimat: bank kata teracak disusun jadi kalimat urut (benar semua atau salah).
+var QUIZ_QUESTION_TYPES_ = { mc: true, short: true, materi: true, wordbank: true, sentence: true };
+// 'dokumen' = bacaan berslide + timer per slide (tidak dinilai). Body = blok 'slide' saja.
+var QUIZ_TIPE_ = { drill: true, examination: true, dokumen: true };
+var QUIZ_SLIDE_MIN_SECONDS_ = 3;
+var QUIZ_SLIDE_MAX_SECONDS_ = 600;
+var QUIZ_SLIDE_DEFAULT_SECONDS_ = 15;
+var QUIZ_PUBLISH_STATES_ = { draft: true, terbit: true, ditutup: true };
+
+// Palet warna folder quiz — token disimpan di quizFolder.color; pemetaan token -> hex
+// (terang/gelap) ada di frontend (quizDigital + quizSantri). '' = tanpa warna.
+var QUIZ_FOLDER_COLORS_ = ['slate', 'red', 'orange', 'amber', 'green', 'teal', 'blue', 'violet', 'pink', 'brown'];
+var QUIZ_FOLDER_MAX_DEPTH_ = 5;           // kedalaman folder maksimum (akar = depth 1)
+var QUIZ_FOLDER_MAX_PER_KELAS_ = 500;     // batas jumlah folder per kelas (pengaman skala; picker & cek dibangun utk angka ini)
+var QUIZ_TRASH_RETENTION_MS_ = 30 * 24 * 60 * 60 * 1000;   // auto-hapus permanen 30 hari setelah dibuang
+var QUIZ_NOTDONE_PREVIEW_COUNT_ = 11;   // jumlah nama "belum mengerjakan" yg ditampilkan inline di quiz.results sebelum "Lihat Semua" (paginated, quiz.results.notDone)
+var QUIZ_NOTDONE_PAGE_SIZE_DEFAULT_ = 20;
+var QUIZ_NOTDONE_PAGE_SIZE_MAX_ = 200;
+
+function normalizeQuizFolderColor_(value) {
+  var c = cleanString_(value).toLowerCase();
+  return QUIZ_FOLDER_COLORS_.indexOf(c) !== -1 ? c : '';
+}
+
+function parseQuizJson_(value, fallback) {
+  try {
+    var parsed = JSON.parse(cleanString_(value) || '');
+    return parsed == null ? fallback : parsed;
+  } catch (e) { return fallback; }
+}
+
+// Soal "asli" = yang dinilai (mc/short). Halaman Materi disaring keluar di mana pun kita
+// menghitung jumlah soal, denominator skor, atau daftar per-soal.
+function quizScorableQuestions_(questions) {
+  return (Array.isArray(questions) ? questions : []).filter(function (q) { return q && q.type !== 'materi' && q.type !== 'slide'; });
+}
+
+// Blok dokumen = daftar 'slide' (html Quill + durasi detik). Tak ada yang dinilai.
+function normalizeQuizSlidesForSave_(rawSlides) {
+  var source = Array.isArray(rawSlides) ? rawSlides : [];
+  if (!source.length) throw createError_('Dokumen wajib punya minimal 1 slide.', 400);
+  if (source.length > 100) throw createError_('Maksimal 100 slide per dokumen.', 400);
+  return source.map(function (s, index) {
+    var num = index + 1;
+    var id = cleanString_(s && s.id) || ('s' + num + '_' + Math.random().toString(36).slice(2, 8));
+    var html = sanitizeQuizMateriHtml_(s && s.html);
+    if (!quizMateriHasContent_(html)) throw createError_('Slide #' + num + ': isinya masih kosong.', 400);
+    var sec = parseInt(s && s.seconds, 10);
+    if (!Number.isFinite(sec)) sec = QUIZ_SLIDE_DEFAULT_SECONDS_;
+    if (sec < QUIZ_SLIDE_MIN_SECONDS_) sec = QUIZ_SLIDE_MIN_SECONDS_;
+    if (sec > QUIZ_SLIDE_MAX_SECONDS_) sec = QUIZ_SLIDE_MAX_SECONDS_;
+    return { id: id, type: 'slide', text: cleanString_(s && s.text).slice(0, 200), html: html, seconds: sec };
+  });
+}
+
+// Sanitasi HTML materi (dari editor Quill guru) sebelum disimpan & sebelum dikirim ke santri.
+// Pembersih ringan berbasis regex -- lapis pertahanan tambahan karena materi ditonton santri
+// (audiens lebih luas & kurang tepercaya dibanding pengurus). Bukan pengganti CSP.
+function sanitizeQuizMateriHtml_(raw) {
+  var s = cleanString_(raw);
+  if (!s) return '';
+  if (s.length > 300000) s = s.slice(0, 300000);
+  // Elemen berbahaya beserta isinya.
+  s = s.replace(/<\s*(script|style|title|textarea|noscript|template)\b[\s\S]*?<\s*\/\s*\1\s*>/gi, '');
+  // Tag elemen non-konten (tak butuh penutup).
+  s = s.replace(/<\s*\/?\s*(script|style|meta|link|base|object|embed|form|input|button|title|textarea|noscript|template|svg|math)\b[^>]*>/gi, '');
+  // iframe: hanya izinkan embed video YouTube / Vimeo; selain itu buang. Yang lolos ditulis ulang
+  // jadi bentuk kanonik ber-penanda loading="lazy", dipakai lookahead pembersihan berikutnya untuk
+  // membedakannya dari sisa tag <iframe ...> input yang rusak.
+  s = s.replace(/<iframe\b[^>]*>[\s\S]*?<\/iframe>/gi, function (m) {
+    var mm = m.match(/\bsrc\s*=\s*(?:"([^"]*)"|'([^']*)')/i);
+    var url = mm ? (mm[1] || mm[2] || '') : '';
+    return /^https:\/\/(?:www\.)?(?:youtube(?:-nocookie)?\.com\/embed\/|player\.vimeo\.com\/video\/)[\w\-./?=&;%]*$/i.test(url)
+      ? '<iframe src="' + url + '" frameborder="0" allowfullscreen loading="lazy"></iframe>'
+      : '';
+  });
+  s = s.replace(/<iframe\b(?![^>]*loading="lazy")[^>]*>/gi, '');
+  // Event handler inline + skema javascript:.
+  s = s.replace(/\s+on[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '');
+  s = s.replace(/((?:href|src|xlink:href)\s*=\s*)("\s*javascript:[^"]*"|'\s*javascript:[^']*'|javascript:[^\s>]+)/gi, '$1"#"');
+  s = s.replace(/\s+style\s*=\s*("[^"]*expression\s*\([^"]*"|'[^']*expression\s*\([^']*')/gi, '');
+  return s.trim();
+}
+function quizMateriHasContent_(html) {
+  var t = cleanString_(html).replace(/<[^>]*>/g, '').replace(/&nbsp;/gi, ' ').replace(/&amp;/gi, '&').trim();
+  return t.length > 0 || /<(?:img|iframe)\b/i.test(cleanString_(html));
+}
+
+function normalizeQuizDateTime_(value) {
+  var s = cleanString_(value).replace(' ', 'T');
+  var m = s.match(/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2})/);
+  return m ? m[1] : '';
+}
+
+function defaultQuizConfig_() {
+  return {
+    maxAttempts: 1, timeLimitMinutes: 0,
+    shuffleQuestions: false, shuffleOptions: false, allowBack: true,
+    showResultMode: 'langsung', showAnswersMode: 'langsung',
+    pesertaMode: 'semua', pesertaSantriIds: [], sertakanDibekukan: false,
+    bgAudioUrl: '', bgAudioLoop: true
+  };
+}
+
+// Suara latar quiz: hanya izinkan path relatif di dalam quiz-media/ dengan ekstensi audio.
+function normalizeQuizBgAudioUrl_(value) {
+  var s = cleanString_(value).replace(/^\/+/, '');
+  if (!s) return '';
+  if (s.indexOf(QUIZ_MEDIA_DIR_NAME + '/') !== 0) return '';
+  if (s.indexOf('..') !== -1) return '';
+  if (!/\.(mp3|m4a|ogg|wav|webm)$/i.test(s)) return '';
+  return s;
+}
+
+function normalizeQuizConfig_(raw) {
+  var c = (raw && typeof raw === 'object') ? raw : {};
+  var maxAttempts = parseInt(c.maxAttempts, 10);
+  if (!Number.isFinite(maxAttempts) || maxAttempts < 0) maxAttempts = 1;
+  if (maxAttempts > 50) maxAttempts = 50;
+  var timeLimit = parseInt(c.timeLimitMinutes, 10);
+  if (!Number.isFinite(timeLimit) || timeLimit < 0) timeLimit = 0;
+  if (timeLimit > 600) timeLimit = 600;
+  return {
+    maxAttempts: maxAttempts,
+    timeLimitMinutes: timeLimit,
+    shuffleQuestions: !!c.shuffleQuestions,
+    shuffleOptions: !!c.shuffleOptions,
+    // Acak ulang tiap pengulangan (drill: tiap soal salah dimasukkan lagi ke antrean; examination:
+    // tiap percobaan baru). Default ON. Berlaku utk drill DAN examination.
+    reshuffleEachRound: c.reshuffleEachRound === undefined ? true : !!c.reshuffleEachRound,
+    allowBack: c.allowBack === undefined ? true : !!c.allowBack,
+    showResultMode: c.showResultMode === 'rilis' ? 'rilis' : 'langsung',
+    showAnswersMode: (c.showAnswersMode === 'rilis' || c.showAnswersMode === 'tidak') ? c.showAnswersMode : 'langsung',
+    pesertaMode: c.pesertaMode === 'pilih' ? 'pilih' : 'semua',
+    pesertaSantriIds: parseIdList_(c.pesertaSantriIds || []),
+    sertakanDibekukan: !!c.sertakanDibekukan,
+    bgAudioUrl: normalizeQuizBgAudioUrl_(c.bgAudioUrl),
+    bgAudioLoop: c.bgAudioLoop === undefined ? true : !!c.bgAudioLoop
+  };
+}
+
+function normalizeQuizQuestionsForSave_(rawQuestions) {
+  var source = Array.isArray(rawQuestions) ? rawQuestions : [];
+  if (!source.length) throw createError_('Quiz wajib punya minimal 1 soal.', 400);
+  if (source.length > 500) throw createError_('Maksimal 500 blok (soal + Halaman Materi) per quiz.', 400);
+  var normalized = source.map(function (q, index) {
+    var num = index + 1;
+    var type = cleanString_(q && q.type);
+    if (!QUIZ_QUESTION_TYPES_[type]) throw createError_('Soal #' + num + ': jenis tidak valid.', 400);
+    var id = cleanString_(q && q.id) || ('q' + num + '_' + Math.random().toString(36).slice(2, 8));
+    if (type === 'materi') {
+      var html = sanitizeQuizMateriHtml_(q && q.html);
+      if (!quizMateriHasContent_(html)) throw createError_('Blok #' + num + ' (Halaman Materi): isi materi wajib diisi.', 400);
+      return { id: id, type: 'materi', text: cleanString_(q && q.text).slice(0, 200), html: html, points: 0 };
+    }
+    var explanation = cleanString_(q && q.explanation);
+    var points = parseFloat(q && q.points);
+    if (!Number.isFinite(points) || points < 0) points = 1;
+    if (points > 1000) points = 1000;
+
+    // Susun Kalimat: "text" = prompt/instruksi (OPSIONAL), "answerText" = kalimat benar (WAJIB).
+    if (type === 'sentence') {
+      var sPrompt = cleanString_(q && q.text).slice(0, 500);
+      var answerText = cleanString_(q && q.answerText);
+      if (!answerText) throw createError_('Soal #' + num + ': kalimat yang benar wajib diisi.', 400);
+      if (answerText.length > 2000) throw createError_('Soal #' + num + ': kalimat terlalu panjang.', 400);
+      var sTokens = answerText.split(/\s+/).filter(Boolean);
+      if (sTokens.length < 2) throw createError_('Soal #' + num + ': kalimat minimal 2 kata.', 400);
+      if (sTokens.length > 40) throw createError_('Soal #' + num + ': maksimal 40 kata.', 400);
+      for (var st = 0; st < sTokens.length; st += 1) {
+        if (sTokens[st].length > 60) throw createError_('Soal #' + num + ': ada kata terlalu panjang.', 400);
+      }
+      var sDist = (Array.isArray(q.distractors) ? q.distractors : []).map(cleanString_).filter(function (s) { return s !== ''; });
+      if (sDist.length > 30) throw createError_('Soal #' + num + ': maksimal 30 kata pengecoh.', 400);
+      return { id: id, type: 'sentence', text: sPrompt, answerText: answerText, tokens: sTokens, distractors: sDist, explanation: explanation, points: points };
+    }
+
+    var text = cleanString_(q && q.text);
+    if (!text) throw createError_('Soal #' + num + ': teks soal wajib diisi.', 400);
+
+    // Isian Bank Kata: "text" = template kalimat dgn rumpang [[jawaban]] / [[a|b|c]].
+    if (type === 'wordbank') {
+      if (text.length > 2000) throw createError_('Soal #' + num + ': kalimat terlalu panjang (maks 2000).', 400);
+      var gapSpecs = [];
+      var reGap = /\[\[([^\]]+)\]\]/g, mg;
+      while ((mg = reGap.exec(text)) !== null) {
+        var alts = mg[1].split('|').map(cleanString_).filter(function (s) { return s !== ''; });
+        if (!alts.length) throw createError_('Soal #' + num + ': ada rumpang kosong [[ ]].', 400);
+        for (var ai = 0; ai < alts.length; ai += 1) {
+          if (alts[ai].length > 60) throw createError_('Soal #' + num + ': jawaban rumpang terlalu panjang.', 400);
+        }
+        gapSpecs.push(alts);
+      }
+      if (!gapSpecs.length) throw createError_('Soal #' + num + ': tulis minimal 1 rumpang dgn format [[jawaban]].', 400);
+      if (gapSpecs.length > 12) throw createError_('Soal #' + num + ': maksimal 12 rumpang.', 400);
+      var wbDist = (Array.isArray(q.distractors) ? q.distractors : []).map(cleanString_).filter(function (s) { return s !== ''; });
+      if (wbDist.length > 30) throw createError_('Soal #' + num + ': maksimal 30 kata pengecoh.', 400);
+      for (var di = 0; di < wbDist.length; di += 1) {
+        if (wbDist[di].length > 60) throw createError_('Soal #' + num + ': kata pengecoh terlalu panjang.', 400);
+      }
+      return { id: id, type: 'wordbank', text: text, gaps: gapSpecs, distractors: wbDist, explanation: explanation, points: points };
+    }
+
+    if (type === 'mc') {
+      var options = (Array.isArray(q.options) ? q.options : []).map(cleanString_).filter(function (s) { return s !== ''; });
+      if (options.length < 2) throw createError_('Soal #' + num + ': pilihan ganda butuh minimal 2 opsi.', 400);
+      if (options.length > 8) throw createError_('Soal #' + num + ': maksimal 8 opsi.', 400);
+      // Tolak opsi kembar (dibandingkan tanpa kapital & spasi berlebih).
+      var normOpts = options.map(function (s) { return s.toLowerCase().replace(/\s+/g, ' ').trim(); });
+      for (var oi = 0; oi < normOpts.length; oi += 1) {
+        if (normOpts.indexOf(normOpts[oi]) !== oi) {
+          throw createError_('Soal #' + num + ': ada 2 opsi pilihan ganda yang sama ("' + options[oi] + '"). Tiap opsi harus berbeda.', 400);
+        }
+      }
+      var correctIndex = parseInt(q.correctIndex, 10);
+      if (!Number.isInteger(correctIndex) || correctIndex < 0 || correctIndex >= options.length) {
+        throw createError_('Soal #' + num + ': pilih salah satu opsi sebagai jawaban benar.', 400);
+      }
+      return { id: id, type: 'mc', text: text, options: options, correctIndex: correctIndex, explanation: explanation, points: points };
+    }
+    var correctAnswers = Array.isArray(q.correctAnswers) ? q.correctAnswers.map(cleanString_).filter(function (s) { return s !== ''; }) : [];
+    var single = cleanString_(q && q.correctAnswer);
+    if (single && correctAnswers.indexOf(single) === -1) correctAnswers.unshift(single);
+    if (!correctAnswers.length) throw createError_('Soal #' + num + ': minimal 1 kunci jawaban isian singkat wajib diisi.', 400);
+    return { id: id, type: 'short', text: text, correctAnswers: correctAnswers, explanation: explanation, points: points };
+  });
+  if (!quizScorableQuestions_(normalized).length) {
+    throw createError_('Quiz wajib punya minimal 1 soal yang dinilai (Halaman Materi saja tidak cukup).', 400);
+  }
+  return normalized;
+}
+
+// Tanda tangan bagian quiz yang menentukan skor -- dipakai handleQuizSave_ untuk memblokir
+// perubahan soal setelah ada santri yang mulai mengerjakan, TAPI tetap mengizinkan Halaman Materi
+// (teks/isi/urutan/tambah/hapus) diubah bebas karena tak memengaruhi nilai siapa pun.
+function quizScoringSignature_(questions) {
+  return JSON.stringify(quizScorableQuestions_(questions).map(function (q) {
+    if (q.type === 'mc') return { t: 'mc', x: q.text, o: q.options, c: q.correctIndex, p: q.points, e: q.explanation || '' };
+    if (q.type === 'wordbank') return { t: 'wordbank', x: q.text, g: q.gaps, d: q.distractors, p: q.points, e: q.explanation || '' };
+    if (q.type === 'sentence') return { t: 'sentence', x: q.text, a: q.answerText, tk: q.tokens, d: q.distractors, p: q.points, e: q.explanation || '' };
+    return { t: 'short', x: q.text, a: q.correctAnswers, p: q.points, e: q.explanation || '' };
+  }));
+}
+
+// Admin/SuperAdmin/Akademik/Mudir = semua kelas; selain itu hanya kelas tempat dia
+// pengajar / pengajar-badal (session.kelasIds, dari collectPengurusKelasIds_).
+function canManageQuizKelas_(session, kelasId) {
+  if (!session || session.role !== 'pengurus' || !session.permissions) return false;
+  // Level 2 "Kelola Semua Kelas" (lihat ADDONS_REGISTRY_.quizDigital.extraLevels) --
+  // MENGGANTIKAN TOTAL kalau sudah diatur lewat Kelola Addons; fallbackFn di bawah = aturan
+  // bawaan lama persis (isAdmin sudah mencakup isSuperAdmin & canManageKelasSiang, lihat
+  // resolvePengurusPermissions_, jadi tidak perlu ditulis ulang di sini).
+  if (canAccessLevel_(session, 'quizDigital', 'manageAllKelas', function (s) {
+    var p = s.permissions;
+    return !!(p && (p.isAdmin || p.isAcademic || p.isMudir));
+  })) return true;
+  return (session.kelasIds || []).indexOf(cleanString_(kelasId)) !== -1;
+}
+function assertCanManageQuizKelas_(session, kelasId) {
+  if (!canManageQuizKelas_(session, kelasId)) {
+    throw createError_('Akun ini hanya bisa mengelola quiz untuk kelas yang diajarnya.', 403);
+  }
+}
+
+function shuffleArray_(arr) {
+  var a = arr.slice();
+  for (var i = a.length - 1; i > 0; i -= 1) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var t = a[i]; a[i] = a[j]; a[j] = t;
+  }
+  return a;
+}
+
+// Jawaban wordbank/sentence dari santri = JSON array string kata2 terpilih (urut per rumpang / per posisi).
+function parseWordAnswerArr_(storedAnswer) {
+  try {
+    var v = JSON.parse(cleanString_(storedAnswer));
+    return Array.isArray(v) ? v.map(function (x) { return cleanString_(x); }) : [];
+  } catch (e) { return []; }
+}
+function normWord_(s) { return cleanString_(s).toLowerCase().replace(/\s+/g, ' ').trim(); }
+
+function checkQuizAnswerCorrect_(question, storedAnswer) {
+  if (!question || question.type === 'materi') return false;
+  if (question.type === 'mc') {
+    var idx = parseInt(storedAnswer, 10);
+    return Number.isInteger(idx) && idx === question.correctIndex;
+  }
+  if (question.type === 'wordbank') {
+    var gaps = Array.isArray(question.gaps) ? question.gaps : [];
+    if (!gaps.length) return false;
+    var arr = parseWordAnswerArr_(storedAnswer);
+    return gaps.every(function (alts, i) {
+      var got = normWord_(arr[i]);
+      return got && (alts || []).some(function (a) { return normWord_(a) === got; });
+    });
+  }
+  if (question.type === 'sentence') {
+    var toks = Array.isArray(question.tokens) ? question.tokens : [];
+    var arr2 = parseWordAnswerArr_(storedAnswer);
+    if (!toks.length || arr2.length !== toks.length) return false;
+    return toks.every(function (t, i) { return normWord_(t) === normWord_(arr2[i]); });
+  }
+  var given = cleanString_(storedAnswer).toLowerCase().replace(/\s+/g, ' ').trim();
+  if (!given) return false;
+  var keys = Array.isArray(question.correctAnswers) ? question.correctAnswers
+    : (question.correctAnswer ? [question.correctAnswer] : []);
+  return keys.some(function (k) { return cleanString_(k).toLowerCase().replace(/\s+/g, ' ').trim() === given; });
+}
+
+// Fraksi benar 0..1 utk 1 jawaban. wordbank = parsial per rumpang; tipe lain = 0 atau 1.
+function quizAnswerFraction_(question, storedAnswer) {
+  if (!question || question.type === 'materi') return 0;
+  if (question.type === 'wordbank') {
+    var gaps = Array.isArray(question.gaps) ? question.gaps : [];
+    if (!gaps.length) return 0;
+    var arr = parseWordAnswerArr_(storedAnswer);
+    var ok = 0;
+    gaps.forEach(function (alts, i) {
+      var got = normWord_(arr[i]);
+      if (got && (alts || []).some(function (a) { return normWord_(a) === got; })) ok += 1;
+    });
+    return ok / gaps.length;
+  }
+  return checkQuizAnswerCorrect_(question, storedAnswer) ? 1 : 0;
+}
+
+function quizAnswerText_(question, storedAnswer) {
+  if (!question) return cleanString_(storedAnswer);
+  if (question.type === 'mc') {
+    var idx = parseInt(storedAnswer, 10);
+    return (Number.isInteger(idx) && question.options && question.options[idx] != null) ? question.options[idx] : '';
+  }
+  if (question.type === 'wordbank' || question.type === 'sentence') {
+    return parseWordAnswerArr_(storedAnswer).join(' ');
+  }
+  return cleanString_(storedAnswer);
+}
+
+function quizCorrectAnswerText_(question) {
+  if (!question) return '';
+  if (question.type === 'mc') return (question.options && question.options[question.correctIndex]) || '';
+  if (question.type === 'wordbank') {
+    return (Array.isArray(question.gaps) ? question.gaps : []).map(function (alts) { return (alts || [])[0] || ''; }).join(' , ');
+  }
+  if (question.type === 'sentence') {
+    return cleanString_(question.answerText) || (Array.isArray(question.tokens) ? question.tokens.join(' ') : '');
+  }
+  var keys = Array.isArray(question.correctAnswers) ? question.correctAnswers : [];
+  return keys.join(' / ');
+}
+
+// answers: [{questionId, autoCorrect, manualOverride}]. Skor dinormalisasi ke 100.
+// Halaman Materi (type 'materi') tidak punya poin & tidak masuk denominator/hitungan soal.
+function computeQuizScore_(questions, answers) {
+  var byId = {};
+  var sumMax = 0;
+  var scorable = quizScorableQuestions_(questions);
+  scorable.forEach(function (q) {
+    var pts = Number.isFinite(q.points) ? q.points : 1;
+    byId[q.id] = q; sumMax += pts;
+  });
+  var earnedAuto = 0, earnedFinal = 0, correctAuto = 0, correctFinal = 0;
+  (answers || []).forEach(function (a) {
+    var q = byId[a.questionId];
+    if (!q) return;
+    var pts = Number.isFinite(q.points) ? q.points : 1;
+    // frac 0..1 (wordbank bisa parsial). Entri lama tanpa frac -> pakai autoCorrect.
+    var frac = (typeof a.frac === 'number' && isFinite(a.frac)) ? Math.max(0, Math.min(1, a.frac)) : (a.autoCorrect ? 1 : 0);
+    earnedAuto += pts * frac;
+    if (a.autoCorrect) correctAuto += 1;
+    var effFrac = a.manualOverride === 'benar' ? 1 : (a.manualOverride === 'salah' ? 0 : frac);
+    earnedFinal += pts * effFrac;
+    var effCorrect = a.manualOverride === 'benar' ? true : (a.manualOverride === 'salah' ? false : !!a.autoCorrect);
+    if (effCorrect) correctFinal += 1;
+  });
+  var r1 = function (n) { return Math.round(n * 10) / 10; };
+  return {
+    autoScore: sumMax > 0 ? r1(earnedAuto / sumMax * 100) : 0,
+    finalScore: sumMax > 0 ? r1(earnedFinal / sumMax * 100) : 0,
+    correctCount: correctFinal,
+    correctCountAuto: correctAuto,
+    totalCount: scorable.length,
+    maxPoints: sumMax
+  };
+}
+
+// includeQuestions=false (dipakai daftar/panel quiz.browse) buang array 'questions' penuh dari
+// respons -- daftar cuma butuh questionCount/materiCount/slideCount, bukan isi tiap soal. Bisa
+// s/d 500 blok x banyak quiz per halaman kalau ikut dikirim, jadi respons daftar tetap ringan;
+// isi soal lengkap baru diambil lewat quiz.get saat quiz-nya benar-benar dibuka utk diedit.
+function buildQuizAdminView_(row, jawabanRows, includeQuestions) {
+  var questions = parseQuizJson_(row.questions_json, []);
+  var config = normalizeQuizConfig_(parseQuizJson_(row.config_json, {}));
+  var status = normalizeStatusForSheet_('quiz', row.status || STATUS_LABELS.quiz.inactive);
+  var subs = (jawabanRows || []).filter(function (j) { return cleanString_(j.quiz_id) === cleanString_(row.id); });
+  var doneSantri = {};
+  var attemptCount = 0;
+  subs.forEach(function (j) {
+    if (cleanString_(j.status_kerja) === 'selesai') { doneSantri[cleanString_(j.santri_id)] = true; attemptCount += 1; }
+  });
+  var view = {
+    id: cleanString_(row.id),
+    kelasId: cleanString_(row.kelas_id),
+    tahunAjaranId: cleanString_(row.tahun_ajaran_id),
+    title: cleanString_(row.title),
+    description: cleanString_(row.description),
+    tipe: cleanString_(row.tipe) || 'drill',
+    questionCount: quizScorableQuestions_(questions).length,
+    materiCount: questions.length - quizScorableQuestions_(questions).length,
+    slideCount: (cleanString_(row.tipe) === 'dokumen') ? questions.length : 0,
+    config: config,
+    openAt: cleanString_(row.open_at),
+    closeAt: cleanString_(row.close_at),
+    publishState: QUIZ_PUBLISH_STATES_[cleanString_(row.publish_state)] ? cleanString_(row.publish_state) : 'draft',
+    releasedAt: cleanString_(row.released_at),
+    folderId: cleanString_(row.folder_id),
+    color: normalizeQuizFolderColor_(row.color),
+    deletedAt: cleanString_(row.deleted_at),
+    deletedByName: cleanString_(row.deleted_by_name),
+    purgeAt: cleanString_(row.deleted_at) ? new Date(new Date(cleanString_(row.deleted_at)).getTime() + QUIZ_TRASH_RETENTION_MS_).toISOString() : '',
+    status: status,
+    active: isActiveStatus_(status),
+    submissionCount: Object.keys(doneSantri).length,
+    attemptCount: attemptCount,
+    createdAt: cleanString_(row.created_at),
+    updatedAt: cleanString_(row.updated_at),
+    createdByName: cleanString_(row.created_by_name)
+  };
+  if (includeQuestions !== false) view.questions = questions;
+  return view;
+}
+
+// SATU daftar gabungan (folder LALU quiz) dipaginasi server-side lintas keduanya — 1 halaman
+// saja yang dibangun jadi view + dikirim. items[]: {kind:'folder'|'quiz', ...}.
+// Normal view = sub-folder + quiz di folderId ('' = akar / "Tanpa Folder"); trash view = quiz
+// terhapus se-kelas, tanpa folder.
+function handleQuizBrowse_(request, session) {
+  var kelasId = cleanString_(request.kelasId || request.kelas_id);
+  if (!kelasId) throw createError_('kelasId wajib diisi.', 400);
+  assertCanManageQuizKelas_(session, kelasId);
+  sweepTrashedQuizzes_();
+  var q = cleanString_(request.q).toLowerCase();
+  var statusFilter = cleanString_(request.status).toLowerCase();
+  var trashView = cleanString_(request.view).toLowerCase() === 'trash';
+  var folderId = cleanString_(request.folderId || request.folder_id);
+  var page = Math.max(1, parseInt(request.page, 10) || 1);
+  var pageSize = parseInt(request.pageSize, 10) || 10;
+  if (pageSize < 1) pageSize = 10;
+  if (pageSize > 100) pageSize = 100;
+
+  var allFolders = readSheetStateWhere_('quizFolder', '"kelas_id" = ?', [kelasId]).rows;
+  var folderById = {};
+  allFolders.forEach(function (r) { folderById[cleanString_(r.id)] = r; });
+
+  var crumbs = [];
+  if (!trashView && folderId) {
+    var cur = folderById[folderId];
+    if (!cur) throw createError_('Folder tidak ditemukan.', 404);
+    var g = 0;
+    while (cur && g < 50) {
+      crumbs.unshift({ id: cleanString_(cur.id), name: cleanString_(cur.name) });
+      cur = folderById[cleanString_(cur.parent_id)];
+      g += 1;
+    }
+  }
+
+  var quizRowsAll = readSheetStateWhere_('quiz', '"kelas_id" = ?', [kelasId]).rows;
+  var countByFolder = {}, unfiledCount = 0, childCount = {};
+  quizRowsAll.forEach(function (r) {
+    if (cleanString_(r.deleted_at)) return;
+    var fid = cleanString_(r.folder_id);
+    if (fid && folderById[fid]) countByFolder[fid] = (countByFolder[fid] || 0) + 1;
+    else unfiledCount += 1;
+  });
+  allFolders.forEach(function (r) { var p = cleanString_(r.parent_id) || ''; childCount[p] = (childCount[p] || 0) + 1; });
+
+  var folderItems = trashView ? [] : allFolders
+    .filter(function (r) { return (cleanString_(r.parent_id) || '') === folderId; })
+    .filter(function (r) { return !q || cleanString_(r.name).toLowerCase().indexOf(q) !== -1; })
+    .map(function (r) {
+      var id = cleanString_(r.id);
+      return {
+        kind: 'folder', id: id, parentId: cleanString_(r.parent_id), name: cleanString_(r.name),
+        color: normalizeQuizFolderColor_(r.color), sortOrder: parseInt(r.sort_order, 10) || 0,
+        quizCount: countByFolder[id] || 0, subfolderCount: childCount[id] || 0
+      };
+    })
+    .sort(function (a, b) { return a.sortOrder !== b.sortOrder ? a.sortOrder - b.sortOrder : a.name.localeCompare(b.name); });
+
+  var quizRows = quizRowsAll.filter(function (r) {
+    var deleted = !!cleanString_(r.deleted_at);
+    if (trashView ? !deleted : deleted) return false;
+    if (!trashView) {
+      if ((cleanString_(r.folder_id) || '') !== folderId) return false;
+      var active = isActiveStatus_(normalizeStatusForSheet_('quiz', r.status || STATUS_LABELS.quiz.inactive));
+      if (statusFilter === 'active' && !active) return false;
+      if (statusFilter === 'inactive' && active) return false;
+    }
+    if (!q) return true;
+    return [cleanString_(r.title), cleanString_(r.description), cleanString_(r.tipe)].join(' ').toLowerCase().indexOf(q) !== -1;
+  });
+  quizRows.sort(trashView
+    ? function (a, b) { return cleanString_(b.deleted_at).localeCompare(cleanString_(a.deleted_at)); }
+    : function (a, b) { return cleanString_(b.created_at).localeCompare(cleanString_(a.created_at)); });
+
+  var folderTotal = folderItems.length;
+  var quizTotal = quizRows.length;
+  var total = folderTotal + quizTotal;
+  var totalPages = Math.max(1, Math.ceil(total / pageSize));
+  if (page > totalPages) page = totalPages;
+  var start = (page - 1) * pageSize;
+  var end = start + pageSize;
+
+  var pageItems = start < folderTotal ? folderItems.slice(start, Math.min(end, folderTotal)) : [];
+  if (end > folderTotal) {
+    var quizSlice = quizRows.slice(Math.max(0, start - folderTotal), end - folderTotal);
+    if (quizSlice.length) {
+      var jawaban = readSheetStateWhere_('quizJawaban', '"kelas_id" = ?', [kelasId]).rows;
+      quizSlice.forEach(function (r) {
+        var v = buildQuizAdminView_(r, jawaban, false);
+        v.kind = 'quiz';
+        pageItems.push(v);
+      });
+    }
+  }
+
+  // Cuma butuh 1 baris kelasSiang (nama+TA) buat header panel -- hindari loadDataset_() yang
+  // ikut membaca seluruh santri/absensi dkk tiap kali panel quiz dibuka/di-refresh.
+  var kelasRow = readSheetStateWhere_('kelasSiang', '"id" = ?', [kelasId]).rows[0];
+  var kelas = kelasRow ? normalizeKelas_(kelasRow) : null;
+  return {
+    ok: true, timestamp: nowIso_(), data: {
+      items: pageItems, total: total, totalPages: totalPages, page: page,
+      folderTotal: folderTotal, quizTotal: quizTotal, crumbs: crumbs,
+      hasAnyFolder: allFolders.length > 0,
+      unfiledCount: (trashView || folderId) ? 0 : unfiledCount,
+      kelas: kelas ? { id: kelas.id, name: kelas.name, tahunAjaranId: kelas.tahunAjaranId } : null
+    }
+  };
+}
+
+function handleQuizGet_(request, session) {
+  var id = cleanString_(request.id);
+  if (!id) throw createError_('id wajib diisi.', 400);
+  var row = findSheetRowById_(readSheetState_('quiz').rows, id);
+  if (!row) throw createError_('Quiz tidak ditemukan.', 404);
+  assertCanManageQuizKelas_(session, cleanString_(row.kelas_id));
+  return { ok: true, timestamp: nowIso_(), data: { item: buildQuizAdminView_(row, readSheetState_('quizJawaban').rows) } };
+}
+
+function handleQuizSave_(request, session) {
+  var record = parseRecordPayload_(request);
+  var state = readSheetState_('quiz');
+  var existing = findSheetRowById_(state.rows, cleanString_(record.id));
+
+  var kelasId = cleanString_(record.kelas_id || record.kelasId || (existing && existing.kelas_id));
+  if (!kelasId) throw createError_('Kelas wajib dipilih.', 400);
+  assertCanManageQuizKelas_(session, kelasId);
+  if (existing && cleanString_(existing.kelas_id) !== kelasId) {
+    throw createError_('Kelas quiz tidak bisa dipindah setelah dibuat.', 400);
+  }
+
+  // Sengaja tidak pakai loadDataset_() (yang memuat & menormalisasi SEMUA sheet termasuk
+  // santri/absensi yang bisa puluhan ribu baris) -- di sini cuma butuh 1 baris kelasSiang,
+  // jadi query langsung pakai WHERE spy quiz.save tidak ikut kena beban baca seluruh dataset.
+  var kelasRow = readSheetStateWhere_('kelasSiang', '"id" = ?', [kelasId]).rows[0];
+  var kelas = kelasRow ? normalizeKelas_(kelasRow) : null;
+  if (!kelas) throw createError_('Kelas tidak ditemukan.', 404);
+
+  var title = cleanString_(record.title);
+  if (!title) throw createError_('Judul quiz wajib diisi.', 400);
+  var tipe = cleanString_(record.tipe);
+  if (!QUIZ_TIPE_[tipe]) throw createError_('Tipe tidak valid (drill / examination / dokumen).', 400);
+  if (existing) {
+    var wasDok = (cleanString_(existing.tipe) || 'drill') === 'dokumen';
+    if (wasDok !== (tipe === 'dokumen')) {
+      throw createError_('Tipe tidak bisa diubah antara "dokumen" dan quiz biasa. Buat yang baru saja.', 400);
+    }
+  }
+
+  var rawBlocks = Array.isArray(record.questions) ? record.questions : parseQuizJson_(record.questions_json, []);
+  var questions = tipe === 'dokumen'
+    ? normalizeQuizSlidesForSave_(rawBlocks)
+    : normalizeQuizQuestionsForSave_(rawBlocks);
+  var config = normalizeQuizConfig_(
+    record.config && typeof record.config === 'object' ? record.config : parseQuizJson_(record.config_json, {})
+  );
+  if (config.pesertaMode === 'pilih') {
+    var rosterSet = {};
+    (kelas.santriIds || []).forEach(function (sid) { rosterSet[sid] = true; });
+    config.pesertaSantriIds = config.pesertaSantriIds.filter(function (sid) { return rosterSet[sid]; });
+    if (!config.pesertaSantriIds.length) throw createError_('Mode peserta "pilih" tapi belum ada santri yang dipilih.', 400);
+  } else {
+    config.pesertaSantriIds = [];
+  }
+
+  var openAt = normalizeQuizDateTime_(record.open_at || record.openAt);
+  var closeAt = normalizeQuizDateTime_(record.close_at || record.closeAt);
+  if (openAt && closeAt && openAt > closeAt) throw createError_('Waktu buka tidak boleh setelah waktu tutup.', 400);
+
+  var publishState = cleanString_(record.publish_state || record.publishState);
+  if (!QUIZ_PUBLISH_STATES_[publishState]) publishState = existing ? (cleanString_(existing.publish_state) || 'draft') : 'draft';
+
+  if (existing) {
+    // "mengerjakan" = ada attempt apa pun (status_kerja 'berlangsung' ATAU 'selesai'). Begitu 1
+    // santri membuka/memulai quiz ini, bagian yang menentukan skor langsung terkunci.
+    var hasAttempt = readSheetState_('quizJawaban').rows.some(function (j) {
+      return cleanString_(j.quiz_id) === cleanString_(existing.id);
+    });
+    if (hasAttempt) {
+      // Halaman Materi boleh diubah bebas walau sudah ada yang mengerjakan (tak memengaruhi nilai);
+      // yang dikunci hanya bagian yang menentukan skor.
+      if (quizScoringSignature_(questions) !== quizScoringSignature_(parseQuizJson_(existing.questions_json, []))) {
+        throw createError_('Soal yang dinilai tidak bisa diubah: sudah ada santri yang mengerjakan quiz ini. (Halaman Materi masih boleh diedit.)', 400);
+      }
+      if (cleanString_(existing.tipe) !== tipe) {
+        throw createError_('Tipe quiz tidak bisa diubah: sudah ada santri yang mengerjakan quiz ini.', 400);
+      }
+    }
+  }
+
+  var writable = {
+    kelas_id: kelasId,
+    tahun_ajaran_id: cleanString_(kelas.tahunAjaranId || record.tahun_ajaran_id),
+    title: title,
+    description: cleanString_(record.description),
+    tipe: tipe,
+    questions_json: JSON.stringify(questions),
+    config_json: JSON.stringify(config),
+    open_at: openAt,
+    close_at: closeAt,
+    publish_state: publishState,
+    color: normalizeQuizFolderColor_(record.color)   // palet sama dgn folder; '' = warna default netral
+  };
+
+  if (cleanString_(record.id)) {
+    if (!existing) throw createError_('Quiz yang akan diubah tidak ditemukan.', 404);
+    // folder_id TIDAK diubah lewat quiz.save (pakai quiz.setFolder) supaya payload editor tak
+    // sengaja menendang quiz keluar folder.
+    updateSheetRow_(state, existing._rowNumber, writable);
+    return { ok: true, timestamp: nowIso_(), data: { id: cleanString_(record.id), message: 'Quiz diperbarui.' } };
+  }
+  // Quiz baru: boleh langsung "jatuh" ke folder yang sedang dibuka (dikirim frontend).
+  var newFolderId = cleanString_(record.folder_id || record.folderId);
+  if (newFolderId) {
+    var folderRow = findSheetRowById_(readSheetState_('quizFolder').rows, newFolderId);
+    writable.folder_id = (folderRow && cleanString_(folderRow.kelas_id) === kelasId) ? newFolderId : '';
+  }
+  writable.status = STATUS_LABELS.quiz.active;
+  writable.id = String(nextId_(state.rows));
+  appendSheetRow_(state, writable);
+  return { ok: true, timestamp: nowIso_(), data: { id: writable.id, message: 'Quiz ditambahkan.' } };
+}
+
+function loadQuizForManage_(session, id) {
+  var row = findSheetRowById_(readSheetState_('quiz').rows, cleanString_(id));
+  if (!row) throw createError_('Quiz tidak ditemukan.', 404);
+  assertCanManageQuizKelas_(session, cleanString_(row.kelas_id));
+  return row;
+}
+
+function handleQuizToggle_(request, session) {
+  var row = loadQuizForManage_(session, request.id);
+  var state = readSheetState_('quiz');
+  var nextActive = request.active;
+  if (nextActive === undefined || nextActive === null || nextActive === '') nextActive = !isActiveStatus_(row.status);
+  nextActive = isTruthy_(nextActive);
+  updateSheetRow_(state, row._rowNumber, { status: nextActive ? STATUS_LABELS.quiz.active : STATUS_LABELS.quiz.inactive });
+  return { ok: true, timestamp: nowIso_(), data: { id: cleanString_(row.id), active: nextActive, message: nextActive ? 'Quiz diaktifkan.' : 'Quiz dinonaktifkan.' } };
+}
+
+function handleQuizPublish_(request, session) {
+  var row = loadQuizForManage_(session, request.id);
+  var next = cleanString_(request.publishState || request.publish_state);
+  if (!QUIZ_PUBLISH_STATES_[next]) throw createError_('Status terbit tidak valid (draft / terbit / ditutup).', 400);
+  var isDok = (cleanString_(row.tipe) || 'drill') === 'dokumen';
+  if (next === 'terbit') {
+    var questions = parseQuizJson_(row.questions_json, []);
+    if (isDok) {
+      if (!questions.length) throw createError_('Dokumen belum punya slide, tidak bisa diterbitkan.', 400);
+    } else if (!quizScorableQuestions_(questions).length) {
+      throw createError_('Quiz belum punya soal yang dinilai, tidak bisa diterbitkan.', 400);
+    }
+  }
+  updateSheetRow_(readSheetState_('quiz'), row._rowNumber, { publish_state: next });
+  var msg = next === 'terbit' ? ((isDok ? 'Dokumen' : 'Quiz') + ' diterbitkan — santri di kelas ini sudah bisa ' + (isDok ? 'membaca.' : 'mengerjakan.'))
+    : (next === 'ditutup' ? (isDok ? 'Dokumen' : 'Quiz') + ' ditutup.' : (isDok ? 'Dokumen' : 'Quiz') + ' dikembalikan ke draft.');
+  return { ok: true, timestamp: nowIso_(), data: { id: cleanString_(row.id), publishState: next, message: msg } };
+}
+
+function handleQuizReleaseResults_(request, session) {
+  var row = loadQuizForManage_(session, request.id);
+  var release = request.released === undefined ? true : isTruthy_(request.released);
+  updateSheetRow_(readSheetState_('quiz'), row._rowNumber, {
+    released_at: release ? nowIso_() : '',
+    released_by_id: release ? cleanString_(session.id) : '',
+    released_by_name: release ? cleanString_(session.name) : ''
+  });
+  return { ok: true, timestamp: nowIso_(), data: { id: cleanString_(row.id), released: release, message: release ? 'Hasil dirilis ke santri.' : 'Rilis hasil dibatalkan.' } };
+}
+
+function buildQuizResultRowView_(jrow, questions) {
+  var byId = {};
+  questions.forEach(function (q) { byId[q.id] = q; });
+  var answers = parseQuizJson_(jrow.answers_json, []);
+  var answerViews = quizScorableQuestions_(questions).map(function (q) {
+    var a = answers.filter(function (x) { return cleanString_(x.questionId) === cleanString_(q.id); })[0] || null;
+    var autoCorrect = a ? !!a.autoCorrect : false;
+    var manualOverride = a ? cleanString_(a.manualOverride) : '';
+    var effective = manualOverride === 'benar' ? true : (manualOverride === 'salah' ? false : autoCorrect);
+    var pts = Number.isFinite(q.points) ? q.points : 1;
+    // frac 0..1 (wordbank bisa parsial); entri lama tanpa frac -> pakai autoCorrect.
+    var frac = (a && typeof a.frac === 'number' && isFinite(a.frac)) ? Math.max(0, Math.min(1, a.frac)) : (autoCorrect ? 1 : 0);
+    var effFrac = manualOverride === 'benar' ? 1 : (manualOverride === 'salah' ? 0 : frac);
+    return {
+      questionId: q.id,
+      type: q.type,
+      questionText: q.text,
+      points: pts,
+      fraction: Math.round(frac * 100) / 100,
+      yourAnswer: a ? a.answer : '',
+      yourAnswerText: a ? quizAnswerText_(q, a.answer) : '',
+      correctAnswerText: quizCorrectAnswerText_(q),
+      explanation: q.explanation || '',
+      autoCorrect: autoCorrect,
+      manualOverride: manualOverride,
+      correct: effective,
+      earnedPoints: Math.round(pts * effFrac * 100) / 100
+    };
+  });
+  return {
+    attemptId: cleanString_(jrow.id),
+    attemptNo: parseInt(jrow.attempt_no, 10) || 1,
+    autoScore: parseFloat(jrow.auto_score) || 0,
+    finalScore: parseFloat(jrow.final_score) || 0,
+    correctCount: parseInt(jrow.correct_count, 10) || 0,
+    totalCount: parseInt(jrow.total_count, 10) || quizScorableQuestions_(questions).length,
+    statusKerja: cleanString_(jrow.status_kerja) || 'berlangsung',
+    startedAt: cleanString_(jrow.started_at),
+    submittedAt: cleanString_(jrow.submitted_at),
+    gradedByName: cleanString_(jrow.graded_by_name),
+    gradedAt: cleanString_(jrow.graded_at),
+    answers: answerViews
+  };
+}
+
+// Peta {id: nama} utk sekumpulan santri spesifik -- query "IN (...)" ke tabel santri saja,
+// bukan loadDataset_() penuh (19 tabel) cuma buat nama. ids kosong -> {} tanpa query.
+function fetchSantriNameMapByIds_(ids) {
+  var uniqueIds = uniqueList_((ids || []).map(cleanString_).filter(Boolean));
+  var nameById = {};
+  if (!uniqueIds.length) return nameById;
+  readSheetStateWhere_('santri', '"id" IN (' + uniqueIds.map(function () { return '?'; }).join(', ') + ')', uniqueIds)
+    .rows.forEach(function (s) { nameById[cleanString_(s.id)] = santriDisplayName_(s); });
+  return nameById;
+}
+
+// Peta {id: statusKey} utk sekumpulan santri spesifik -- dipakai bareng fetchSantriNameMapByIds_
+// di laporan hasil/laporan baca quiz supaya santri Dibekukan (yang quizVisibleToSantri_ blokir
+// dari mengerjakan/membaca kalau config.sertakanDibekukan mati) ditandai "(Dibekukan)" & tidak
+// ikut dihitung ke rosterCount/notDoneCount -- tapi TETAP tampil di daftar nama, bukan disembunyikan.
+function fetchSantriStatusMapByIds_(ids) {
+  var uniqueIds = uniqueList_((ids || []).map(cleanString_).filter(Boolean));
+  var statusById = {};
+  if (!uniqueIds.length) return statusById;
+  readSheetStateWhere_('santri', '"id" IN (' + uniqueIds.map(function () { return '?'; }).join(', ') + ')', uniqueIds)
+    .rows.forEach(function (s) { statusById[cleanString_(s.id)] = getSantriStatusKey_(s.status); });
+  return statusById;
+}
+
+// Bangun & urutkan (nama A-Z) daftar LENGKAP santri yang belum mengerjakan quiz -- basis bareng
+// utk quiz.results (preview QUIZ_NOTDONE_PREVIEW_COUNT_ nama pertama + rosterCount/notDoneCount)
+// & quiz.results.notDone (paginated, dipakai overlay "Lihat Semua" -- quiz.results sendiri tetap
+// ringan walau roster/notDone-nya ribuan nama). Santri Dibekukan yang dikeluarkan
+// quizVisibleToSantri_ (sertakanDibekukan mati) tetap masuk daftar (ditandai frozen:true +
+// suffix nama "(Dibekukan)"), tapi tidak dihitung ke rosterCount/notDoneCount -- mereka memang
+// tidak pernah bisa mengerjakan quiz ini.
+function buildQuizNotDoneList_(row) {
+  var quizId = cleanString_(row.id);
+  var kelasRow = readSheetStateWhere_('kelasSiang', '"id" = ?', [cleanString_(row.kelas_id)]).rows[0];
+  var kelas = kelasRow ? normalizeKelas_(kelasRow) : null;
+  var config = normalizeQuizConfig_(parseQuizJson_(row.config_json, {}));
+  var rosterIds = config.pesertaMode === 'pilih' ? config.pesertaSantriIds.slice() : (kelas ? (kelas.santriIds || []).slice() : []);
+
+  var doneSet = {};
+  readSheetState_('quizJawaban').rows.forEach(function (j) {
+    if (cleanString_(j.quiz_id) !== quizId) return;
+    if (cleanString_(j.status_kerja) === 'selesai') doneSet[cleanString_(j.santri_id)] = true;
+  });
+
+  var statusById = fetchSantriStatusMapByIds_(rosterIds);
+  var frozenExcludedSet = {};
+  rosterIds.forEach(function (sid) {
+    if (!config.sertakanDibekukan && statusById[sid] === 'dibekukan') frozenExcludedSet[sid] = true;
+  });
+  var rosterCount = rosterIds.filter(function (sid) { return !frozenExcludedSet[sid] || doneSet[sid]; }).length;
+
+  var pendingIds = rosterIds.filter(function (sid) { return !doneSet[sid]; });
+  var nameById = fetchSantriNameMapByIds_(pendingIds);
+  var list = pendingIds.map(function (sid) {
+    var frozen = !!frozenExcludedSet[sid];
+    return { santriId: sid, santriNama: (nameById[sid] || ('#' + sid)) + (frozen ? ' (Dibekukan)' : ''), frozen: frozen };
+  }).sort(function (a, b) { return a.santriNama.localeCompare(b.santriNama); });
+  var notDoneCount = list.filter(function (x) { return !x.frozen; }).length;
+
+  return { list: list, rosterCount: rosterCount, notDoneCount: notDoneCount };
+}
+
+function handleQuizResults_(request, session) {
+  sweepExpiredQuizAttempts_();
+  var row = loadQuizForManage_(session, request.id);
+  var quizId = cleanString_(row.id);
+  var questions = parseQuizJson_(row.questions_json, []);
+
+  var jrows = readSheetState_('quizJawaban').rows.filter(function (j) { return cleanString_(j.quiz_id) === quizId; });
+  var bySantri = {};
+  jrows.forEach(function (j) {
+    var sid = cleanString_(j.santri_id);
+    if (!bySantri[sid]) bySantri[sid] = [];
+    bySantri[sid].push(j);
+  });
+  var nameById = fetchSantriNameMapByIds_(Object.keys(bySantri));
+
+  var santriRows = Object.keys(bySantri).map(function (sid) {
+    var attempts = bySantri[sid]
+      .sort(function (a, b) { return (parseInt(a.attempt_no, 10) || 0) - (parseInt(b.attempt_no, 10) || 0); })
+      .map(function (j) { return buildQuizResultRowView_(j, questions); });
+    var done = attempts.filter(function (a) { return a.statusKerja === 'selesai'; });
+    var best = done.reduce(function (m, a) { return a.finalScore > m ? a.finalScore : m; }, done.length ? 0 : null);
+    var last = done.length ? done[done.length - 1] : null;
+    return {
+      santriId: sid,
+      santriNama: nameById[sid] || cleanString_(bySantri[sid][0].santri_nama) || ('#' + sid),
+      attemptCount: done.length,
+      bestScore: best,
+      lastScore: last ? last.finalScore : null,
+      lastSubmittedAt: last ? last.submittedAt : '',
+      hasInProgress: attempts.some(function (a) { return a.statusKerja === 'berlangsung'; }),
+      attempts: attempts
+    };
+  }).sort(function (a, b) { return a.santriNama.localeCompare(b.santriNama); });
+
+  var notDoneFull = buildQuizNotDoneList_(row);
+
+  return {
+    ok: true,
+    timestamp: nowIso_(),
+    data: {
+      quiz: buildQuizAdminView_(row, jrows),
+      rosterCount: notDoneFull.rosterCount,
+      notDoneCount: notDoneFull.notDoneCount,
+      santriRows: santriRows,
+      notDonePreview: notDoneFull.list.slice(0, QUIZ_NOTDONE_PREVIEW_COUNT_),
+      notDoneHasMore: notDoneFull.list.length > QUIZ_NOTDONE_PREVIEW_COUNT_
+    }
+  };
+}
+
+// Daftar LENGKAP "belum mengerjakan", dipaginasi -- dipakai overlay "Lihat Semua" di panel
+// hasil quiz. request.all:true (dipakai tombol Export Excel) -> lewati paginasi, balikin semuanya
+// sekaligus (dibatasi ukuran roster per kelas, bukan lintas kelas, jadi aman diambil sekali jalan).
+function handleQuizResultsNotDone_(request, session) {
+  var row = loadQuizForManage_(session, request.id);
+  var full = buildQuizNotDoneList_(row);
+  if (isTruthy_(request.all)) {
+    return { ok: true, timestamp: nowIso_(), data: { items: full.list, total: full.list.length, totalPages: 1, page: 1 } };
+  }
+  var page = Math.max(1, parseInt(request.page, 10) || 1);
+  var pageSize = parseInt(request.pageSize, 10) || QUIZ_NOTDONE_PAGE_SIZE_DEFAULT_;
+  if (pageSize < 1) pageSize = QUIZ_NOTDONE_PAGE_SIZE_DEFAULT_;
+  if (pageSize > QUIZ_NOTDONE_PAGE_SIZE_MAX_) pageSize = QUIZ_NOTDONE_PAGE_SIZE_MAX_;
+  var total = full.list.length;
+  var totalPages = Math.max(1, Math.ceil(total / pageSize));
+  if (page > totalPages) page = totalPages;
+  var items = full.list.slice((page - 1) * pageSize, page * pageSize);
+  return { ok: true, timestamp: nowIso_(), data: { items: items, total: total, totalPages: totalPages, page: page } };
+}
+
+function handleQuizGrade_(request, session) {
+  var attemptId = cleanString_(request.attemptId || request.attempt_id);
+  if (!attemptId) throw createError_('attemptId wajib diisi.', 400);
+  var state = readSheetState_('quizJawaban');
+  var jrow = findSheetRowById_(state.rows, attemptId);
+  if (!jrow) throw createError_('Data pengerjaan tidak ditemukan.', 404);
+  var quizRow = loadQuizForManage_(session, jrow.quiz_id);
+  var questions = parseQuizJson_(quizRow.questions_json, []);
+  var qById = {};
+  questions.forEach(function (q) { qById[q.id] = q; });
+
+  var grades = Array.isArray(request.grades) ? request.grades : parseQuizJson_(request.grades, []);
+  var verdictByQ = {};
+  (grades || []).forEach(function (g) {
+    var qid = cleanString_(g && g.questionId);
+    var v = cleanString_(g && g.verdict);
+    if (qid && (v === 'benar' || v === 'salah' || v === '')) verdictByQ[qid] = v;
+  });
+
+  var answers = parseQuizJson_(jrow.answers_json, []);
+  answers.forEach(function (a) {
+    var qid = cleanString_(a.questionId);
+    if (Object.prototype.hasOwnProperty.call(verdictByQ, qid)) {
+      a.manualOverride = verdictByQ[qid];
+    }
+  });
+  var score = computeQuizScore_(questions, answers.map(function (a) {
+    return { questionId: a.questionId, autoCorrect: !!a.autoCorrect, frac: a.frac, manualOverride: cleanString_(a.manualOverride) };
+  }));
+  updateSheetRow_(state, jrow._rowNumber, {
+    answers_json: JSON.stringify(answers),
+    final_score: String(score.finalScore),
+    correct_count: String(score.correctCount),
+    graded_by_id: cleanString_(session.id),
+    graded_by_name: cleanString_(session.name),
+    graded_at: nowIso_()
+  });
+  return { ok: true, timestamp: nowIso_(), data: { attemptId: attemptId, autoScore: parseFloat(jrow.auto_score) || 0, finalScore: score.finalScore, correctCount: score.correctCount, totalCount: score.totalCount, message: 'Nilai diperbarui.' } };
+}
+
+// ── Tempat sampah quiz (per kelas) ─────────────────────────────────────────
+// Buang -> quiz.deleted_at terisi; disembunyikan dari santri & daftar biasa. Setelah 30 hari
+// (QUIZ_TRASH_RETENTION_MS_) dihapus permanen otomatis oleh sweepTrashedQuizzes_(), yang
+// dipanggil di awal handleQuizBrowse_ / handleQuizSantriList_ (pola sama sweepExpiredQuizAttempts_).
+function sweepTrashedQuizzes_() {
+  var state = readSheetState_('quiz');
+  var cutoff = Date.now() - QUIZ_TRASH_RETENTION_MS_;
+  var victims = state.rows.filter(function (r) {
+    var d = cleanString_(r.deleted_at);
+    if (!d) return false;
+    var t = new Date(d).getTime();
+    return Number.isFinite(t) && t <= cutoff;
+  });
+  if (!victims.length) return;
+  victims.forEach(function (r) { cascadeDeleteReferences_('quiz', cleanString_(r.id)); });
+  deleteSheetRows_(state, victims.map(function (r) { return r._rowNumber; }));
+}
+
+function handleQuizTrash_(request, session) {
+  var row = loadQuizForManage_(session, request.id);
+  if (cleanString_(row.deleted_at)) {
+    return { ok: true, timestamp: nowIso_(), data: { id: cleanString_(row.id), message: 'Quiz sudah ada di tempat sampah.' } };
+  }
+  updateSheetRow_(readSheetState_('quiz'), row._rowNumber, {
+    deleted_at: nowIso_(),
+    deleted_by_id: cleanString_(session.id),
+    deleted_by_name: cleanString_(session.name)
+  });
+  return { ok: true, timestamp: nowIso_(), data: { id: cleanString_(row.id), message: 'Quiz dipindahkan ke tempat sampah. Otomatis terhapus permanen setelah 30 hari.' } };
+}
+
+function handleQuizRestore_(request, session) {
+  var row = loadQuizForManage_(session, request.id);
+  if (!cleanString_(row.deleted_at)) throw createError_('Quiz ini tidak ada di tempat sampah.', 400);
+  var patch = { deleted_at: '', deleted_by_id: '', deleted_by_name: '' };
+  var folderId = cleanString_(row.folder_id);
+  if (folderId) {
+    var folder = findSheetRowById_(readSheetState_('quizFolder').rows, folderId);
+    if (!folder || cleanString_(folder.kelas_id) !== cleanString_(row.kelas_id)) patch.folder_id = '';
+  }
+  updateSheetRow_(readSheetState_('quiz'), row._rowNumber, patch);
+  return { ok: true, timestamp: nowIso_(), data: { id: cleanString_(row.id), message: patch.folder_id === '' && folderId ? 'Quiz dipulihkan ke "Tanpa Folder" (folder lamanya sudah dihapus).' : 'Quiz dipulihkan.' } };
+}
+
+function handleQuizPermanentDelete_(request, session) {
+  var row = loadQuizForManage_(session, request.id);
+  if (!cleanString_(row.deleted_at)) {
+    throw createError_('Pindahkan quiz ke tempat sampah dulu sebelum menghapus permanen.', 400);
+  }
+  if (cleanString_(request.confirm).toUpperCase() !== 'HAPUS') {
+    throw createError_('Konfirmasi tidak valid. Ketik kata HAPUS untuk menghapus quiz beserta seluruh jawaban santri.', 400);
+  }
+  var id = cleanString_(row.id);
+  var state = readSheetState_('quiz');
+  cascadeDeleteReferences_('quiz', id);
+  deleteSheetRows_(state, [row._rowNumber]);
+  return { ok: true, timestamp: nowIso_(), data: { id: id, message: 'Quiz dihapus permanen.' } };
+}
+
+// ── Folder quiz (per kelas, bertingkat) ────────────────────────────────────
+function quizFolderRowsForKelas_(kelasId) {
+  return readSheetState_('quizFolder').rows.filter(function (r) { return cleanString_(r.kelas_id) === cleanString_(kelasId); });
+}
+
+function quizFolderDepth_(folderId, byId) {
+  var depth = 0;
+  var cur = cleanString_(folderId);
+  var guard = 0;
+  while (cur && byId[cur] && guard < 50) {
+    depth += 1;
+    cur = cleanString_(byId[cur].parent_id);
+    guard += 1;
+  }
+  return depth;   // folder akar -> 1
+}
+
+function quizFolderDescendantIdSet_(folderId, rows) {
+  var childrenByParent = {};
+  rows.forEach(function (r) {
+    var p = cleanString_(r.parent_id);
+    (childrenByParent[p] = childrenByParent[p] || []).push(cleanString_(r.id));
+  });
+  var out = {};
+  var stack = (childrenByParent[cleanString_(folderId)] || []).slice();
+  while (stack.length) {
+    var id = stack.pop();
+    if (out[id]) continue;
+    out[id] = true;
+    (childrenByParent[id] || []).forEach(function (c) { stack.push(c); });
+  }
+  return out;
+}
+
+function quizFolderSubtreeHeight_(folderId, rows) {
+  var childrenByParent = {};
+  rows.forEach(function (r) {
+    var p = cleanString_(r.parent_id);
+    (childrenByParent[p] = childrenByParent[p] || []).push(cleanString_(r.id));
+  });
+  function walk(id, guard) {
+    if (guard > 50) return 1;
+    var kids = childrenByParent[id] || [];
+    if (!kids.length) return 1;
+    var max = 0;
+    kids.forEach(function (k) { max = Math.max(max, walk(k, guard + 1)); });
+    return max + 1;
+  }
+  return walk(cleanString_(folderId), 0);
+}
+
+// Jalur leluhur folder (root -> induk langsung, TANPA folder itu sendiri).
+function quizFolderAncestorPath_(folderId, byId) {
+  var out = [];
+  var cur = byId[cleanString_(folderId)];
+  var guard = 0;
+  while (cur && guard < 50) {
+    var pid = cleanString_(cur.parent_id);
+    var p = pid ? byId[pid] : null;
+    if (!p) break;
+    out.unshift({ id: cleanString_(p.id), name: cleanString_(p.name) });
+    cur = p;
+    guard += 1;
+  }
+  return out;
+}
+
+// Data 1 folder (utk prefill editor + nama induk).
+function handleQuizFolderGet_(request, session) {
+  var id = cleanString_(request.id);
+  if (!id) throw createError_('id folder wajib diisi.', 400);
+  var rows = readSheetState_('quizFolder').rows;
+  var row = findSheetRowById_(rows, id);
+  if (!row) throw createError_('Folder tidak ditemukan.', 404);
+  var kelasId = cleanString_(row.kelas_id);
+  assertCanManageQuizKelas_(session, kelasId);
+  var byId = {};
+  rows.forEach(function (r) { if (cleanString_(r.kelas_id) === kelasId) byId[cleanString_(r.id)] = r; });
+  return {
+    ok: true, timestamp: nowIso_(), data: {
+      id: id, kelasId: kelasId, parentId: cleanString_(row.parent_id),
+      name: cleanString_(row.name), color: normalizeQuizFolderColor_(row.color),
+      path: quizFolderAncestorPath_(id, byId),
+      maxDepth: QUIZ_FOLDER_MAX_DEPTH_, colors: QUIZ_FOLDER_COLORS_
+    }
+  };
+}
+
+// Browser folder 1 tingkat, dipaginasi + bisa dicari — dipakai picker (pindahkan quiz / pilih
+// induk). Skala ribuan folder aman: cuma 1 halaman yang dikirim. Param:
+//   parentId ('' = akar), q (cari nama -> hasil RATA lintas tingkat + `path`),
+//   excludeSubtreeOf (id folder yg sedang dipindah -> sembunyikan dia + turunannya),
+//   page, pageSize.
+function handleQuizFolderChildren_(request, session) {
+  var kelasId = cleanString_(request.kelasId || request.kelas_id);
+  if (!kelasId) throw createError_('kelasId wajib diisi.', 400);
+  assertCanManageQuizKelas_(session, kelasId);
+  var parentId = cleanString_(request.parentId || request.parent_id);
+  var q = cleanString_(request.q).toLowerCase();
+  var excludeId = cleanString_(request.excludeSubtreeOf);
+  var page = Math.max(1, parseInt(request.page, 10) || 1);
+  var pageSize = parseInt(request.pageSize, 10) || 20;
+  if (pageSize < 1) pageSize = 20;
+  if (pageSize > 100) pageSize = 100;
+
+  var allRows = readSheetStateWhere_('quizFolder', '"kelas_id" = ?', [kelasId]).rows;
+  var byId = {};
+  allRows.forEach(function (r) { byId[cleanString_(r.id)] = r; });
+
+  var excludeSet = {};
+  if (excludeId && byId[excludeId]) {
+    excludeSet[excludeId] = true;
+    var desc = quizFolderDescendantIdSet_(excludeId, allRows);
+    Object.keys(desc).forEach(function (k) { excludeSet[k] = true; });
+  }
+
+  var countByFolder = {}, childCount = {};
+  readSheetStateWhere_('quiz', '"kelas_id" = ?', [kelasId]).rows.forEach(function (r) {
+    if (cleanString_(r.deleted_at)) return;
+    var fid = cleanString_(r.folder_id);
+    if (fid && byId[fid]) countByFolder[fid] = (countByFolder[fid] || 0) + 1;
+  });
+  allRows.forEach(function (r) { var p = cleanString_(r.parent_id) || ''; childCount[p] = (childCount[p] || 0) + 1; });
+
+  var crumbs = [];
+  if (!q && parentId) {
+    var cur = byId[parentId];
+    if (!cur) throw createError_('Folder tidak ditemukan.', 404);
+    var g = 0;
+    while (cur && g < 50) { crumbs.unshift({ id: cleanString_(cur.id), name: cleanString_(cur.name) }); cur = byId[cleanString_(cur.parent_id)]; g += 1; }
+  }
+
+  var matched = allRows.filter(function (r) {
+    var id = cleanString_(r.id);
+    if (excludeSet[id]) return false;
+    if (q) return cleanString_(r.name).toLowerCase().indexOf(q) !== -1;
+    return (cleanString_(r.parent_id) || '') === parentId;
+  }).map(function (r) {
+    var id = cleanString_(r.id);
+    return {
+      id: id, parentId: cleanString_(r.parent_id), name: cleanString_(r.name),
+      color: normalizeQuizFolderColor_(r.color), sortOrder: parseInt(r.sort_order, 10) || 0,
+      quizCount: countByFolder[id] || 0, subfolderCount: childCount[id] || 0,
+      depth: quizFolderDepth_(id, byId),
+      path: q ? quizFolderAncestorPath_(id, byId) : undefined
+    };
+  }).sort(q
+    ? function (a, b) { return a.name.localeCompare(b.name); }
+    : function (a, b) { return a.sortOrder !== b.sortOrder ? a.sortOrder - b.sortOrder : a.name.localeCompare(b.name); });
+
+  var total = matched.length;
+  var totalPages = Math.max(1, Math.ceil(total / pageSize));
+  if (page > totalPages) page = totalPages;
+  var items = matched.slice((page - 1) * pageSize, page * pageSize);
+
+  return {
+    ok: true, timestamp: nowIso_(), data: {
+      items: items, total: total, totalPages: totalPages, page: page,
+      parentId: parentId, q: q, crumbs: crumbs,
+      maxDepth: QUIZ_FOLDER_MAX_DEPTH_, maxPerKelas: QUIZ_FOLDER_MAX_PER_KELAS_, colors: QUIZ_FOLDER_COLORS_
+    }
+  };
+}
+
+function handleQuizFolderSave_(request, session) {
+  var record = parseRecordPayload_(request);
+  var state = readSheetState_('quizFolder');
+  var existing = findSheetRowById_(state.rows, cleanString_(record.id));
+
+  var kelasId = cleanString_(record.kelas_id || record.kelasId || (existing && existing.kelas_id));
+  if (!kelasId) throw createError_('Kelas wajib diisi.', 400);
+  assertCanManageQuizKelas_(session, kelasId);
+  if (existing && cleanString_(existing.kelas_id) !== kelasId) {
+    throw createError_('Folder tidak bisa dipindah ke kelas lain.', 400);
+  }
+
+  var kelasRowF = readSheetStateWhere_('kelasSiang', '"id" = ?', [kelasId]).rows[0];
+  var kelas = kelasRowF ? normalizeKelas_(kelasRowF) : null;
+  if (!kelas) throw createError_('Kelas tidak ditemukan.', 404);
+
+  var name = cleanString_(record.name).replace(/\s+/g, ' ').trim();
+  if (!name) throw createError_('Nama folder wajib diisi.', 400);
+  if (name.length > 120) throw createError_('Nama folder maksimal 120 karakter.', 400);
+  var color = normalizeQuizFolderColor_(record.color);
+
+  var siblings = state.rows.filter(function (r) { return cleanString_(r.kelas_id) === kelasId; });
+  var byId = {};
+  siblings.forEach(function (r) { byId[cleanString_(r.id)] = r; });
+
+  var parentId = cleanString_(record.parent_id || record.parentId);
+  if (parentId) {
+    var parent = byId[parentId];
+    if (!parent) throw createError_('Folder induk tidak ditemukan.', 404);
+    if (existing) {
+      var selfId = cleanString_(existing.id);
+      if (parentId === selfId) throw createError_('Folder tidak bisa dijadikan induk dirinya sendiri.', 400);
+      var desc = quizFolderDescendantIdSet_(selfId, siblings);
+      if (desc[parentId]) throw createError_('Folder tidak bisa dipindah ke dalam sub-foldernya sendiri.', 400);
+    }
+    var parentDepth = quizFolderDepth_(parentId, byId);
+    var subtreeHeight = existing ? quizFolderSubtreeHeight_(cleanString_(existing.id), siblings) : 1;
+    if (parentDepth + subtreeHeight > QUIZ_FOLDER_MAX_DEPTH_) {
+      throw createError_('Kedalaman folder maksimal ' + QUIZ_FOLDER_MAX_DEPTH_ + ' tingkat.', 400);
+    }
+  }
+
+  var nameKey = name.toLowerCase();
+  var dup = siblings.some(function (r) {
+    return cleanString_(r.parent_id) === parentId
+      && cleanString_(r.name).toLowerCase() === nameKey
+      && (!existing || cleanString_(r.id) !== cleanString_(existing.id));
+  });
+  if (dup) throw createError_('Sudah ada folder dengan nama yang sama di tingkat ini.', 400);
+
+  var sortOrder = record.sort_order !== undefined || record.sortOrder !== undefined
+    ? (parseInt(record.sort_order !== undefined ? record.sort_order : record.sortOrder, 10) || 0)
+    : (existing ? (parseInt(existing.sort_order, 10) || 0)
+      : (siblings.filter(function (r) { return cleanString_(r.parent_id) === parentId; })
+        .reduce(function (m, r) { return Math.max(m, parseInt(r.sort_order, 10) || 0); }, 0) + 1));
+
+  var writable = {
+    kelas_id: kelasId,
+    tahun_ajaran_id: cleanString_(kelas.tahunAjaranId || (existing && existing.tahun_ajaran_id)),
+    parent_id: parentId,
+    name: name,
+    color: color,
+    sort_order: String(sortOrder)
+  };
+
+  if (cleanString_(record.id)) {
+    if (!existing) throw createError_('Folder yang akan diubah tidak ditemukan.', 404);
+    updateSheetRow_(state, existing._rowNumber, writable);
+    return { ok: true, timestamp: nowIso_(), data: { id: cleanString_(existing.id), message: 'Folder diperbarui.' } };
+  }
+  if (siblings.length >= QUIZ_FOLDER_MAX_PER_KELAS_) {
+    throw createError_('Maksimal ' + QUIZ_FOLDER_MAX_PER_KELAS_ + ' folder per kelas. Gabungkan atau hapus folder dulu.', 400);
+  }
+  writable.status = STATUS_LABELS.quizFolder.active;
+  writable.id = String(nextId_(state.rows));
+  appendSheetRow_(state, writable);
+  return { ok: true, timestamp: nowIso_(), data: { id: writable.id, message: 'Folder ditambahkan.' } };
+}
+
+function handleQuizFolderDelete_(request, session) {
+  var id = cleanString_(request.id);
+  if (!id) throw createError_('ID folder wajib diisi.', 400);
+  var state = readSheetState_('quizFolder');
+  var row = findSheetRowById_(state.rows, id);
+  if (!row) throw createError_('Folder tidak ditemukan.', 404);
+  var kelasId = cleanString_(row.kelas_id);
+  assertCanManageQuizKelas_(session, kelasId);
+  var newParent = cleanString_(row.parent_id);
+
+  // Subfolder langsung "naik" ke induk folder ini.
+  var childState = readSheetState_('quizFolder');
+  var movedFolders = 0;
+  childState.rows.forEach(function (r) {
+    if (cleanString_(r.kelas_id) === kelasId && cleanString_(r.parent_id) === id) {
+      updateSheetRow_(childState, r._rowNumber, { parent_id: newParent });
+      movedFolders += 1;
+    }
+  });
+
+  // Quiz di folder ini (termasuk yang di tempat sampah) ikut naik ke induk.
+  var quizState = readSheetState_('quiz');
+  var movedQuizzes = 0;
+  quizState.rows.forEach(function (r) {
+    if (cleanString_(r.kelas_id) === kelasId && cleanString_(r.folder_id) === id) {
+      updateSheetRow_(quizState, r._rowNumber, { folder_id: newParent });
+      movedQuizzes += 1;
+    }
+  });
+
+  deleteSheetRows_(readSheetState_('quizFolder'), [row._rowNumber]);
+  var parts = [];
+  if (movedFolders) parts.push(movedFolders + ' sub-folder');
+  if (movedQuizzes) parts.push(movedQuizzes + ' quiz');
+  return { ok: true, timestamp: nowIso_(), data: { id: id, message: 'Folder dihapus.' + (parts.length ? ' ' + parts.join(' & ') + ' dipindah ke tingkat di atasnya.' : '') } };
+}
+
+function handleQuizSetFolder_(request, session) {
+  var row = loadQuizForManage_(session, request.id);
+  if (cleanString_(row.deleted_at)) throw createError_('Quiz ada di tempat sampah — pulihkan dulu sebelum dipindah ke folder.', 400);
+  var folderId = cleanString_(request.folderId || request.folder_id);
+  if (folderId) {
+    var folder = findSheetRowById_(readSheetState_('quizFolder').rows, folderId);
+    if (!folder || cleanString_(folder.kelas_id) !== cleanString_(row.kelas_id)) {
+      throw createError_('Folder tujuan tidak ditemukan di kelas ini.', 404);
+    }
+  }
+  updateSheetRow_(readSheetState_('quiz'), row._rowNumber, { folder_id: folderId });
+  return { ok: true, timestamp: nowIso_(), data: { id: cleanString_(row.id), folderId: folderId, message: folderId ? 'Quiz dipindahkan ke folder.' : 'Quiz dikeluarkan dari folder.' } };
+}
+
+// ── Duplikat quiz / folder ────────────────────────────────────────────────
+// Payload baris quiz salinan: soal + Halaman Materi + config + jadwal + warna IKUT tersalin,
+// tapi salinan SELALU jadi draf (publish_state 'draft', released_at kosong) & tanpa jawaban
+// santri (quizJawaban/quizBacaan tidak pernah disalin). tipe 'dokumen' ikut apa adanya
+// (slide ada di questions_json). config_json disalin verbatim (sudah tervalidasi saat sumber
+// disimpan; tak di-normalisasi ulang supaya tak gagal gara-gara roster peserta berubah).
+function quizDuplicateWritable_(src, title, folderId) {
+  return {
+    kelas_id: cleanString_(src.kelas_id),
+    tahun_ajaran_id: cleanString_(src.tahun_ajaran_id),
+    title: title,
+    description: cleanString_(src.description),
+    tipe: cleanString_(src.tipe) || 'drill',
+    questions_json: cleanString_(src.questions_json) || '[]',
+    config_json: cleanString_(src.config_json) || '{}',
+    open_at: cleanString_(src.open_at),
+    close_at: cleanString_(src.close_at),
+    publish_state: 'draft',
+    released_at: '',
+    released_by_id: '',
+    released_by_name: '',
+    color: normalizeQuizFolderColor_(src.color),
+    folder_id: cleanString_(folderId),
+    deleted_at: '',
+    deleted_by_id: '',
+    deleted_by_name: '',
+    status: STATUS_LABELS.quiz.active
+  };
+}
+
+// Duplikat 1 quiz (atau dokumen). request.title opsional (default "<judul> (salinan)"),
+// request.folderId opsional ('' eksplisit = tanpa folder; tak dikirim = ikut folder sumber).
+function handleQuizDuplicate_(request, session) {
+  var src = loadQuizForManage_(session, request.id);
+  var state = readSheetState_('quiz');
+
+  var title = cleanString_(request.title);
+  if (!title) title = (cleanString_(src.title) || 'Quiz') + ' (salinan)';
+  if (title.length > 200) title = title.slice(0, 200);
+
+  var folderId;
+  if (request.folderId !== undefined || request.folder_id !== undefined) {
+    folderId = cleanString_(request.folderId || request.folder_id);
+  } else {
+    folderId = cleanString_(src.folder_id);
+  }
+  if (folderId) {
+    var folder = findSheetRowById_(readSheetState_('quizFolder').rows, folderId);
+    if (!folder || cleanString_(folder.kelas_id) !== cleanString_(src.kelas_id)) folderId = '';
+  }
+
+  var writable = quizDuplicateWritable_(src, title, folderId);
+  writable.id = String(nextId_(state.rows));
+  appendSheetRow_(state, writable);
+  return {
+    ok: true, timestamp: nowIso_(), data: {
+      id: writable.id,
+      message: 'Quiz "' + title + '" dibuat sebagai draf. Soal & Halaman Materi ikut tersalin; jadwal terbit & jawaban santri tidak.'
+    }
+  };
+}
+
+// Nama folder sibling yang belum dipakai (case-insensitive), dipangkas ke 120 karakter.
+function quizFreeFolderName_(kelasFolders, parentId, baseName) {
+  var base = cleanString_(baseName).replace(/\s+/g, ' ').trim() || 'Folder';
+  if (base.length > 120) base = base.slice(0, 120).trim();
+  var taken = {};
+  kelasFolders.forEach(function (r) {
+    if ((cleanString_(r.parent_id) || '') === (parentId || '')) taken[cleanString_(r.name).toLowerCase()] = true;
+  });
+  if (!taken[base.toLowerCase()]) return base;
+  for (var i = 2; i <= 999; i += 1) {
+    var suffix = ' ' + i;
+    var stem = (base.length + suffix.length > 120) ? base.slice(0, 120 - suffix.length).trim() : base;
+    var c = stem + suffix;
+    if (!taken[c.toLowerCase()]) return c;
+  }
+  return base.slice(0, 108).trim() + ' ' + Date.now();
+}
+
+// Duplikat folder + SELURUH isinya (sub-folder & quiz, rekursif) ke induk yang sama.
+// Setiap quiz salinan = draf tanpa jawaban santri (lihat quizDuplicateWritable_). Quiz yang
+// ada di tempat sampah TIDAK ikut. Total folder baru dibatasi QUIZ_FOLDER_MAX_PER_KELAS_.
+function handleQuizFolderDuplicate_(request, session) {
+  var id = cleanString_(request.id);
+  if (!id) throw createError_('ID folder wajib diisi.', 400);
+  var folderState = readSheetState_('quizFolder');
+  var srcFolder = findSheetRowById_(folderState.rows, id);
+  if (!srcFolder) throw createError_('Folder tidak ditemukan.', 404);
+  var kelasId = cleanString_(srcFolder.kelas_id);
+  assertCanManageQuizKelas_(session, kelasId);
+
+  var kelasFolders = folderState.rows.filter(function (r) { return cleanString_(r.kelas_id) === kelasId; });
+  var byId = {};
+  kelasFolders.forEach(function (r) { byId[cleanString_(r.id)] = r; });
+
+  // Subtree (induk -> anak, BFS) supaya remap parent_id selalu valid; sekaligus anti-siklus.
+  var ordered = [];
+  var seen = {};
+  var queue = [id];
+  while (queue.length) {
+    var cur = queue.shift();
+    if (seen[cur]) continue;
+    seen[cur] = true;
+    ordered.push(cur);
+    kelasFolders.forEach(function (r) {
+      if (cleanString_(r.parent_id) === cur) queue.push(cleanString_(r.id));
+    });
+  }
+
+  if (kelasFolders.length + ordered.length > QUIZ_FOLDER_MAX_PER_KELAS_) {
+    throw createError_('Duplikat butuh ' + ordered.length + ' folder baru — melebihi batas ' + QUIZ_FOLDER_MAX_PER_KELAS_ + ' folder per kelas. Rapikan folder dulu.', 400);
+  }
+
+  var parentId = cleanString_(srcFolder.parent_id);
+  var baseName = cleanString_(request.name) || (cleanString_(srcFolder.name) + ' (salinan)');
+  var rootName = quizFreeFolderName_(kelasFolders, parentId, baseName);
+  var maxSort = kelasFolders
+    .filter(function (r) { return (cleanString_(r.parent_id) || '') === (parentId || ''); })
+    .reduce(function (m, r) { return Math.max(m, parseInt(r.sort_order, 10) || 0); }, 0);
+
+  var nextFolderId = nextId_(folderState.rows);   // rows tak ikut ter-update saat append -> pakai counter lokal
+  var idMap = {};
+  ordered.forEach(function (oldId) {
+    var srcRow = byId[oldId];
+    var newId = String(nextFolderId++);
+    idMap[oldId] = newId;
+    var isRoot = oldId === id;
+    appendSheetRow_(folderState, {
+      id: newId,
+      kelas_id: kelasId,
+      tahun_ajaran_id: cleanString_(srcRow.tahun_ajaran_id),
+      parent_id: isRoot ? parentId : (idMap[cleanString_(srcRow.parent_id)] || parentId),
+      name: isRoot ? rootName : cleanString_(srcRow.name),
+      color: normalizeQuizFolderColor_(srcRow.color),
+      sort_order: String(isRoot ? (maxSort + 1) : (parseInt(srcRow.sort_order, 10) || 0)),
+      status: STATUS_LABELS.quizFolder.active
+    });
+  });
+
+  var subtreeSet = {};
+  ordered.forEach(function (x) { subtreeSet[x] = true; });
+  var quizState = readSheetState_('quiz');
+  var srcQuizzes = quizState.rows.filter(function (r) {
+    return cleanString_(r.kelas_id) === kelasId
+      && !cleanString_(r.deleted_at)
+      && subtreeSet[cleanString_(r.folder_id)];
+  });
+  var nextQuizId = nextId_(quizState.rows);
+  srcQuizzes.forEach(function (r) {
+    var w = quizDuplicateWritable_(r, cleanString_(r.title), idMap[cleanString_(r.folder_id)] || '');
+    w.id = String(nextQuizId++);
+    appendSheetRow_(quizState, w);
+  });
+
+  return {
+    ok: true, timestamp: nowIso_(), data: {
+      id: idMap[id],
+      message: 'Folder "' + rootName + '" disalin — ' + ordered.length + ' folder & ' + srcQuizzes.length + ' quiz (semua quiz jadi draf).'
+    }
+  };
+}
+
+// ── Santri side ─────────────────────────────────────────────────────────────
+
+// Auto-submit examination attempt yang timernya sudah lewat (+5 menit toleransi) tapi santri
+// tidak pernah kembali. Dipanggil di awal endpoint quiz yang membaca attempt supaya jawaban
+// tersimpan tetap dinilai & jatah percobaan terpotong (anti-curang: keluar bukan berarti batal).
+function sweepExpiredQuizAttempts_() {
+  var berlangsung = readSheetState_('quizJawaban').rows.filter(function (j) {
+    return cleanString_(j.status_kerja) === 'berlangsung';
+  });
+  if (!berlangsung.length) return;
+  var quizById = {};
+  readSheetState_('quiz').rows.forEach(function (q) { quizById[cleanString_(q.id)] = q; });
+  var now = Date.now();
+  berlangsung.forEach(function (jrow) {
+    var quizRow = quizById[cleanString_(jrow.quiz_id)];
+    if (!quizRow || (cleanString_(quizRow.tipe) || 'drill') !== 'examination') return;
+    var config = normalizeQuizConfig_(parseQuizJson_(quizRow.config_json, {}));
+    if (config.timeLimitMinutes <= 0) return;
+    var order = parseQuizJson_(jrow.order_json, {});
+    var startedEpoch = parseInt(order.startedEpoch, 10) || 0;
+    if (!startedEpoch || now <= startedEpoch + config.timeLimitMinutes * 60000 + 300000) return;
+    var freshState = readSheetState_('quizJawaban');
+    var fresh = findSheetRowById_(freshState.rows, cleanString_(jrow.id));
+    if (fresh && cleanString_(fresh.status_kerja) === 'berlangsung') {
+      finalizeQuizAttempt_({ jState: freshState, jrow: fresh }, quizRow, []);
+    }
+  });
+}
+
+function quizSantriContext_(session) {
+  var dataset = loadDataset_();
+  var santriId = cleanString_(session.id);
+  var activeTaId = dataset.tahunAjaranAktif ? cleanString_(dataset.tahunAjaranAktif.id) : '';
+  var santriRow = findById_(dataset.santri, santriId);
+  var santriStatus = santriRow ? getSantriStatusKey_(santriRow.status) : 'active';
+  var kelasById = {};
+  (dataset.kelasSiang || []).forEach(function (k) {
+    if (!k.active) return;
+    if (activeTaId && cleanString_(k.tahunAjaranId) !== activeTaId) return;
+    if ((k.santriIds || []).indexOf(santriId) !== -1) kelasById[k.id] = k;
+  });
+  return {
+    dataset: dataset, santriId: santriId, activeTaId: activeTaId,
+    santriNama: santriRow ? cleanString_(santriRow.name) : '',
+    santriStatus: santriStatus, kelasById: kelasById,
+    now16: nowIso_().slice(0, 16)
+  };
+}
+
+// Quiz ini boleh dilihat/dikerjakan santri ini? Kembalikan {ok, reason} + config + kelas.
+function quizVisibleToSantri_(quizRow, ctx) {
+  if (cleanString_(quizRow.deleted_at)) return { ok: false };   // di tempat sampah guru
+  if (!isActiveStatus_(normalizeStatusForSheet_('quiz', quizRow.status))) return { ok: false };
+  if (cleanString_(quizRow.publish_state) !== 'terbit') return { ok: false };
+  var kelas = ctx.kelasById[cleanString_(quizRow.kelas_id)];
+  if (!kelas) return { ok: false };
+  var config = normalizeQuizConfig_(parseQuizJson_(quizRow.config_json, {}));
+  if (config.pesertaMode === 'pilih' && config.pesertaSantriIds.indexOf(ctx.santriId) === -1) return { ok: false };
+  if (!config.sertakanDibekukan && ctx.santriStatus === 'dibekukan') return { ok: false };
+  return { ok: true, config: config, kelas: kelas };
+}
+
+function computeQuizSantriListItem_(quizRow, ctx, myAttempts, myBacaan) {
+  var vis = quizVisibleToSantri_(quizRow, ctx);
+  if (!vis.ok) return null;
+  var config = vis.config;
+  var questions = parseQuizJson_(quizRow.questions_json, []);
+  var tipe = cleanString_(quizRow.tipe) || 'drill';
+  var openAtD = cleanString_(quizRow.open_at), closeAtD = cleanString_(quizRow.close_at);
+  var notYetOpenD = openAtD && ctx.now16 < openAtD.slice(0, 16);
+  var closedD = closeAtD && ctx.now16 > closeAtD.slice(0, 16);
+  if (tipe === 'dokumen') {
+    var bac = (myBacaan || []).filter(function (b) { return cleanString_(b.quiz_id) === cleanString_(quizRow.id); })[0] || null;
+    var finished = !!(bac && cleanString_(bac.finished_at));
+    return {
+      id: cleanString_(quizRow.id), kelasId: cleanString_(quizRow.kelas_id), kelasNama: vis.kelas.name,
+      folderId: cleanString_(quizRow.folder_id), color: normalizeQuizFolderColor_(quizRow.color),
+      title: cleanString_(quizRow.title), description: cleanString_(quizRow.description),
+      tipe: 'dokumen', slideCount: questions.length,
+      questionCount: 0, materiCount: 0, timeLimitMinutes: 0, allowBack: true,
+      openAt: openAtD, closeAt: closeAtD, notYetOpen: !!notYetOpenD, closed: !!closedD,
+      doneCount: finished ? 1 : 0, attemptsLeft: -1,
+      canStart: !notYetOpenD && !closedD, hasInProgress: !!(bac && !finished), inProgressAttemptId: '',
+      canReview: false, scoreVisible: false, bestScore: null, showResultMode: 'langsung', released: false,
+      alreadyRead: finished
+    };
+  }
+  var attempts = (myAttempts || []).filter(function (j) { return cleanString_(j.quiz_id) === cleanString_(quizRow.id); });
+  var done = attempts.filter(function (j) { return cleanString_(j.status_kerja) === 'selesai'; });
+  var inProgress = attempts.filter(function (j) { return cleanString_(j.status_kerja) === 'berlangsung'; })[0] || null;
+  var openAt = cleanString_(quizRow.open_at), closeAt = cleanString_(quizRow.close_at);
+  var notYetOpen = openAt && ctx.now16 < openAt.slice(0, 16);
+  var closed = closeAt && ctx.now16 > closeAt.slice(0, 16);
+  var unlimited = tipe === 'drill' || config.maxAttempts === 0;
+  var attemptsLeft = unlimited ? -1 : Math.max(0, config.maxAttempts - done.length);
+  var released = !!cleanString_(quizRow.released_at);
+  var scoreVisible = tipe === 'drill' || config.showResultMode === 'langsung' || released;
+  var best = null;
+  if (done.length && scoreVisible) {
+    best = done.reduce(function (m, j) { var s = parseFloat(j.final_score); return Number.isFinite(s) && (m === null || s > m) ? s : m; }, null);
+  }
+  return {
+    id: cleanString_(quizRow.id),
+    kelasId: cleanString_(quizRow.kelas_id),
+    kelasNama: vis.kelas.name,
+    folderId: cleanString_(quizRow.folder_id),
+    color: normalizeQuizFolderColor_(quizRow.color),
+    title: cleanString_(quizRow.title),
+    description: cleanString_(quizRow.description),
+    tipe: tipe,
+    questionCount: quizScorableQuestions_(questions).length,
+    materiCount: questions.length - quizScorableQuestions_(questions).length,
+    timeLimitMinutes: config.timeLimitMinutes,
+    allowBack: config.allowBack,
+    openAt: openAt, closeAt: closeAt,
+    notYetOpen: !!notYetOpen, closed: !!closed,
+    doneCount: done.length,
+    attemptsLeft: attemptsLeft,
+    canStart: !notYetOpen && !closed && (attemptsLeft === -1 || attemptsLeft > 0 || !!inProgress),
+    hasInProgress: !!inProgress,
+    inProgressAttemptId: inProgress ? cleanString_(inProgress.id) : '',
+    canReview: done.length > 0,
+    scoreVisible: scoreVisible,
+    bestScore: best,
+    showResultMode: config.showResultMode,
+    released: released
+  };
+}
+
+// TANPA kelasId  -> hanya daftar kelas (+ hitungan quiz) untuk layar "pilih kelas".
+// DENGAN kelasId -> quiz + folder KELAS ITU SAJA (tak menarik semua kelas sekaligus).
+// Layar "pilih kelas": daftar kelas santri yang punya minimal 1 quiz tampil (+ hitungan).
+function handleQuizSantriList_(request, session) {
+  if (!session || session.role !== 'santri') throw createError_('Hanya santri yang bisa mengakses.', 403);
+  sweepExpiredQuizAttempts_();
+  sweepTrashedQuizzes_();
+  var ctx = quizSantriContext_(session);
+  var myAttempts = readSheetState_('quizJawaban').rows.filter(function (j) { return cleanString_(j.santri_id) === ctx.santriId; });
+  var myBacaan = readSheetState_('quizBacaan').rows.filter(function (b) { return cleanString_(b.santri_id) === ctx.santriId; });
+  var items = readSheetState_('quiz').rows
+    .map(function (r) { return computeQuizSantriListItem_(r, ctx, myAttempts, myBacaan); })
+    .filter(Boolean);
+
+  var byKelas = {};
+  items.forEach(function (it) {
+    var b = byKelas[it.kelasId] || (byKelas[it.kelasId] = { quizCount: 0, readyCount: 0, inProgressCount: 0 });
+    b.quizCount += 1;
+    if (it.hasInProgress) b.inProgressCount += 1;
+    else if (it.canStart && !it.doneCount) b.readyCount += 1;
+  });
+  var pengurusById = (ctx.dataset.indexes && ctx.dataset.indexes.pengurusById) || {};
+  var kelasList = Object.keys(ctx.kelasById)
+    .filter(function (kid) { return !!byKelas[kid]; })
+    .map(function (kid) {
+      var k = ctx.kelasById[kid];
+      var b = byKelas[kid];
+      return {
+        id: k.id, nama: k.name, jam: cleanString_(k.jam), jenis: cleanString_(k.jenis),
+        genderGroup: cleanString_(k.genderGroup), description: cleanString_(k.description),
+        pengajarLabels: (k.pengajarIds || []).map(function (id) { return labelFromIndex_(pengurusById, id); }),
+        badalLabels: (k.badalIds || []).map(function (id) { return labelFromIndex_(pengurusById, id); }),
+        santriCount: (k.santriIds || []).length,
+        quizCount: b.quizCount, readyCount: b.readyCount, inProgressCount: b.inProgressCount
+      };
+    })
+    .sort(function (a, b) { return (a.nama || '').localeCompare(b.nama || ''); });
+
+  return { ok: true, timestamp: nowIso_(), data: { kelasList: kelasList } };
+}
+
+// Isi 1 tingkat folder di 1 kelas — SATU daftar gabungan (sub-folder LALU quiz), dipaginasi
+// server-side. folderId '' = akar kelas. q = cari (nama quiz + nama folder, hasil RATA + path).
+// Folder cuma muncul kalau dia / turunannya berisi quiz yang tampil ke santri ini.
+function handleQuizSantriBrowse_(request, session) {
+  if (!session || session.role !== 'santri') throw createError_('Hanya santri yang bisa mengakses.', 403);
+  sweepExpiredQuizAttempts_();
+  sweepTrashedQuizzes_();
+  var kelasId = cleanString_(request.kelasId || request.kelas_id);
+  if (!kelasId) throw createError_('kelasId wajib diisi.', 400);
+  var ctx = quizSantriContext_(session);
+  var kelas = ctx.kelasById[kelasId];
+  if (!kelas) throw createError_('Kelas ini tidak tersedia untuk Anda.', 403);
+
+  var folderId = cleanString_(request.folderId || request.folder_id);
+  var q = cleanString_(request.q).toLowerCase();
+  var page = Math.max(1, parseInt(request.page, 10) || 1);
+  var pageSize = parseInt(request.pageSize, 10) || 12;
+  if (pageSize < 1) pageSize = 12;
+  if (pageSize > 60) pageSize = 60;
+
+  var myAttempts = readSheetStateWhere_('quizJawaban', '"kelas_id" = ?', [kelasId]).rows
+    .filter(function (j) { return cleanString_(j.santri_id) === ctx.santriId; });
+  var myBacaan = readSheetStateWhere_('quizBacaan', '"kelas_id" = ?', [kelasId]).rows
+    .filter(function (b) { return cleanString_(b.santri_id) === ctx.santriId; });
+  var allItems = readSheetStateWhere_('quiz', '"kelas_id" = ?', [kelasId]).rows
+    .map(function (r) { return computeQuizSantriListItem_(r, ctx, myAttempts, myBacaan); })
+    .filter(Boolean);
+
+  var folderRows = readSheetStateWhere_('quizFolder', '"kelas_id" = ?', [kelasId]).rows;
+  var byId = {};
+  folderRows.forEach(function (r) { byId[cleanString_(r.id)] = r; });
+
+  // folder valid = ada di kelas ini; folder "tampil" = dia / turunannya berisi quiz visible.
+  var hasVisible = {};
+  var directCount = {};
+  allItems.forEach(function (it) {
+    var fid = cleanString_(it.folderId);
+    if (!fid || !byId[fid]) { fid = ''; }
+    if (fid) directCount[fid] = (directCount[fid] || 0) + 1;
+    var cur = fid, guard = 0;
+    while (cur && byId[cur] && guard < 50) { hasVisible[cur] = true; cur = cleanString_(byId[cur].parent_id); guard += 1; }
+  });
+  var visibleChildCount = {};
+  folderRows.forEach(function (r) {
+    if (!hasVisible[cleanString_(r.id)]) return;
+    var p = cleanString_(r.parent_id) || '';
+    visibleChildCount[p] = (visibleChildCount[p] || 0) + 1;
+  });
+
+  function ancestorPath(fid) {
+    var out = [], cur = byId[fid], g = 0;
+    while (cur && g < 50) { var pid = cleanString_(cur.parent_id); var p = pid ? byId[pid] : null; if (!p) break; out.unshift({ id: cleanString_(p.id), name: cleanString_(p.name) }); cur = p; g += 1; }
+    return out;
+  }
+
+  var crumbs = [];
+  if (!q && folderId) {
+    var cc = byId[folderId];
+    if (!cc) throw createError_('Folder tidak ditemukan.', 404);
+    var gg = 0;
+    while (cc && gg < 50) { crumbs.unshift({ id: cleanString_(cc.id), name: cleanString_(cc.name) }); cc = byId[cleanString_(cc.parent_id)]; gg += 1; }
+  }
+
+  var folderItems = folderRows.filter(function (r) {
+    var id = cleanString_(r.id);
+    if (!hasVisible[id]) return false;
+    if (q) return cleanString_(r.name).toLowerCase().indexOf(q) !== -1;
+    return (cleanString_(r.parent_id) || '') === folderId;
+  }).map(function (r) {
+    var id = cleanString_(r.id);
+    return {
+      kind: 'folder', id: id, parentId: cleanString_(r.parent_id), name: cleanString_(r.name),
+      color: normalizeQuizFolderColor_(r.color), sortOrder: parseInt(r.sort_order, 10) || 0,
+      quizCount: directCount[id] || 0, subfolderCount: visibleChildCount[id] || 0,
+      path: q ? ancestorPath(id) : undefined
+    };
+  }).sort(function (a, b) { return a.sortOrder !== b.sortOrder ? a.sortOrder - b.sortOrder : a.name.localeCompare(b.name); });
+
+  var quizItems = allItems.filter(function (it) {
+    var fid = cleanString_(it.folderId);
+    if (!fid || !byId[fid]) fid = '';
+    if (q) return (it.title || '').toLowerCase().indexOf(q) !== -1;
+    return fid === folderId;
+  }).sort(function (a, b) {
+    if (a.canStart !== b.canStart) return a.canStart ? -1 : 1;
+    return (a.title || '').localeCompare(b.title || '');
+  }).map(function (it) { it.kind = 'quiz'; return it; });
+
+  var merged = folderItems.concat(quizItems);
+  var total = merged.length;
+  var totalPages = Math.max(1, Math.ceil(total / pageSize));
+  if (page > totalPages) page = totalPages;
+  var pageItems = merged.slice((page - 1) * pageSize, page * pageSize);
+
+  return {
+    ok: true, timestamp: nowIso_(), data: {
+      items: pageItems, total: total, totalPages: totalPages, page: page,
+      folderTotal: folderItems.length, quizTotal: quizItems.length,
+      crumbs: crumbs, kelasNama: kelas.name
+    }
+  };
+}
+
+function handleQuizSantriGet_(request, session) {
+  if (!session || session.role !== 'santri') throw createError_('Hanya santri yang bisa mengakses.', 403);
+  var id = cleanString_(request.id);
+  if (!id) throw createError_('id wajib diisi.', 400);
+  var quizRow = findSheetRowById_(readSheetState_('quiz').rows, id);
+  if (!quizRow) throw createError_('Quiz tidak ditemukan.', 404);
+  var ctx = quizSantriContext_(session);
+  var myAttempts = readSheetState_('quizJawaban').rows.filter(function (j) { return cleanString_(j.santri_id) === ctx.santriId; });
+  var myBacaan = readSheetState_('quizBacaan').rows.filter(function (b) { return cleanString_(b.santri_id) === ctx.santriId; });
+  var item = computeQuizSantriListItem_(quizRow, ctx, myAttempts, myBacaan);
+  if (!item) throw createError_('Quiz ini tidak tersedia untuk Anda.', 403);
+  return { ok: true, timestamp: nowIso_(), data: { item: item } };
+}
+
+// ── Dokumen (bacaan berslide) — santri ─────────────────────────────────────
+function quizDocBacaanRow_(bState, quizId, santriId) {
+  return bState.rows.filter(function (b) {
+    return cleanString_(b.quiz_id) === quizId && cleanString_(b.santri_id) === santriId;
+  })[0] || null;
+}
+
+function handleQuizSantriDocGet_(request, session) {
+  if (!session || session.role !== 'santri') throw createError_('Hanya santri yang bisa mengakses.', 403);
+  var id = cleanString_(request.id);
+  if (!id) throw createError_('id wajib diisi.', 400);
+  var quizRow = findSheetRowById_(readSheetState_('quiz').rows, id);
+  if (!quizRow) throw createError_('Dokumen tidak ditemukan.', 404);
+  if ((cleanString_(quizRow.tipe) || 'drill') !== 'dokumen') throw createError_('Ini bukan dokumen.', 400);
+  var ctx = quizSantriContext_(session);
+  var vis = quizVisibleToSantri_(quizRow, ctx);
+  if (!vis.ok) throw createError_('Dokumen ini tidak tersedia untuk Anda.', 403);
+  var openAt = cleanString_(quizRow.open_at), closeAt = cleanString_(quizRow.close_at);
+  if (openAt && ctx.now16 < openAt.slice(0, 16)) throw createError_('Dokumen belum dibuka.', 400);
+  if (closeAt && ctx.now16 > closeAt.slice(0, 16)) throw createError_('Dokumen sudah ditutup.', 400);
+
+  var slides = parseQuizJson_(quizRow.questions_json, []).map(function (s) {
+    return { id: cleanString_(s.id), text: cleanString_(s.text), html: sanitizeQuizMateriHtml_(s.html), seconds: parseInt(s.seconds, 10) || QUIZ_SLIDE_DEFAULT_SECONDS_ };
+  });
+  if (!slides.length) throw createError_('Dokumen ini belum punya slide.', 400);
+
+  var bState = readSheetState_('quizBacaan');
+  var bac = quizDocBacaanRow_(bState, id, ctx.santriId);
+  if (!bac) {
+    var newRow = {
+      id: String(nextId_(bState.rows)), quiz_id: id, kelas_id: cleanString_(quizRow.kelas_id),
+      santri_id: ctx.santriId, santri_nama: ctx.santriNama, current_slide: '0',
+      started_at: nowIso_(), finished_at: '', status: STATUS_LABELS.quizBacaan.active
+    };
+    appendSheetRow_(bState, newRow);
+    bac = newRow;
+  }
+  return {
+    ok: true, timestamp: nowIso_(), data: {
+      title: cleanString_(quizRow.title),
+      slides: slides,
+      alreadyRead: !!cleanString_(bac.finished_at),
+      currentSlide: Math.min(slides.length - 1, Math.max(0, parseInt(bac.current_slide, 10) || 0)),
+      bgAudioUrl: vis.config.bgAudioUrl, bgAudioLoop: vis.config.bgAudioLoop
+    }
+  };
+}
+
+function handleQuizSantriDocProgress_(request, session) {
+  if (!session || session.role !== 'santri') throw createError_('Hanya santri yang bisa mengakses.', 403);
+  var id = cleanString_(request.id);
+  var quizRow = findSheetRowById_(readSheetState_('quiz').rows, id);
+  if (!quizRow || (cleanString_(quizRow.tipe) || 'drill') !== 'dokumen') throw createError_('Dokumen tidak ditemukan.', 404);
+  var ctx = quizSantriContext_(session);
+  var slideCount = parseQuizJson_(quizRow.questions_json, []).length;
+  var slideIdx = Math.max(0, Math.min(slideCount - 1, parseInt(request.slide, 10) || 0));
+  var finished = isTruthy_(request.finished);
+  var bState = readSheetState_('quizBacaan');
+  var bac = quizDocBacaanRow_(bState, id, ctx.santriId);
+  if (!bac) {
+    bac = {
+      id: String(nextId_(bState.rows)), quiz_id: id, kelas_id: cleanString_(quizRow.kelas_id),
+      santri_id: ctx.santriId, santri_nama: ctx.santriNama, current_slide: String(slideIdx),
+      started_at: nowIso_(), finished_at: '', status: STATUS_LABELS.quizBacaan.active
+    };
+    appendSheetRow_(bState, bac);
+  }
+  var patch = { current_slide: String(slideIdx) };
+  if (finished && !cleanString_(bac.finished_at)) patch.finished_at = nowIso_();
+  updateSheetRow_(bState, bac._rowNumber, patch);
+  return { ok: true, timestamp: nowIso_(), data: { ok: true, alreadyRead: !!(cleanString_(bac.finished_at) || patch.finished_at) } };
+}
+
+// Guru: laporan siapa sudah / belum baca dokumen. Mirip layar Hasil Quiz.
+function handleQuizDocReaders_(request, session) {
+  var row = loadQuizForManage_(session, request.id);
+  if ((cleanString_(row.tipe) || 'drill') !== 'dokumen') throw createError_('Ini bukan dokumen.', 400);
+  var kelasRow = readSheetStateWhere_('kelasSiang', '"id" = ?', [cleanString_(row.kelas_id)]).rows[0];
+  var kelas = kelasRow ? normalizeKelas_(kelasRow) : null;
+  var roster = kelas ? (kelas.santriIds || []) : [];
+  var config = normalizeQuizConfig_(parseQuizJson_(row.config_json, {}));
+  var pesertaSet = config.pesertaMode === 'pilih' ? config.pesertaSantriIds.reduce(function (m, v) { m[v] = true; return m; }, {}) : null;
+  var bacByS = {};
+  readSheetStateWhere_('quizBacaan', '"quiz_id" = ?', [cleanString_(row.id)]).rows.forEach(function (b) {
+    bacByS[cleanString_(b.santri_id)] = b;
+  });
+  var rosterFiltered = roster.filter(function (sid) { return !pesertaSet || pesertaSet[sid]; });
+  var nameById = fetchSantriNameMapByIds_(rosterFiltered);
+  // Santri Dibekukan tak pernah bisa punya baris quizBacaan kalau sertakanDibekukan mati
+  // (dicegat quizVisibleToSantri_ di handleQuizSantriDocGet_) -- tetap ditampilkan di daftar
+  // (ditandai "(Dibekukan)"), tapi dikeluarkan dari hitungan total/doneCount.
+  var statusById = fetchSantriStatusMapByIds_(rosterFiltered);
+  var rows = rosterFiltered.map(function (sid) {
+    var b = bacByS[sid] || null;
+    var frozen = !config.sertakanDibekukan && statusById[sid] === 'dibekukan';
+    var nm = (nameById[sid] || ('ID ' + sid)) + (frozen ? ' (Dibekukan)' : '');
+    var st = !b ? 'belum' : (cleanString_(b.finished_at) ? 'selesai' : 'sedang');
+    return {
+      santriId: sid, santriNama: nm, status: st, frozen: frozen,
+      currentSlide: b ? (parseInt(b.current_slide, 10) || 0) : 0,
+      startedAt: b ? cleanString_(b.started_at) : '',
+      finishedAt: b ? cleanString_(b.finished_at) : ''
+    };
+  }).sort(function (a, b) { return (a.santriNama || '').localeCompare(b.santriNama || ''); });
+  var effectiveRows = rows.filter(function (r) { return !r.frozen; });
+  var doneCount = effectiveRows.filter(function (r) { return r.status === 'selesai'; }).length;
+  return {
+    ok: true, timestamp: nowIso_(), data: {
+      title: cleanString_(row.title), slideCount: parseQuizJson_(row.questions_json, []).length,
+      total: effectiveRows.length, doneCount: doneCount, rows: rows
+    }
+  };
+}
+
+// Sanitasi soal untuk santri saat mengerjakan: TANPA correctIndex/correctAnswers/explanation.
+// Halaman Materi ('materi') dikirim apa adanya (id/text/html) -- tak ada yang perlu disembunyikan.
+function buildSantriQuizQuestions_(questions, order) {
+  var byId = {};
+  questions.forEach(function (q) { byId[q.id] = q; });
+  var ids = (order && Array.isArray(order.questionIds) && order.questionIds.length)
+    ? order.questionIds : questions.map(function (q) { return q.id; });
+  var optionOrder = (order && order.optionOrder) || {};
+  return ids.map(function (qid) {
+    var q = byId[qid];
+    if (!q) return null;
+    if (q.type === 'materi') return { id: q.id, type: 'materi', text: cleanString_(q.text), html: sanitizeQuizMateriHtml_(q.html) };
+    var out = { id: q.id, type: q.type, text: q.text, points: Number.isFinite(q.points) ? q.points : 1 };
+    if (q.type === 'mc') {
+      var map = (Array.isArray(optionOrder[qid]) && optionOrder[qid].length === q.options.length)
+        ? optionOrder[qid] : q.options.map(function (_, i) { return i; });
+      out.options = map.map(function (origIdx) { return q.options[origIdx]; });
+    } else if (q.type === 'wordbank') {
+      // Kirim TANPA jawaban: kalimat dipecah jadi segmen literal + jumlah rumpang + bank kata teracak.
+      var gaps = Array.isArray(q.gaps) ? q.gaps : [];
+      out.segments = String(q.text || '').split(/\[\[[^\]]+\]\]/);
+      out.gapCount = gaps.length;
+      out.bank = shuffleArray_(gaps.map(function (alts) { return (alts || [])[0] || ''; })
+        .concat(Array.isArray(q.distractors) ? q.distractors : []));
+      delete out.text;
+    } else if (q.type === 'sentence') {
+      var toks = Array.isArray(q.tokens) ? q.tokens : [];
+      out.prompt = cleanString_(q.text) || 'Susun kata-kata berikut menjadi kalimat yang benar.';
+      out.tokenCount = toks.length;
+      out.bank = shuffleArray_(toks.concat(Array.isArray(q.distractors) ? q.distractors : []));
+      delete out.text;
+    }
+    return out;
+  }).filter(Boolean);
+}
+
+function quizMcDisplayToOriginal_(order, questionId, displayIdx) {
+  var di = parseInt(displayIdx, 10);
+  if (!Number.isInteger(di) || di < 0) return -1;
+  var map = order && order.optionOrder && order.optionOrder[questionId];
+  if (Array.isArray(map) && di < map.length) return map[di];
+  return di;
+}
+
+function upsertQuizAnswer_(answersArr, entry) {
+  var found = false;
+  for (var i = 0; i < answersArr.length; i += 1) {
+    if (cleanString_(answersArr[i].questionId) === cleanString_(entry.questionId)) {
+      answersArr[i] = entry; found = true; break;
+    }
+  }
+  if (!found) answersArr.push(entry);
+  return answersArr;
+}
+
+function handleQuizSantriStart_(request, session) {
+  if (!session || session.role !== 'santri') throw createError_('Hanya santri yang bisa mengakses.', 403);
+  sweepExpiredQuizAttempts_();
+  var id = cleanString_(request.id);
+  if (!id) throw createError_('id wajib diisi.', 400);
+  var quizState = readSheetState_('quiz');
+  var quizRow = findSheetRowById_(quizState.rows, id);
+  if (!quizRow) throw createError_('Quiz tidak ditemukan.', 404);
+  var ctx = quizSantriContext_(session);
+  var vis = quizVisibleToSantri_(quizRow, ctx);
+  if (!vis.ok) throw createError_('Quiz ini tidak tersedia untuk Anda.', 403);
+  var config = vis.config;
+  var tipe = cleanString_(quizRow.tipe) || 'drill';
+  var openAt = cleanString_(quizRow.open_at), closeAt = cleanString_(quizRow.close_at);
+  if (openAt && ctx.now16 < openAt.slice(0, 16)) throw createError_('Quiz belum dibuka.', 400);
+  if (closeAt && ctx.now16 > closeAt.slice(0, 16)) throw createError_('Quiz sudah ditutup.', 400);
+
+  if (tipe === 'dokumen') throw createError_('Dokumen dibaca lewat tombol Baca, bukan Mulai.', 400);
+  var questions = parseQuizJson_(quizRow.questions_json, []);
+  if (!quizScorableQuestions_(questions).length) throw createError_('Quiz ini belum punya soal yang dinilai.', 400);
+
+  var jState = readSheetState_('quizJawaban');
+  var mine = jState.rows.filter(function (j) {
+    return cleanString_(j.quiz_id) === id && cleanString_(j.santri_id) === ctx.santriId;
+  });
+  var inProgress = mine.filter(function (j) { return cleanString_(j.status_kerja) === 'berlangsung'; })[0] || null;
+  var done = mine.filter(function (j) { return cleanString_(j.status_kerja) === 'selesai'; });
+
+  var qIdSet = {};
+  questions.forEach(function (q) { qIdSet[q.id] = true; });
+
+  if (inProgress) {
+    var order = parseQuizJson_(inProgress.order_json, {});
+    var orderValid = order && Array.isArray(order.questionIds) && order.questionIds.length === questions.length
+      && order.questionIds.every(function (qid) { return qIdSet[qid]; });
+    if (orderValid) {
+      var qByIdResume = {};
+      questions.forEach(function (q) { qByIdResume[q.id] = q; });
+      var storedResume = parseQuizJson_(inProgress.answers_json, []);
+      var savedAnswers;
+      if (tipe === 'drill') {
+        // Drill: cukup beri tahu soal mana yang SUDAH benar (untuk membangun ulang antrean),
+        // jangan bocorkan jawaban lama supaya santri tetap menjawab ulang.
+        savedAnswers = storedResume.map(function (a) {
+          return { questionId: a.questionId, correct: !!a.autoCorrect, firstTry: !!a.firstTry };
+        });
+      } else {
+        savedAnswers = storedResume.map(function (a) {
+          var q = qByIdResume[cleanString_(a.questionId)];
+          var ans = a.answer;
+          if (q && q.type === 'mc') {
+            var map = order.optionOrder && order.optionOrder[q.id];
+            var di = Array.isArray(map) ? map.indexOf(parseInt(a.answer, 10)) : parseInt(a.answer, 10);
+            ans = di >= 0 ? di : '';
+          }
+          return { questionId: a.questionId, answer: ans };
+        });
+      }
+      return {
+        ok: true, timestamp: nowIso_(),
+        data: {
+          attemptId: cleanString_(inProgress.id),
+          resumed: true,
+          tipe: tipe,
+          allowBack: config.allowBack,
+          reshuffleEachRound: config.reshuffleEachRound,
+          timeLimitMinutes: config.timeLimitMinutes,
+          startedAt: cleanString_(inProgress.started_at),
+          startedEpoch: parseInt(order.startedEpoch, 10) || Date.now(),
+          serverEpoch: Date.now(),
+          bgAudioUrl: config.bgAudioUrl,
+          bgAudioLoop: config.bgAudioLoop,
+          questions: buildSantriQuizQuestions_(questions, order),
+          savedAnswers: savedAnswers
+        }
+      };
+    }
+    // order basi (mis. Halaman Materi ditambah/dihapus saat attempt masih berlangsung) -> buang, buat baru
+    deleteSheetRows_(jState, [inProgress._rowNumber]);
+  }
+
+  var unlimited = tipe === 'drill' || config.maxAttempts === 0;
+  if (!unlimited && done.length >= config.maxAttempts) {
+    throw createError_('Kesempatan mengerjakan quiz ini sudah habis.', 400);
+  }
+
+  var order2 = { questionIds: [], optionOrder: {}, startedEpoch: Date.now() };
+  if (config.shuffleQuestions) {
+    // Halaman Materi tetap terpaku di posisi aslinya; hanya soal yang dinilai yang diacak
+    // lalu disisipkan ke slot-slot non-materi mengikuti urutan semula.
+    var shuffledIds = shuffleArray_(quizScorableQuestions_(questions).map(function (q) { return q.id; }));
+    var k = 0;
+    order2.questionIds = questions.map(function (q) { return q.type === 'materi' ? q.id : shuffledIds[k++]; });
+  } else {
+    order2.questionIds = questions.map(function (q) { return q.id; });
+  }
+  questions.forEach(function (q) {
+    if (q.type !== 'mc') return;
+    var idxs = q.options.map(function (_, i) { return i; });
+    order2.optionOrder[q.id] = config.shuffleOptions ? shuffleArray_(idxs) : idxs;
+  });
+
+  var attemptNo = mine.length + 1;
+  var newRow = {
+    id: String(nextId_(jState.rows)),
+    quiz_id: id,
+    kelas_id: cleanString_(quizRow.kelas_id),
+    santri_id: ctx.santriId,
+    santri_nama: ctx.santriNama,
+    attempt_no: String(attemptNo),
+    order_json: JSON.stringify(order2),
+    answers_json: '[]',
+    auto_score: '',
+    final_score: '',
+    correct_count: '',
+    total_count: String(questions.length),
+    status_kerja: 'berlangsung',
+    started_at: nowIso_(),
+    submitted_at: '',
+    status: STATUS_LABELS.quizJawaban.active
+  };
+  appendSheetRow_(jState, newRow);
+  return {
+    ok: true, timestamp: nowIso_(),
+    data: {
+      attemptId: newRow.id,
+      resumed: false,
+      tipe: tipe,
+      allowBack: config.allowBack,
+      reshuffleEachRound: config.reshuffleEachRound,
+      timeLimitMinutes: config.timeLimitMinutes,
+      startedAt: newRow.started_at,
+      startedEpoch: order2.startedEpoch,
+      serverEpoch: Date.now(),
+      bgAudioUrl: config.bgAudioUrl,
+      bgAudioLoop: config.bgAudioLoop,
+      questions: buildSantriQuizQuestions_(questions, order2),
+      savedAnswers: []
+    }
+  };
+}
+
+function loadSantriAttempt_(session, attemptId) {
+  var jState = readSheetState_('quizJawaban');
+  var jrow = findSheetRowById_(jState.rows, cleanString_(attemptId));
+  if (!jrow) throw createError_('Sesi pengerjaan tidak ditemukan.', 404);
+  if (cleanString_(jrow.santri_id) !== cleanString_(session.id)) throw createError_('Bukan sesi pengerjaan Anda.', 403);
+  return { jState: jState, jrow: jrow };
+}
+
+function handleQuizSantriAnswer_(request, session) {
+  if (!session || session.role !== 'santri') throw createError_('Hanya santri yang bisa mengakses.', 403);
+  var pair = loadSantriAttempt_(session, request.attemptId || request.attempt_id);
+  var jrow = pair.jrow;
+  if (cleanString_(jrow.status_kerja) !== 'berlangsung') throw createError_('Sesi pengerjaan sudah selesai.', 400);
+  var quizRow = findSheetRowById_(readSheetState_('quiz').rows, cleanString_(jrow.quiz_id));
+  if (!quizRow) throw createError_('Quiz tidak ditemukan.', 404);
+  var tipe = cleanString_(quizRow.tipe) || 'drill';
+  var config = normalizeQuizConfig_(parseQuizJson_(quizRow.config_json, {}));
+  var order = parseQuizJson_(jrow.order_json, {});
+  var questions = parseQuizJson_(quizRow.questions_json, []);
+  var qById = {};
+  questions.forEach(function (q) { qById[q.id] = q; });
+  var questionId = cleanString_(request.questionId || request.question_id);
+  var q = qById[questionId];
+  if (!q) throw createError_('Soal tidak ditemukan.', 404);
+  if (q.type === 'materi') throw createError_('Halaman Materi tidak perlu dijawab.', 400);
+
+  var storedAnswer;
+  if (q.type === 'mc') {
+    // Drill mengacak opsi tiap putaran di sisi klien, jadi klien kirim TEKS opsi (bukan indeks
+    // display) supaya tetap cocok. Examination tetap pakai indeks display + peta order tetap.
+    if (tipe === 'drill' && request.answerText !== undefined) {
+      storedAnswer = q.options.indexOf(cleanString_(request.answerText));
+      if (storedAnswer < 0) storedAnswer = '';
+    } else {
+      storedAnswer = quizMcDisplayToOriginal_(order, questionId, request.answer);
+      if (storedAnswer < 0) storedAnswer = '';
+    }
+  } else if (q.type === 'wordbank' || q.type === 'sentence') {
+    storedAnswer = cleanString_(request.answer).slice(0, 4000);
+  } else {
+    storedAnswer = cleanString_(request.answer).slice(0, 2000);
+  }
+  var autoCorrect = storedAnswer === '' ? false : checkQuizAnswerCorrect_(q, storedAnswer);
+  var frac = storedAnswer === '' ? 0 : quizAnswerFraction_(q, storedAnswer);
+
+  var answers = parseQuizJson_(jrow.answers_json, []);
+  var prevEntry = answers.filter(function (x) { return cleanString_(x.questionId) === questionId; })[0];
+  // firstAnswer: teks jawaban pada percobaan PERTAMA (dipakai di review hasil drill supaya
+  // santri tahu apa yang tadi dia jawab salah -- percobaan berikutnya tidak menimpanya).
+  var firstAnswerText = prevEntry
+    ? cleanString_(prevEntry.firstAnswer)
+    : (q.type === 'mc' ? cleanString_((q.options || [])[storedAnswer] || '') : quizAnswerText_(q, storedAnswer));
+  upsertQuizAnswer_(answers, {
+    questionId: questionId, type: q.type, answer: storedAnswer,
+    autoCorrect: autoCorrect, frac: frac,
+    // firstTry: benar/salah pada percobaan PERTAMA soal ini di sesi ini (dipakai skor drill).
+    firstTry: prevEntry ? !!prevEntry.firstTry : autoCorrect,
+    firstAnswer: firstAnswerText,
+    manualOverride: prevEntry ? cleanString_(prevEntry.manualOverride) : ''
+  });
+  updateSheetRow_(pair.jState, jrow._rowNumber, { answers_json: JSON.stringify(answers) });
+
+  // Timer backstop (lunak): kalau examination & lewat batas + 3 menit toleransi, minta submit.
+  var expired = false;
+  if (tipe === 'examination' && config.timeLimitMinutes > 0) {
+    var startedEpoch = parseInt(order.startedEpoch, 10) || 0;
+    if (startedEpoch && Date.now() > startedEpoch + config.timeLimitMinutes * 60000 + 180000) expired = true;
+  }
+
+  if (tipe === 'drill') {
+    return {
+      ok: true, timestamp: nowIso_(),
+      data: {
+        correct: autoCorrect,
+        correctAnswerText: autoCorrect ? '' : quizCorrectAnswerText_(q),
+        explanation: q.explanation || ''
+      }
+    };
+  }
+  return { ok: true, timestamp: nowIso_(), data: { saved: true, expired: expired } };
+}
+
+function finalizeQuizAttempt_(pair, quizRow, extraAnswers) {
+  var jrow = pair.jrow;
+  var order = parseQuizJson_(jrow.order_json, {});
+  var questions = parseQuizJson_(quizRow.questions_json, []);
+  var qById = {};
+  questions.forEach(function (q) { qById[q.id] = q; });
+
+  var answers = parseQuizJson_(jrow.answers_json, []);
+  (Array.isArray(extraAnswers) ? extraAnswers : []).forEach(function (a) {
+    var qid = cleanString_(a && a.questionId);
+    var q = qById[qid];
+    if (!q || q.type === 'materi') return;
+    var storedAnswer;
+    if (q.type === 'mc') {
+      storedAnswer = quizMcDisplayToOriginal_(order, qid, a.answer);
+      if (storedAnswer < 0) storedAnswer = '';
+    } else if (q.type === 'wordbank' || q.type === 'sentence') {
+      storedAnswer = cleanString_(a.answer).slice(0, 4000);
+    } else {
+      storedAnswer = cleanString_(a.answer).slice(0, 2000);
+    }
+    var prev = answers.filter(function (x) { return cleanString_(x.questionId) === qid; })[0];
+    upsertQuizAnswer_(answers, {
+      questionId: qid, type: q.type, answer: storedAnswer,
+      autoCorrect: storedAnswer === '' ? false : checkQuizAnswerCorrect_(q, storedAnswer),
+      frac: storedAnswer === '' ? 0 : quizAnswerFraction_(q, storedAnswer),
+      manualOverride: prev ? cleanString_(prev.manualOverride) : ''
+    });
+  });
+
+  // Re-grade otomatis semua entri (jangan percaya autoCorrect lama).
+  answers.forEach(function (a) {
+    var q = qById[cleanString_(a.questionId)];
+    if (!q || q.type === 'materi') return;
+    var blank = (a.answer === '' || a.answer == null);
+    a.autoCorrect = blank ? false : checkQuizAnswerCorrect_(q, a.answer);
+    a.frac = blank ? 0 : quizAnswerFraction_(q, a.answer);
+  });
+
+  var score = computeQuizScore_(questions, answers.map(function (a) {
+    return { questionId: a.questionId, autoCorrect: !!a.autoCorrect, frac: a.frac, manualOverride: cleanString_(a.manualOverride) };
+  }));
+  updateSheetRow_(pair.jState, jrow._rowNumber, {
+    answers_json: JSON.stringify(answers),
+    auto_score: String(score.autoScore),
+    final_score: String(score.finalScore),
+    correct_count: String(score.correctCount),
+    total_count: String(score.totalCount),
+    status_kerja: 'selesai',
+    submitted_at: nowIso_()
+  });
+  return { answers: answers, score: score, questions: questions };
+}
+
+// Drill selesai = SEMUA soal sudah dijawab benar (persis Survey). Server re-validasi ulang.
+// Skor drill = persentase benar pada PERCOBAAN PERTAMA tiap soal (informasi saja, tidak dinilai).
+function finalizeDrillAttempt_(pair, quizRow) {
+  var jrow = pair.jrow;
+  var questions = parseQuizJson_(quizRow.questions_json, []);
+  var scorable = quizScorableQuestions_(questions);
+  var qById = {};
+  questions.forEach(function (q) { qById[q.id] = q; });
+  var answers = parseQuizJson_(jrow.answers_json, []);
+  var byId = {};
+  answers.forEach(function (a) { byId[cleanString_(a.questionId)] = a; });
+
+  var allDoneCorrect = scorable.length > 0 && scorable.every(function (q) {
+    var a = byId[q.id];
+    return a && (a.answer !== '' && a.answer != null) && checkQuizAnswerCorrect_(q, a.answer);
+  });
+  if (!allDoneCorrect) throw createError_('Masih ada soal yang belum dijawab benar. Selesaikan dulu semua soalnya.', 400);
+
+  var firstTryCorrect = scorable.reduce(function (n, q) {
+    var a = byId[q.id];
+    return n + (a && a.firstTry ? 1 : 0);
+  }, 0);
+  var score = Math.round(firstTryCorrect / scorable.length * 1000) / 10;
+  updateSheetRow_(pair.jState, jrow._rowNumber, {
+    auto_score: String(score),
+    final_score: String(score),
+    correct_count: String(firstTryCorrect),
+    total_count: String(scorable.length),
+    status_kerja: 'selesai',
+    submitted_at: nowIso_()
+  });
+  return { questions: questions, answers: answers, firstTryCorrect: firstTryCorrect, total: scorable.length, score: score };
+}
+
+function quizAttemptResultPayload_(quizRow, jrowAfter, score, questions, answers) {
+  var config = normalizeQuizConfig_(parseQuizJson_(quizRow.config_json, {}));
+  var tipe = cleanString_(quizRow.tipe) || 'drill';
+  var released = !!cleanString_(quizRow.released_at);
+  var isDrill = tipe === 'drill';
+  var scoreVisible = isDrill || config.showResultMode === 'langsung' || released;
+  var answersVisible = isDrill || config.showAnswersMode === 'langsung' || (config.showAnswersMode === 'rilis' && released);
+  var aById = {};
+  (answers || []).forEach(function (a) { aById[cleanString_(a.questionId)] = a; });
+  var perQuestion = answersVisible ? quizScorableQuestions_(questions).map(function (q) {
+    var a = aById[q.id] || {};
+    var manualOverride = cleanString_(a.manualOverride);
+    var effective = isDrill
+      ? !!a.firstTry
+      : (manualOverride === 'benar' ? true : (manualOverride === 'salah' ? false : !!a.autoCorrect));
+    return {
+      questionId: q.id, type: q.type, text: q.text,
+      // Drill: teks percobaan PERTAMA (bisa salah). Exam: jawaban yang dikirim.
+      yourAnswerText: isDrill ? cleanString_(a.firstAnswer || '') : quizAnswerText_(q, a.answer),
+      correct: effective,
+      firstTry: !!a.firstTry,
+      correctAnswerText: quizCorrectAnswerText_(q),
+      explanation: q.explanation || ''
+    };
+  }) : [];
+  return {
+    tipe: tipe,
+    drill: isDrill,
+    scoreVisible: scoreVisible,
+    answersVisible: answersVisible,
+    held: !scoreVisible,
+    autoScore: score ? score.autoScore : (parseFloat(jrowAfter.auto_score) || 0),
+    finalScore: score ? score.finalScore : (parseFloat(jrowAfter.final_score) || 0),
+    correctCount: score ? score.correctCount : (parseInt(jrowAfter.correct_count, 10) || 0),
+    totalCount: score ? score.totalCount : (parseInt(jrowAfter.total_count, 10) || (questions ? quizScorableQuestions_(questions).length : 0)),
+    submittedAt: cleanString_(jrowAfter.submitted_at),
+    perQuestion: perQuestion
+  };
+}
+
+function handleQuizSantriSubmit_(request, session) {
+  if (!session || session.role !== 'santri') throw createError_('Hanya santri yang bisa mengakses.', 403);
+  var pair = loadSantriAttempt_(session, request.attemptId || request.attempt_id);
+  var jrow = pair.jrow;
+  var quizRow = findSheetRowById_(readSheetState_('quiz').rows, cleanString_(jrow.quiz_id));
+  if (!quizRow) throw createError_('Quiz tidak ditemukan.', 404);
+  var isDrill = (cleanString_(quizRow.tipe) || 'drill') === 'drill';
+
+  if (cleanString_(jrow.status_kerja) === 'selesai') {
+    var qs = parseQuizJson_(quizRow.questions_json, []);
+    var existingAnswers = parseQuizJson_(jrow.answers_json, []);
+    return { ok: true, timestamp: nowIso_(), data: quizAttemptResultPayload_(quizRow, jrow, null, qs, existingAnswers) };
+  }
+
+  if (isDrill) {
+    var dres = finalizeDrillAttempt_(pair, quizRow);
+    var drow = findSheetRowById_(readSheetState_('quizJawaban').rows, cleanString_(jrow.id));
+    return { ok: true, timestamp: nowIso_(), data: quizAttemptResultPayload_(quizRow, drow, null, dres.questions, dres.answers) };
+  }
+
+  var extraAnswers = Array.isArray(request.answers) ? request.answers : parseQuizJson_(request.answers, []);
+  var result = finalizeQuizAttempt_(pair, quizRow, extraAnswers);
+  var jrowAfter = findSheetRowById_(readSheetState_('quizJawaban').rows, cleanString_(jrow.id));
+  return {
+    ok: true, timestamp: nowIso_(),
+    data: quizAttemptResultPayload_(quizRow, jrowAfter, result.score, result.questions, result.answers)
+  };
+}
+
+function handleQuizSantriResult_(request, session) {
+  if (!session || session.role !== 'santri') throw createError_('Hanya santri yang bisa mengakses.', 403);
+  sweepExpiredQuizAttempts_();
+  var attemptId = cleanString_(request.attemptId || request.attempt_id);
+  var quizId = cleanString_(request.id || request.quizId);
+  var jState = readSheetState_('quizJawaban');
+  var jrow = null;
+  if (attemptId) {
+    jrow = findSheetRowById_(jState.rows, attemptId);
+    if (jrow && cleanString_(jrow.santri_id) !== cleanString_(session.id)) throw createError_('Bukan data Anda.', 403);
+  } else if (quizId) {
+    var mine = jState.rows.filter(function (j) {
+      return cleanString_(j.quiz_id) === quizId && cleanString_(j.santri_id) === cleanString_(session.id) && cleanString_(j.status_kerja) === 'selesai';
+    }).sort(function (a, b) { return cleanString_(b.submitted_at).localeCompare(cleanString_(a.submitted_at)); });
+    jrow = mine[0] || null;
+  }
+  if (!jrow) throw createError_('Belum ada hasil untuk quiz ini.', 404);
+  if (cleanString_(jrow.status_kerja) !== 'selesai') throw createError_('Pengerjaan quiz ini belum selesai.', 400);
+  var quizRow = findSheetRowById_(readSheetState_('quiz').rows, cleanString_(jrow.quiz_id));
+  if (!quizRow) throw createError_('Quiz tidak ditemukan.', 404);
+  var isDrill = (cleanString_(quizRow.tipe) || 'drill') === 'drill';
+  var questions = parseQuizJson_(quizRow.questions_json, []);
+  var answers = parseQuizJson_(jrow.answers_json, []);
+  // Drill: skor tersimpan (persen benar percobaan pertama) dipakai apa adanya. Examination:
+  // hitung ulang dari autoCorrect + override manual guru terbaru.
+  var score = isDrill ? null : computeQuizScore_(questions, answers.map(function (a) {
+    return { questionId: a.questionId, autoCorrect: !!a.autoCorrect, frac: a.frac, manualOverride: cleanString_(a.manualOverride) };
+  }));
+  var payload = quizAttemptResultPayload_(quizRow, jrow, score, questions, answers);
+  payload.title = cleanString_(quizRow.title);
+  payload.attemptNo = parseInt(jrow.attempt_no, 10) || 1;
+  return { ok: true, timestamp: nowIso_(), data: payload };
 }
 
 function readPortalBrandState_() {
@@ -12924,6 +16842,10 @@ function handleEntityToggle_(sheetKey, request, session) {
     assertProtectedPengurusMutable_(id, 'dinonaktifkan');
   }
   if (sheetKey === 'santri' && !nextActive) {
+    // Urutan wajib: santri Aktif harus Dibekukan dulu sebelum bisa dinonaktifkan (tidak boleh loncat).
+    if (getSantriStatusKey_(row.status) === 'active') {
+      throw createError_('Santri harus Dibekukan dulu sebelum bisa dinonaktifkan.', 400);
+    }
     var effectiveCatatanForToggle_ = Object.prototype.hasOwnProperty.call(request, 'catatan') && request.catatan !== undefined && request.catatan !== null
       ? cleanString_(request.catatan)
       : cleanString_(row.catatan);
@@ -13000,6 +16922,9 @@ function handleEntityDelete_(sheetKey, request, session) {
   }
   if (sheetKey === 'santri' && cleanString_(request.confirm).toUpperCase() !== 'HAPUS') {
     throw createError_('Konfirmasi tidak valid. Ketik kata HAPUS untuk menghapus beserta seluruh data turunannya.', 400);
+  }
+  if (sheetKey === 'quiz' && cleanString_(request.confirm).toUpperCase() !== 'HAPUS') {
+    throw createError_('Konfirmasi tidak valid. Ketik kata HAPUS untuk menghapus quiz beserta seluruh jawaban santri.', 400);
   }
 
   cascadeDeleteReferences_(sheetKey, id);
@@ -13869,7 +17794,12 @@ function buildReferencePayload_() {
       return { id: item.id, name: item.name, username: item.username, status: item.status, statusLabel: getPengurusStatusKey_(item.status) === 'dibekukan' ? 'Dibekukan' : 'Aktif' };
     }),
     santri: dataset.santri.filter(function (item) { return item.active; }).map(function (item) {
-      return { id: item.id, name: item.name, noInduk: item.noInduk, status: item.status, statusLabel: getSantriStatusKey_(item.status) === 'dibekukan' ? 'Dibekukan' : 'Aktif' };
+      // namaLain = varian nama yang TIDAK ditampilkan (biar pencarian di checklist picker
+      // tetap bisa cocok ke nama KK/akte/panggilan walau yang tampil nama-setelah-diubah).
+      var namaLain = [item.namaSetelahDiubah, item.namaLengkapKk, item.namaLengkap, item.namaPanggilan]
+        .filter(function (x) { return x && cleanString_(x).toLowerCase() !== cleanString_(item.name).toLowerCase(); })
+        .join(' ');
+      return { id: item.id, name: item.name, namaLain: namaLain, noInduk: item.noInduk, status: item.status, statusLabel: getSantriStatusKey_(item.status) === 'dibekukan' ? 'Dibekukan' : 'Aktif' };
     }),
     jabatan: dataset.jabatan.filter(function (item) { return item.active; }).map(function (item) {
       return { id: item.id, name: item.name, level: item.level };
@@ -14086,12 +18016,25 @@ function normalizePengurusJabatan_(row) {
   };
 }
 
+// Nama santri untuk DITAMPILKAN & DICARI di seluruh app: nama-setelah-diubah -> nama sesuai
+// KK -> nama sesuai akte -> nama panggilan. (Sebelumnya KK dilewati: langsung akte. Diubah
+// atas permintaan user supaya nama KK jadi fallback pertama & ikut dicocokkan saat pencarian.)
+function santriDisplayName_(row) {
+  if (!row) return '';
+  return cleanString_(row.nama_setelah_diubah)
+    || cleanString_(row.nama_lengkap_kk)
+    || cleanString_(row.nama_lengkap_akte)
+    || cleanString_(row.nama_panggilan)
+    || '';
+}
+
 function normalizeSantri_(row) {
   var status = normalizeStatusForSheet_('santri', row.status || 'Active');
-  var name = cleanString_(row.nama_setelah_diubah) || cleanString_(row.nama_lengkap_akte) || cleanString_(row.nama_panggilan);
+  var name = santriDisplayName_(row);
   return {
     id: cleanString_(row.id),
     name: name,
+    namaSetelahDiubah: cleanString_(row.nama_setelah_diubah),
     namaLengkap: cleanString_(row.nama_lengkap_akte),
     namaLengkapKk: cleanString_(row.nama_lengkap_kk),
     namaPanggilan: cleanString_(row.nama_panggilan),
@@ -14405,7 +18348,7 @@ var IMPORT_NAME_CONFLICT_CONFIG = {
     label: 'Santri',
     nameLabel: 'nama santri',
     pickName: function (record) {
-      return cleanString_(record.nama_setelah_diubah || record.nama_lengkap_akte || record.nama_panggilan);
+      return santriDisplayName_(record);
     },
     pickItems: function (dataset) {
       return dataset.santri.map(function (item) {
@@ -15125,7 +19068,7 @@ function buildHalaqohAttendanceRecordSummaryView_(record, halaqoh, dataset) {
   };
 }
 
-function buildHalaqohAttendanceCardView_(halaqoh, records, dataset, today) {
+function buildHalaqohAttendanceCardView_(halaqoh, records, dataset, today, filledDatesByEntity) {
   var santriPayload = buildHalaqohAttendanceSantriPayload_(halaqoh, dataset);
   var recentRecords = (records || []).filter(function (item) {
     return item && item.active;
@@ -15156,7 +19099,7 @@ function buildHalaqohAttendanceCardView_(halaqoh, records, dataset, today) {
     recentRecords: recentRecords,
     latestRecordId: recentRecords.length ? recentRecords[0].id : '',
     latestRecordDate: recentRecords.length ? recentRecords[0].tanggal : '',
-    audit: computeAttendanceAudit_(halaqoh, records, dataset, today)
+    audit: computeAttendanceAudit_('halaqoh', halaqoh, dataset, filledDatesByEntity || buildAbsensiFilledDatesByEntity_('absensiHalaqoh', 'id_halaqoh'))
   };
 }
 
@@ -15426,39 +19369,37 @@ function buildKelasAttendanceRecordSummaryView_(record, kelas, dataset) {
 var KELAS_ATTENDANCE_AUDIT_HARI_LABEL_ = { senin: 'Senin', selasa: 'Selasa', rabu: 'Rabu', kamis: 'Kamis', jumat: 'Jumat', sabtu: 'Sabtu', ahad: 'Ahad' };
 var KELAS_ATTENDANCE_AUDIT_HARI_ORDER_ = ['senin', 'selasa', 'rabu', 'kamis', 'jumat', 'sabtu', 'ahad'];
 
-function computeAttendanceAudit_(kelas, records, dataset, today) {
-  var ta = dataset.indexes.tahunAjaranById[kelas.tahunAjaranId];
-  var startDate = ta ? normalizeDateOnly_(ta.tanggalMulai) : '';
-  if (!startDate || startDate > today) {
-    return { active: false, since: startDate || '', missingCount: 0, missingWeekdays: [], missingDatesSample: [] };
-  }
-  var recordedDates = {};
-  (records || []).forEach(function (r) {
-    if (r && r.active) recordedDates[normalizeDateOnly_(r.tanggal)] = true;
-  });
-  var startParts = startDate.split('-');
-  var endParts = today.split('-');
-  var cursor = new Date(parseInt(startParts[0], 10), parseInt(startParts[1], 10) - 1, parseInt(startParts[2], 10), 12, 0, 0);
-  var endDate = new Date(parseInt(endParts[0], 10), parseInt(endParts[1], 10) - 1, parseInt(endParts[2], 10), 12, 0, 0);
-  var missingDates = [];
+// Badge audit kuning per kartu absensi (pages/halaqohAbsensi + pages/kelasAbsensi).
+// SEJAK 2026-09-07 delegasi ke helper bersama computeAbsensiEntityGapDates_ -- 1 sumber
+// kebenaran dgn popup self-audit (collectAbsensiGapItems_) & Kelola Audit Bawahan
+// (collectAbsensiGapItemsAllEntities_). Ikut: saklar auditSettingsState.halaqohActive/
+// kelasActive, gate TA aktif, status entitas aktif, (kelas) isKelasJenisAudited_, cutoff
+// auditCutoffDate_(). entityKind: 'halaqoh' | 'kelas'. entity: objek ternormalisasi
+// (dataset.halaqoh / dataset.kelasSiang element). filledDatesByEntity: dibangun caller lewat
+// buildAbsensiFilledDatesByEntity_ (sekali per request, bukan per kartu).
+function computeAttendanceAudit_(entityKind, entity, dataset, filledDatesByEntity) {
+  var off = { active: false, since: '', missingCount: 0, missingWeekdays: [], missingDatesSample: [] };
+  if (!auditSettingsState[entityKind === 'kelas' ? 'kelasActive' : 'halaqohActive']) return off;
+
+  var activeTa = (dataset.tahunAjaran || []).filter(function (ta) { return ta.isAktif; })[0];
+  if (!activeTa) return off;
+  var taStartDate = normalizeDateOnly_(activeTa.tanggalMulai);
+  if (!taStartDate) return off;
+
+  if (!entity || entity.isDeleted || !entity.active) return off;
+  if (cleanString_(entity.tahunAjaranId) !== cleanString_(activeTa.id)) return off;
+  if (entityKind === 'kelas' && !isKelasJenisAudited_(entity.jenis)) return off;
+
+  var gap = computeAbsensiEntityGapDates_(cleanString_(entity.id), filledDatesByEntity || {}, taStartDate, auditCutoffDate_());
   var weekdaySet = {};
-  while (cursor.getTime() <= endDate.getTime()) {
-    var dateStr = cursor.getFullYear() + '-' + String(cursor.getMonth() + 1).padStart(2, '0') + '-' + String(cursor.getDate()).padStart(2, '0');
-    if (!recordedDates[dateStr]) {
-      missingDates.push(dateStr);
-      var hari = getHariNamaFromDate_(dateStr);
-      if (hari) weekdaySet[hari] = true;
-    }
-    cursor.setDate(cursor.getDate() + 1);
-  }
-  var missingWeekdays = KELAS_ATTENDANCE_AUDIT_HARI_ORDER_.filter(function (w) { return weekdaySet[w]; })
-    .map(function (w) { return KELAS_ATTENDANCE_AUDIT_HARI_LABEL_[w]; });
+  gap.missingDates.forEach(function (d) { var h = getHariNamaFromDate_(d); if (h) weekdaySet[h] = true; });
   return {
     active: true,
-    since: startDate,
-    missingCount: missingDates.length,
-    missingWeekdays: missingWeekdays,
-    missingDatesSample: missingDates.slice(0, 5)
+    since: gap.since,
+    missingCount: gap.missingDates.length,
+    missingWeekdays: KELAS_ATTENDANCE_AUDIT_HARI_ORDER_.filter(function (w) { return weekdaySet[w]; })
+      .map(function (w) { return KELAS_ATTENDANCE_AUDIT_HARI_LABEL_[w]; }),
+    missingDatesSample: gap.missingDates.slice(0, 5)
   };
 }
 
@@ -15470,12 +19411,17 @@ function computeAttendanceAudit_(kelas, records, dataset, today) {
 // auditSettingsState.perkembanganMinPerWeek (bukan hardcoded), santri dibekukan dikecualikan
 // (lihat getDibekukanSantriIdSet_), roster STATIS spt aslinya (bukan direkonstruksi per-tanggal).
 // weekCountsByWeek: { [seninYmd]: { [santriId]: jumlahEntriPekanItu } } -- dibangun caller
-// (handlePerkembanganReguList_) dari perkembanganBulanan pakai getMondayOfWeek_.
+// (handlePerkembanganReguList_) via buildPerkembanganCountByWeekSantri_, yakni PER SANTRI
+// digabung lintas SEMUA regu (bukan difilter id_regu), jadi catatan santri yg pindah regu
+// di tengah TA tetap kehitung utk regu barunya.
 function computePerkembanganAudit_(regu, weekCountsByWeek, dataset, today) {
   var minPerWeek = parseInt(auditSettingsState.perkembanganMinPerWeek, 10) || 2;
   var ta = dataset.indexes.tahunAjaranById[regu.tahunAjaranId];
   var taStartDate = ta ? normalizeDateOnly_(ta.tanggalMulai) : '';
-  var yesterday = shiftDateOnly_(today, -1);
+  // Cutoff SAMA dgn collectPerkembanganGapItems_/Kelola Audit Bawahan (auditCutoffDate_,
+  // ikut setting auditCutoffOffsetDays) -- dulu hardcode "kemarin" (today-1), jadi beda
+  // sendiri dari 2 audit lain kalau offset-nya diubah admin (mis. skrg di-set 0 = hari ini).
+  var yesterday = auditCutoffDate_();
   if (!taStartDate || taStartDate > yesterday) {
     return { active: false, since: taStartDate || '', minPerWeek: minPerWeek, missingCount: 0, missingWeeksSample: [] };
   }
@@ -15484,8 +19430,9 @@ function computePerkembanganAudit_(regu, weekCountsByWeek, dataset, today) {
   if (!rosterIds.length) {
     return { active: true, since: taStartDate, minPerWeek: minPerWeek, missingCount: 0, missingWeeksSample: [] };
   }
-  var createdDate = normalizeDateOnly_(regu.record && regu.record.created_at);
-  var startDate = createdDate && createdDate > taStartDate ? createdDate : taStartDate;
+  // startDate SELALU awal TA -- disamakan dgn collectPerkembanganGapItems_ (keputusan user
+  // 2026-08-29, sederhana: tanpa pengecualian utk regu yg baru dibuat pertengahan TA).
+  var startDate = taStartDate;
   if (startDate > yesterday) {
     return { active: true, since: startDate, minPerWeek: minPerWeek, missingCount: 0, missingWeeksSample: [] };
   }
@@ -15508,7 +19455,7 @@ function computePerkembanganAudit_(regu, weekCountsByWeek, dataset, today) {
   };
 }
 
-function buildKelasAttendanceCardView_(kelas, records, dataset, today) {
+function buildKelasAttendanceCardView_(kelas, records, dataset, today, filledDatesByEntity) {
   var santriPayload = buildKelasAttendanceSantriPayload_(kelas, dataset);
   var recentRecords = (records || []).filter(function (item) {
     return item && item.active;
@@ -15541,7 +19488,7 @@ function buildKelasAttendanceCardView_(kelas, records, dataset, today) {
     recentRecords: recentRecords,
     latestRecordId: recentRecords.length ? recentRecords[0].id : '',
     latestRecordDate: recentRecords.length ? recentRecords[0].tanggal : '',
-    audit: computeAttendanceAudit_(kelas, records, dataset, today)
+    audit: computeAttendanceAudit_('kelas', kelas, dataset, filledDatesByEntity || buildAbsensiFilledDatesByEntity_('absensiKelas', 'id_kelas'))
   };
 }
 
@@ -16317,6 +20264,8 @@ function resolvePengurusPermissions_(pengurus, dataset) {
   var canManageAkhlak = isAdmin || isKsantrian;          // akhlak: kesantrian+admin semua regu; pembina hanya regunya (cek terpisah)
   var canManageNilaiUp = isAdmin || isAcademic || hasPengajarKeyword;
   var canManageAbsensi = isAdmin || isAcademic || isHalaqohCoordinator || isPengampuHalaqoh || hasTeachingAssignment || hasPengajarKeyword;
+  var canManageBuku = isAdmin || isAcademic;
+  var canUploadSoal = isSuperAdmin || isAdmin || isAcademic || hasPengajarKeyword;
   var isJamDigitalOperator = hasJamDigitalOpLabel && !isAdmin;
   var canAccessJamDigital = isAdmin || isJamDigitalOperator;
   var canManageKegiatanSop = isAdmin || isBagianSdm || isMudir;
@@ -16329,6 +20278,24 @@ function resolvePengurusPermissions_(pengurus, dataset) {
   // Semua pengurus boleh melihat data santri (halaman & API santri.list), kecuali pengurus
   // berstatus "pengabdian" — sengaja tidak boleh akses halaman/data Daftar Santri.
   var canViewSantri = canAccessPanel && !isPengabdian;
+
+  // Shim {jabatanIds, permissions} dipakai canAccessLevel_/canManageAddon_ (lewat
+  // buildAddonsCanManageMap_/buildLockedLevelAccessMap_) -- BUKAN objek `permissions` final
+  // (belum selesai dibangun di titik ini), dirakit dari variabel lokal yg sudah dihitung di atas.
+  var addonAccessShimSession_ = {
+    jabatanIds: pengurus.jabatanIds,
+    permissions: {
+      isSuperAdmin: isSuperAdmin, isAdmin: isAdmin, isMudir: isMudir, isPembinaRegu: isPembinaRegu,
+      isAcademic: isAcademic, isHalaqohCoordinator: isHalaqohCoordinator, isKsantrian: isKsantrian,
+      isPengampuHalaqoh: isPengampuHalaqoh, isPengujiHafalan: isPengujiHafalan,
+      canUploadSoal: canUploadSoal, canManageJadwalIbadah: canManageJadwalIbadah,
+      canAccessJamDigital: canAccessJamDigital, canManageContent: canManageContent,
+      canManageNilaiUp: canManageNilaiUp, canManageBuku: canManageBuku,
+      canManageKelasLevel: canManageKelasLevel, canManageAkhlak: canManageAkhlak,
+      canManagePelajaran: canManagePelajaran, canManageHalaqoh: canManageHalaqoh,
+      canManageKelasSiang: canManageKelasSiang, isBagianKesehatan: isBagianKesehatan
+    }
+  };
 
   var permissions = {
     isAdmin: isAdmin,
@@ -16350,6 +20317,23 @@ function resolvePengurusPermissions_(pengurus, dataset) {
     canManageNilaiUp: canManageNilaiUp,
     canManageAbsensi: canManageAbsensi,
     canAccessJamDigital: canAccessJamDigital,
+    // Kelola Addons (2026-09-12): dikirim ke SEMUA sesi pengurus supaya PAGE_RULES di
+    // frontend/shared-access.js bisa sembunyikan menu/tolak akses tanpa panggilan API
+    // terpisah. false = addon dimatikan Admin; field tak dikenal dianggap aktif (lihat
+    // isAddonActive_ di server.js, default aman kalau addon baru belum dikenal frontend lama).
+    // Dibangun dari ADDONS_REGISTRY_ (bukan ditulis manual satu-satu) supaya addon baru yang
+    // ditambahkan ke registry otomatis ikut terkirim ke frontend tanpa perlu ubah baris ini lagi.
+    addonsActive: buildAddonsActiveMap_(),
+    // Sinyal kasar "apakah sesi ini boleh MENGELOLA tiap addon" (bukan cuma memakai) -- dipakai
+    // PAGE_RULES utk halaman yang SELURUHNYA halaman pengelola (kelolaMading, pengumuman,
+    // survey, quizDigital, rekapZoom, jamDigitalRemote). Shim {permissions,jabatanIds} dibangun
+    // dari variabel lokal yg sudah dihitung di atas -- BUKAN objek `permissions` final (belum
+    // selesai dibangun di titik ini), lihat canManageAddon_/ADDON_MANAGE_FALLBACK_.
+    addonsCanManage: buildAddonsCanManageMap_(addonAccessShimSession_),
+    // Level akses (Lihat/Kelola) untuk 4 kelompok halaman TERKUNCI yang sudah diaktifkan
+    // pengaturannya (lihat `levels` di ADDONS_LOCKED_REGISTRY_ & LOCKED_LEVEL_FALLBACK_) --
+    // kelompok terkunci lain (tanpa `levels`) sengaja tidak muncul di sini sama sekali.
+    lockedLevelAccess: buildLockedLevelAccessMap_(addonAccessShimSession_),
     canManageKegiatanSop: canManageKegiatanSop,
     canManageContent: canManageContent,
     isBagianHukuman: isBagianHukuman,
@@ -16375,8 +20359,8 @@ function resolvePengurusPermissions_(pengurus, dataset) {
     // (diverifikasi per-request di handler, bukan lewat flag global).
     canManageSdmJurnalAll: isAdmin || isBagianSdm,
     canViewSdmJurnalAll: isMudir,
-    canManageBuku: isAdmin || isAcademic,
-    canUploadSoal: isSuperAdmin || isAdmin || isAcademic || hasPengajarKeyword,
+    canManageBuku: canManageBuku,
+    canUploadSoal: canUploadSoal,
     canManageSoal: isSuperAdmin || isAdmin || isAcademic,
     isKebersihan: isKebersihan,
     isPengawasLapangan: isPengawasLapangan,
@@ -16396,32 +20380,32 @@ function resolvePengurusPermissions_(pengurus, dataset) {
       : isMudir
         ? []
       : isJamDigitalOperator
-        ? ['index.html', 'daftarSantri.html', 'jadwalIbadah.html', 'jamDigital.html', 'jamDigitalRemote.html', 'santriSakit.html', 'inputAbsensiPengurus.html', 'jurnalSdm.html', 'accountProfile.html', 'changePassword.html', 'logout.html']
+        ? ['index.html', 'daftarSantri.html', 'jadwalIbadah.html', 'jamDigital.html', 'jamDigitalRemote.html', 'santriSakit.html', 'inputAbsensiPengurus.html', 'jurnalSdm.html', 'catatanku.html', 'accountProfile.html', 'changePassword.html', 'logout.html']
       : isAcademic
-        ? ['index.html', 'kaldik.html', 'daftarSantri.html', 'strukturOrganisasi.html', 'jadwalIbadah.html', 'dashboardAkademik.html', 'editKelas.html', 'inputKelasLevel.html', 'kelasAbsensi.html', 'nilaiUjian.html', 'editSoal.html', 'editKaldik.html', 'raport&rekamJejak.html', 'kelolaMading.html', 'pelanggaran.html', 'izinPulang.html', 'santriSakit.html', 'inputAbsensiPengurus.html', 'jurnalSdm.html', 'accountProfile.html', 'changePassword.html', 'logout.html', 'bukuDigital.html', 'bankSoal.html', 'masterPelajaran.html', 'progPelajaran.html']
+        ? ['index.html', 'kaldik.html', 'daftarSantri.html', 'strukturOrganisasi.html', 'jadwalIbadah.html', 'dashboardAkademik.html', 'editKelas.html', 'inputKelasLevel.html', 'kelasAbsensi.html', 'nilaiUjian.html', 'editSoal.html', 'quizDigital.html', 'editKaldik.html', 'raport&rekamJejak.html', 'kelolaMading.html', 'pelanggaran.html', 'izinPulang.html', 'santriSakit.html', 'inputAbsensiPengurus.html', 'jurnalSdm.html', 'catatanku.html', 'accountProfile.html', 'changePassword.html', 'logout.html', 'bukuDigital.html', 'bankSoal.html', 'masterPelajaran.html', 'progPelajaran.html']
       : isHalaqohCoordinator
-        ? ['index.html', 'kaldik.html', 'daftarSantri.html', 'jadwalIbadah.html', 'dashboardKoordHalaqoh.html', 'editHalaqoh.html', 'editHalaqohTasmi.html', 'halaqohAbsensi.html', 'hafalanHarian.html', 'tasmiSetoran.html', 'ujianHafalan.html', 'nilaiUas.html', 'raport&rekamJejak.html', 'pelanggaran.html', 'izinPulang.html', 'santriSakit.html', 'inputAbsensiPengurus.html', 'jurnalSdm.html', 'accountProfile.html', 'changePassword.html', 'logout.html', 'bukuDigital.html', 'bankSoal.html']
+        ? ['index.html', 'kaldik.html', 'daftarSantri.html', 'jadwalIbadah.html', 'dashboardKoordHalaqoh.html', 'editHalaqoh.html', 'editHalaqohTasmi.html', 'halaqohAbsensi.html', 'hafalanHarian.html', 'tasmiSetoran.html', 'ujianHafalan.html', 'nilaiUas.html', 'raport&rekamJejak.html', 'pelanggaran.html', 'izinPulang.html', 'santriSakit.html', 'inputAbsensiPengurus.html', 'jurnalSdm.html', 'catatanku.html', 'accountProfile.html', 'changePassword.html', 'logout.html', 'bukuDigital.html', 'bankSoal.html']
       : isPengampuHalaqoh
-        ? ['index.html', 'kaldik.html', 'daftarSantri.html', 'jadwalIbadah.html', 'halaqohAbsensi.html', 'hafalanHarian.html', 'tasmiSetoran.html', 'ujianHafalan.html', 'nilaiUas.html', 'pelanggaran.html', 'izinPulang.html', 'santriSakit.html', 'inputAbsensiPengurus.html', 'jurnalSdm.html', 'accountProfile.html', 'changePassword.html', 'logout.html', 'bukuDigital.html', 'bankSoal.html']
+        ? ['index.html', 'kaldik.html', 'daftarSantri.html', 'jadwalIbadah.html', 'halaqohAbsensi.html', 'hafalanHarian.html', 'tasmiSetoran.html', 'ujianHafalan.html', 'nilaiUas.html', 'pelanggaran.html', 'izinPulang.html', 'santriSakit.html', 'inputAbsensiPengurus.html', 'jurnalSdm.html', 'catatanku.html', 'accountProfile.html', 'changePassword.html', 'logout.html', 'bukuDigital.html', 'bankSoal.html']
       : isPengujiHafalan
-        ? ['index.html', 'kaldik.html', 'daftarSantri.html', 'jadwalIbadah.html', 'ujianHafalan.html', 'pelanggaran.html', 'izinPulang.html', 'santriSakit.html', 'inputAbsensiPengurus.html', 'jurnalSdm.html', 'accountProfile.html', 'changePassword.html', 'logout.html', 'bukuDigital.html', 'bankSoal.html']
+        ? ['index.html', 'kaldik.html', 'daftarSantri.html', 'jadwalIbadah.html', 'ujianHafalan.html', 'pelanggaran.html', 'izinPulang.html', 'santriSakit.html', 'inputAbsensiPengurus.html', 'jurnalSdm.html', 'catatanku.html', 'accountProfile.html', 'changePassword.html', 'logout.html', 'bukuDigital.html', 'bankSoal.html']
       : canManageNilaiUp
-        ? ['index.html', 'kaldik.html', 'daftarSantri.html', 'jadwalIbadah.html', 'kelasAbsensi.html', 'nilaiUjian.html', 'editSoal.html', 'pelanggaran.html', 'izinPulang.html', 'santriSakit.html', 'inputAbsensiPengurus.html', 'jurnalSdm.html', 'accountProfile.html', 'changePassword.html', 'logout.html', 'bukuDigital.html', 'bankSoal.html']
+        ? ['index.html', 'kaldik.html', 'daftarSantri.html', 'jadwalIbadah.html', 'kelasAbsensi.html', 'nilaiUjian.html', 'editSoal.html', 'quizDigital.html', 'pelanggaran.html', 'izinPulang.html', 'santriSakit.html', 'inputAbsensiPengurus.html', 'jurnalSdm.html', 'catatanku.html', 'accountProfile.html', 'changePassword.html', 'logout.html', 'bukuDigital.html', 'bankSoal.html']
       : isBagianKesehatan
-        ? ['index.html', 'kaldik.html', 'daftarSantri.html', 'jadwalIbadah.html', 'santriSakit.html', 'pelanggaran.html', 'izinPulang.html', 'inputAbsensiPengurus.html', 'jurnalSdm.html', 'accountProfile.html', 'changePassword.html', 'logout.html', 'bukuDigital.html', 'bankSoal.html']
+        ? ['index.html', 'kaldik.html', 'daftarSantri.html', 'jadwalIbadah.html', 'santriSakit.html', 'pelanggaran.html', 'izinPulang.html', 'inputAbsensiPengurus.html', 'jurnalSdm.html', 'catatanku.html', 'accountProfile.html', 'changePassword.html', 'logout.html', 'bukuDigital.html', 'bankSoal.html']
       : isBagianSdm
-        ? ['index.html', 'kaldik.html', 'daftarSantri.html', 'jadwalIbadah.html', 'koordinatAbsensi.html', 'kegiatanSop.html', 'rekapAbsensiPengurus.html', 'jurnalSdm.html', 'pelanggaran.html', 'izinPulang.html', 'santriSakit.html', 'inputAbsensiPengurus.html', 'dashboardSdm.html', 'editPengurus.html', 'accountProfile.html', 'changePassword.html', 'logout.html', 'bukuDigital.html', 'bankSoal.html']
+        ? ['index.html', 'kaldik.html', 'daftarSantri.html', 'jadwalIbadah.html', 'koordinatAbsensi.html', 'kegiatanSop.html', 'rekapAbsensiPengurus.html', 'jurnalSdm.html', 'pelanggaran.html', 'izinPulang.html', 'santriSakit.html', 'inputAbsensiPengurus.html', 'dashboardSdm.html', 'editPengurus.html', 'catatanku.html', 'accountProfile.html', 'changePassword.html', 'logout.html', 'bukuDigital.html', 'bankSoal.html']
       : isKsantrian
-        ? ['index.html', 'kaldik.html', 'daftarSantri.html', 'strukturOrganisasi.html', 'jadwalIbadah.html', 'dashboardKesantrian.html', 'editRegu.html', 'reguAbsensi.html', 'perkembanganSantri.html', 'perkembanganTemplate.html', 'raport&rekamJejak.html', 'akhlakKepribadian.html', 'deskripsiSantri.html', 'jenisPelanggaran.html', 'santriSakit.html', 'izinPulang.html', 'pelanggaran.html', 'inputAbsensiPengurus.html', 'jurnalSdm.html', 'accountProfile.html', 'changePassword.html', 'logout.html', 'bukuDigital.html', 'bankSoal.html']
+        ? ['index.html', 'kaldik.html', 'daftarSantri.html', 'strukturOrganisasi.html', 'jadwalIbadah.html', 'dashboardKesantrian.html', 'editRegu.html', 'reguAbsensi.html', 'perkembanganSantri.html', 'perkembanganTemplate.html', 'raport&rekamJejak.html', 'akhlakKepribadian.html', 'deskripsiSantri.html', 'jenisPelanggaran.html', 'santriSakit.html', 'izinPulang.html', 'pelanggaran.html', 'inputAbsensiPengurus.html', 'jurnalSdm.html', 'catatanku.html', 'accountProfile.html', 'changePassword.html', 'logout.html', 'bukuDigital.html', 'bankSoal.html']
       : isKebersihan
-        ? ['index.html', 'kaldik.html', 'daftarSantri.html', 'strukturOrganisasi.html', 'jadwalPiket.html', 'pelanggaran.html', 'izinPulang.html', 'santriSakit.html', 'inputAbsensiPengurus.html', 'jurnalSdm.html', 'accountProfile.html', 'changePassword.html', 'logout.html', 'bukuDigital.html', 'bankSoal.html']
+        ? ['index.html', 'kaldik.html', 'daftarSantri.html', 'strukturOrganisasi.html', 'jadwalPiket.html', 'pelanggaran.html', 'izinPulang.html', 'santriSakit.html', 'inputAbsensiPengurus.html', 'jurnalSdm.html', 'catatanku.html', 'accountProfile.html', 'changePassword.html', 'logout.html', 'bukuDigital.html', 'bankSoal.html']
       : isPembinaRegu
-        ? ['index.html', 'kaldik.html', 'daftarSantri.html', 'strukturOrganisasi.html', 'jadwalIbadah.html', 'reguAbsensi.html', 'perkembanganSantri.html', 'akhlakKepribadian.html', 'deskripsiSantri.html', 'pelanggaran.html', 'izinPulang.html', 'santriSakit.html', 'inputAbsensiPengurus.html', 'jurnalSdm.html', 'accountProfile.html', 'changePassword.html', 'logout.html', 'bukuDigital.html', 'bankSoal.html']
+        ? ['index.html', 'kaldik.html', 'daftarSantri.html', 'strukturOrganisasi.html', 'jadwalIbadah.html', 'reguAbsensi.html', 'perkembanganSantri.html', 'akhlakKepribadian.html', 'deskripsiSantri.html', 'pelanggaran.html', 'izinPulang.html', 'santriSakit.html', 'inputAbsensiPengurus.html', 'jurnalSdm.html', 'catatanku.html', 'accountProfile.html', 'changePassword.html', 'logout.html', 'bukuDigital.html', 'bankSoal.html']
       : hasMading
-        ? ['index.html', 'kaldik.html', 'daftarSantri.html', 'strukturOrganisasi.html', 'kelolaMading.html', 'pelanggaran.html', 'izinPulang.html', 'santriSakit.html', 'inputAbsensiPengurus.html', 'jurnalSdm.html', 'accountProfile.html', 'changePassword.html', 'logout.html', 'bukuDigital.html', 'bankSoal.html']
+        ? ['index.html', 'kaldik.html', 'daftarSantri.html', 'strukturOrganisasi.html', 'kelolaMading.html', 'pelanggaran.html', 'izinPulang.html', 'santriSakit.html', 'inputAbsensiPengurus.html', 'jurnalSdm.html', 'catatanku.html', 'accountProfile.html', 'changePassword.html', 'logout.html', 'bukuDigital.html', 'bankSoal.html']
       : isPengawasLapangan
-        ? ['index.html', 'kaldik.html', 'daftarSantri.html', 'jadwalIbadah.html', 'jadwalHarianPengurus.html', 'pelanggaran.html', 'izinPulang.html', 'santriSakit.html', 'inputAbsensiPengurus.html', 'jurnalSdm.html', 'accountProfile.html', 'changePassword.html', 'logout.html', 'bukuDigital.html', 'bankSoal.html']
-      : ['index.html', 'kaldik.html', 'daftarSantri.html', 'jadwalIbadah.html', 'pelanggaran.html', 'izinPulang.html', 'santriSakit.html', 'inputAbsensiPengurus.html', 'jurnalSdm.html', 'accountProfile.html', 'changePassword.html', 'logout.html', 'bukuDigital.html', 'bankSoal.html']
+        ? ['index.html', 'kaldik.html', 'daftarSantri.html', 'jadwalIbadah.html', 'jadwalHarianPengurus.html', 'pelanggaran.html', 'izinPulang.html', 'santriSakit.html', 'inputAbsensiPengurus.html', 'jurnalSdm.html', 'catatanku.html', 'accountProfile.html', 'changePassword.html', 'logout.html', 'bukuDigital.html', 'bankSoal.html']
+      : ['index.html', 'kaldik.html', 'daftarSantri.html', 'jadwalIbadah.html', 'pelanggaran.html', 'izinPulang.html', 'santriSakit.html', 'inputAbsensiPengurus.html', 'jurnalSdm.html', 'catatanku.html', 'accountProfile.html', 'changePassword.html', 'logout.html', 'bukuDigital.html', 'bankSoal.html']
   };
   permissions.roleScopeOptions = buildRoleScopeOptions_(permissions, pengurus.jabatanLabels, pengurus.primaryJabatanLabel);
   return permissions;
@@ -16482,7 +20466,16 @@ function allowSantriAction_(action) {
     action === 'santri.kondisi.pulang' ||
     action === 'santri.kondisi.zoom' ||
     action === 'jabatan.struktur' ||
-    action === 'kaldik.list';
+    action === 'kaldik.list' ||
+    action === 'quiz.santri.list' ||
+    action === 'quiz.santri.browse' ||
+    action === 'quiz.santri.get' ||
+    action === 'quiz.santri.start' ||
+    action === 'quiz.santri.answer' ||
+    action === 'quiz.santri.submit' ||
+    action === 'quiz.santri.result' ||
+    action === 'quiz.santri.doc.get' ||
+    action === 'quiz.santri.doc.progress';
 }
 
 function authorizeAction_(session, action, request) {
@@ -16624,12 +20617,18 @@ function authorizeAction_(session, action, request) {
     case 'halaqoh.pindahkanSantri':
       if (session.permissions.canManageHalaqoh) return;
       break;
+    case 'riwayat.list':
+      // View-tier "Riwayat / Log Perubahan" (lihat ADDONS_LOCKED_REGISTRY_) -- bawaan: semua
+      // pengurus. Hapus (satuan/semua) & pengaturan batas riwayat TETAP di requireRiwayatSuperAdminScope_,
+      // tidak ikut diatur di sini.
+      if (canAccessLevel_(session, 'riwayatLog', 'view', function () { return true; })) return;
+      break;
     case 'pindahHalaqoh.list':
       if (session.permissions.canManageHalaqoh || session.permissions.canAccessPanel) return;
       break;
     case 'pindahHalaqoh.edit':
     case 'pindahHalaqoh.toggle':
-      if (session.permissions.canManageHalaqoh) return;
+      if (canAccessLevel_(session, 'riwayatLog', 'manage', function (s) { return !!(s.permissions && s.permissions.canManageHalaqoh); })) return;
       break;
     case 'pindahHalaqoh.delete':
       requireSuperAdmin_(session);
@@ -16654,7 +20653,7 @@ function authorizeAction_(session, action, request) {
     case 'halaqohTasmi.toggle':
     case 'halaqohTasmi.autoGenerate.preview':
     case 'halaqohTasmi.autoGenerate.save':
-      if (session.permissions.canManageHalaqoh) return;
+      if (canAccessLevel_(session, 'halaqohTasmi', 'manageStruktur', function (s) { return !!(s.permissions && s.permissions.canManageHalaqoh); })) return;
       break;
     case 'halaqohTasmi.summaryPdfData':
       if (session.permissions.canManageHalaqoh || session.permissions.canManageSantri || session.permissions.canDelete) return;
@@ -16714,7 +20713,7 @@ function authorizeAction_(session, action, request) {
       break;
     case 'pindahRegu.edit':
     case 'pindahRegu.toggle':
-      if (session.permissions.canManageRegu) return;
+      if (canAccessLevel_(session, 'riwayatLog', 'manage', function (s) { return !!(s.permissions && s.permissions.canManageRegu); })) return;
       break;
     case 'pindahRegu.delete':
       requireSuperAdmin_(session);
@@ -16755,7 +20754,7 @@ function authorizeAction_(session, action, request) {
       if (session.permissions.canManageKelasLevel || session.permissions.isMudir) return;
       break;
     case 'kelasLevel.save':
-      if (session.permissions.canManageKelasLevel) return;
+      if (canManageAddon_(session, 'raportRekamJejak', function (s) { return !!(s.permissions && s.permissions.canManageKelasLevel); })) return;
       break;
     case 'jadwalHarianPengurus.list':
     case 'jadwalHarianPengurus.saveBulk':
@@ -16779,18 +20778,18 @@ function authorizeAction_(session, action, request) {
     case 'perkembangan.reguList':
     case 'perkembangan.santriList':
     case 'perkembangan.entryList':
-      if (session.permissions.isAdmin || session.permissions.isSuperAdmin || session.permissions.isKsantrian || session.permissions.isPembinaRegu || session.permissions.isMudir) return;
+      if (canAccessLevel_(session, 'reguPerkembangan', 'manage', function (s) { var p = s.permissions; return !!(p && (p.isAdmin || p.isKsantrian || p.isPembinaRegu || p.isMudir)); })) return;
       break;
     case 'perkembangan.save':
     case 'perkembangan.delete':
-      if (session.permissions.isAdmin || session.permissions.isSuperAdmin || session.permissions.isKsantrian || session.permissions.isPembinaRegu) return;
+      if (canAccessLevel_(session, 'reguPerkembangan', 'manage', function (s) { var p = s.permissions; return !!(p && (p.isAdmin || p.isKsantrian || p.isPembinaRegu)); })) return;
       break;
     case 'perkembangan.template.list':
       if (session.permissions.isAdmin || session.permissions.isSuperAdmin || session.permissions.isKsantrian || session.permissions.isPembinaRegu || session.permissions.isMudir) return;
       break;
     case 'perkembangan.template.save':
     case 'perkembangan.template.delete':
-      if (session.permissions.isAdmin || session.permissions.isSuperAdmin || session.permissions.isKsantrian) return;
+      if (canAccessLevel_(session, 'reguPerkembangan', 'manage', function (s) { var p = s.permissions; return !!(p && (p.isAdmin || p.isKsantrian)); })) return;
       break;
     case 'akhlak.reguList':
     case 'akhlak.santriList':
@@ -16803,7 +20802,7 @@ function authorizeAction_(session, action, request) {
     case 'deskripsi.save':
     case 'deskripsi.template.save':
     case 'deskripsi.template.delete':
-      if (session.permissions.isAdmin || session.permissions.isSuperAdmin || session.permissions.isKsantrian || session.permissions.isPembinaRegu) return;
+      if (canManageAddon_(session, 'raportRekamJejak', function (s) { var p = s.permissions; return !!(p && (p.isAdmin || p.isSuperAdmin || p.isKsantrian || p.isPembinaRegu)); })) return;
       break;
     case 'dataKelompokManual.get':
       if (session.permissions.canAccessPanel) return;
@@ -16843,14 +20842,26 @@ function authorizeAction_(session, action, request) {
     case 'jadwal.ibadah.saveMeta':
     case 'jadwal.khutbah.save':
     case 'jadwal.khutbah.delete':
-      if (session.permissions.canManageJadwalIbadah) return;
+      if (canManageAddon_(session, 'jadwalIbadah', ADDON_MANAGE_FALLBACK_.jadwalIbadah)) return;
+      break;
+    case 'kaldik.list':
+      // View-tier "Kalender Akademik" (lihat ADDONS_LOCKED_REGISTRY_) -- bawaan: semua pengurus.
+      // Santri TIDAK lewat sini sama sekali (sudah selesai duluan di allowSantriAction_ di atas).
+      if (canAccessLevel_(session, 'kalenderAkademik', 'view', function () { return true; })) return;
       break;
     case 'kaldik.save':
     case 'kaldik.delete':
-      if (session.permissions.isAdmin || session.permissions.isSuperAdmin || session.permissions.isAcademic) return;
+    case 'kaldik.quickImportPreview':
+    case 'kaldik.quickImport':
+      if (canAccessLevel_(session, 'kalenderAkademik', 'manage', function (s) { var p = s.permissions; return !!(p && (p.isAdmin || p.isSuperAdmin || p.isAcademic)); })) return;
+      break;
+    case 'kaldik.deleteAll':
+      if (session.permissions.isAdmin || session.permissions.isSuperAdmin) return;
       break;
     case 'pelajaran.list':
     case 'pelajaran.level.list':
+      if (canAccessLevel_(session, 'masterPelajaran', 'view', function (s) { var p = s.permissions; return !!(p && (p.canManagePelajaran || p.isMudir)); })) return;
+      break;
     case 'santriPelajaran.list':
     case 'santriPelajaran.detail':
       if (session.permissions.canManagePelajaran || session.permissions.isMudir) return;
@@ -16859,6 +20870,8 @@ function authorizeAction_(session, action, request) {
     case 'pelajaran.level.save':
     case 'pelajaran.level.delete':
     case 'pelajaran.level.reorder':
+      if (canAccessLevel_(session, 'masterPelajaran', 'manage', function (s) { return !!(s.permissions && s.permissions.canManagePelajaran); })) return;
+      break;
     case 'santriPelajaran.save':
     case 'santriPelajaran.delete':
       if (session.permissions.canManagePelajaran) return;
@@ -16885,6 +20898,32 @@ function authorizeAction_(session, action, request) {
     case 'kegiatanSopLampiran.delete':
       requireSuperAdmin_(session);
       return;
+    // ── Catatan & Dokumen (pages/catatanku) ──────────────────────────────────
+    // Semua pengurus boleh membuka halaman & melihat dokumen yang dibagikan padanya;
+    // kontrol per-dokumen (pemilik / target berbagi) dikerjakan di dalam tiap handler.
+    case 'catatan.refs':
+    case 'catatan.list':
+    case 'catatan.get':
+    case 'catatan.saveContent':
+    case 'catatan.rename':
+    case 'catatan.pin':
+    case 'catatan.share.list':
+    case 'catatan.share.set':
+    case 'catatan.versions':
+    case 'catatan.version.get':
+    case 'catatan.version.restore':
+    case 'catatan.delete':
+    case 'catatan.discardEmpty':
+    case 'catatan.restore':
+      return;
+    case 'catatan.create':
+      // Bawaan: hanya Mudir, Admin, dan Super Admin yang boleh membuat dokumen baru -- bisa
+      // digantikan lewat Jabatan Pengelola di Kelola Addons (lihat canManageAddon_).
+      if (canManageAddon_(session, 'catatanku', ADDON_MANAGE_FALLBACK_.catatanku)) return;
+      throw createError_('Hanya Mudir, Admin, Super Admin, atau jabatan yang diatur di Kelola Addons yang dapat membuat dokumen.', 403);
+    case 'catatan.purge':
+      requireSuperAdmin_(session);
+      return;
     case 'nilaiup.list':
     case 'nilaiup.by.kelas':
     case 'nilaiup.absensi.summary':
@@ -16893,7 +20932,7 @@ function authorizeAction_(session, action, request) {
     case 'nilaiup.save':
     case 'nilaiup.toggle':
     case 'nilaiup.session.delete':
-      if (session.permissions.canManageNilaiUp) return;
+      if (canAccessLevel_(session, 'kelasSiangNilai', 'manage', function (s) { return !!(s.permissions && s.permissions.canManageNilaiUp); })) return;
       break;
     case 'nilaiup.delete':
     case 'nilaiup.excel.save':
@@ -16914,14 +20953,14 @@ function authorizeAction_(session, action, request) {
       if (session.permissions.canManageHalaqoh || session.permissions.isMudir) return;
       break;
     case 'halaqoh.absensi.save':
-      if (session.permissions.canManageHalaqoh) return;
+      if (canAccessLevel_(session, 'misiTahfizh', 'manage', function (s) { return !!(s.permissions && s.permissions.canManageHalaqoh); })) return;
       break;
     case 'kelas.absensi.dashboard':
     case 'kelas.absensi.get':
-      if (session.permissions.canManageKelasSiang || session.permissions.canManageNilaiUp || session.permissions.isMudir) return;
+      if (canAccessLevel_(session, 'kelasSiangNilai', 'manage', function (s) { var p = s.permissions; return !!(p && (p.canManageKelasSiang || p.canManageNilaiUp || p.isMudir)); })) return;
       break;
     case 'kelas.absensi.save':
-      if (session.permissions.canManageKelasSiang || session.permissions.canManageNilaiUp) return;
+      if (canAccessLevel_(session, 'kelasSiangNilai', 'manage', function (s) { var p = s.permissions; return !!(p && (p.canManageKelasSiang || p.canManageNilaiUp)); })) return;
       break;
     // ROLE (permission gate): butuh salah satu role Super Admin / Admin / Kesantryan / Pembina Regu.
     // Pengecekan scope (regu mana yang boleh diakses) dilakukan terpisah di getAccessibleReguAttendanceItems_().
@@ -16930,14 +20969,14 @@ function authorizeAction_(session, action, request) {
       if (session.permissions.canManageRegu || session.permissions.isPembinaRegu || session.permissions.isMudir) return;
       break;
     case 'regu.absensi.save':
-      if (session.permissions.canManageRegu || session.permissions.isPembinaRegu) return;
+      if (canAccessLevel_(session, 'reguPerkembangan', 'manage', function (s) { var p = s.permissions; return !!(p && (p.canManageRegu || p.isPembinaRegu)); })) return;
       break;
     case 'content.list':
-      if (session.permissions.canManageContent || session.permissions.isMudir) return;
+      if (canManageAddon_(session, 'madingDigital', ADDON_MANAGE_FALLBACK_.madingDigital)) return;
       break;
     case 'content.save':
     case 'content.toggle':
-      if (session.permissions.canManageContent) return;
+      if (canManageAddon_(session, 'madingDigital', ADDON_MANAGE_FALLBACK_.madingDigital)) return;
       break;
     case 'content.delete':
       requireSuperAdmin_(session);
@@ -16958,9 +20997,17 @@ function authorizeAction_(session, action, request) {
     case 'survey.completionList':
     case 'survey.completion.delete':
     case 'survey.completion.deleteAll':
+      if (canManageAddon_(session, 'pengumumanSurvey', ADDON_MANAGE_FALLBACK_.pengumumanSurvey)) return;
+      break;
     case 'audit.settings.get':
     case 'audit.settings.set':
-      if (session.permissions.isAdmin || session.permissions.isSuperAdmin || session.permissions.isMudir) return;
+      if (canAccessLevel_(session, 'sistemAudit', 'manage', function (s) { var p = s.permissions; return !!(p && (p.isAdmin || p.isMudir)); })) return;
+      break;
+    case 'addons.settings.get':
+    case 'addons.settings.set':
+      // Kelola Addons: Admin/Super Admin saja (BEDA dari audit.settings di atas yang ikut
+      // membolehkan Mudir) -- disamakan dengan portalSettings/backup, bukan kelolaAudit.
+      if (session.permissions.isAdmin || session.permissions.isSuperAdmin) return;
       break;
     case 'auditBawahan.settings.get':
     case 'auditBawahan.settings.set':
@@ -16975,6 +21022,33 @@ function authorizeAction_(session, action, request) {
     case 'survey.delete':
       requireSuperAdmin_(session);
       return;
+    // Quiz Digital: gerbang peran = sama dengan Edit Soal / Nilai Ujian (canManageNilaiUp =
+    // Admin/Akademik/pengajar-berjabatan, plus Mudir). Scope "kelas mana yang boleh" dicek
+    // per-record di handler lewat assertCanManageQuizKelas_. Tempat sampah (trash/restore/
+    // delete permanen) & folder = gerbang peran SAMA (bukan super-admin-only) — sesuai
+    // permintaan: pengelola quiz kelas boleh semua aksi.
+    case 'quiz.browse':
+    case 'quiz.get':
+    case 'quiz.save':
+    case 'quiz.duplicate':
+    case 'quiz.toggle':
+    case 'quiz.publish':
+    case 'quiz.releaseResults':
+    case 'quiz.results':
+    case 'quiz.results.notDone':
+    case 'quiz.doc.readers':
+    case 'quiz.grade':
+    case 'quiz.trash':
+    case 'quiz.restore':
+    case 'quiz.delete':
+    case 'quiz.setFolder':
+    case 'quizFolder.children':
+    case 'quizFolder.get':
+    case 'quizFolder.save':
+    case 'quizFolder.duplicate':
+    case 'quizFolder.delete':
+      if (canManageAddon_(session, 'quizDigital', ADDON_MANAGE_FALLBACK_.quizDigital)) return;
+      break;
     case 'portal.brand.get':
       if (session.permissions && session.permissions.isMudir) return;
       requireSuperAdmin_(session);
@@ -16983,6 +21057,7 @@ function authorizeAction_(session, action, request) {
       requireSuperAdmin_(session);
       return;
     case 'hafalan.harian.list':
+    case 'hafalan.harian.halaqoh.list':
     case 'hafalan.harian.rekap':
     case 'hafalan.harian.rekap.semua':
     case 'hafalan.harian.top.ziyadah':
@@ -17027,7 +21102,7 @@ function authorizeAction_(session, action, request) {
     case 'santri.sakit.update':
     case 'santri.sakit.foto.upload':
     case 'santri.sakit.foto.delete':
-      if (session.permissions.canAccessSantriSakit) return;
+      if (canAccessLevel_(session, 'pelanggaranKondisi', 'manage', function (s) { return !!(s.permissions && s.permissions.canAccessSantriSakit); })) return;
       break;
     case 'buku.list':
       if (session.permissions.canAccessPanel) return;
@@ -17036,18 +21111,18 @@ function authorizeAction_(session, action, request) {
     case 'buku.update':
     case 'buku.delete':
     case 'buku.quill.save':
-      if (session.permissions.canManageBuku) return;
+      if (canManageAddon_(session, 'bukuDigital', ADDON_MANAGE_FALLBACK_.bukuDigital)) return;
       break;
     case 'banksoal.list':
       if (session.permissions.canAccessPanel) return;
       break;
     case 'banksoal.save':
     case 'banksoal.quill.save':
-      if (session.permissions.canUploadSoal) return;
+      if (canManageAddon_(session, 'bankSoal', ADDON_MANAGE_FALLBACK_.bankSoal)) return;
       break;
     case 'banksoal.update':
     case 'banksoal.delete':
-      if (session.permissions.canUploadSoal) return; // handler checks ownership
+      if (canManageAddon_(session, 'bankSoal', ADDON_MANAGE_FALLBACK_.bankSoal)) return; // handler checks ownership
       break;
     case 'izin.pulang.list':
       if (session.permissions.canAccessPanel) return; // semua pengurus bisa lihat
@@ -17057,7 +21132,7 @@ function authorizeAction_(session, action, request) {
     case 'izin.pulang.setStatus':
     case 'izin.pulang.foto.upload':
     case 'izin.pulang.foto.delete':
-      if (session.permissions.canAccessIzinPulang) return;
+      if (canAccessLevel_(session, 'pelanggaranKondisi', 'manage', function (s) { return !!(s.permissions && s.permissions.canAccessIzinPulang); })) return;
       break;
     case 'santri.sakit.delete':
     case 'santri.sakit.deleteAll':
@@ -17069,13 +21144,15 @@ function authorizeAction_(session, action, request) {
       return;
     case 'pelanggaran.jenis.list':
     case 'zoom.santriList':
+      if (session.permissions.canAccessPanel) return;
+      break;
     case 'zoom.kehadiran.save':
     case 'zoom.kunjungan.save':
-      if (session.permissions.canAccessPanel) return;
+      if (canManageAddon_(session, 'rekapZoom', ADDON_MANAGE_FALLBACK_.rekapZoom)) return;
       break;
     case 'pelanggaran.list':
     case 'pelanggaran.save':
-      if (session.permissions.canInputPelanggaran) return;
+      if (canAccessLevel_(session, 'pelanggaranKondisi', 'input', function (s) { return !!(s.permissions && s.permissions.canInputPelanggaran); })) return;
       break;
     case 'pelanggaran.update':
     case 'pelanggaran.toggle':
@@ -17088,7 +21165,7 @@ function authorizeAction_(session, action, request) {
       break;
     case 'pelanggaran.jenis.save':
     case 'pelanggaran.jenis.toggle':
-      if (session.permissions.isAdmin || session.permissions.isKsantrian) return;
+      if (canAccessLevel_(session, 'pelanggaranKondisi', 'manage', function (s) { var p = s.permissions; return !!(p && (p.isAdmin || p.isKsantrian)); })) return;
       break;
     case 'pelanggaran.delete':
     case 'pelanggaran.deleteAll':
@@ -17911,7 +21988,9 @@ function getAccessibleHalaqohAttendanceItems_(session, dataset) {
     return halaqoh.active;
   });
   var p = session && session.permissions;
-  if (p && (p.isSuperAdmin || p.isAdmin || p.isHalaqohCoordinator)) {
+  if (canAccessLevel_(session, 'misiTahfizh', 'manageAllHalaqoh', function (s) {
+    var sp = s.permissions; return !!(sp && (sp.isAdmin || sp.isHalaqohCoordinator));
+  })) {
     return allHalaqoh;
   }
   var halaqohIdMap = {};
@@ -17932,8 +22011,10 @@ function findAccessibleHalaqohAttendanceItem_(session, halaqohId, dataset) {
 
 function canAccessHafalanHarian_(session) {
   if (!session || session.role !== 'pengurus' || !session.permissions) return false;
-  var p = session.permissions;
-  return !!(p.isSuperAdmin || p.isAdmin || p.isHalaqohCoordinator || p.isPengampuHalaqoh || p.canManageHalaqoh);
+  return canAccessLevel_(session, 'misiTahfizh', 'manage', function (s) {
+    var p = s.permissions;
+    return !!(p.isAdmin || p.isHalaqohCoordinator || p.isPengampuHalaqoh);
+  });
 }
 
 function getAccessibleHafalanHalaqoh_(session, dataset) {
@@ -18358,6 +22439,129 @@ function loadHafalanHarianListDataset_() {
   return dataset;
 }
 
+// Varian RINGKAS dari handleHafalanHarianList_ (mode dashboard): daftar halaqoh (paginated) +
+// tahunAjaranList buat mengisi filter -- TANPA membaca tabel entri `hafalanHarian` sama sekali.
+// Konsekuensinya tidak ada badge `todayCount` (justru loop itu yang bikin handler lama ikut
+// men-scan seluruh riwayat entri tiap kali kartu di-render). Akses & scope halaqoh IDENTIK dgn
+// hafalan.harian.list: gate canAccessHafalanHarian_/isMudir di requirePermissionForAction_ +
+// getAccessibleHafalanHalaqoh_ (pengampu = halaqoh sendiri). pageSize di-clamp 1..100 (bukan
+// 6..50). Bentuk response sengaja dibikin drop-in buat loadDashboard() di frontend:
+//   { halaqohList, page, pageSize, total, totalPages, tahunAjaranList, tahunAjaranId }
+function handleHafalanHarianHalaqohList_(request, session) {
+  var dataset = loadHafalanHarianListDataset_();
+  var accessible = getAccessibleHafalanHalaqoh_(session, dataset);
+
+  var q = cleanString_(request.q).toLowerCase();
+  var genderFilter = cleanString_(request.genderGroup || request.gender);
+  var tahunAjaranId = cleanString_(request.tahunAjaranId);
+  var page = toInt_(request.page, 1);
+  var pageSize = clamp_(toInt_(request.pageSize, 10), 1, 100);
+
+  // Samakan dgn hafalan.harian.list: kalau TA belum dikirim (buka halaman pertama kali), pakai
+  // TA aktif -- supaya kartu tidak mencampur halaqoh lintas tahun ajaran.
+  if (!tahunAjaranId) {
+    var activeTaObj = (dataset.tahunAjaran || []).filter(function (ta) { return ta.isAktif; })[0];
+    if (activeTaObj) tahunAjaranId = activeTaObj.id;
+  }
+
+  var halaqohList = accessible.filter(function (h) {
+    if (tahunAjaranId && h.tahunAjaranId !== tahunAjaranId) return false;
+    if (genderFilter && h.genderGroup !== genderFilter) return false;
+    return true;
+  }).map(function (h) {
+    var pengampuNames = (h.pengampuIds || []).map(function (pid) {
+      var p = dataset.indexes.pengurusById[pid];
+      return p ? cleanString_(p.name) : '';
+    }).filter(Boolean);
+    var badalNames = (h.badalIds || []).map(function (pid) {
+      var p = dataset.indexes.pengurusById[pid];
+      return p ? cleanString_(p.name) : '';
+    }).filter(Boolean);
+    // santriNames sengaja TIDAK di-filter(Boolean) -- harus sejajar 1:1 dgn santriIds
+    // (dipakai frontend buat pairing nama+id di picker Riwayat Hafalan Santri).
+    var santriNames = (h.santriIds || []).map(function (sid) {
+      var s = dataset.indexes.santriById[sid];
+      return s ? cleanString_(s.name) : '';
+    });
+    return {
+      id: h.id,
+      name: h.name,
+      genderGroup: h.genderGroup,
+      santriCount: (h.santriIds || []).length,
+      pengampuNames: pengampuNames,
+      badalNames: badalNames,
+      santriNames: santriNames,
+      santriIds: (h.santriIds || []).slice()
+    };
+  }).filter(function (h) {
+    if (!q) return true;
+    var haystack = [h.name, h.pengampuNames.join(' '), h.badalNames.join(' '), h.santriNames.join(' ')].join(' ').toLowerCase();
+    return haystack.indexOf(q) !== -1;
+  }).sort(function (a, b) {
+    return (a.name || '').localeCompare(b.name || '');
+  });
+
+  var total = halaqohList.length;
+  var totalPages = Math.max(1, Math.ceil(total / pageSize));
+  page = Math.min(Math.max(1, page), totalPages);
+  var pageItems = halaqohList.slice((page - 1) * pageSize, page * pageSize);
+
+  // Badge audit kuning per kartu -- definisi "bolong" DISAMAKAN persis dgn popup nag "Kelola
+  // Audit" (collectHafalanGapItems_) lewat helper bersama computeHafalanHarianGapDates_. Ikut
+  // saklar auditSettingsState.hafalanActive + hanya halaqoh di TA AKTIF (TA lama tidak dinagih,
+  // sama spt popup). Dihitung cuma utk 1 halaman kartu yg tampil (pageItems), bukan seluruh
+  // halaqoh -- loop harian dari awal TA lumayan berat kalau dikali semua halaqoh koordinator.
+  var auditActiveTa = (dataset.tahunAjaran || []).filter(function (ta) { return ta.isAktif; })[0];
+  var auditTaStart = auditActiveTa ? normalizeDateOnly_(auditActiveTa.tanggalMulai) : '';
+  if (auditSettingsState.hafalanActive && auditActiveTa && auditTaStart) {
+    var auditCutoff = auditCutoffDate_();
+    var auditDibekukanSet = getDibekukanSantriIdSet_();
+    var auditPindahRows = readSheetState_('riwayatPindahHalaqoh').rows;
+    // filledSantriByDate digabung LINTAS HALAQOH (keputusan user 2026-08-11) -- sama spt collector.
+    // Cukup baris dalam jendela [awal TA aktif .. cutoff]: computeHafalanHarianGapDates_ tidak
+    // pernah melihat tanggal di luar rentang itu, jadi menarik seluruh riwayat lintas TA hanya
+    // menambah biaya normalize sia-sia (tabel ini menumpuk tiap hari). tanggal tersimpan ISO
+    // 'YYYY-MM-DD' sehingga perbandingan string di SQL aman. Pakai idx_hafalanHarian_tanggal.
+    var auditFilledByDate = {};
+    readSheetStateWhere_('hafalanHarian', '"tanggal" >= ? AND "tanggal" <= ?', [auditTaStart, auditCutoff]).rows.forEach(function (row) {
+      if (!isActiveStatus_(normalizeStatusForSheet_('hafalanHarian', row.status))) return;
+      if (!HAFALAN_GAP_COUNTING_JENIS_[cleanString_(row.jenis)]) return;
+      var tgl = normalizeDateOnly_(row.tanggal);
+      var sid = cleanString_(row.id_santri);
+      if (!tgl || !sid) return;
+      if (!auditFilledByDate[tgl]) auditFilledByDate[tgl] = {};
+      auditFilledByDate[tgl][sid] = true;
+    });
+    pageItems.forEach(function (item) {
+      var raw = (dataset.indexes.halaqohById || {})[item.id];
+      if (!raw || raw.tahunAjaranId !== auditActiveTa.id) {
+        item.audit = { active: false, since: '', missingCount: 0, missingDatesSample: [] };
+        return;
+      }
+      var gap = computeHafalanHarianGapDates_(raw.santriIds, item.id, raw.record && raw.record.created_at, auditFilledByDate, auditDibekukanSet, auditPindahRows, auditTaStart, auditCutoff);
+      item.audit = { active: true, since: gap.since, missingCount: gap.missingDates.length, missingDatesSample: gap.missingDates.slice(0, 5) };
+    });
+  }
+
+  var tahunAjaranList = (dataset.tahunAjaran || []).map(function (ta) {
+    return { id: ta.id, nama: ta.nama, namaDisplay: ta.namaDisplay, isAktif: ta.isAktif, tanggalMulai: ta.tanggalMulai || '', tanggalSelesai: ta.tanggalSelesai || '' };
+  });
+
+  return {
+    ok: true,
+    timestamp: nowIso_(),
+    data: {
+      halaqohList: pageItems,
+      page: page,
+      pageSize: pageSize,
+      total: total,
+      totalPages: totalPages,
+      tahunAjaranList: tahunAjaranList,
+      tahunAjaranId: tahunAjaranId
+    }
+  };
+}
+
 function handleHafalanHarianList_(request, session) {
   var dataset = loadHafalanHarianListDataset_();
   var accessible = getAccessibleHafalanHalaqoh_(session, dataset);
@@ -18394,8 +22598,6 @@ function handleHafalanHarianList_(request, session) {
       normTo = taObj.tanggalSelesai ? normalizeDateOnly_(taObj.tanggalSelesai) : '';
     }
   }
-
-  var hState = readSheetState_('hafalanHarian');
 
   // `items` (detail per-entri) cuma dibutuhkan saat dialog per-halaqoh dibuka (halaqohId
   // dikirim). Panggilan dashboard (tanpa halaqohId) tidak pernah membaca data.items di
@@ -18463,21 +22665,29 @@ function handleHafalanHarianList_(request, session) {
   }
 
   if (halaqohId && halaqohObj) {
-    // Normalize SELURUH baris hafalanHarian baru dilakukan di sini (bukan di awal fungsi) --
-    // hanya dialog per-halaqoh yang benar-benar butuh scan semua riwayat entri (buat filter
-    // tanggal/TA/santri). Request dashboard (tanpa halaqohId, dipanggil tiap buka halaman) jadi
-    // tidak ikut kena biaya normalize seluruh tabel yang terus menumpuk tiap hari.
-    var normalizedHafalanRows = hState.rows.map(normalizeHafalanHarian_);
-    // Tampilan per santri tidak terikat ke halaqoh tempat entri direkam (id_halaqoh baris data),
-    // melainkan ke keanggotaan santri di halaqoh yang sedang dibuka + tahun ajaran -- supaya
-    // riwayat santri yang pindah/ikut beberapa halaqoh tetap tampil sama dari sisi manapun (termasuk
-    // buat pengampu halaqoh yang scope akses halaqoh-nya terbatas ke halaqoh sendiri: entri yang
-    // direkam dulu di halaqoh lain tetap harus muncul di sini, jangan difilter pakai accessibleIdMap
-    // pada item.halaqohId). rosterSantriIdMap dilebarkan pakai extraMemberIds (lihat atas) supaya
-    // entri lampau santri yang sudah pindah keluar tetap ikut tampil.
+    // rosterSantriIdMap = keanggotaan santri di halaqoh yang sedang dibuka + extraMemberIds
+    // (santri yang sudah pindah keluar tapi masih relevan di sebagian rentang yang dibuka --
+    // lihat currentRosterIdSet/extraMemberIds di atas). Tampilan per santri tidak terikat ke
+    // halaqoh tempat entri direkam (id_halaqoh baris data): entri yang dulu direkam di halaqoh
+    // lain tetap harus muncul di sini, jadi JANGAN difilter pakai accessibleIdMap pada
+    // item.halaqohId.
     var rosterSantriIdMap = {};
     Object.keys(currentRosterIdSet).forEach(function (sid) { rosterSantriIdMap[sid] = true; });
     extraMemberIds.forEach(function (sid) { rosterSantriIdMap[sid] = true; });
+
+    // Cukup normalize baris milik santri di roster ini (pakai idx_hafalanHarian_santri), bukan
+    // scan + normalize SELURUH tabel hafalanHarian yang menumpuk tiap hari. Roster 1 halaqoh
+    // kecil (puluhan) sehingga bind vars aman jauh di bawah batas SQLite. Filter JS
+    // `if (!rosterSantriIdMap[item.santriId])` di bawah tetap jadi sumber kebenaran -- klausa
+    // IN ini padanannya persis.
+    var rosterSantriIds = Object.keys(rosterSantriIdMap);
+    var normalizedHafalanRows = rosterSantriIds.length
+      ? readSheetStateWhere_(
+          'hafalanHarian',
+          '"id_santri" IN (' + rosterSantriIds.map(function () { return '?'; }).join(', ') + ')',
+          rosterSantriIds
+        ).rows.map(normalizeHafalanHarian_)
+      : [];
     // Utk santri di extraMemberIds (sudah pindah keluar, BUKAN anggota sekarang), batasi
     // entrinya sampai hari terakhir dia beneran anggota (aktifSampaiTanggal) -- supaya entri
     // yang dia buat di halaqoh BARUnya (sesudah pindah) tidak ikut nongol saat dilihat dari
@@ -18517,10 +22727,10 @@ function handleHafalanHarianList_(request, session) {
 
   var today = nowIso_().slice(0, 10);
   var todayCountByHalaqoh = {};
-  // Dihitung dari baris MENTAH yang tanggalnya = hari ini, difilter SEBELUM di-normalize --
-  // supaya badge "entri hari ini" tidak perlu membongkar+normalize seluruh riwayat hafalanHarian
-  // (biayanya sebanding jumlah entri hari ini, bukan seluruh histori tahun ajaran).
-  hState.rows.forEach(function (row) {
+  // Badge "entri hari ini": cukup tarik baris bertanggal hari ini (pakai idx_hafalanHarian_tanggal),
+  // bukan iterasi seluruh riwayat hafalanHarian yang menumpuk tiap hari. tanggal tersimpan ISO
+  // 'YYYY-MM-DD' jadi `"tanggal" = ?` setara dgn cek normalizeDateOnly_ di bawah (tetap dijaga).
+  readSheetStateWhere_('hafalanHarian', '"tanggal" = ?', [today]).rows.forEach(function (row) {
     var halaqohIdRow = cleanString_(row.id_halaqoh);
     if (!accessibleIdMap[halaqohIdRow]) return;
     if (normalizeDateOnly_(row.tanggal) !== today) return;
@@ -18680,9 +22890,11 @@ function handleHafalanHarianRekap_(request, session) {
   var halaqohId = cleanString_(request.halaqohId);
   var dateFrom = cleanString_(request.dateFrom);
   var dateTo = cleanString_(request.dateTo);
+  var page = clamp_(toInt_(request.page, 1), 1, 100000);
+  var pageSize = clamp_(toInt_(request.pageSize, 10), 1, 100);
 
   if (!halaqohId || !accessibleIdMap[halaqohId]) {
-    return { ok: true, timestamp: nowIso_(), data: { items: [] } };
+    return { ok: true, timestamp: nowIso_(), data: { items: [], page: 1, pageSize: pageSize, total: 0, totalPages: 1, totals: null } };
   }
 
   var normFrom = dateFrom ? normalizeDateOnly_(dateFrom) : '';
@@ -18693,8 +22905,24 @@ function handleHafalanHarianRekap_(request, session) {
   // di tengah tahun ajaran tanpa kehilangan akumulasi hafalannya).
   var halaqohObj = dataset.indexes.halaqohById[halaqohId] || null;
   var scopeTaId = halaqohObj ? halaqohObj.tahunAjaranId : '';
+  var santriIds = halaqohObj ? (halaqohObj.santriIds || []) : [];
 
-  var hState = readSheetState_('hafalanHarian');
+  var emptyTotals = { totZ: 0, totS: 0, totM: 0, totMu: 0, totT: 0, totE: 0 };
+  if (!santriIds.length) {
+    return { ok: true, timestamp: nowIso_(), data: { items: [], page: 1, pageSize: pageSize, total: 0, totalPages: 1, totals: emptyTotals } };
+  }
+
+  // Filter di level SQLite: hanya tarik baris milik santri di roster halaqoh ini (+ tahun
+  // ajaran-nya kalau ada), bukan scan seluruh tabel hafalanHarian tiap fetch. Roster 1
+  // halaqoh kecil (puluhan), jadi jumlah bind vars aman jauh di bawah batas SQLite.
+  var whereSql = '"id_santri" IN (' + santriIds.map(function () { return '?'; }).join(', ') + ')';
+  var whereParams = santriIds.slice();
+  if (scopeTaId) {
+    whereSql += ' AND "tahun_ajaran_id" = ?';
+    whereParams.push(scopeTaId);
+  }
+
+  var hState = readSheetStateWhere_('hafalanHarian', whereSql, whereParams);
   var items = hState.rows.map(normalizeHafalanHarian_).filter(function (item) {
     if (!item.active) return false;
     if (item.tahunAjaranId !== scopeTaId) return false;
@@ -18717,8 +22945,6 @@ function handleHafalanHarianRekap_(request, session) {
     }
     byS[sid].entries++;
   });
-
-  var santriIds = halaqohObj ? (halaqohObj.santriIds || []) : Object.keys(byS);
 
   var result = santriIds.map(function (sid) {
     var s = dataset.indexes.santriById[sid];
@@ -18744,11 +22970,60 @@ function handleHafalanHarianRekap_(request, session) {
     };
   });
 
-  return { ok: true, timestamp: nowIso_(), data: { items: result } };
+  result.sort(function (a, b) { return b.total - a.total; });
+
+  // tfoot "Total" harus mencerminkan SEMUA santri, bukan cuma halaman aktif
+  var totals = { totZ: 0, totS: 0, totM: 0, totMu: 0, totT: 0, totE: 0 };
+  result.forEach(function (r) {
+    totals.totZ += r.ziyadah;
+    totals.totS += r.sabaqi;
+    totals.totM += r.manzili;
+    totals.totMu += (r.murojaah || 0);
+    totals.totT += r.total;
+    totals.totE += r.entries;
+  });
+  ['totZ', 'totS', 'totM', 'totMu', 'totT'].forEach(function (k) { totals[k] = Math.round(totals[k] * 10) / 10; });
+
+  var paged = paginate_(result, page, pageSize);
+  paged.totals = totals;
+  return { ok: true, timestamp: nowIso_(), data: paged };
+}
+
+// Cache hasil agregasi berat (dipakai "Hafalan Santri" / rekap.semua). Kunci = parameter yang
+// mempengaruhi hasil (TA + jenis + scope halaqoh); "fingerprint" = COUNT + MAX(_rowid) +
+// MAX(updated_at) tiap tabel sumber -> menangkap insert/update/delete APAPUN jalurnya (termasuk
+// SQL mentah), karena updateStateRow_ SELALU set updated_at. Ceiling TTL sebagai jaring pengaman.
+// Nilai cache HANYA dibaca (filter/slice) di hilir, tidak pernah dimutasi -> aman dibagi antar-request.
+var HAFALAN_AGG_CACHE_TTL_MS = 20000;
+var HAFALAN_AGG_CACHE_MAX_ENTRIES = 100;
+var hafalanAggCache_ = {};
+
+function hafalanAggSourceFingerprint_(sheetKeys) {
+  return sheetKeys.map(function (k) {
+    var name = quoteIdentifier_(SCHEMAS[k].sheetName);
+    var row = getStatement_('SELECT COUNT(*) AS c, MAX(_rowid) AS r, MAX("updated_at") AS u FROM ' + name, []) || {};
+    return k + ':' + (row.c || 0) + '/' + (row.r || 0) + '/' + (row.u || '');
+  }).join('|');
+}
+
+function hafalanAggCacheGet_(ns, key, fp) {
+  var hit = hafalanAggCache_[ns + '|' + key];
+  if (!hit || hit.fp !== fp || (Date.now() - hit.at) >= HAFALAN_AGG_CACHE_TTL_MS) return null;
+  return hit.value;
+}
+
+function hafalanAggCacheSet_(ns, key, fp, value) {
+  if (Object.keys(hafalanAggCache_).length >= HAFALAN_AGG_CACHE_MAX_ENTRIES) hafalanAggCache_ = {};
+  hafalanAggCache_[ns + '|' + key] = { fp: fp, at: Date.now(), value: value };
 }
 
 function handleHafalanHarianRekapSemua_(request, session) {
-  var dataset = loadDataset_();
+  // Dataset RINGKAS (4 tabel: pengurus/santri/halaqoh/tahunAjaran) -- handler ini cuma butuh
+  // nama santri, roster halaqoh, dan tanggal tahun ajaran. loadDataset_() penuh membaca+normalize
+  // 19 tabel (absensi*/kegiatanSop/content/dst) yang tak dipakai di sini, padahal dialog "Hafalan
+  // Santri" memanggil ulang tiap ganti filter/halaman/ketik nama. getAccessibleHafalanHalaqoh_
+  // sudah kompatibel dgn dataset ringkas (dipakai handleHafalanHarianHalaqohList_).
+  var dataset = loadHafalanHarianListDataset_();
   var accessible = getAccessibleHafalanHalaqoh_(session, dataset);
   var accessibleIdSet = {};
   accessible.forEach(function(h) { accessibleIdSet[h.id] = true; });
@@ -18756,6 +23031,9 @@ function handleHafalanHarianRekapSemua_(request, session) {
   var halaqohId = cleanString_(request.halaqohId);
   var tahunAjaranId = cleanString_(request.tahunAjaranId);
   var jenisFilter = cleanString_(request.jenis) || 'quran'; // 'quran' | 'hadits'
+  var namaQuery = cleanString_(request.nama).toLowerCase();
+  var page = clamp_(toInt_(request.page, 1), 1, 100000);
+  var pageSize = clamp_(toInt_(request.pageSize, 10), 1, 100);
 
   // Tentukan filter halaqoh
   var halaqohFilter = {};
@@ -18775,7 +23053,35 @@ function handleHafalanHarianRekapSemua_(request, session) {
     }
   }
 
-  var hState = readSheetState_('hafalanHarian');
+  // Cache hasil agregasi: kunci = TA + jenis + scope halaqoh (yg mempengaruhi hasil). nama/page/
+  // pageSize diterapkan SETELAH cache. Fingerprint tabel sumber + ceiling TTL -> hafalanAggCacheGet_.
+  var rsAggKey = [tahunAjaranId, jenisFilter, Object.keys(halaqohFilter).sort().join(',')].join('~');
+  var rsAggFp = hafalanAggSourceFingerprint_(['hafalanHarian', 'santri', 'halaqoh', 'tahunAjaran']);
+  var result = hafalanAggCacheGet_('rekapSemua', rsAggKey, rsAggFp);
+
+  if (!result) {
+  // Pre-narrow di level SQLite. Klausa 1 (`id_halaqoh IN`) persis padanan baris
+  // `if (!halaqohFilter[item.halaqohId]) return false;` di bawah. Klausa 2 (opsional, kalau ada
+  // TA / rentang tanggal) menyingkirkan baris TA lama dari scan -- ditulis SUPERSET (OR) supaya
+  // hanya baris yang PASTI ditolak filter JS di bawah yang hilang (tagged TA lain DAN di luar
+  // rentang TA); baris awal_ tanggalnya bebas jadi selalu diikutkan. Hasil akhir identik --
+  // filter JS di bawah tetap sumber kebenaran. tanggal tersimpan ISO 'YYYY-MM-DD' -> aman.
+  var halaqohFilterIds = Object.keys(halaqohFilter);
+  var hState = { rows: [] };
+  if (halaqohFilterIds.length) {
+    var rsWhereParts = ['"id_halaqoh" IN (' + halaqohFilterIds.map(function () { return '?'; }).join(', ') + ')'];
+    var rsWhereParams = halaqohFilterIds.slice();
+    var rsNarrowOr = [];
+    var rsNarrowParams = [];
+    if (tahunAjaranId) { rsNarrowOr.push('"tahun_ajaran_id" = ?'); rsNarrowParams.push(tahunAjaranId); }
+    if (normFrom && normTo) { rsNarrowOr.push('("tanggal" >= ? AND "tanggal" <= ?)'); rsNarrowParams.push(normFrom, normTo); }
+    if (rsNarrowOr.length) {
+      rsNarrowOr.push('"jenis" GLOB \'awal_*\'');
+      rsWhereParts.push('(' + rsNarrowOr.join(' OR ') + ')');
+      rsWhereParams = rsWhereParams.concat(rsNarrowParams);
+    }
+    hState = readSheetStateWhere_('hafalanHarian', rsWhereParts.join(' AND '), rsWhereParams);
+  }
   var items = hState.rows.map(normalizeHafalanHarian_).filter(function(item) {
     if (!item.active) return false;
     if (!halaqohFilter[item.halaqohId]) return false;
@@ -18837,7 +23143,6 @@ function handleHafalanHarianRekapSemua_(request, session) {
     if (!seen[sid]) { seen[sid] = true; santriIds.push(sid); }
   });
 
-  var result;
   if (!isQuran) {
     result = santriIds.map(function(sid) {
       var s = dataset.indexes.santriById[sid];
@@ -18894,7 +23199,18 @@ function handleHafalanHarianRekapSemua_(request, session) {
     result.sort(function(a, b) { return a.santriName.localeCompare(b.santriName); });
   }
 
-  return { ok: true, timestamp: nowIso_(), data: { items: result } };
+  hafalanAggCacheSet_('rekapSemua', rsAggKey, rsAggFp, result);
+  }
+
+  if (namaQuery) {
+    result = result.filter(function(r) {
+      return (r.santriName || '').toLowerCase().indexOf(namaQuery) !== -1;
+    });
+  }
+
+  // Pagination server-side: dialog "Hafalan Santri" fetch per halaman (default 10/hal)
+  var paged = paginate_(result, page, pageSize);
+  return { ok: true, timestamp: nowIso_(), data: paged };
 }
 
 function handleHafalanHarianTopZiyadah_(request, session) {
@@ -18934,7 +23250,21 @@ function handleHafalanHarianTopZiyadah_(request, session) {
   var normFrom = dateFrom ? normalizeDateOnly_(dateFrom) : '';
   var normTo = dateTo ? normalizeDateOnly_(dateTo) : '';
 
-  var hState = readSheetState_('hafalanHarian');
+  // Baris awal_ (baseline) dibutuhkan LINTAS SEMUA TA/tanggal (lihat komentar di bawah), jadi
+  // SELALU diikutkan lewat GLOB. Baris non-awal cukup yang cocok filter papan (TA / rentang
+  // tanggal); kondisi accessible & counted tetap disaring di JS. Kalau tidak ada TA maupun
+  // rentang tanggal -> papan "semua waktu", tetap scan penuh. tanggal ISO -> perbandingan aman.
+  var tzNarrow = [];
+  var tzNarrowParams = [];
+  if (tahunAjaranId) {
+    tzNarrow.push('("tahun_ajaran_id" = ? OR "tahun_ajaran_id" = \'\' OR "tahun_ajaran_id" IS NULL)');
+    tzNarrowParams.push(tahunAjaranId);
+  }
+  if (normFrom) { tzNarrow.push('"tanggal" >= ?'); tzNarrowParams.push(normFrom); }
+  if (normTo) { tzNarrow.push('"tanggal" <= ?'); tzNarrowParams.push(normTo); }
+  var hState = tzNarrow.length
+    ? readSheetStateWhere_('hafalanHarian', '("jenis" GLOB \'awal_*\' OR (' + tzNarrow.join(' AND ') + '))', tzNarrowParams)
+    : readSheetState_('hafalanHarian');
   var allNormalized = hState.rows.map(normalizeHafalanHarian_).filter(function (item) { return item.active; });
 
   // Baseline "Hafalan Awal" (posisi sebelum sistem ini mulai dipakai) per santri -- SENGAJA
@@ -19029,7 +23359,12 @@ function handleHafalanHarianTopZiyadah_(request, session) {
     result.sort(function(a, b) { return b.ziyadah - a.ziyadah; });
     result = result.filter(function(r) { return r.ziyadah > 0; });
   }
-  return { ok: true, timestamp: nowIso_(), data: { items: result.slice(0, topN) } };
+  // topN = ukuran KOLAM papan (mis. Top 25/50/100), bukan ukuran halaman.
+  // Paginasi dilakukan di dalam kolam itu, 1 fetch per klik halaman.
+  var pool = result.slice(0, topN);
+  var page = clamp_(toInt_(request.page, 1), 1, 100000);
+  var pageSize = clamp_(toInt_(request.pageSize, 10), 1, 100);
+  return { ok: true, timestamp: nowIso_(), data: paginate_(pool, page, pageSize) };
 }
 
 // Detail semua setoran (semua jenis, kecuali hafalan awal) satu santri dalam satu periode --
@@ -19232,7 +23567,16 @@ function handleHafalanHarianAuditKontinuitas_(request, session) {
   var tahunAjaranId = cleanString_(request.tahunAjaranId);
   var bulan = cleanString_(request.bulan); // 'YYYY-MM', opsional
 
-  var hState = readSheetState_('hafalanHarian');
+  // Cuma santri di roster halaqoh ini yang dipakai (pakai idx_hafalanHarian_santri) -- bukan
+  // scan seluruh tabel. Filter JS `if (!rosterIds[item.santriId])` di bawah tetap sumber kebenaran.
+  var rosterIdList = Object.keys(rosterIds);
+  var hState = rosterIdList.length
+    ? readSheetStateWhere_(
+        'hafalanHarian',
+        '"id_santri" IN (' + rosterIdList.map(function () { return '?'; }).join(', ') + ')',
+        rosterIdList
+      )
+    : { rows: [] };
   var items = hState.rows.map(normalizeHafalanHarian_).filter(function (item) {
     if (!item.active) return false;
     if (!item.jenis || !CORE_QURAN_JENIS_[item.jenis]) return false;
@@ -19676,9 +24020,10 @@ function handleHafalanHarianHapusSemua_(request, session) {
 /* ── Ujian Hafalan ── */
 function canAccessUjianHafalan_(session) {
   if (!session || session.role !== 'pengurus' || !session.permissions) return false;
-  var p = session.permissions;
-  return !!(p.isSuperAdmin || p.isAdmin || p.isHalaqohCoordinator || p.isPengampuHalaqoh ||
-            p.isPengujiHafalan || p.canManageHalaqoh);
+  return canAccessLevel_(session, 'misiTahfizh', 'manage', function (s) {
+    var p = s.permissions;
+    return !!(p.isAdmin || p.isHalaqohCoordinator || p.isPengampuHalaqoh || p.isPengujiHafalan);
+  });
 }
 
 function canGradeUjianHafalan_(session) {
@@ -20308,8 +24653,10 @@ function handleUjianHafalanQuickImportExport_(request, session) {
 
 function canAccessNilaiUas_(session) {
   if (!session || session.role !== 'pengurus' || !session.permissions) return false;
-  var p = session.permissions;
-  return !!(p.isSuperAdmin || p.isAdmin || p.isHalaqohCoordinator || p.isPengampuHalaqoh || p.canManageHalaqoh);
+  return canAccessLevel_(session, 'misiTahfizh', 'manage', function (s) {
+    var p = s.permissions;
+    return !!(p.isAdmin || p.isHalaqohCoordinator || p.isPengampuHalaqoh);
+  });
 }
 
 // Konfigurasi kolom per komponen UAS. max>0 = batas jumlah entri (Al-Qur'an = 30).
@@ -20548,13 +24895,12 @@ function canAccessKelasRecord_(session, kelasId) {
   if (!session || session.role !== 'pengurus' || !session.permissions) {
     return false;
   }
-  if (session.permissions.isAdmin || session.permissions.isSuperAdmin) {
+  if (canAccessLevel_(session, 'kelasSiangNilai', 'manageAllKelas', function (s) {
+    var p = s.permissions; return !!(p.isAdmin || p.canManageKelasSiang);
+  })) {
     return true;
   }
-  if (session.permissions.canManageKelasSiang) {
-    return true;
-  }
-  if (!session.permissions.canManageNilaiUp) {
+  if (!canAccessLevel_(session, 'kelasSiangNilai', 'manage', function (s) { return !!(s.permissions && s.permissions.canManageNilaiUp); })) {
     return false;
   }
   return (session.kelasIds || []).indexOf(cleanString_(kelasId)) !== -1;
@@ -20577,6 +24923,7 @@ function handleSantriSakitList_(request, session) {
   var sampaiTanggal = cleanString_(request.sampaiTanggal || '');
   var qFilter = cleanString_(request.q || '').toLowerCase();
   var sortBy = cleanString_(request.sortBy || 'updated');
+  var genderFilter = cleanString_(request.gender || '').toLowerCase();
 
   var dataset = loadDataset_();
   var genderMap = {};
@@ -20613,6 +24960,7 @@ function handleSantriSakitList_(request, session) {
       return false;
     }
     if (tahunAjaranFilter && cleanString_(r.tahun_ajaran_id) !== tahunAjaranFilter) return false;
+    if (genderFilter && genderMap[String(r.santri_id)] !== genderFilter) return false;
     var tgl = cleanString_(r.tanggal_mulai || '');
     if (dariTanggal && tgl < dariTanggal) return false;
     if (sampaiTanggal && tgl > sampaiTanggal) return false;
@@ -20874,7 +25222,7 @@ function handleBukuList_(request, session) {
 
 function handleBukuSave_(request, session) {
   requirePengurus_(session);
-  if (!session.permissions.canManageBuku) throw createError_('Hanya Admin, Akademik, atau Super Admin.', 403);
+  if (!canManageAddon_(session, 'bukuDigital', ADDON_MANAGE_FALLBACK_.bukuDigital)) throw createError_('Hanya Admin, Akademik, Super Admin, atau jabatan yang diatur di Kelola Addons.', 403);
   var judul = cleanString_(request.judul || '');
   if (!judul) throw createError_('Judul buku wajib diisi.', 400);
   var akses = cleanString_(request.akses || 'semua');
@@ -20904,7 +25252,7 @@ function handleBukuSave_(request, session) {
 
 function handleBukuUpdate_(request, session) {
   requirePengurus_(session);
-  if (!session.permissions.canManageBuku) throw createError_('Hanya Admin, Akademik, atau Super Admin.', 403);
+  if (!canManageAddon_(session, 'bukuDigital', ADDON_MANAGE_FALLBACK_.bukuDigital)) throw createError_('Hanya Admin, Akademik, Super Admin, atau jabatan yang diatur di Kelola Addons.', 403);
   var id = cleanString_(request.id || '');
   if (!id) throw createError_('ID wajib diisi.', 400);
   var state = readSheetState_('bukuDigital');
@@ -20926,7 +25274,7 @@ function handleBukuUpdate_(request, session) {
 
 function handleBukuDelete_(request, session) {
   requirePengurus_(session);
-  if (!session.permissions.canManageBuku) throw createError_('Hanya Admin, Akademik, atau Super Admin.', 403);
+  if (!canManageAddon_(session, 'bukuDigital', ADDON_MANAGE_FALLBACK_.bukuDigital)) throw createError_('Hanya Admin, Akademik, Super Admin, atau jabatan yang diatur di Kelola Addons.', 403);
   var id = cleanString_(request.id || '');
   if (!id) throw createError_('ID wajib diisi.', 400);
   var state = readSheetState_('bukuDigital');
@@ -20941,7 +25289,7 @@ function handleBukuDelete_(request, session) {
 
 function handleBukuQuillSave_(request, session) {
   requirePengurus_(session);
-  if (!session.permissions.canManageBuku) throw createError_('Hanya Admin, Akademik, atau Super Admin.', 403);
+  if (!canManageAddon_(session, 'bukuDigital', ADDON_MANAGE_FALLBACK_.bukuDigital)) throw createError_('Hanya Admin, Akademik, Super Admin, atau jabatan yang diatur di Kelola Addons.', 403);
   var id = cleanString_(request.id || '');
   if (!id) throw createError_('ID wajib diisi.', 400);
   var state = readSheetState_('bukuDigital');
@@ -20953,8 +25301,8 @@ function handleBukuQuillSave_(request, session) {
 
 // ── Bank Soal handlers ────────────────────────────────────────────────────────
 
-function mapBankSoalRow_(r, perms) {
-  var canManage = !!(perms && perms.canManageSoal);
+function mapBankSoalRow_(r, canManageAll, perms) {
+  var canManage = !!canManageAll;
   var isOwner = !!(perms && r.uploaded_by && r.uploaded_by === (perms._uploadedBy || ''));
   return {
     id: r.id,
@@ -20986,6 +25334,7 @@ function handleBankSoalList_(request, session) {
   requirePengurus_(session);
   var perms = session.permissions || {};
   var clonedPerms = Object.assign({}, perms, { _uploadedBy: cleanString_(session.id || '') });
+  var canManageAllSoal = canAccessLevel_(session, 'bankSoal', 'manageAllSoal', function (s) { return !!(s.permissions && s.permissions.canManageSoal); });
   var state = readSheetState_('bankSoal');
   var q = cleanString_(request.q || '').toLowerCase();
   var pelajaran = cleanString_(request.pelajaran || '');
@@ -21008,12 +25357,12 @@ function handleBankSoalList_(request, session) {
   var pelajaranList = Array.from(new Set(state.rows.filter(function(r) { return r.pelajaran; }).map(function(r) { return r.pelajaran; }))).sort();
   var jenisList = Array.from(new Set(state.rows.filter(function(r) { return r.jenis; }).map(function(r) { return r.jenis; }))).sort();
   var tingkatList = Array.from(new Set(state.rows.filter(function(r) { return r.tingkat; }).map(function(r) { return r.tingkat; }))).sort();
-  return { ok: true, timestamp: nowIso_(), data: { items: rows.map(function(r) { return mapBankSoalRow_(r, clonedPerms); }), pelajaranList: pelajaranList, jenisList: jenisList, tingkatList: tingkatList, canUploadSoal: !!(perms.canUploadSoal), canManageSoal: !!(perms.canManageSoal) } };
+  return { ok: true, timestamp: nowIso_(), data: { items: rows.map(function(r) { return mapBankSoalRow_(r, canManageAllSoal, clonedPerms); }), pelajaranList: pelajaranList, jenisList: jenisList, tingkatList: tingkatList, canUploadSoal: !!(perms.canUploadSoal), canManageSoal: canManageAllSoal } };
 }
 
 function handleBankSoalSave_(request, session) {
   requirePengurus_(session);
-  if (!session.permissions.canUploadSoal) throw createError_('Hanya Pengajar, Akademik, Admin, atau Super Admin.', 403);
+  if (!canManageAddon_(session, 'bankSoal', ADDON_MANAGE_FALLBACK_.bankSoal)) throw createError_('Hanya Pengajar, Akademik, Admin, Super Admin, atau jabatan yang diatur di Kelola Addons.', 403);
   var judul = cleanString_(request.judul || '');
   if (!judul) throw createError_('Judul soal wajib diisi.', 400);
   var jenis = cleanString_(request.jenis || '');
@@ -21044,14 +25393,14 @@ function handleBankSoalSave_(request, session) {
 
 function handleBankSoalUpdate_(request, session) {
   requirePengurus_(session);
-  if (!session.permissions.canUploadSoal) throw createError_('Hanya Pengajar, Akademik, Admin, atau Super Admin.', 403);
+  if (!canManageAddon_(session, 'bankSoal', ADDON_MANAGE_FALLBACK_.bankSoal)) throw createError_('Hanya Pengajar, Akademik, Admin, Super Admin, atau jabatan yang diatur di Kelola Addons.', 403);
   var id = cleanString_(request.id || '');
   if (!id) throw createError_('ID wajib diisi.', 400);
   var state = readSheetState_('bankSoal');
   var existing = findSheetRowById_(state.rows, id);
   if (!existing) throw createError_('Soal tidak ditemukan.', 404);
   var isOwner = cleanString_(existing.uploaded_by || '') === cleanString_(session.id || '');
-  var canManage = !!(session.permissions.canManageSoal);
+  var canManage = canAccessLevel_(session, 'bankSoal', 'manageAllSoal', function (s) { return !!(s.permissions && s.permissions.canManageSoal); });
   if (!canManage && !isOwner) throw createError_('Anda hanya bisa mengubah soal milik sendiri.', 403);
   var judul = cleanString_(request.judul || existing.judul);
   if (!judul) throw createError_('Judul soal wajib diisi.', 400);
@@ -21071,14 +25420,14 @@ function handleBankSoalUpdate_(request, session) {
 
 function handleBankSoalDelete_(request, session) {
   requirePengurus_(session);
-  if (!session.permissions.canUploadSoal) throw createError_('Hanya Pengajar, Akademik, Admin, atau Super Admin.', 403);
+  if (!canManageAddon_(session, 'bankSoal', ADDON_MANAGE_FALLBACK_.bankSoal)) throw createError_('Hanya Pengajar, Akademik, Admin, Super Admin, atau jabatan yang diatur di Kelola Addons.', 403);
   var id = cleanString_(request.id || '');
   if (!id) throw createError_('ID wajib diisi.', 400);
   var state = readSheetState_('bankSoal');
   var existing = findSheetRowById_(state.rows, id);
   if (!existing) throw createError_('Soal tidak ditemukan.', 404);
   var isOwner = cleanString_(existing.uploaded_by || '') === cleanString_(session.id || '');
-  var canManage = !!(session.permissions.canManageSoal);
+  var canManage = canAccessLevel_(session, 'bankSoal', 'manageAllSoal', function (s) { return !!(s.permissions && s.permissions.canManageSoal); });
   if (!canManage && !isOwner) throw createError_('Anda hanya bisa menghapus soal milik sendiri.', 403);
   if (existing.file_path) {
     try { fs.unlinkSync(path.join(FRONTEND_DIR, existing.file_path)); } catch (_) {}
@@ -21089,14 +25438,14 @@ function handleBankSoalDelete_(request, session) {
 
 function handleBankSoalQuillSave_(request, session) {
   requirePengurus_(session);
-  if (!session.permissions.canUploadSoal) throw createError_('Hanya Pengajar, Akademik, Admin, atau Super Admin.', 403);
+  if (!canManageAddon_(session, 'bankSoal', ADDON_MANAGE_FALLBACK_.bankSoal)) throw createError_('Hanya Pengajar, Akademik, Admin, Super Admin, atau jabatan yang diatur di Kelola Addons.', 403);
   var id = cleanString_(request.id || '');
   if (!id) throw createError_('ID wajib diisi.', 400);
   var state = readSheetState_('bankSoal');
   var existing = findSheetRowById_(state.rows, id);
   if (!existing) throw createError_('Soal tidak ditemukan.', 404);
   var isOwner = cleanString_(existing.uploaded_by || '') === cleanString_(session.id || '');
-  var canManage = !!(session.permissions.canManageSoal);
+  var canManage = canAccessLevel_(session, 'bankSoal', 'manageAllSoal', function (s) { return !!(s.permissions && s.permissions.canManageSoal); });
   if (!canManage && !isOwner) throw createError_('Anda hanya bisa mengedit soal milik sendiri.', 403);
   updateSheetRow_(state, existing._rowNumber, { quill_content: request.quillContent || '', file_type: 'quill', updated_at: nowIso_() });
   return { ok: true, timestamp: nowIso_(), data: { message: 'Konten quill berhasil disimpan.' } };
@@ -21112,6 +25461,18 @@ function handleIzinPulangList_(request, session) {
   var sampaiTanggal = cleanString_(request.sampaiTanggal || '');
   var tahunAjaranFilter = cleanString_(request.tahunAjaranId || '');
   var qFilter = cleanString_(request.q || '').toLowerCase();
+  var genderFilter = cleanString_(request.gender || '').toLowerCase();
+
+  var genderMap = {};
+  var izinStatusMap = {};
+  try {
+    var ds = loadDataset_();
+    (ds.santri || []).forEach(function (s) {
+      if (!s.id) return;
+      genderMap[cleanString_(s.id)] = normalizeSantriGender_(s.jenisKelamin);
+      izinStatusMap[cleanString_(s.id)] = getSantriStatusKey_(s.status || '');
+    });
+  } catch (_) {}
 
   // Stats kartu ringkasan: dihitung dari semua data pada tahun ajaran yang sama saja,
   // tanpa terpengaruh filter rentang tanggal/status/pencarian/halaman.
@@ -21135,6 +25496,7 @@ function handleIzinPulangList_(request, session) {
   var rows = state.rows.filter(function (r) {
     if (santriIdFilter && cleanString_(r.santri_id) !== santriIdFilter) return false;
     if (tahunAjaranFilter && cleanString_(r.tahun_ajaran_id) !== tahunAjaranFilter) return false;
+    if (genderFilter && genderMap[cleanString_(r.santri_id)] !== genderFilter) return false;
     var deleted = isTruthy_(r.is_deleted);
     if (statusFilter === 'dihapus') {
       if (!deleted) return false;
@@ -21162,17 +25524,6 @@ function handleIzinPulangList_(request, session) {
     var ua = b.updated_at || b.created_at || ''; var ub = a.updated_at || a.created_at || '';
     return ua.localeCompare(ub);
   });
-
-  var genderMap = {};
-  var izinStatusMap = {};
-  try {
-    var ds = loadDataset_();
-    (ds.santri || []).forEach(function (s) {
-      if (!s.id) return;
-      genderMap[cleanString_(s.id)] = normalizeSantriGender_(s.jenisKelamin);
-      izinStatusMap[cleanString_(s.id)] = getSantriStatusKey_(s.status || '');
-    });
-  } catch (_) {}
 
   var page = parseInt(request.page, 10) || 1;
   var pageSize = Math.min(parseInt(request.pageSize, 10) || 50, 200);
@@ -21365,8 +25716,8 @@ function handlePelanggaranJenisList_(request) {
 }
 
 function handlePelanggaranJenisSave_(request, session) {
-  if (!session || !session.permissions || (!session.permissions.isAdmin && !session.permissions.isKsantrian && !session.permissions.canDelete)) {
-    throw createError_('Hanya Admin atau Kesantrian yang dapat mengelola jenis pelanggaran.', 403);
+  if (!canAccessLevel_(session, 'pelanggaranKondisi', 'manage', function (s) { var p = s.permissions; return !!(p && (p.isAdmin || p.isKsantrian)); })) {
+    throw createError_('Hanya Admin, Kesantrian, atau jabatan yang diatur di Kelola Addons yang dapat mengelola jenis pelanggaran.', 403);
   }
   var record = parseRecordPayload_(request);
   var state = readSheetState_('pelanggaranJenis');
@@ -23399,7 +27750,7 @@ function handleJadwalIbadahGet_(request, session) {
 }
 
 function handleJadwalIbadahSaveSlot_(request, session) {
-  if (!session.permissions.canManageJadwalIbadah) throw createError_('Akses ditolak.', 403);
+  if (!canManageAddon_(session, 'jadwalIbadah', ADDON_MANAGE_FALLBACK_.jadwalIbadah)) throw createError_('Akses ditolak.', 403);
   var dataset = loadDataset_();
   var tahunAjaranId = resolveTahunAjaranId_(request.tahunAjaranId, dataset);
   if (!tahunAjaranId) throw createError_('Tahun ajaran belum tersedia.', 400);
@@ -23436,7 +27787,7 @@ function handleJadwalIbadahSaveSlot_(request, session) {
 }
 
 function handleJadwalIbadahSaveMeta_(request, session) {
-  if (!session.permissions.canManageJadwalIbadah) throw createError_('Akses ditolak.', 403);
+  if (!canManageAddon_(session, 'jadwalIbadah', ADDON_MANAGE_FALLBACK_.jadwalIbadah)) throw createError_('Akses ditolak.', 403);
   var dataset = loadDataset_();
   var tahunAjaranId = resolveTahunAjaranId_(request.tahunAjaranId, dataset);
   if (!tahunAjaranId) throw createError_('Tahun ajaran belum tersedia.', 400);
@@ -23482,7 +27833,7 @@ function handleJadwalKhutbahList_(request, session) {
 }
 
 function handleJadwalKhutbahSave_(request, session) {
-  if (!session.permissions.canManageJadwalIbadah) throw createError_('Akses ditolak.', 403);
+  if (!canManageAddon_(session, 'jadwalIbadah', ADDON_MANAGE_FALLBACK_.jadwalIbadah)) throw createError_('Akses ditolak.', 403);
   var dataset = loadDataset_();
   var tahunAjaranId = resolveTahunAjaranId_(request.tahunAjaranId, dataset);
   if (!tahunAjaranId) throw createError_('Tahun ajaran belum tersedia.', 400);
@@ -23513,7 +27864,7 @@ function handleJadwalKhutbahSave_(request, session) {
 }
 
 function handleJadwalKhutbahDelete_(request, session) {
-  if (!session.permissions.canManageJadwalIbadah) throw createError_('Akses ditolak.', 403);
+  if (!canManageAddon_(session, 'jadwalIbadah', ADDON_MANAGE_FALLBACK_.jadwalIbadah)) throw createError_('Akses ditolak.', 403);
   var id = cleanString_(request.id || '');
   if (!id) throw createError_('ID wajib diisi.', 400);
   var state = readSheetState_('jadwalKhutbahJumat');
@@ -23548,7 +27899,7 @@ function parseJadwalKhutbahTempelText_(text) {
 }
 
 function handleJadwalKhutbahQuickImportPreview_(request, session) {
-  if (!session.permissions.canManageJadwalIbadah) throw createError_('Akses ditolak.', 403);
+  if (!canManageAddon_(session, 'jadwalIbadah', ADDON_MANAGE_FALLBACK_.jadwalIbadah)) throw createError_('Akses ditolak.', 403);
   var record = parseRecordPayload_(request);
   var text = String(record.text || '').trim();
   if (!text) throw createError_('Teks tempelan kosong.', 400);
@@ -23608,7 +27959,7 @@ function handleJadwalKhutbahQuickImportPreview_(request, session) {
 }
 
 function handleJadwalKhutbahQuickImport_(request, session) {
-  if (!session.permissions.canManageJadwalIbadah) throw createError_('Akses ditolak.', 403);
+  if (!canManageAddon_(session, 'jadwalIbadah', ADDON_MANAGE_FALLBACK_.jadwalIbadah)) throw createError_('Akses ditolak.', 403);
   var record = parseRecordPayload_(request);
   var entries = Array.isArray(record.entries) ? record.entries : [];
   if (!entries.length) throw createError_('Tidak ada data untuk disimpan.', 400);
@@ -23768,7 +28119,7 @@ function handlePelajaranList_(request, session) {
 }
 
 function handlePelajaranSave_(request, session) {
-  if (!session.permissions.canManagePelajaran) throw createError_('Akses ditolak.', 403);
+  if (!canAccessLevel_(session, 'masterPelajaran', 'manage', function (s) { return !!(s.permissions && s.permissions.canManagePelajaran); })) throw createError_('Akses ditolak.', 403);
   var nama = cleanString_(request.nama || '');
   if (!nama) throw createError_('Nama pelajaran wajib diisi.', 400);
   var state = readSheetState_('pelajaran');
@@ -23821,7 +28172,7 @@ function handlePelajaranLevelList_(request, session) {
 }
 
 function handlePelajaranLevelSave_(request, session) {
-  if (!session.permissions.canManagePelajaran) throw createError_('Akses ditolak.', 403);
+  if (!canAccessLevel_(session, 'masterPelajaran', 'manage', function (s) { return !!(s.permissions && s.permissions.canManagePelajaran); })) throw createError_('Akses ditolak.', 403);
   var pelajaranId = cleanString_(request.pelajaran_id || '');
   var namaLevel = cleanString_(request.nama_level || '');
   if (!pelajaranId) throw createError_('pelajaran_id wajib diisi.', 400);
@@ -23848,7 +28199,7 @@ function handlePelajaranLevelSave_(request, session) {
 }
 
 function handlePelajaranLevelDelete_(request, session) {
-  if (!session.permissions.canManagePelajaran) throw createError_('Akses ditolak.', 403);
+  if (!canAccessLevel_(session, 'masterPelajaran', 'manage', function (s) { return !!(s.permissions && s.permissions.canManagePelajaran); })) throw createError_('Akses ditolak.', 403);
   var id = cleanString_(request.id || '');
   if (!id) throw createError_('ID wajib diisi.', 400);
   var state = readSheetState_('pelajaranLevel');
@@ -23859,7 +28210,7 @@ function handlePelajaranLevelDelete_(request, session) {
 }
 
 function handlePelajaranLevelReorder_(request, session) {
-  if (!session.permissions.canManagePelajaran) throw createError_('Akses ditolak.', 403);
+  if (!canAccessLevel_(session, 'masterPelajaran', 'manage', function (s) { return !!(s.permissions && s.permissions.canManagePelajaran); })) throw createError_('Akses ditolak.', 403);
   var id = cleanString_(request.id || '');
   var dir = cleanString_(request.dir || '');
   if (!id || !dir) throw createError_('id dan dir wajib diisi.', 400);
@@ -24022,7 +28373,8 @@ function handleSantriPelajaranList_(request, session) {
         if (sa !== filterStatusAkad) return false;
       }
       if (!search) return true;
-      var nama = cleanString_(r.nama_setelah_diubah || r.nama_lengkap_akte || '').toLowerCase();
+      var nama = [r.nama_setelah_diubah, r.nama_lengkap_kk, r.nama_lengkap_akte, r.nama_panggilan]
+        .map(function (x) { return cleanString_(x); }).join(' ').toLowerCase();
       var noInduk = cleanString_(r.no_induk || '').toLowerCase();
       return nama.includes(search) || noInduk.includes(search);
     })
@@ -24031,7 +28383,7 @@ function handleSantriPelajaranList_(request, session) {
       var entries = spState.rows.filter(function(sp) { return cleanString_(sp.santri_id) === sid; });
       return {
         id: sid,
-        nama: cleanString_(r.nama_setelah_diubah || r.nama_lengkap_akte || ''),
+        nama: santriDisplayName_(r),
         no_induk: cleanString_(r.no_induk || ''),
         status: cleanString_(r.status || ''),
         jenisKelamin: normalizeSantriGender_(cleanString_(r.jenis_kelamin_singkat || r.jenis_kelamin || '')),
@@ -24176,7 +28528,7 @@ function handleSantriPelajaranDetail_(request, session) {
       });
     });
   return { ok: true, timestamp: nowIso_(), data: {
-    santri: { id: santriId, nama: cleanString_(santriRow.nama_setelah_diubah || santriRow.nama_lengkap_akte || ''), no_induk: cleanString_(santriRow.no_induk || '') },
+    santri: { id: santriId, nama: santriDisplayName_(santriRow), no_induk: cleanString_(santriRow.no_induk || '') },
     entries: entries,
     rekomendasi: rekomendasi
   }};
@@ -24191,7 +28543,7 @@ function handleSantriPelajaranSave_(request, session) {
   var santriState = readSheetState_('santri');
   var santriRow = santriState.rows.find(function(r) { return cleanString_(r.id) === santriId; });
   if (!santriRow) throw createError_('Santri tidak ditemukan.', 404);
-  var santriNama = cleanString_(santriRow.nama_setelah_diubah || santriRow.nama_lengkap_akte || '');
+  var santriNama = santriDisplayName_(santriRow);
   var state = readSheetState_('santriPelajaran');
   var id = cleanString_(request.id || '');
   var nilai = Math.min(100, Math.max(0, parseInt(request.nilai) || 0));
@@ -24242,6 +28594,43 @@ function ensureSchema_() {
     ensureTableForSchema_(schema);
   });
   ensurePerformanceIndexes_();
+  ensureCatatanSchema_();
+}
+
+// Tabel modul "Catatan & Dokumen" (pages/catatanku). Sengaja pakai SQL mentah (bukan
+// mekanisme SCHEMAS/sheet-state) karena butuh snapshot versi + baris berbagi yang tidak
+// cocok dengan mesin normalisasi status generik. Idempoten: aman dipanggil berkali-kali.
+var CATATAN_SCHEMA_READY_ = false;
+function ensureCatatanSchema_() {
+  if (CATATAN_SCHEMA_READY_) return;
+  DB.exec('CREATE TABLE IF NOT EXISTS "catatanDoc" (' +
+    '"id" TEXT PRIMARY KEY, "owner_id" TEXT, "owner_name" TEXT, "title" TEXT, ' +
+    '"doc_type" TEXT, "content_html" TEXT, "content_delta" TEXT, "excerpt" TEXT, ' +
+    '"share_everyone" TEXT, "pinned" TEXT, "status" TEXT, ' +
+    '"created_at" TEXT, "updated_at" TEXT, "updated_by_id" TEXT, "updated_by_name" TEXT)');
+  DB.exec('CREATE TABLE IF NOT EXISTS "catatanShare" (' +
+    '"id" TEXT PRIMARY KEY, "doc_id" TEXT, "kind" TEXT, "ref_value" TEXT, "ref_label" TEXT, ' +
+    '"can_edit" TEXT, "created_at" TEXT, "created_by_id" TEXT)');
+  DB.exec('CREATE TABLE IF NOT EXISTS "catatanVersion" (' +
+    '"id" TEXT PRIMARY KEY, "doc_id" TEXT, "title" TEXT, "doc_type" TEXT, "content_html" TEXT, "content_delta" TEXT, ' +
+    '"excerpt" TEXT, "editor_id" TEXT, "editor_name" TEXT, "editor_jabatan" TEXT, ' +
+    '"note" TEXT, "size" TEXT, "created_at" TEXT)');
+  // DB lama: tambah kolom doc_type kalau belum ada ('quill' = default, '' dianggap 'quill').
+  try { DB.exec('ALTER TABLE "catatanDoc" ADD COLUMN "doc_type" TEXT'); } catch (e) {}
+  try { DB.exec('ALTER TABLE "catatanVersion" ADD COLUMN "doc_type" TEXT'); } catch (e) {}
+  // DB lama: kolom "kapan dipindahkan ke Sampah" — dipakai pembersih otomatis (sweepCatatanTrash_)
+  // untuk menghapus permanen dokumen yang sudah > CATATAN_TRASH_TTL_MS (30 hari) di Sampah.
+  try { DB.exec('ALTER TABLE "catatanDoc" ADD COLUMN "deleted_at" TEXT'); } catch (e) {}
+  // Isi mundur untuk baris yang sudah lebih dulu ada di Sampah: pakai updated_at (pada dokumen
+  // status 'deleted', updated_at praktis = saat dipindahkan ke Sampah).
+  try { DB.exec('UPDATE "catatanDoc" SET "deleted_at" = "updated_at" WHERE "status" = \'deleted\' AND ("deleted_at" IS NULL OR "deleted_at" = \'\')'); } catch (e) {}
+  // Kolom deskripsi bebas (textarea, bukan Quill/HTML) — ringkasan singkat yang tampil langsung
+  // di tiap kartu daftar dokumen.
+  try { DB.exec('ALTER TABLE "catatanDoc" ADD COLUMN "description" TEXT'); } catch (e) {}
+  try { DB.exec('CREATE INDEX IF NOT EXISTS idx_catatanShare_doc ON "catatanShare" ("doc_id")'); } catch (e) {}
+  try { DB.exec('CREATE INDEX IF NOT EXISTS idx_catatanVersion_doc ON "catatanVersion" ("doc_id")'); } catch (e) {}
+  try { DB.exec('CREATE INDEX IF NOT EXISTS idx_catatanDoc_owner ON "catatanDoc" ("owner_id")'); } catch (e) {}
+  CATATAN_SCHEMA_READY_ = true;
 }
 
 // Indexes for columns that hot endpoints (Top Ziyadah, Rekap, Kontinuitas, Detail Setoran)
@@ -24254,6 +28643,12 @@ function ensurePerformanceIndexes_() {
     DB.exec('CREATE INDEX IF NOT EXISTS idx_hafalanHarian_jenis ON "hafalanHarian" ("jenis")');
     DB.exec('CREATE INDEX IF NOT EXISTS idx_hafalanHarian_status ON "hafalanHarian" ("status")');
     DB.exec('CREATE INDEX IF NOT EXISTS idx_hafalanHarian_santri_jenis ON "hafalanHarian" ("id_santri", "jenis")');
+    // Compound: "baris satu TA dalam sub-rentang tanggal" (Top Ziyadah, Rekap Semua badge audit)
+    // dan "baris satu TA untuk sekumpulan halaqoh" (Rekap Semua "Semua Halaqoh").
+    DB.exec('CREATE INDEX IF NOT EXISTS idx_hafalanHarian_ta_tanggal ON "hafalanHarian" ("tahun_ajaran_id", "tanggal")');
+    DB.exec('CREATE INDEX IF NOT EXISTS idx_hafalanHarian_ta_halaqoh ON "hafalanHarian" ("tahun_ajaran_id", "id_halaqoh")');
+    // Supaya MAX("updated_at") (fingerprint cache agregasi "Hafalan Santri") tetap O(log n).
+    DB.exec('CREATE INDEX IF NOT EXISTS idx_hafalanHarian_updated_at ON "hafalanHarian" ("updated_at")');
   } catch (e) {
     console.error('[schema] ensurePerformanceIndexes_ error:', e.message || e);
   }
@@ -24324,6 +28719,54 @@ function backfillJadwalIbadahTahunAjaran_() {
     }
   } catch (e) {
     console.error('[migrate] backfillJadwalIbadahTahunAjaran_ error:', e.message || e);
+  }
+}
+
+// One-time migration: aturan "Nilai Wajib Ujian" dulu disimpan di tabel generik "nilaiWajib"
+// tanpa keterikatan tahun ajaran. Sekarang pindah ke tabel dedikasi "nilaiWajibUjian" yang
+// punya kolom "tahun_ajaran_id" (lihat SCHEMAS.nilaiWajibUjian + backend/nilaiwajib.js).
+// Setiap baris lama di-assign ke tahun ajaran yang sedang aktif (tidak ada sinyal lain -- pola
+// sama dgn backfillJadwalIbadahTahunAjaran_). Idempoten: hanya jalan kalau tabel tujuan masih
+// kosong DAN tabel sumber masih ada isinya; setelah itu tabel sumber "nilaiWajib" ditinggalkan
+// apa adanya sebagai arsip (tidak dihapus).
+function migrateNilaiWajibUjianTahunAjaran_() {
+  try {
+    var destCount = 0;
+    try { destCount = Number((DB.prepare('SELECT COUNT(*) AS n FROM "nilaiWajibUjian"').get() || {}).n) || 0; } catch (_) { destCount = 0; }
+    if (destCount > 0) return; // sudah pernah migrasi / sudah ada data baru
+
+    var srcRows = [];
+    try { srcRows = DB.prepare('SELECT * FROM "nilaiWajib" ORDER BY _rowid ASC').all(); } catch (_) { srcRows = []; }
+    if (!srcRows.length) return;
+
+    var taRows = DB.prepare('SELECT id, is_aktif FROM tahunAjaran').all();
+    var activeTa = taRows.filter(function (t) { return t.is_aktif === '1' || t.is_aktif === 1 || t.is_aktif === true; })[0] || taRows[0];
+    var activeTaId = activeTa ? cleanString_(activeTa.id) : '';
+
+    var insert = DB.prepare('INSERT INTO "nilaiWajibUjian" ' +
+      '("id","jenis","sesi","id_kelas","tahun_ajaran_id","tanggal","max_terlambat","catatan","status",' +
+      '"created_by_id","created_by_name","updated_by_id","updated_by_name","edit_history","created_at","updated_at") ' +
+      'VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+    DB.exec('BEGIN');
+    try {
+      srcRows.forEach(function (r) {
+        insert.run(
+          cleanString_(r.id), cleanString_(r.jenis), cleanString_(r.sesi || '1'), cleanString_(r.id_kelas),
+          activeTaId, cleanString_(r.tanggal), cleanString_(r.max_terlambat), cleanString_(r.catatan),
+          cleanString_(r.status || 'Aktif'),
+          cleanString_(r.created_by_id), cleanString_(r.created_by_name),
+          cleanString_(r.updated_by_id), cleanString_(r.updated_by_name),
+          cleanString_(r.edit_history), cleanString_(r.created_at), cleanString_(r.updated_at)
+        );
+      });
+      DB.exec('COMMIT');
+      console.log('[migrate] migrateNilaiWajibUjianTahunAjaran_: ' + srcRows.length + ' aturan dipindah ke TA ' + (activeTaId || '(kosong)'));
+    } catch (e) {
+      try { DB.exec('ROLLBACK'); } catch (_) {}
+      console.error('[migrate] migrateNilaiWajibUjianTahunAjaran_ insert error:', e.message || e);
+    }
+  } catch (e) {
+    console.error('[migrate] migrateNilaiWajibUjianTahunAjaran_ error:', e.message || e);
   }
 }
 
@@ -24516,8 +28959,11 @@ function deleteStateRows_(state, rowNumbers) {
 }
 
 // ── Riwayat (audit log) ─────────────────────────────────────────────────────
-var RIWAYAT_EXCLUDED_SHEETS_ = { riwayat: true, riwayatSettings: true, riwayatPindahHalaqoh: true, riwayatPindahRegu: true };
-var RIWAYAT_LABEL_FIELDS_ = ['name', 'nama', 'nama_setelah_diubah', 'nama_lengkap_akte', 'nama_panggilan', 'judul', 'nama_lokasi', 'nama_display'];
+var RIWAYAT_EXCLUDED_SHEETS_ = { riwayat: true, riwayatSettings: true, riwayatPindahHalaqoh: true, riwayatPindahRegu: true, quizJawaban: true, quizBacaan: true };
+// Cache {sheetKey: {id: nama}} untuk terjemahan ID -> nama di snapshot riwayat. Dibangun lazy
+// per sheet dan di-reset tiap request (lihat handleRequest_) supaya tidak basi antar request.
+var riwayatNameCache_ = {};
+var RIWAYAT_LABEL_FIELDS_ = ['name', 'nama', 'nama_setelah_diubah', 'nama_lengkap_kk', 'nama_lengkap_akte', 'nama_panggilan', 'judul', 'nama_lokasi', 'nama_display'];
 // Field yang tidak ikut dicatat di snapshot sebelum/sesudah: metadata pencatatan itu sendiri,
 // dan field sensitif (password/token) tidak boleh pernah tersimpan di riwayat.
 var RIWAYAT_SNAPSHOT_EXCLUDED_FIELDS_ = {
@@ -24533,6 +28979,17 @@ function deriveRiwayatLabel_(record) {
     var v = record[RIWAYAT_LABEL_FIELDS_[i]];
     if (v && String(v).trim()) return String(v).trim();
   }
+  // Tidak ada field nama (mis. baris relasi pengurus_jabatan / keanggotaan) -- rangkai dari
+  // field ID yang bisa diterjemahkan jadi nama, supaya label tidak sekadar "#123".
+  var parts = [];
+  var keys = Object.keys(RIWAYAT_ID_FIELD_SHEET_ || {});
+  for (var j = 0; j < keys.length && parts.length < 3; j++) {
+    var rv = record[keys[j]];
+    if (rv === undefined || rv === null || String(rv).trim() === '') continue;
+    var resolved = String(riwayatResolveIdValue_(keys[j], rv) || '').trim();
+    if (resolved) parts.push(resolved);
+  }
+  if (parts.length) return parts.join(' — ');
   return record.id ? ('#' + record.id) : '';
 }
 
@@ -24546,6 +29003,60 @@ function riwayatSafeValue_(key, value) {
   return value;
 }
 
+// Terjemahkan satu ID entitas jadi "Nama (#id)", pakai cache per-request. ID sengaja tetap
+// disertakan supaya jejak audit tidak ambigu kalau ada nama kembar / entitas di-rename / dibuat
+// ulang. Kalau nama tidak ketemu (entitasnya sudah dihapus / sheet tak dikenal) -> ID mentah saja.
+function riwayatLookupName_(sheetKey, id) {
+  var raw = cleanString_(id);
+  if (!raw || !SCHEMAS[sheetKey]) return raw;
+  if (!riwayatNameCache_[sheetKey]) {
+    var map = {};
+    riwayatNameCache_[sheetKey] = map; // set lebih dulu supaya lookup re-entrant tak rebuild
+    try {
+      readSheetState_(sheetKey).rows.forEach(function (row) {
+        var rid = cleanString_(row.id);
+        if (!rid) return;
+        map[rid] = sheetKey === 'santri'
+          ? (deriveRiwayatLabel_(row) || rid)
+          : (cleanString_(row.name || row.nama || row.nama_display || row.namaDisplay || row.judul || row.nama_lokasi || row.title) || rid);
+      });
+    } catch (e) {}
+  }
+  var nm = riwayatNameCache_[sheetKey][raw];
+  return nm ? (nm + ' (#' + raw + ')') : raw;
+}
+
+// Peta nama-kolom -> sheet entitas yang ID-nya perlu diterjemahkan jadi nama di snapshot riwayat.
+var RIWAYAT_ID_FIELD_SHEET_ = {
+  id_santri: 'santri', santri_id: 'santri', id_murid: 'santri',
+  id_pengurus: 'pengurus', pengurus_id: 'pengurus',
+  id_pengampu_halaqoh: 'pengurus', id_pengampu_badal: 'pengurus',
+  id_pengajar: 'pengurus', id_pengajar_badal: 'pengurus',
+  id_pembina: 'pengurus', id_pembina_badal: 'pengurus', id_badal: 'pengurus',
+  id_halaqoh: 'halaqoh', halaqoh_id: 'halaqoh',
+  id_halaqoh_tasmi: 'halaqohTasmi', halaqoh_tasmi_id: 'halaqohTasmi',
+  id_kelas: 'kelasSiang', kelas_id: 'kelasSiang', id_kelas_siang: 'kelasSiang',
+  id_regu: 'regu', regu_id: 'regu',
+  id_jabatan: 'jabatan', jabatan_id: 'jabatan',
+  tahun_ajaran_id: 'tahunAjaran', id_tahun_ajaran: 'tahunAjaran',
+  id_pelajaran: 'pelajaran', pelajaran_id: 'pelajaran'
+};
+
+// Kembalikan nilai field untuk disimpan di riwayat: kalau field ini berisi ID entitas, ganti
+// jadi nama (mendukung nilai jamak "1,2,3" atau "[1,2,3]"); selain itu kembalikan apa adanya.
+function riwayatResolveIdValue_(key, value) {
+  var sheetKey = RIWAYAT_ID_FIELD_SHEET_[key];
+  if (!sheetKey) return value;
+  var s = cleanString_(value);
+  if (!s) return value;
+  var ids = parseIdList_(s);
+  if (!ids.length) return value;
+  if (ids.length > 1 || /[,\[\]]/.test(s)) {
+    return ids.map(function (one) { return riwayatLookupName_(sheetKey, one); }).join(', ');
+  }
+  return riwayatLookupName_(sheetKey, ids[0]);
+}
+
 // Snapshot lengkap suatu row (dipakai untuk aksi tambah/hapus) — field kosong & field bookkeeping dibuang.
 function cleanRiwayatSnapshot_(record) {
   var out = {};
@@ -24554,7 +29065,7 @@ function cleanRiwayatSnapshot_(record) {
     if (RIWAYAT_SNAPSHOT_EXCLUDED_FIELDS_[key]) return;
     var v = record[key];
     if (v === undefined || v === null || v === '') return;
-    out[key] = riwayatSafeValue_(key, v);
+    out[key] = riwayatSafeValue_(key, riwayatResolveIdValue_(key, v));
   });
   return out;
 }
@@ -24570,8 +29081,8 @@ function diffRiwayatFields_(existingRow, patch) {
     var oldVal = existingRow && existingRow[key] !== undefined ? existingRow[key] : '';
     var newVal = patch[key] === undefined ? '' : patch[key];
     if (String(oldVal) === String(newVal)) return;
-    sebelum[key] = riwayatSafeValue_(key, oldVal);
-    sesudah[key] = riwayatSafeValue_(key, newVal);
+    sebelum[key] = riwayatSafeValue_(key, riwayatResolveIdValue_(key, oldVal));
+    sesudah[key] = riwayatSafeValue_(key, riwayatResolveIdValue_(key, newVal));
   });
   return { sebelum: sebelum, sesudah: sesudah };
 }
@@ -25170,6 +29681,23 @@ function createExpressApp_() {
     }
   });
 
+  // Proxy /v2/* ke dev server Vite frontend2 (lihat startFrontend2DevServer_). Dipasang SEBELUM
+  // express.static(FRONTEND_DIR) supaya path /v2 tidak pernah jatuh ke static handler frontend lama.
+  if (createProxyMiddleware) {
+    frontend2Proxy = createProxyMiddleware({
+      pathFilter: '/v2',
+      target: 'http://127.0.0.1:' + FRONTEND2_DEV_PORT,
+      changeOrigin: true,
+      ws: true,
+      logger: console
+    });
+    app.use(frontend2Proxy);
+  } else {
+    app.use('/v2', function (req, res) {
+      res.status(503).send('frontend2 belum aktif: paket http-proxy-middleware belum terinstall. Jalankan `npm install` di root project.');
+    });
+  }
+
   app.use(express.static(FRONTEND_DIR, {
     extensions: ['html'],
     setHeaders: function (res, filePath) {
@@ -25190,6 +29718,22 @@ function createExpressApp_() {
       }
     }
   }));
+
+  // ── Jam Digital: gerbang addon (Kelola Addons) ────────────────────────────────
+  // Jam Digital TIDAK lewat dispatcher action= (checkAddonEnabledForAction_) sama sekali --
+  // ini murni route Express, dipakai layar kiosk fisik yang biasanya tanpa login sama sekali.
+  // Ditaruh SEBELUM semua route /api/jam-digital & alias publik /jam-digital di bawah supaya
+  // keduanya (data JSON, SSE, upload, maupun halaman/aset kiosk) ikut ditolak begitu addon
+  // "Jam Digital" dimatikan Admin lewat Kelola Addons. Data/pengaturan yang sudah ada TIDAK
+  // dihapus, cuma tidak bisa diakses selama nonaktif.
+  app.use(['/api/jam-digital', '/jam-digital'], function (req, res, next) {
+    if (isAddonActive_('jamDigital')) return next();
+    applyNoStoreHeaders_(res);
+    if (req.originalUrl.indexOf('/api/jam-digital') === 0) {
+      return res.status(503).json({ ok: false, error: { message: 'Fitur Jam Digital sedang dinonaktifkan oleh Admin lewat Kelola Addons.', code: 503 } });
+    }
+    return res.status(503).type('text/plain').send('Fitur Jam Digital sedang dinonaktifkan oleh Admin.');
+  });
 
   // ── Jam Digital: state (publik, viewer polling) ──────────────────────────────
   app.get('/api/jam-digital/state', function (req, res) {
@@ -25264,7 +29808,7 @@ function createExpressApp_() {
       return res.status(401).json({ ok: false, error: { message: 'Token tidak valid atau sesi habis.', code: 401 } });
     }
     var p = session.permissions || {};
-    if (!p.isAdmin && !p.isSuperAdmin && !p.canAccessJamDigital) {
+    if (!canManageAddon_(session, 'jamDigital', ADDON_MANAGE_FALLBACK_.jamDigital)) {
       return res.status(403).json({ ok: false, error: { message: 'Akses ditolak. Hanya Super Admin, Admin, atau Operator Jam Digital.', code: 403 } });
     }
     var cmd = req.body || {};
@@ -25451,7 +29995,7 @@ function createExpressApp_() {
     var session = null;
     try { session = authenticateRequest_(token, false, ''); } catch (_) {}
     var p = (session && session.permissions) ? session.permissions : {};
-    if (!p.isAdmin && !p.isSuperAdmin && !p.canAccessJamDigital) {
+    if (!canManageAddon_(session, 'jamDigital', ADDON_MANAGE_FALLBACK_.jamDigital)) {
       return res.status(403).json({ ok: false, error: { message: 'Akses ditolak.', code: 403 } });
     }
     var url = String((req.body && req.body.url) || '').trim();
@@ -25491,7 +30035,7 @@ function createExpressApp_() {
       var session = null;
       try { session = authenticateRequest_(token, false, ''); } catch (_) {}
       var p = (session && session.permissions) ? session.permissions : {};
-      if (!p.isAdmin && !p.isSuperAdmin && !p.canAccessJamDigital) {
+      if (!canManageAddon_(session, 'jamDigital', ADDON_MANAGE_FALLBACK_.jamDigital)) {
         return res.status(403).json({ ok: false, error: { message: 'Akses ditolak.', code: 403 } });
       }
       var origName = path.basename(String(req.query.filename || 'logo.png').trim());
@@ -25526,7 +30070,7 @@ function createExpressApp_() {
       var session = null;
       try { session = authenticateRequest_(token, false, ''); } catch (_) {}
       var p = (session && session.permissions) ? session.permissions : {};
-      if (!p.isAdmin && !p.isSuperAdmin && !p.canAccessJamDigital) {
+      if (!canManageAddon_(session, 'jamDigital', ADDON_MANAGE_FALLBACK_.jamDigital)) {
         return res.status(403).json({ ok: false, error: { message: 'Akses ditolak.', code: 403 } });
       }
       var kind = String(req.query.kind || 'alarm').toLowerCase();
@@ -25689,6 +30233,88 @@ function createExpressApp_() {
     }
   );
 
+  // ── Quiz Digital: upload audio suara latar ─────────────────────────────────
+  // Standalone (tak terikat id quiz) spt pengumuman: URL hasil upload dimasukkan ke
+  // config.bgAudioUrl saat quiz.save. Butuh token pengurus mana pun (validasi kelas
+  // dilakukan di quiz.save).
+  app.post('/api/quiz/upload-audio',
+    express.raw({ type: '*/*', limit: '12mb' }),
+    function (req, res) {
+      applyNoStoreHeaders_(res);
+      var token = req.query.token || '';
+      var session = null;
+      try { session = authenticateRequest_(token, false, ''); } catch (_) {}
+      if (!session || session.role !== 'pengurus') {
+        return res.status(401).json({ ok: false, error: { message: 'Token tidak valid.', code: 401 } });
+      }
+      if (!Buffer.isBuffer(req.body) || !req.body.length) {
+        return res.status(400).json({ ok: false, error: { message: 'File kosong atau tidak terbaca.', code: 400 } });
+      }
+      if (req.body.length > MAX_QUIZ_AUDIO_BYTES) {
+        return res.status(400).json({ ok: false, error: { message: 'Ukuran audio maksimal 5 MB.', code: 400 } });
+      }
+      var mimeType = String(req.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
+      var rawName = String(req.query.filename || '').toLowerCase();
+      var dotExt = path.extname(rawName).replace('.', '');
+      var ext = ALLOWED_QUIZ_AUDIO_MIME_MAP[mimeType]
+        || (['mp3', 'm4a', 'ogg', 'wav', 'aac', 'webm'].indexOf(dotExt) !== -1 ? (dotExt === 'aac' ? 'm4a' : dotExt) : '');
+      if (!ext) {
+        return res.status(400).json({ ok: false, error: { message: 'Format audio tidak didukung. Gunakan MP3, M4A, OGG, atau WAV.', code: 400 } });
+      }
+      var filename = 'quiz-bg-' + Date.now() + '-' + crypto.randomBytes(4).toString('hex') + '.' + ext;
+      try { fs.writeFileSync(path.join(QUIZ_MEDIA_DIR, filename), req.body); } catch (e) {
+        return res.status(500).json({ ok: false, error: { message: 'Gagal menyimpan file: ' + e.message, code: 500 } });
+      }
+      res.json({ ok: true, data: { url: QUIZ_MEDIA_DIR_NAME + '/' + filename } });
+    }
+  );
+
+  // ── Catatan & Dokumen: upload gambar di dalam dokumen ───────────────────────
+  // Gambar disimpan sebagai file terpisah di catatan-media/<docId>/. Butuh token
+  // pengurus + akses EDIT ke dokumen tujuan (query ?id=<docId>).
+  app.post('/api/catatan/upload-image',
+    express.raw({ type: '*/*', limit: '12mb' }),
+    function (req, res) {
+      applyNoStoreHeaders_(res);
+      var token = req.query.token || '';
+      var session = null;
+      try { session = authenticateRequest_(token, false, ''); } catch (_) {}
+      if (!session || session.role !== 'pengurus') {
+        return res.status(401).json({ ok: false, error: { message: 'Token tidak valid.', code: 401 } });
+      }
+      var docId = cleanString_(req.query.id || '');
+      if (!docId) return res.status(400).json({ ok: false, error: { message: 'ID dokumen wajib disertakan.', code: 400 } });
+      ensureCatatanSchema_();
+      var doc = catatanDocRow_(docId);
+      if (!doc) return res.status(404).json({ ok: false, error: { message: 'Dokumen tidak ditemukan.', code: 404 } });
+      if (cleanString_(doc.status) === 'deleted') {
+        return res.status(400).json({ ok: false, error: { message: 'Dokumen ada di Sampah.', code: 400 } });
+      }
+      if (!catatanResolveAccess_(session, doc).canEdit) {
+        return res.status(403).json({ ok: false, error: { message: 'Anda hanya dapat membaca dokumen ini.', code: 403 } });
+      }
+      if (!Buffer.isBuffer(req.body) || !req.body.length) {
+        return res.status(400).json({ ok: false, error: { message: 'File kosong atau tidak terbaca.', code: 400 } });
+      }
+      if (req.body.length > MAX_CATATAN_IMAGE_BYTES) {
+        return res.status(400).json({ ok: false, error: { message: 'Ukuran gambar maksimal 8 MB.', code: 400 } });
+      }
+      var mimeType = String(req.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
+      var dotExt = path.extname(String(req.query.filename || '').toLowerCase()).replace('.', '');
+      var ext = ALLOWED_CATATAN_IMAGE_MIME_MAP[mimeType] ||
+        (['jpg', 'jpeg', 'png', 'webp', 'gif'].indexOf(dotExt) !== -1 ? (dotExt === 'jpeg' ? 'jpg' : dotExt) : '');
+      if (!ext) return res.status(400).json({ ok: false, error: { message: 'Format tidak didukung. Gunakan JPG, PNG, WEBP, atau GIF.', code: 400 } });
+      var safeDocId = docId.replace(/[^a-zA-Z0-9_]/g, '');
+      var dir = path.join(CATATAN_MEDIA_DIR, safeDocId);
+      try { fs.mkdirSync(dir, { recursive: true }); } catch (e) {}
+      var filename = Date.now() + '-' + crypto.randomBytes(6).toString('hex') + '.' + ext;
+      try { fs.writeFileSync(path.join(dir, filename), req.body); } catch (e) {
+        return res.status(500).json({ ok: false, error: { message: 'Gagal menyimpan gambar: ' + e.message, code: 500 } });
+      }
+      res.json({ ok: true, data: { url: '/' + CATATAN_MEDIA_DIR_NAME + '/' + safeDocId + '/' + filename } });
+    }
+  );
+
   // ── Buku Digital: stream/download file ──────────────────────────────────────
   app.get('/api/buku/file', function (req, res) {
     applyNoStoreHeaders_(res);
@@ -25844,7 +30470,7 @@ function createExpressApp_() {
       var session = null;
       try { session = authenticateRequest_(token, false, ''); } catch (_) {}
       var p = (session && session.permissions) ? session.permissions : {};
-      if (!p.isAdmin && !p.isSuperAdmin && !p.canAccessJamDigital) {
+      if (!canManageAddon_(session, 'jamDigital', ADDON_MANAGE_FALLBACK_.jamDigital)) {
         return res.status(403).json({ ok: false, error: { message: 'Akses ditolak.', code: 403 } });
       }
       var kind = String((req.body && req.body.kind) || 'alarm').toLowerCase();
@@ -25870,7 +30496,7 @@ function createExpressApp_() {
     var session = null;
     try { session = authenticateRequest_(token, false, ''); } catch (_) {}
     var p = (session && session.permissions) ? session.permissions : {};
-    if (!p.isAdmin && !p.isSuperAdmin && !p.canAccessJamDigital) {
+    if (!canManageAddon_(session, 'jamDigital', ADDON_MANAGE_FALLBACK_.jamDigital)) {
       return res.status(403).json({ ok: false, error: { message: 'Akses ditolak.', code: 403 } });
     }
     jamDigitalState.logoFile = 'logo/logo_deffault.png';
@@ -25911,7 +30537,7 @@ function createExpressApp_() {
       var session = null;
       try { session = authenticateRequest_(token, false, ''); } catch (_) {}
       var p = (session && session.permissions) ? session.permissions : {};
-      if (!p.isAdmin && !p.isSuperAdmin && !p.canAccessJamDigital) {
+      if (!canManageAddon_(session, 'jamDigital', ADDON_MANAGE_FALLBACK_.jamDigital)) {
         return res.status(403).json({ ok: false, error: { message: 'Akses ditolak.', code: 403 } });
       }
       if (!Buffer.isBuffer(req.body) || !req.body.length) {
@@ -25995,6 +30621,51 @@ function createExpressApp_() {
     }
   });
 
+  // Unduh HANYA "inti" data (tanpa folder media): database SQLite + sidecar WAL/SHM + JSON
+  // pengaturan penting (maintenance, auditSettings, auditBawahanSettings, backupSettings,
+  // whatsappSettings). Ringan & cepat (~DB 25 MB -> zip ~6 MB), di-stream langsung ke
+  // response, TIDAK disimpan di folder backups & tidak kena retensi 20. Struktur zip tetap
+  // `data/...` supaya file ini juga sah dipakai di menu Restore (cuma ganti DB + JSON,
+  // folder media dibiarkan apa adanya).
+  app.get('/api/backup/download-db', function (req, res) {
+    try {
+      var token = String(req.query.token || '');
+      var session = authenticateRequest_(token, false);
+      if (!session || !session.permissions || !(session.permissions.canDelete || session.permissions.isAdmin)) {
+        res.status(403).json({ ok: false, error: { message: 'Hanya admin atau super admin yang dapat mengunduh database.' } });
+        return;
+      }
+      if (!fs.existsSync(DB_PATH)) {
+        res.status(404).json({ ok: false, error: { message: 'File database tidak ditemukan.' } }); return;
+      }
+      // Dorong isi WAL ke file utama supaya salinan mutakhir (sama seperti createBackupStreaming_).
+      try { DB.exec('PRAGMA wal_checkpoint(TRUNCATE)'); } catch (_) {}
+      var ts = new Date().toISOString().replace(/:/g, '-').replace(/\..+/, '');
+      var entries = collectDbCoreEntries_();
+      res.setHeader('Content-Disposition', 'attachment; filename="database-' + ts + '.zip"');
+      res.setHeader('Content-Type', 'application/zip');
+
+      if (archiver) {
+        var archive = archiver('zip', { zlib: { level: 6 } });
+        archive.on('error', function (err) {
+          if (!res.headersSent) res.status(500).json({ ok: false, error: { message: (err && err.message) || 'Gagal membuat zip database.' } });
+          else try { res.destroy(err); } catch (_) {}
+        });
+        archive.on('warning', function (err) { if (!err || err.code !== 'ENOENT') { try { archive.abort(); } catch (_) {} } });
+        archive.pipe(res);
+        entries.forEach(function (e) { archive.file(e.src, { name: e.name }); });
+        archive.finalize();
+      } else {
+        // Fallback tanpa archiver: adm-zip in-memory -- aman, totalnya cuma ~DB + beberapa KB JSON.
+        var zip = new AdmZip();
+        entries.forEach(function (e) { zip.addLocalFile(e.src, path.posix.dirname(e.name)); });
+        res.end(zip.toBuffer());
+      }
+    } catch (e) {
+      if (!res.headersSent) res.status(e.code || 500).json({ ok: false, error: { message: e.message || 'Gagal mengunduh database.' } });
+    }
+  });
+
   app.post('/api/backup/restore', express.raw({ type: '*/*', limit: '500mb' }), function (req, res) {
     try {
       var token = String(req.query.token || '');
@@ -26002,6 +30673,11 @@ function createExpressApp_() {
       var session = authenticateRequest_(token, false, scopeLabel);
       if (!session || !session.permissions || !session.permissions.canDelete) {
         res.status(403).json({ ok: false, error: { message: 'Hanya super admin (dengan scope aktif Super Admin) yang dapat melakukan restore.' } }); return;
+      }
+      // Konfirmasi ketik: frontend mewajibkan user mengetik kata kunci; endpoint ikut menolak
+      // kalau parameter `confirm` tidak persis sama (jaga2 dari pemanggilan langsung/script).
+      if (String(req.query.confirm || '') !== 'PULIHKAN') {
+        res.status(400).json({ ok: false, error: { message: 'Restore butuh konfirmasi. Ketik kata kunci konfirmasi di halaman Backup & Restore.' } }); return;
       }
       if (!req.body || !req.body.length) {
         res.status(400).json({ ok: false, error: { message: 'File backup tidak ditemukan dalam request.' } }); return;
@@ -26034,7 +30710,7 @@ function isMaintenanceSafe_(action) {
     'portal.brand.public.get': 1, 'content.public.list': 1,
     'references': 1, 'dashboard': 1, 'audit': 1, 'excel.template': 1,
     'system.maintenance.get': 1, 'system.maintenance.set': 1,
-    'backup.list': 1, 'backup.create': 1, 'backup.delete': 1,
+    'backup.list': 1, 'backup.create': 1, 'backup.status': 1, 'backup.cancel': 1, 'backup.sources': 1, 'backup.delete': 1,
     'backup.settings.get': 1, 'backup.settings.save': 1
   };
   if (exact[action]) return true;
@@ -26061,24 +30737,695 @@ function handleMaintenanceSet_(request, session) {
   return { ok: true, timestamp: nowIso_(), data: maintenanceState };
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// Catatan & Dokumen  (pages/catatanku)
+// ─────────────────────────────────────────────────────────────────────────────
+// Dokumen kaya (editor Quill) milik pribadi tiap pengurus. HANYA Mudir, Admin, dan
+// Super Admin yang dapat MEMBUAT dokumen; pemilik dapat membagikan tiap dokumen —
+// per penerima "lihat saja" atau "bisa edit" — ke user tertentu, jabatan tertentu,
+// atau semua pengurus. Penerima "bisa edit" hanya boleh mengubah isi: ganti nama,
+// atur berbagi, dan hapus tetap hak pemilik (Super Admin bouleh ikut menghapus).
+// Simpan otomatis + riwayat versi (maks CATATAN_MAX_VERSIONS snapshot per dokumen).
+// Gambar diupload sebagai file terpisah (lihat route /api/catatan/upload-image).
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function catatanCanCreate_(session) {
+  var p = (session && session.permissions) || {};
+  return !!(p.isSuperAdmin || p.isAdmin || p.isMudir);
+}
+
+function catatanNorm_(value) {
+  return String(value == null ? '' : value).toLowerCase().replace(/[_\s-]+/g, ' ').trim();
+}
+
+function catatanNewId_(prefix) {
+  return (prefix || 'doc') + '_' + Date.now().toString(36) + crypto.randomBytes(5).toString('hex');
+}
+
+// Jenis dokumen catatan: 'quill' (teks kaya, default) atau 'table' (grid ala spreadsheet,
+// editor jspreadsheet). Nilai lain / kosong -> 'quill'.
+function catatanDocType_(value) {
+  return cleanString_(value).toLowerCase() === 'table' ? 'table' : 'quill';
+}
+
+function catatanExcerpt_(html) {
+  var text = String(html || '')
+    .replace(/<(script|style)[^>]*>[\s\S]*?<\/\1>/gi, ' ')
+    .replace(/<\/(p|div|li|h[1-6]|blockquote|br)>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&quot;/gi, '"')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return text.length > 180 ? text.slice(0, 180) + '…' : text;
+}
+
+function catatanDocRow_(id) {
+  if (!cleanString_(id)) return null;
+  ensureCatatanSchema_();
+  return getStatement_('SELECT * FROM "catatanDoc" WHERE "id" = ?', [cleanString_(id)]) || null;
+}
+
+function catatanSharesForDoc_(docId) {
+  return allStatement_('SELECT * FROM "catatanShare" WHERE "doc_id" = ? ORDER BY "kind" ASC, "ref_label" ASC', [cleanString_(docId)]);
+}
+
+function catatanSharePublic_(s) {
+  return {
+    id: s.id,
+    kind: s.kind === 'jabatan' ? 'jabatan' : 'user',
+    refValue: cleanString_(s.ref_value),
+    refLabel: cleanString_(s.ref_label) || cleanString_(s.ref_value),
+    canEdit: String(s.can_edit) === '1'
+  };
+}
+
+// -> { canView, canEdit, isOwner, isSuperAdmin }
+function catatanResolveAccess_(session, doc, sharesMaybe) {
+  var perms = (session && session.permissions) || {};
+  var out = { canView: false, canEdit: false, isOwner: false, isSuperAdmin: !!perms.isSuperAdmin };
+  if (!doc) return out;
+  if (String(doc.owner_id) === String(session.id)) {
+    out.isOwner = true; out.canView = true; out.canEdit = true;
+    return out;
+  }
+  var everyone = cleanString_(doc.share_everyone);
+  if (everyone === 'edit') { out.canView = true; out.canEdit = true; }
+  else if (everyone === 'view') { out.canView = true; }
+  var shares = sharesMaybe || catatanSharesForDoc_(doc.id);
+  var myJabatan = ((session && session.jabatanLabels) || []).map(catatanNorm_);
+  shares.forEach(function (s) {
+    var hit = false;
+    if (s.kind === 'user') hit = String(s.ref_value) === String(session.id);
+    else if (s.kind === 'jabatan') hit = myJabatan.indexOf(catatanNorm_(s.ref_value)) !== -1;
+    if (hit) {
+      out.canView = true;
+      if (String(s.can_edit) === '1') out.canEdit = true;
+    }
+  });
+  return out;
+}
+
+function catatanShareSummary_(doc, shares) {
+  var everyone = cleanString_(doc.share_everyone);
+  var users = shares.filter(function (s) { return s.kind === 'user'; }).length;
+  var jabatan = shares.filter(function (s) { return s.kind === 'jabatan'; }).length;
+  var parts = [];
+  if (everyone === 'edit') parts.push('Semua pengurus (bisa edit)');
+  else if (everyone === 'view') parts.push('Semua pengurus (lihat)');
+  if (users) parts.push(users + ' orang');
+  if (jabatan) parts.push(jabatan + ' jabatan');
+  return parts.length ? parts.join(' · ') : 'Pribadi';
+}
+
+function catatanCardView_(doc, session, shares) {
+  var access = catatanResolveAccess_(session, doc, shares);
+  var restricted = !access.canView && !access.isOwner; // hanya kelihatan karena Super Admin
+  return {
+    id: doc.id,
+    title: cleanString_(doc.title) || 'Tanpa Judul',
+    excerpt: restricted ? '' : cleanString_(doc.excerpt),
+    description: restricted ? '' : cleanString_(doc.description),
+    ownerId: cleanString_(doc.owner_id),
+    ownerName: cleanString_(doc.owner_name),
+    isOwner: access.isOwner,
+    canEdit: access.canEdit,
+    restricted: restricted,
+    pinned: String(doc.pinned) === '1',
+    updatedAt: cleanString_(doc.updated_at) || cleanString_(doc.created_at),
+    createdAt: cleanString_(doc.created_at),
+    status: cleanString_(doc.status) || 'active',
+    deletedAt: cleanString_(doc.deleted_at),
+    docType: catatanDocType_(doc.doc_type),
+    everyone: cleanString_(doc.share_everyone),
+    shareCount: shares.length,
+    shareSummary: access.isOwner ? catatanShareSummary_(doc, shares) : '',
+    myAccessLabel: access.isOwner ? 'Pemilik' : (access.canEdit ? 'Bisa edit' : (access.canView ? 'Lihat saja' : 'Terbatas'))
+  };
+}
+
+function catatanInsertVersion_(docId, opts) {
+  var now = opts.at || nowIso_();
+  var html = String(opts.html || '');
+  var sess = opts.session || {};
+  runStatement_(
+    'INSERT INTO "catatanVersion" ("id","doc_id","title","doc_type","content_html","content_delta","excerpt","editor_id","editor_name","editor_jabatan","note","size","created_at") ' +
+    'VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',
+    [
+      catatanNewId_('ver'), cleanString_(docId), cleanString_(opts.title).slice(0, 200), catatanDocType_(opts.docType),
+      html, String(opts.delta || ''), catatanExcerpt_(html),
+      String(sess.id || ''), cleanString_(sess.name),
+      cleanString_(sess.primaryJabatanLabel || ((sess.jabatanLabels || [])[0]) || ''),
+      cleanString_(opts.note), String(html.length), now
+    ]
+  );
+  // Simpan hanya CATATAN_MAX_VERSIONS snapshot terbaru per dokumen.
+  var extra = allStatement_(
+    'SELECT "id" FROM "catatanVersion" WHERE "doc_id" = ? ORDER BY "created_at" DESC, "rowid" DESC LIMIT -1 OFFSET ?',
+    [cleanString_(docId), CATATAN_MAX_VERSIONS]
+  );
+  extra.forEach(function (r) { runStatement_('DELETE FROM "catatanVersion" WHERE "id" = ?', [r.id]); });
+}
+
+function handleCatatanRefs_(request, session) {
+  requirePengurus_(session);
+  if (!canManageAddon_(session, 'catatanku', ADDON_MANAGE_FALLBACK_.catatanku)) {
+    throw createError_('Hanya Mudir, Admin, Super Admin, atau jabatan yang diatur di Kelola Addons yang dapat mengelola berbagi dokumen.', 403);
+  }
+  var dataset = loadDataset_();
+  var users = (dataset.pengurus || [])
+    .filter(function (p) { return p.active; })
+    .map(function (p) {
+      var enriched = enrichPengurus_(p, dataset);
+      return {
+        id: String(enriched.id),
+        name: enriched.name || ('Pengurus ' + enriched.id),
+        jabatan: (enriched.jabatanLabels || []).join(', ')
+      };
+    })
+    .filter(function (u) { return String(u.id) !== String(session.id); });
+  users.sort(function (a, b) { return (a.name || '').localeCompare(b.name || '', 'id'); });
+  var jabatan = readSheetState_('jabatan').rows
+    .filter(function (row) { return isActiveStatus_(row.status) && cleanString_(row.name); })
+    .map(function (row) { return cleanString_(row.name); });
+  jabatan = uniqueList_(jabatan);
+  jabatan.sort(function (a, b) { return a.localeCompare(b, 'id'); });
+  return { ok: true, timestamp: nowIso_(), data: { users: users, jabatan: jabatan } };
+}
+
+function handleCatatanList_(request, session) {
+  requirePengurus_(session);
+  ensureCatatanSchema_();
+  var tab = cleanString_(request.tab || '').toLowerCase();
+  var q = catatanNorm_(request.q || '');
+  var isSuper = !!(session.permissions && session.permissions.isSuperAdmin);
+  // Buka tab Sampah = kesempatan bagus untuk membuang dokumen yang sudah kedaluwarsa (> 30 hari),
+  // supaya daftar yang tampil sudah bersih walau timer latar belakang belum sempat jalan.
+  if (tab === 'trash') { try { sweepCatatanTrash_(false); } catch (e) {} }
+  var rows;
+  if (tab === 'trash') {
+    rows = allStatement_('SELECT * FROM "catatanDoc" WHERE "status" = ? ORDER BY "updated_at" DESC', ['deleted']);
+    if (!isSuper) rows = rows.filter(function (d) { return String(d.owner_id) === String(session.id); });
+  } else {
+    rows = allStatement_('SELECT * FROM "catatanDoc" WHERE "status" IS NOT ? ORDER BY "updated_at" DESC', ['deleted']);
+  }
+  var items = [];
+  rows.forEach(function (doc) {
+    var shares = catatanSharesForDoc_(doc.id);
+    var access = catatanResolveAccess_(session, doc, shares);
+    if (tab === 'trash') {
+      if (!access.isOwner && !isSuper) return;
+    } else if (tab === 'all') {
+      if (!isSuper) return;
+    } else if (tab === 'mine') {
+      if (!access.isOwner) return;
+    } else if (tab === 'shared') {
+      if (access.isOwner || !access.canView) return;
+    } else {
+      if (!access.isOwner && !access.canView) return;
+    }
+    var card = catatanCardView_(doc, session, shares);
+    if (q) {
+      var hay = catatanNorm_(card.title + ' ' + card.excerpt + ' ' + card.description + ' ' + card.ownerName);
+      if (hay.indexOf(q) === -1) return;
+    }
+    items.push(card);
+  });
+  items.sort(function (a, b) {
+    if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+    return String(b.updatedAt).localeCompare(String(a.updatedAt));
+  });
+  return { ok: true, timestamp: nowIso_(), data: { items: items, canCreate: canManageAddon_(session, 'catatanku', ADDON_MANAGE_FALLBACK_.catatanku), isSuperAdmin: isSuper } };
+}
+
+function handleCatatanGet_(request, session) {
+  requirePengurus_(session);
+  var doc = catatanDocRow_(request.id);
+  if (!doc) throw createError_('Dokumen tidak ditemukan.', 404);
+  var shares = catatanSharesForDoc_(doc.id);
+  var access = catatanResolveAccess_(session, doc, shares);
+  var deleted = cleanString_(doc.status) === 'deleted';
+  if (deleted && !(access.isOwner || access.isSuperAdmin)) throw createError_('Dokumen tidak ditemukan.', 404);
+  if (!access.canView && !access.isOwner) throw createError_('Anda tidak memiliki akses ke dokumen ini.', 403);
+  var payload = {
+    id: doc.id,
+    title: cleanString_(doc.title) || 'Tanpa Judul',
+    description: cleanString_(doc.description),
+    docType: catatanDocType_(doc.doc_type),
+    html: doc.content_html || '',
+    delta: doc.content_delta || '',
+    updatedAt: cleanString_(doc.updated_at),
+    updatedByName: cleanString_(doc.updated_by_name),
+    ownerName: cleanString_(doc.owner_name),
+    status: cleanString_(doc.status) || 'active',
+    pinned: String(doc.pinned) === '1',
+    access: { isOwner: access.isOwner, canEdit: access.canEdit && !deleted, isSuperAdmin: access.isSuperAdmin }
+  };
+  if (access.isOwner) {
+    payload.everyone = cleanString_(doc.share_everyone);
+    payload.shares = shares.map(catatanSharePublic_);
+  }
+  return { ok: true, timestamp: nowIso_(), data: payload };
+}
+
+function handleCatatanCreate_(request, session) {
+  requirePengurus_(session);
+  if (!canManageAddon_(session, 'catatanku', ADDON_MANAGE_FALLBACK_.catatanku)) {
+    throw createError_('Hanya Mudir, Admin, Super Admin, atau jabatan yang diatur di Kelola Addons yang dapat membuat dokumen.', 403);
+  }
+  ensureCatatanSchema_();
+  var now = nowIso_();
+  var id = catatanNewId_('doc');
+  var title = cleanString_(request.title).slice(0, 200) || 'Dokumen Baru';
+  var docType = catatanDocType_(request.doc_type);
+  runStatement_(
+    'INSERT INTO "catatanDoc" ("id","owner_id","owner_name","title","doc_type","content_html","content_delta","excerpt","share_everyone","pinned","status","created_at","updated_at","updated_by_id","updated_by_name") ' +
+    'VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+    [id, String(session.id), cleanString_(session.name), title, docType, '', '', '', '', '0', 'active', now, now, String(session.id), cleanString_(session.name)]
+  );
+  catatanInsertVersion_(id, { title: title, html: '', delta: '', note: 'Dibuat', session: session, at: now, docType: docType });
+  return { ok: true, timestamp: nowIso_(), data: { id: id, title: title, docType: docType } };
+}
+
+function handleCatatanSaveContent_(request, session) {
+  requirePengurus_(session);
+  var doc = catatanDocRow_(request.id);
+  if (!doc) throw createError_('Dokumen tidak ditemukan.', 404);
+  if (cleanString_(doc.status) === 'deleted') throw createError_('Dokumen ada di Sampah. Pulihkan dulu untuk mengedit.', 400);
+  var access = catatanResolveAccess_(session, doc);
+  if (!access.canEdit) throw createError_('Anda hanya dapat membaca dokumen ini.', 403);
+
+  var html = String(request.html == null ? '' : request.html);
+  if (html.length > 3000000) throw createError_('Isi dokumen terlalu besar (maks ±3 MB teks). Pecah menjadi beberapa dokumen.', 400);
+  var delta = request.delta == null ? '' : String(request.delta);
+  if (delta && !safeJsonParse_(delta)) delta = '';
+  // "Edit isi saja": hanya pemilik yang boleh mengganti judul lewat autosave; penerima
+  // edit menyimpan isi tanpa mengubah nama dokumen.
+  var title = access.isOwner
+    ? (cleanString_(request.title).slice(0, 200) || 'Tanpa Judul')
+    : (cleanString_(doc.title) || 'Tanpa Judul');
+  var excerpt = catatanExcerpt_(html);
+  var now = nowIso_();
+  var isCheckpoint = request.checkpoint === true || String(request.checkpoint) === 'true';
+
+  runStatement_(
+    'UPDATE "catatanDoc" SET "title" = ?, "content_html" = ?, "content_delta" = ?, "excerpt" = ?, "updated_at" = ?, "updated_by_id" = ?, "updated_by_name" = ? WHERE "id" = ?',
+    [title, html, delta, excerpt, now, String(session.id), cleanString_(session.name), doc.id]
+  );
+
+  var last = getStatement_('SELECT * FROM "catatanVersion" WHERE "doc_id" = ? ORDER BY "created_at" DESC, "rowid" DESC LIMIT 1', [doc.id]);
+  var makeVersion = false;
+  if (!last) makeVersion = true;
+  else if (isCheckpoint) makeVersion = true;
+  else if (String(last.editor_id) !== String(session.id)) makeVersion = true;
+  else if (cleanString_(last.title) !== title) makeVersion = true;
+  else {
+    var gap = Date.parse(now) - Date.parse(last.created_at || 0);
+    if (isNaN(gap) || gap >= CATATAN_VERSION_MIN_GAP_MS) makeVersion = true;
+  }
+  // Lewati kalau isi & judul persis sama dgn snapshot terakhir (autosave tanpa perubahan nyata).
+  if (makeVersion && !isCheckpoint && last && String(last.content_html) === html && cleanString_(last.title) === title) {
+    makeVersion = false;
+  }
+  if (makeVersion) {
+    catatanInsertVersion_(doc.id, { title: title, html: html, delta: delta, note: isCheckpoint ? 'Checkpoint' : 'Perubahan', session: session, at: now, docType: doc.doc_type });
+  }
+  var count = getStatement_('SELECT COUNT(*) AS n FROM "catatanVersion" WHERE "doc_id" = ?', [doc.id]);
+  return { ok: true, timestamp: nowIso_(), data: { id: doc.id, updatedAt: now, savedVersion: makeVersion, versionCount: count ? count.n : 0, excerpt: excerpt } };
+}
+
+function handleCatatanRename_(request, session) {
+  requirePengurus_(session);
+  var doc = catatanDocRow_(request.id);
+  if (!doc) throw createError_('Dokumen tidak ditemukan.', 404);
+  if (!catatanResolveAccess_(session, doc).isOwner) throw createError_('Hanya pemilik yang dapat mengubah nama dokumen.', 403);
+  var title = cleanString_(request.title).slice(0, 200);
+  if (!title) throw createError_('Nama dokumen tidak boleh kosong.', 400);
+  runStatement_('UPDATE "catatanDoc" SET "title" = ?, "updated_at" = ? WHERE "id" = ?', [title, nowIso_(), doc.id]);
+  return { ok: true, timestamp: nowIso_(), data: { id: doc.id, title: title } };
+}
+
+// Deskripsi = metadata teks bebas (textarea). Izin = sama dgn menyimpan isi (pemilik + penerima
+// "bisa edit"). SENGAJA tidak menyentuh updated_at supaya edit deskripsi tak melompatkan dokumen
+// ke atas daftar (yang diurutkan berdasarkan updated_at).
+function handleCatatanSetDescription_(request, session) {
+  requirePengurus_(session);
+  var doc = catatanDocRow_(request.id);
+  if (!doc) throw createError_('Dokumen tidak ditemukan.', 404);
+  if (cleanString_(doc.status) === 'deleted') throw createError_('Dokumen ada di Sampah. Pulihkan dulu untuk mengedit.', 400);
+  var access = catatanResolveAccess_(session, doc);
+  if (!access.canEdit) throw createError_('Anda hanya dapat membaca dokumen ini.', 403);
+  var description = cleanString_(request.description).slice(0, 2000);
+  runStatement_('UPDATE "catatanDoc" SET "description" = ? WHERE "id" = ?', [description, doc.id]);
+  return { ok: true, timestamp: nowIso_(), data: { id: doc.id, description: description } };
+}
+
+function handleCatatanPin_(request, session) {
+  requirePengurus_(session);
+  var doc = catatanDocRow_(request.id);
+  if (!doc) throw createError_('Dokumen tidak ditemukan.', 404);
+  if (!catatanResolveAccess_(session, doc).isOwner) throw createError_('Hanya pemilik yang dapat menyematkan dokumen.', 403);
+  var pinned = (request.pinned === true || String(request.pinned) === 'true') ? '1' : '0';
+  runStatement_('UPDATE "catatanDoc" SET "pinned" = ? WHERE "id" = ?', [pinned, doc.id]);
+  return { ok: true, timestamp: nowIso_(), data: { id: doc.id, pinned: pinned === '1' } };
+}
+
+function handleCatatanShareList_(request, session) {
+  requirePengurus_(session);
+  var doc = catatanDocRow_(request.id);
+  if (!doc) throw createError_('Dokumen tidak ditemukan.', 404);
+  if (!catatanResolveAccess_(session, doc).isOwner) throw createError_('Hanya pemilik yang dapat melihat pengaturan berbagi.', 403);
+  var shares = catatanSharesForDoc_(doc.id);
+  return { ok: true, timestamp: nowIso_(), data: { id: doc.id, everyone: cleanString_(doc.share_everyone), shares: shares.map(catatanSharePublic_) } };
+}
+
+function handleCatatanShareSet_(request, session) {
+  requirePengurus_(session);
+  var doc = catatanDocRow_(request.id);
+  if (!doc) throw createError_('Dokumen tidak ditemukan.', 404);
+  if (!catatanResolveAccess_(session, doc).isOwner) throw createError_('Hanya pemilik yang dapat mengubah berbagi dokumen.', 403);
+
+  var everyone = cleanString_(request.everyone).toLowerCase();
+  if (['', 'none', 'view', 'edit'].indexOf(everyone) === -1) throw createError_('Pengaturan "semua pengurus" tidak valid.', 400);
+  if (everyone === 'none') everyone = '';
+
+  var raw = request.shares;
+  if (typeof raw === 'string') raw = safeJsonParse_(raw) || [];
+  if (!Array.isArray(raw)) raw = [];
+
+  var dataset = loadDataset_();
+  var jabatanByNorm = {};
+  readSheetState_('jabatan').rows
+    .filter(function (r) { return isActiveStatus_(r.status) && cleanString_(r.name); })
+    .forEach(function (r) { jabatanByNorm[catatanNorm_(r.name)] = cleanString_(r.name); });
+
+  var seen = {};
+  var clean = [];
+  raw.forEach(function (entry) {
+    if (!entry || typeof entry !== 'object') return;
+    var kind = entry.kind === 'jabatan' ? 'jabatan' : 'user';
+    var canEdit = (entry.canEdit === true || String(entry.canEdit) === 'true' || String(entry.canEdit) === '1') ? '1' : '0';
+    if (kind === 'user') {
+      var uid = cleanString_(entry.refValue || entry.ref_value);
+      if (!uid || uid === String(doc.owner_id)) return;
+      var pengurus = findById_(dataset.pengurus, uid);
+      if (!pengurus || !pengurus.active) return;
+      if (seen['user:' + uid]) return;
+      seen['user:' + uid] = true;
+      var enriched = enrichPengurus_(pengurus, dataset);
+      clean.push({ kind: 'user', ref_value: uid, ref_label: enriched.name || ('Pengurus ' + uid), can_edit: canEdit });
+    } else {
+      var jn = jabatanByNorm[catatanNorm_(entry.refValue || entry.ref_value || entry.refLabel || entry.ref_label || '')];
+      if (!jn || seen['jabatan:' + catatanNorm_(jn)]) return;
+      seen['jabatan:' + catatanNorm_(jn)] = true;
+      clean.push({ kind: 'jabatan', ref_value: jn, ref_label: jn, can_edit: canEdit });
+    }
+  });
+
+  var now = nowIso_();
+  runStatement_('DELETE FROM "catatanShare" WHERE "doc_id" = ?', [doc.id]);
+  clean.forEach(function (s) {
+    runStatement_(
+      'INSERT INTO "catatanShare" ("id","doc_id","kind","ref_value","ref_label","can_edit","created_at","created_by_id") VALUES (?,?,?,?,?,?,?,?)',
+      [catatanNewId_('shr'), doc.id, s.kind, s.ref_value, s.ref_label, s.can_edit, now, String(session.id)]
+    );
+  });
+  runStatement_('UPDATE "catatanDoc" SET "share_everyone" = ?, "updated_at" = ? WHERE "id" = ?', [everyone, now, doc.id]);
+
+  var shares = catatanSharesForDoc_(doc.id);
+  return { ok: true, timestamp: nowIso_(), data: {
+    id: doc.id, everyone: everyone, shares: shares.map(catatanSharePublic_),
+    summary: catatanShareSummary_({ share_everyone: everyone }, shares)
+  } };
+}
+
+function handleCatatanVersions_(request, session) {
+  requirePengurus_(session);
+  var doc = catatanDocRow_(request.id);
+  if (!doc) throw createError_('Dokumen tidak ditemukan.', 404);
+  var access = catatanResolveAccess_(session, doc);
+  if (!access.canView && !access.isOwner) throw createError_('Anda tidak memiliki akses ke dokumen ini.', 403);
+  var rows = allStatement_(
+    'SELECT "id","title","excerpt","editor_id","editor_name","editor_jabatan","note","size","created_at" FROM "catatanVersion" WHERE "doc_id" = ? ORDER BY "created_at" DESC, "rowid" DESC',
+    [doc.id]
+  );
+  var items = rows.map(function (r, idx) {
+    return {
+      id: r.id,
+      title: cleanString_(r.title),
+      excerpt: cleanString_(r.excerpt),
+      editorName: cleanString_(r.editor_name),
+      editorJabatan: cleanString_(r.editor_jabatan),
+      note: cleanString_(r.note),
+      size: Number(r.size) || 0,
+      createdAt: cleanString_(r.created_at),
+      current: idx === 0
+    };
+  });
+  return { ok: true, timestamp: nowIso_(), data: { id: doc.id, canEdit: access.canEdit, items: items } };
+}
+
+function handleCatatanVersionGet_(request, session) {
+  requirePengurus_(session);
+  var doc = catatanDocRow_(request.id);
+  if (!doc) throw createError_('Dokumen tidak ditemukan.', 404);
+  var access = catatanResolveAccess_(session, doc);
+  if (!access.canView && !access.isOwner) throw createError_('Anda tidak memiliki akses ke dokumen ini.', 403);
+  var ver = getStatement_('SELECT * FROM "catatanVersion" WHERE "id" = ? AND "doc_id" = ?', [cleanString_(request.versionId), doc.id]);
+  if (!ver) throw createError_('Versi tidak ditemukan.', 404);
+  return { ok: true, timestamp: nowIso_(), data: {
+    id: doc.id, versionId: ver.id, title: cleanString_(ver.title),
+    docType: catatanDocType_(ver.doc_type || doc.doc_type),
+    html: ver.content_html || '', delta: ver.content_delta || '',
+    editorName: cleanString_(ver.editor_name), createdAt: cleanString_(ver.created_at)
+  } };
+}
+
+function handleCatatanVersionRestore_(request, session) {
+  requirePengurus_(session);
+  var doc = catatanDocRow_(request.id);
+  if (!doc) throw createError_('Dokumen tidak ditemukan.', 404);
+  if (cleanString_(doc.status) === 'deleted') throw createError_('Dokumen ada di Sampah. Pulihkan dulu.', 400);
+  var access = catatanResolveAccess_(session, doc);
+  if (!access.canEdit) throw createError_('Anda hanya dapat membaca dokumen ini.', 403);
+  var ver = getStatement_('SELECT * FROM "catatanVersion" WHERE "id" = ? AND "doc_id" = ?', [cleanString_(request.versionId), doc.id]);
+  if (!ver) throw createError_('Versi tidak ditemukan.', 404);
+  var now = nowIso_();
+  var html = ver.content_html || '';
+  var title = cleanString_(ver.title) || cleanString_(doc.title) || 'Tanpa Judul';
+  runStatement_(
+    'UPDATE "catatanDoc" SET "title" = ?, "content_html" = ?, "content_delta" = ?, "excerpt" = ?, "updated_at" = ?, "updated_by_id" = ?, "updated_by_name" = ? WHERE "id" = ?',
+    [title, html, ver.content_delta || '', catatanExcerpt_(html), now, String(session.id), cleanString_(session.name), doc.id]
+  );
+  var stamp;
+  try { stamp = new Date(ver.created_at).toLocaleString('id-ID'); } catch (e) { stamp = cleanString_(ver.created_at); }
+  catatanInsertVersion_(doc.id, { title: title, html: html, delta: ver.content_delta || '', note: 'Pulihkan versi ' + stamp, session: session, at: now, docType: doc.doc_type });
+  return { ok: true, timestamp: nowIso_(), data: { id: doc.id, title: title, docType: catatanDocType_(doc.doc_type), html: html, delta: ver.content_delta || '', updatedAt: now } };
+}
+
+function handleCatatanDelete_(request, session) {
+  requirePengurus_(session);
+  var doc = catatanDocRow_(request.id);
+  if (!doc) throw createError_('Dokumen tidak ditemukan.', 404);
+  var access = catatanResolveAccess_(session, doc);
+  if (!access.isOwner && !access.isSuperAdmin) throw createError_('Hanya pemilik atau Super Admin yang dapat menghapus dokumen.', 403);
+  var deletedNow = nowIso_();
+  runStatement_('UPDATE "catatanDoc" SET "status" = ?, "deleted_at" = ?, "updated_at" = ? WHERE "id" = ?', ['deleted', deletedNow, deletedNow, doc.id]);
+  return { ok: true, timestamp: nowIso_(), data: { id: doc.id, message: 'Dokumen dipindahkan ke Sampah. Akan dihapus permanen otomatis setelah 30 hari.' } };
+}
+
+function handleCatatanRestore_(request, session) {
+  requirePengurus_(session);
+  var doc = catatanDocRow_(request.id);
+  if (!doc) throw createError_('Dokumen tidak ditemukan.', 404);
+  var access = catatanResolveAccess_(session, doc);
+  if (!access.isOwner && !access.isSuperAdmin) throw createError_('Hanya pemilik atau Super Admin yang dapat memulihkan dokumen.', 403);
+  runStatement_('UPDATE "catatanDoc" SET "status" = ?, "deleted_at" = ?, "updated_at" = ? WHERE "id" = ?', ['active', '', nowIso_(), doc.id]);
+  return { ok: true, timestamp: nowIso_(), data: { id: doc.id, message: 'Dokumen dipulihkan.' } };
+}
+
+// Buang otomatis dokumen "Dokumen Baru" yang dibuat lalu ditinggal tanpa pernah diisi & tanpa
+// ganti judul. Dipanggil frontend saat editor ditutup / halaman ditinggalkan. Hapus PERMANEN
+// (tidak lewat Sampah) karena dokumen ini memang belum pernah dipakai. Guard ketat supaya tidak
+// bisa dipakai menghapus dokumen lain: harus pemilik, judul masih persis default "Dokumen Baru",
+// isi benar-benar kosong (tanpa teks & tanpa gambar), belum dibagikan, dan baru dibuat < 24 jam.
+// Selalu balas ok:true — kalau syarat tak terpenuhi cukup { discarded:false, reason } tanpa error,
+// supaya pemanggilan best-effort dari sisi klien tidak menimbulkan notifikasi gagal.
+function handleCatatanDiscardEmpty_(request, session) {
+  requirePengurus_(session);
+  var doc = catatanDocRow_(request.id);
+  if (!doc) return { ok: true, timestamp: nowIso_(), data: { id: cleanString_(request.id), discarded: false, reason: 'not-found' } };
+  var access = catatanResolveAccess_(session, doc);
+  if (!access.isOwner) throw createError_('Hanya pemilik yang dapat membuang dokumen ini.', 403);
+
+  var reason = '';
+  var htmlRaw = String(doc.content_html || '');
+  if (cleanString_(doc.status) !== 'active') reason = 'status';
+  else if (cleanString_(doc.title).trim() !== 'Dokumen Baru') reason = 'title';
+  else if (catatanExcerpt_(htmlRaw) !== '' || /<img[\s>]/i.test(htmlRaw) || cleanString_(doc.excerpt) !== '') reason = 'content';
+  else if (cleanString_(doc.share_everyone) !== '') reason = 'shared';
+  else {
+    var shareCount = getStatement_('SELECT COUNT(*) AS n FROM "catatanShare" WHERE "doc_id" = ?', [doc.id]);
+    if (shareCount && shareCount.n > 0) reason = 'shared';
+  }
+  if (reason === '') {
+    var age = Date.now() - Date.parse(cleanString_(doc.created_at) || '');
+    if (isNaN(age) || age > 24 * 60 * 60 * 1000) reason = 'stale';
+  }
+  if (reason !== '') {
+    return { ok: true, timestamp: nowIso_(), data: { id: doc.id, discarded: false, reason: reason } };
+  }
+
+  runStatement_('DELETE FROM "catatanShare" WHERE "doc_id" = ?', [doc.id]);
+  runStatement_('DELETE FROM "catatanVersion" WHERE "doc_id" = ?', [doc.id]);
+  runStatement_('DELETE FROM "catatanDoc" WHERE "id" = ?', [doc.id]);
+  try {
+    var dir = path.join(CATATAN_MEDIA_DIR, String(doc.id).replace(/[^a-zA-Z0-9_]/g, ''));
+    if (fs.existsSync(dir)) fs.rmSync(dir, { recursive: true, force: true });
+  } catch (e) {}
+  return { ok: true, timestamp: nowIso_(), data: { id: doc.id, discarded: true } };
+}
+
+function handleCatatanPurge_(request, session) {
+  requireSuperAdmin_(session);
+  var doc = catatanDocRow_(request.id);
+  if (!doc) throw createError_('Dokumen tidak ditemukan.', 404);
+  if (cleanString_(request.confirm).toUpperCase() !== 'HAPUS PERMANEN') {
+    throw createError_('Ketik "HAPUS PERMANEN" untuk menghapus dokumen selamanya.', 400);
+  }
+  runStatement_('DELETE FROM "catatanShare" WHERE "doc_id" = ?', [doc.id]);
+  runStatement_('DELETE FROM "catatanVersion" WHERE "doc_id" = ?', [doc.id]);
+  runStatement_('DELETE FROM "catatanDoc" WHERE "id" = ?', [doc.id]);
+  try {
+    var dir = path.join(CATATAN_MEDIA_DIR, String(doc.id).replace(/[^a-zA-Z0-9_]/g, ''));
+    if (fs.existsSync(dir)) fs.rmSync(dir, { recursive: true, force: true });
+  } catch (e) {}
+  return { ok: true, timestamp: nowIso_(), data: { id: doc.id, message: 'Dokumen dihapus permanen.' } };
+}
+
+// Pembersih otomatis Sampah "Catatan & Dokumen": dokumen yang sudah lebih dari
+// CATATAN_TRASH_TTL_MS (30 hari) berada di Sampah dihapus PERMANEN — baris catatanDoc +
+// catatanShare + catatanVersion + folder media-nya, persis seperti handleCatatanPurge_ tapi
+// tanpa konfirmasi karena berjalan sendiri. Umur dihitung dari kolom deleted_at (diisi saat
+// dokumen dipindahkan ke Sampah); baris lama yang dihapus sebelum kolom itu ada memakai
+// updated_at sebagai perkiraan. Throttled: aman dipanggil sesering apa pun — hanya benar-benar
+// bekerja sekali per CATATAN_TRASH_SWEEP_MIN_GAP_MS, kecuali dipanggil dengan force = true.
+var CATATAN_TRASH_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+var CATATAN_TRASH_SWEEP_MIN_GAP_MS = 60 * 60 * 1000;
+var catatanTrashSweepLastMs_ = 0;
+function sweepCatatanTrash_(force) {
+  var nowMs = Date.now();
+  if (!force && (nowMs - catatanTrashSweepLastMs_) < CATATAN_TRASH_SWEEP_MIN_GAP_MS) return 0;
+  catatanTrashSweepLastMs_ = nowMs;
+  var swept = 0;
+  try {
+    ensureCatatanSchema_();
+    var rows = allStatement_('SELECT "id", "deleted_at", "updated_at" FROM "catatanDoc" WHERE "status" = ?', ['deleted']);
+    rows.forEach(function (r) {
+      var stamp = cleanString_(r.deleted_at) || cleanString_(r.updated_at);
+      var ageMs = nowMs - Date.parse(stamp || '');
+      if (isNaN(ageMs) || ageMs < CATATAN_TRASH_TTL_MS) return;
+      runStatement_('DELETE FROM "catatanShare" WHERE "doc_id" = ?', [r.id]);
+      runStatement_('DELETE FROM "catatanVersion" WHERE "doc_id" = ?', [r.id]);
+      runStatement_('DELETE FROM "catatanDoc" WHERE "id" = ?', [r.id]);
+      try {
+        var dir = path.join(CATATAN_MEDIA_DIR, String(r.id).replace(/[^a-zA-Z0-9_]/g, ''));
+        if (fs.existsSync(dir)) fs.rmSync(dir, { recursive: true, force: true });
+      } catch (e) {}
+      swept++;
+    });
+    if (swept) console.log('[catatan] Sampah dibersihkan otomatis: ' + swept + ' dokumen dihapus permanen (>30 hari).');
+  } catch (e) {
+    console.error('[catatan] sweepCatatanTrash_ error:', e.message || e);
+  }
+  return swept;
+}
+
+function scheduleCatatanTrashSweep_() {
+  // Sekali ~90 detik setelah boot (menangani proses yang sering di-restart, mis. cPanel/Passenger),
+  // lalu berkala tiap 6 jam untuk server yang hidup terus. handleCatatanList_ juga memanggilnya
+  // (throttled) saat tab Sampah dibuka, jadi tetap akurat walau timer belum sempat jalan.
+  setTimeout(function () { try { sweepCatatanTrash_(true); } catch (e) {} }, 90 * 1000);
+  setInterval(function () { try { sweepCatatanTrash_(true); } catch (e) {} }, 6 * 60 * 60 * 1000);
+}
+
+// Spawn `npm run dev` di frontend2/ (Vite) sebagai child process, supaya frontend2 otomatis
+// ikut hidup begitu backend dijalankan -- tanpa perlu perintah terpisah. Dev-only: kalau
+// node_modules-nya belum ke-install, cukup dilewati (bukan bikin backend gagal start).
+function startFrontend2DevServer_() {
+  if (!fs.existsSync(FRONTEND2_DIR)) return;
+  if (!fs.existsSync(path.join(FRONTEND2_DIR, 'node_modules'))) {
+    console.log('[frontend2] node_modules belum ada -- jalankan `npm install` di folder frontend2/, dev server v2 tidak di-spawn otomatis.');
+    return;
+  }
+  try {
+    var npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+    frontend2ChildProcess = spawn(npmCmd, ['run', 'dev'], {
+      cwd: FRONTEND2_DIR,
+      stdio: 'inherit',
+      shell: true
+    });
+    frontend2ChildProcess.on('exit', function (code) {
+      if (code && code !== 0) console.log('[frontend2] dev server berhenti (kode ' + code + ').');
+      frontend2ChildProcess = null;
+    });
+    frontend2ChildProcess.on('error', function (err) {
+      console.error('[frontend2] gagal menjalankan dev server:', err.message || err);
+    });
+    console.log('[frontend2] dev server Vite di-spawn di port ' + FRONTEND2_DEV_PORT + ', diakses lewat /v2');
+  } catch (err) {
+    console.error('[frontend2] gagal spawn dev server:', err.message || err);
+  }
+}
+
+function stopFrontend2DevServer_() {
+  var child = frontend2ChildProcess;
+  frontend2ChildProcess = null;
+  if (!child || !child.pid) return;
+  try {
+    if (process.platform === 'win32') {
+      // Di Windows, child.kill() cuma membunuh proses cmd.exe pembungkus (spawn dipanggil
+      // dengan shell:true supaya npm.cmd ketemu) -- BUKAN cucunya (npm -> vite). Vite jadi
+      // zombie nyangkut di FRONTEND2_DEV_PORT, bikin start berikutnya gagal (EADDRINUSE).
+      // taskkill /T membunuh seluruh pohon proses, bukan cuma proses induknya.
+      execFile('taskkill', ['/F', '/T', '/PID', String(child.pid)], function () {});
+    } else {
+      child.kill('SIGTERM');
+    }
+  } catch (e) {}
+}
+
 function startServer_() {
   ensureSchema_();
   ensureBootstrapAdmin_();
   ensurePrimaryProtectedPengurus_();
   var app = createExpressApp_();
   var listenHost = APP_HOST || '0.0.0.0';
-  app.listen(PORT, listenHost, function () {
+  var httpServer = app.listen(PORT, listenHost, function () {
     console.log(APP_NAME + ' berjalan.');
     console.log('Link akses:');
     getServerAccessUrls_(listenHost, PORT).forEach(function (entry) {
       console.log('  ' + entry.label + ': ' + entry.url);
     });
     console.log('Frontend: ' + FRONTEND_DIR);
+    console.log('Frontend2 (v2, React, dev): /v2/  (proxy ke dev server port ' + FRONTEND2_DEV_PORT + ')');
     console.log('SQLite: ' + DB_PATH);
   });
+  // Perlu attach manual ke event 'upgrade' server HTTP-nya supaya websocket HMR Vite
+  // ikut ke-proxy dengan benar (http-proxy-middleware tidak otomatis dapat event ini
+  // dari app.listen()).
+  if (frontend2Proxy && typeof frontend2Proxy.upgrade === 'function') {
+    httpServer.on('upgrade', frontend2Proxy.upgrade);
+  }
+  startFrontend2DevServer_();
 }
 
 process.on('SIGINT', function () {
+  stopFrontend2DevServer_();
   try {
     DB.close();
   } catch (error) {}
@@ -26086,6 +31433,7 @@ process.on('SIGINT', function () {
 });
 
 process.on('SIGTERM', function () {
+  stopFrontend2DevServer_();
   try {
     DB.close();
   } catch (error) {}
@@ -26466,7 +31814,7 @@ function removeSantriEntryFromBlobField_(sheetKey, blobField, matchKey, santriId
 function entityChildFieldMap_(sheetKey) {
   switch (sheetKey) {
     case 'halaqoh': return { hafalanHarian: 'id_halaqoh', absensiHalaqoh: 'id_halaqoh', ujianHafalan: 'id_halaqoh', nilaiUas: 'id_halaqoh' };
-    case 'kelasSiang': return { nilaiUp: 'id_kelas', absensiKelas: 'id_kelas', soal: 'kelas_id' };
+    case 'kelasSiang': return { nilaiUp: 'id_kelas', absensiKelas: 'id_kelas', soal: 'kelas_id', quiz: 'kelas_id', quizFolder: 'kelas_id', quizJawaban: 'kelas_id' };
     case 'regu': return { perkembanganBulanan: 'id_regu', akhlakNilai: 'id_regu', deskripsiRaport: 'id_regu', absensiRegu: 'id_regu' };
     default: return {};
   }
@@ -26544,6 +31892,9 @@ function cascadeDeleteReferences_(sheetKey, id) {
       return;
     case 'survey':
       deleteRowsMatchingField_('surveyCompletion', 'survey_id', id);
+      return;
+    case 'quiz':
+      deleteRowsMatchingField_('quizJawaban', 'quiz_id', id);
       return;
     case 'kegiatanSop':
       runStatement_('DELETE FROM "kegiatanSopItem" WHERE "id_kegiatan" = ?', [id]);
@@ -29745,29 +35096,209 @@ function withChmodTolerant_(fn) {
   }
 }
 
-function createBackup_() {
-  try { DB.exec('PRAGMA wal_checkpoint(TRUNCATE)'); } catch (_) {}
-  var zip = new AdmZip();
-  if (fs.existsSync(DB_PATH)) zip.addLocalFile(DB_PATH, 'data');
-  if (fs.existsSync(MAINTENANCE_PATH)) zip.addLocalFile(MAINTENANCE_PATH, 'data');
-  if (fs.existsSync(AUDIT_SETTINGS_PATH)) zip.addLocalFile(AUDIT_SETTINGS_PATH, 'data');
-  if (fs.existsSync(AUDIT_BAWAHAN_SETTINGS_PATH)) zip.addLocalFile(AUDIT_BAWAHAN_SETTINGS_PATH, 'data');
-  // Sengaja HANYA pengaturan ringan (enabled/grup tujuan) yg ikut backup, BUKAN kredensial
-  // sesi WA (folder data/whatsapp-auth) -- itu setara akses penuh ke akun WA yg tersambung,
-  // tidak boleh ikut ke dalam file backup yg bisa dibagikan/disimpan di tempat lain.
-  try { var waSettingsPath_ = require('./whatsapp.js').settingsPath; if (fs.existsSync(waSettingsPath_)) zip.addLocalFile(waSettingsPath_, 'data'); } catch (e) {}
-  BACKUP_FILE_DIRS_.forEach(function (d) {
-    if (fs.existsSync(d.src)) {
-      var entries = fs.readdirSync(d.src);
-      if (entries.length > 0) zip.addLocalFolder(d.src, 'files/' + d.name);
+// File "inti" backup (semua KECUALI media upload): database SQLite + sidecar WAL/SHM +
+// semua JSON pengaturan penting. Dipakai bareng oleh backup lengkap, backup legacy, dan
+// tombol "Download Database Saja".
+//   [{ type:'file', src, name }]  -> 1 file, ditaruh di path `name` di dalam zip
+// Struktur `data/...` HARUS tetap -- restoreFromBackupZip_ membacanya persis begitu.
+// -wal / -shm ikut sebagai jaring pengaman kalau PRAGMA wal_checkpoint(TRUNCATE) belum/tidak
+// sempat menyatukan WAL ke file utama (mis. checkpoint dilempar). Urutan: main -> -wal -> -shm.
+function collectDbCoreEntries_() {
+  var entries = [];
+  [DB_PATH, DB_PATH + '-wal', DB_PATH + '-shm'].forEach(function (src) {
+    if (fs.existsSync(src)) entries.push({ type: 'file', src: src, name: 'data/' + path.basename(src) });
+  });
+  [MAINTENANCE_PATH, AUDIT_SETTINGS_PATH, AUDIT_BAWAHAN_SETTINGS_PATH, BACKUP_SETTINGS_PATH, APP_THEME_PATH].forEach(function (src) {
+    if (src && fs.existsSync(src)) entries.push({ type: 'file', src: src, name: 'data/' + path.basename(src) });
+  });
+  // Sengaja HANYA pengaturan ringan WA (enabled/grup tujuan) yg ikut, BUKAN kredensial sesi WA
+  // (folder data/whatsapp-auth) -- itu setara akses penuh ke akun WA, tidak boleh ikut ke file
+  // backup yg bisa dibagikan/disimpan di tempat lain.
+  try {
+    var waSettingsPath_ = require('./whatsapp.js').settingsPath;
+    if (waSettingsPath_ && fs.existsSync(waSettingsPath_)) entries.push({ type: 'file', src: waSettingsPath_, name: 'data/' + path.basename(waSettingsPath_) });
+  } catch (e) {}
+  return entries;
+}
+
+// Daftar isi backup: file inti (selalu ikut) + folder media upload (`files/<nama>/...`).
+// selectedFolderNames: null/undefined = semua folder media (perilaku lama); array = HANYA
+// folder yg namanya ada di dalamnya yg diikutkan (lihat backupSettingsState.selectedFolders).
+//   [{ type:'dir', src, name }]  -> seluruh isi folder src, di bawah prefix `name`
+function collectBackupEntries_(selectedFolderNames) {
+  var entries = collectDbCoreEntries_();
+  var dirs = Array.isArray(selectedFolderNames)
+    ? BACKUP_FILE_DIRS_.filter(function (d) { return selectedFolderNames.indexOf(d.name) !== -1; })
+    : BACKUP_FILE_DIRS_;
+  dirs.forEach(function (d) {
+    if (fs.existsSync(d.src) && fs.readdirSync(d.src).length > 0) {
+      entries.push({ type: 'dir', src: d.src, name: 'files/' + d.name });
     }
   });
+  return entries;
+}
+
+// Ukuran total sebuah folder (rekursif, byte). Dipakai buat tampilan checklist folder di
+// halaman backup -- iteratif (bukan rekursi fungsi) supaya aman utk folder yg sangat dalam/besar.
+function dirSizeBytes_(dirPath) {
+  var total = 0;
+  var stack = [dirPath];
+  while (stack.length) {
+    var cur = stack.pop();
+    var stat;
+    try { stat = fs.statSync(cur); } catch (e) { continue; }
+    if (stat.isDirectory()) {
+      var children;
+      try { children = fs.readdirSync(cur); } catch (e) { children = []; }
+      children.forEach(function (c) { stack.push(path.join(cur, c)); });
+    } else {
+      total += stat.size;
+    }
+  }
+  return total;
+}
+
+function newBackupFilename_() {
   var ts = new Date().toISOString().replace(/:/g, '-').replace(/\..+/, '');
-  var filename = 'backup-' + ts + '.zip';
+  return 'backup-' + ts + '.zip';
+}
+
+// Sisa file *.part (backup yang mati di tengah jalan sebelum di-rename) -- dibersihkan tiap
+// job baru mulai supaya tidak menumpuk. listBackups_ sendiri sudah mengabaikannya (bukan .zip).
+function sweepStaleBackupParts_() {
+  try {
+    fs.readdirSync(BACKUP_DIR).forEach(function (f) {
+      if (f.endsWith('.part')) { try { fs.unlinkSync(path.join(BACKUP_DIR, f)); } catch (_) {} }
+    });
+  } catch (_) {}
+}
+
+// Jalur BARU: streaming zip ke disk pakai archiver. Puncak RAM ~puluhan MB berapa pun besar
+// media-nya (archiver mengalirkan 1 entri demi 1 entri lewat gzip ke write-stream, ada
+// backpressure). Balikin Promise<{ filename, size, createdAt }>. Tulis ke `<nama>.part` dulu
+// lalu rename -> listBackups_ tak pernah lihat file separuh jadi.
+function createBackupStreaming_(selectedFolderNames) {
+  return new Promise(function (resolve, reject) {
+    try { DB.exec('PRAGMA wal_checkpoint(TRUNCATE)'); } catch (_) {}
+    var filename = newBackupFilename_();
+    var outPath = path.join(BACKUP_DIR, filename);
+    var partPath = outPath + '.part';
+    var output = fs.createWriteStream(partPath);
+    // level 1: media (jpg/mp4/pdf) praktis tak terkompres, jadi jangan buang CPU di level tinggi;
+    // yang mengecil signifikan cuma SQLite + JSON, dan level 1 sudah cukup buat itu.
+    var archive = archiver('zip', { zlib: { level: 1 } });
+    var settled = false;
+    function fail(err) {
+      if (settled) return; settled = true;
+      try { archive.abort(); } catch (_) {}
+      try { output.destroy(); } catch (_) {}
+      try { fs.unlinkSync(partPath); } catch (_) {}
+      reject(err instanceof Error ? err : new Error(String(err && err.message || err)));
+    }
+    // Diekspos ke backupJobState supaya backup.cancel bisa menghentikan job yg sedang jalan.
+    backupJobState._cancelFn = function () { fail(new Error('Dibatalkan oleh pengguna.')); };
+    output.on('close', function () {
+      if (settled) return; settled = true;
+      try {
+        fs.renameSync(partPath, outPath);
+        backupJobState.phase = 'pruning';
+        pruneOldBackups_();
+        resolve({ filename: filename, size: fs.statSync(outPath).size, createdAt: nowIso_() });
+      } catch (e) { reject(e); }
+    });
+    output.on('error', fail);
+    archive.on('error', fail);
+    archive.on('warning', function (err) { if (!err || err.code !== 'ENOENT') fail(err); });
+    archive.on('entry', function (entry) { backupJobState.currentFile = (entry && entry.name) || ''; });
+    archive.on('progress', function (p) {
+      if (p && p.fs && typeof p.fs.processedBytes === 'number') backupJobState.bytes = p.fs.processedBytes;
+    });
+    archive.pipe(output);
+    backupJobState.phase = 'archiving';
+    collectBackupEntries_(selectedFolderNames).forEach(function (e) {
+      if (e.type === 'file') archive.file(e.src, { name: e.name });
+      else archive.directory(e.src, e.name);
+    });
+    archive.finalize();
+  });
+}
+
+// Jalur LAMA (fallback kalau `archiver` belum ke-install di host): adm-zip, sinkron, seluruhnya
+// di RAM. Dipertahankan cuma sebagai jaring pengaman -- inilah yang OOM di hosting.
+function createBackupLegacy_(selectedFolderNames) {
+  try { DB.exec('PRAGMA wal_checkpoint(TRUNCATE)'); } catch (_) {}
+  var zip = new AdmZip();
+  collectBackupEntries_(selectedFolderNames).forEach(function (e) {
+    if (e.type === 'file') zip.addLocalFile(e.src, path.posix.dirname(e.name));
+    else zip.addLocalFolder(e.src, e.name);
+  });
+  var filename = newBackupFilename_();
   var outPath = path.join(BACKUP_DIR, filename);
   withChmodTolerant_(function () { zip.writeZip(outPath); });
   pruneOldBackups_();
   return { filename: filename, size: fs.statSync(outPath).size, createdAt: nowIso_() };
+}
+
+// Mulai job backup di latar belakang. Balik langsung (tidak menunggu selesai). trigger =
+// 'manual' | 'auto'. Cuma 1 job jalan sekaligus.
+function startBackupJob_(trigger, selectedFolderNames) {
+  if (backupJobState.running) return false;
+  sweepStaleBackupParts_();
+  backupJobState.running = true;
+  backupJobState.phase = 'preparing';
+  backupJobState.trigger = trigger || 'manual';
+  backupJobState.startedAt = nowIso_();
+  backupJobState.finishedAt = '';
+  backupJobState.currentFile = '';
+  backupJobState.bytes = 0;
+  backupJobState.result = null;
+  backupJobState.error = '';
+  backupJobState.cancelRequested = false;
+  backupJobState._cancelFn = null;
+
+  var runner = archiver
+    ? createBackupStreaming_(selectedFolderNames)
+    : new Promise(function (resolve, reject) { try { resolve(createBackupLegacy_(selectedFolderNames)); } catch (e) { reject(e); } });
+
+  runner.then(function (result) {
+    backupJobState.result = result;
+    backupJobState.phase = 'done';
+    if (backupJobState.trigger === 'auto') {
+      backupSettingsState.lastAutoBackupAt = nowIso_();
+      saveBackupSettings_();
+    }
+    console.log('[backup] Backup selesai (' + backupJobState.trigger + '):', result.filename, '(' + Math.round(result.size / 1024) + ' KB)');
+  }).catch(function (e) {
+    if (backupJobState.cancelRequested) {
+      backupJobState.phase = 'cancelled';
+      backupJobState.error = '';
+      console.log('[backup] Backup dibatalkan oleh pengguna (' + backupJobState.trigger + ').');
+    } else {
+      backupJobState.error = (e && e.message) || String(e);
+      backupJobState.phase = 'error';
+      console.error('[backup] Backup gagal (' + backupJobState.trigger + '):', backupJobState.error);
+    }
+  }).then(function () {
+    backupJobState.running = false;
+    backupJobState.finishedAt = nowIso_();
+    backupJobState.cancelRequested = false;
+    backupJobState._cancelFn = null;
+  });
+  return true;
+}
+
+// Batalkan job backup yg sedang jalan. Balik false kalau tidak ada job jalan, atau job jalan
+// di jalur legacy (adm-zip sinkron) yg tidak bisa diinterupsi di tengah proses.
+function cancelBackupJob_() {
+  if (!backupJobState.running || typeof backupJobState._cancelFn !== 'function') return false;
+  backupJobState.cancelRequested = true;
+  backupJobState._cancelFn();
+  return true;
+}
+
+// Pilihan folder media yg aktif dipakai (shared antara trigger manual & otomatis).
+function currentBackupFolderSelection_() {
+  return Array.isArray(backupSettingsState.selectedFolders) ? backupSettingsState.selectedFolders : null;
 }
 
 function handleBackupList_(session) {
@@ -29775,10 +35306,66 @@ function handleBackupList_(session) {
   return { ok: true, timestamp: nowIso_(), data: { items: listBackups_() } };
 }
 
+function backupJobStatusData_() {
+  return {
+    running: backupJobState.running,
+    phase: backupJobState.phase,
+    trigger: backupJobState.trigger,
+    startedAt: backupJobState.startedAt,
+    finishedAt: backupJobState.finishedAt,
+    currentFile: backupJobState.currentFile,
+    bytes: backupJobState.bytes,
+    result: backupJobState.result,
+    error: backupJobState.error,
+    streaming: !!archiver,
+    cancellable: backupJobState.running && typeof backupJobState._cancelFn === 'function'
+  };
+}
+
 function handleBackupCreate_(session) {
   if (!session || !session.permissions || !(session.permissions.canDelete || session.permissions.isAdmin)) throw createError_('Hanya admin atau super admin.', 403);
-  var result = createBackup_();
-  return { ok: true, timestamp: nowIso_(), data: result };
+  var started = startBackupJob_('manual', currentBackupFolderSelection_());
+  return { ok: true, timestamp: nowIso_(), data: Object.assign({
+    started: started,
+    message: started ? 'Backup dimulai. Proses berjalan di latar belakang.' : 'Backup lain sedang berjalan.'
+  }, backupJobStatusData_()) };
+}
+
+function handleBackupCancel_(session) {
+  if (!session || !session.permissions || !(session.permissions.canDelete || session.permissions.isAdmin)) throw createError_('Hanya admin atau super admin.', 403);
+  if (!backupJobState.running) throw createError_('Tidak ada proses backup yang sedang berjalan.', 400);
+  var cancelled = cancelBackupJob_();
+  if (!cancelled) throw createError_('Backup ini tidak bisa dibatalkan (berjalan di mode kompatibilitas tanpa streaming).', 400);
+  return { ok: true, timestamp: nowIso_(), data: Object.assign({ message: 'Membatalkan backup…' }, backupJobStatusData_()) };
+}
+
+function handleBackupSources_(session) {
+  if (!session || !session.permissions || !(session.permissions.canDelete || session.permissions.isAdmin)) throw createError_('Hanya admin atau super admin.', 403);
+  var coreBytes = 0;
+  collectDbCoreEntries_().forEach(function (e) {
+    try { coreBytes += fs.statSync(e.src).size; } catch (ex) {}
+  });
+  var folders = BACKUP_FILE_DIRS_.map(function (d) {
+    var exists = fs.existsSync(d.src);
+    var fileCount = 0;
+    if (exists) { try { fileCount = fs.readdirSync(d.src).length; } catch (ex) {} }
+    return {
+      name: d.name,
+      label: d.label || d.name,
+      sizeBytes: exists ? dirSizeBytes_(d.src) : 0,
+      empty: !exists || fileCount === 0
+    };
+  });
+  return { ok: true, timestamp: nowIso_(), data: {
+    core: { sizeBytes: coreBytes },
+    folders: folders,
+    selectedFolders: currentBackupFolderSelection_()
+  } };
+}
+
+function handleBackupStatus_(session) {
+  if (!session || !session.permissions || !(session.permissions.canDelete || session.permissions.isAdmin)) throw createError_('Hanya admin atau super admin.', 403);
+  return { ok: true, timestamp: nowIso_(), data: backupJobStatusData_() };
 }
 
 function handleBackupDelete_(request, session) {
@@ -29801,13 +35388,24 @@ function restoreFromBackupZip_(zipBuffer) {
     if (!fs.existsSync(dbSrc)) throw createError_('File backup tidak valid: tidak mengandung file database.', 400);
     try { DB.exec('PRAGMA wal_checkpoint(TRUNCATE)'); } catch (_) {}
     DB.close();
+    // Buang sidecar WAL/SHM milik DB LAMA supaya tidak nyampur dgn DB baru (mismatch -shm =
+    // satu-satunya hal yg bisa bikin korup). Lalu salin DB baru + -wal dari backup (kalau ada);
+    // -shm SENGAJA tidak disalin -- SQLite membangun ulang dari -wal saat file dibuka.
+    try { fs.rmSync(DB_PATH + '-wal', { force: true }); } catch (_) {}
+    try { fs.rmSync(DB_PATH + '-shm', { force: true }); } catch (_) {}
     fs.copyFileSync(dbSrc, DB_PATH);
+    var walSrc = path.join(tmpDir, 'data', path.basename(DB_PATH) + '-wal');
+    if (fs.existsSync(walSrc)) fs.copyFileSync(walSrc, DB_PATH + '-wal');
     var maintSrc = path.join(tmpDir, 'data', 'maintenance.json');
     if (fs.existsSync(maintSrc)) fs.copyFileSync(maintSrc, MAINTENANCE_PATH);
     var auditSettingsSrc = path.join(tmpDir, 'data', 'auditSettings.json');
     if (fs.existsSync(auditSettingsSrc)) fs.copyFileSync(auditSettingsSrc, AUDIT_SETTINGS_PATH);
     var auditBawahanSettingsSrc = path.join(tmpDir, 'data', 'auditBawahanSettings.json');
     if (fs.existsSync(auditBawahanSettingsSrc)) fs.copyFileSync(auditBawahanSettingsSrc, AUDIT_BAWAHAN_SETTINGS_PATH);
+    var backupSettingsSrc = path.join(tmpDir, 'data', 'backupSettings.json');
+    if (fs.existsSync(backupSettingsSrc)) fs.copyFileSync(backupSettingsSrc, BACKUP_SETTINGS_PATH);
+    var appThemeSrc = path.join(tmpDir, 'data', 'appTheme.json');
+    if (fs.existsSync(appThemeSrc)) fs.copyFileSync(appThemeSrc, APP_THEME_PATH);
     try {
       var waModuleRestore_ = require('./whatsapp.js');
       var waSettingsSrc_ = path.join(tmpDir, 'data', 'whatsappSettings.json');
@@ -29824,11 +35422,27 @@ function restoreFromBackupZip_(zipBuffer) {
       });
     }
     DB = new DatabaseSync(DB_PATH);
-    DB.exec('PRAGMA journal_mode = WAL;');
+    applyDbConnectionPragmas_(DB);
+    // Lipat -wal (kalau tadi disalin dari backup) ke file utama lalu bersihkan sidecar.
+    try { DB.exec('PRAGMA wal_checkpoint(TRUNCATE)'); } catch (_) {}
     ensureSchema_();
     try { maintenanceState = JSON.parse(fs.readFileSync(MAINTENANCE_PATH, 'utf8')); } catch (_) { maintenanceState = { active: false, message: '', setBy: '', setAt: '' }; }
     try { auditSettingsState = Object.assign({}, AUDIT_SETTINGS_DEFAULTS, JSON.parse(fs.readFileSync(AUDIT_SETTINGS_PATH, 'utf8'))); } catch (_) { auditSettingsState = Object.assign({}, AUDIT_SETTINGS_DEFAULTS); }
     try { auditBawahanSettingsState = Object.assign({}, AUDIT_BAWAHAN_SETTINGS_DEFAULTS, JSON.parse(fs.readFileSync(AUDIT_BAWAHAN_SETTINGS_PATH, 'utf8'))); } catch (_) { auditBawahanSettingsState = Object.assign({}, AUDIT_BAWAHAN_SETTINGS_DEFAULTS); }
+    try { appThemeState = Object.assign({}, APP_THEME_DEFAULTS, JSON.parse(fs.readFileSync(APP_THEME_PATH, 'utf8'))); } catch (_) { appThemeState = Object.assign({}, APP_THEME_DEFAULTS); }
+    // Muat ulang setelan backup dari file yg baru dipulihkan (kalau ada) & pasang ulang timer.
+    try {
+      var restoredBackupSettings = JSON.parse(fs.readFileSync(BACKUP_SETTINGS_PATH, 'utf8'));
+      if (restoredBackupSettings && typeof restoredBackupSettings === 'object') {
+        backupSettingsState.enabled = restoredBackupSettings.enabled !== false;
+        backupSettingsState.intervalHours = BACKUP_INTERVAL_OPTIONS_HOURS.indexOf(parseInt(restoredBackupSettings.intervalHours, 10)) !== -1
+          ? parseInt(restoredBackupSettings.intervalHours, 10) : 24;
+        backupSettingsState.lastAutoBackupAt = String(restoredBackupSettings.lastAutoBackupAt || '');
+        backupSettingsState.selectedFolders = Array.isArray(restoredBackupSettings.selectedFolders)
+          ? restoredBackupSettings.selectedFolders.map(String) : null;
+        runAutoBackupTimer_();
+      }
+    } catch (_) {}
     return { ok: true, timestamp: nowIso_(), data: { message: 'Data berhasil dipulihkan dari backup.' } };
   } finally {
     try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch (_) {}
@@ -29847,14 +35461,10 @@ function runAutoBackupTimer_() {
   if (!backupSettingsState.enabled) return;
   var intervalMs = backupSettingsState.intervalHours * 60 * 60 * 1000;
   autoBackupTimerHandle = setInterval(function () {
-    try {
-      var r = createBackup_();
-      backupSettingsState.lastAutoBackupAt = nowIso_();
-      saveBackupSettings_();
-      console.log('[backup] Auto-backup selesai:', r.filename, '(' + Math.round(r.size / 1024) + ' KB)');
-    } catch (e) {
-      console.error('[backup] Auto-backup gagal:', e.message || e);
-    }
+    // startBackupJob_ jalan di latar belakang & update lastAutoBackupAt sendiri kalau sukses.
+    // Kalau job sebelumnya masih jalan (atau baru saja), dilewati -- tidak menumpuk.
+    if (backupJobState.running) return;
+    startBackupJob_('auto', currentBackupFolderSelection_());
   }, intervalMs);
 }
 
@@ -29874,19 +35484,39 @@ function handleBackupSettingsGet_(session) {
     intervalHours: backupSettingsState.intervalHours,
     lastAutoBackupAt: backupSettingsState.lastAutoBackupAt,
     nextRunAt: nextRunAt,
-    intervalOptions: BACKUP_INTERVAL_OPTIONS_HOURS
+    intervalOptions: BACKUP_INTERVAL_OPTIONS_HOURS,
+    selectedFolders: currentBackupFolderSelection_()
   } };
 }
 
+// enabled/intervalHours & selectedFolders masing2 opsional -- request cuma perlu kirim field
+// yg mau diubah (halaman backup punya 2 tombol "Simpan" terpisah utk 2 kelompok setelan ini).
 function handleBackupSettingsSave_(request, session) {
   if (!session || !session.permissions || !(session.permissions.canDelete || session.permissions.isAdmin)) throw createError_('Hanya admin atau super admin.', 403);
-  var enabled = String(request.enabled) === 'true' || request.enabled === true;
-  var intervalHours = parseInt(request.intervalHours, 10);
-  if (BACKUP_INTERVAL_OPTIONS_HOURS.indexOf(intervalHours) === -1) {
-    throw createError_('Interval tidak valid. Pilih 6, 12, 24, atau 48 jam.', 400);
+  if (request.enabled !== undefined || request.intervalHours !== undefined) {
+    var enabled = String(request.enabled) === 'true' || request.enabled === true;
+    var intervalHours = parseInt(request.intervalHours, 10);
+    if (BACKUP_INTERVAL_OPTIONS_HOURS.indexOf(intervalHours) === -1) {
+      throw createError_('Interval tidak valid. Pilih 6, 12, 24, atau 48 jam.', 400);
+    }
+    backupSettingsState.enabled = enabled;
+    backupSettingsState.intervalHours = intervalHours;
   }
-  backupSettingsState.enabled = enabled;
-  backupSettingsState.intervalHours = intervalHours;
+  if (request.selectedFolders !== undefined) {
+    var rawSelectedFolders = request.selectedFolders;
+    if (rawSelectedFolders === 'all' || rawSelectedFolders === '') {
+      backupSettingsState.selectedFolders = null;
+    } else {
+      var parsedSelectedFolders;
+      try {
+        parsedSelectedFolders = typeof rawSelectedFolders === 'string' ? JSON.parse(rawSelectedFolders) : rawSelectedFolders;
+      } catch (e) {
+        throw createError_('Format pilihan folder tidak valid.', 400);
+      }
+      if (!Array.isArray(parsedSelectedFolders)) throw createError_('Format pilihan folder tidak valid.', 400);
+      backupSettingsState.selectedFolders = parsedSelectedFolders.map(String);
+    }
+  }
   saveBackupSettings_();
   runAutoBackupTimer_();
   return handleBackupSettingsGet_(session);

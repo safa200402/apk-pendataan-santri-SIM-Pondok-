@@ -32,7 +32,7 @@
     'dashboardKesantrian.html':  function (session) { var p = getPermissions(getScopedSession(session)); return !!(p && (p.isSuperAdmin || p.isAdmin || p.isKsantrian || p.isMudir)); },
     'dashboardSdm.html':         function (session) { var p = getPermissions(getScopedSession(session)); return !!(p && (p.isSuperAdmin || p.isAdmin || p.isBagianSdm || p.isMudir)); },
     /* ── Jadwal ── */
-    'jadwalIbadah.html': function (session) { return isPengurus(session); },
+    'jadwalIbadah.html': function (session) { return isPengurus(session) && isAddonActive(getScopedSession(session), 'jadwalIbadah'); },
     'jadwalPiket.html':  function (session) { var p = getPermissions(getScopedSession(session)); return !!(p && (p.isSuperAdmin || p.isAdmin || p.isKebersihan)); },
     /* ── Santri ── */
     'daftarSantri.html':  function (session) { var p = getPermissions(getScopedSession(session)); return isPengurus(session) && !!(p && (p.canManageSantri || p.canViewSantri)); },
@@ -40,43 +40,44 @@
     'tahunAjaran.html': function (session) { var p = getPermissions(getScopedSession(session)); return !!(p && (p.isSuperAdmin || p.isAdmin || p.isMudir)); },
     /* ── Halaqoh ── */
     'editHalaqoh.html':    function (session) { var p = getPermissions(getScopedSession(session)); return !!(p && (p.isSuperAdmin || p.isAdmin || p.isHalaqohCoordinator || p.isMudir)); },
-    'riwayatPindahHalaqoh.html': function (session) { var p = getPermissions(getScopedSession(session)); return !!(p && (p.isSuperAdmin || p.isAdmin || p.isHalaqohCoordinator || p.isMudir)); },
-    'editHalaqohTasmi.html': function (session) { var p = getPermissions(getScopedSession(session)); return !!(p && (p.isSuperAdmin || p.isAdmin || p.isHalaqohCoordinator || p.isMudir)); },
-    'halaqohAbsensi.html': function (session) { var p = getPermissions(getScopedSession(session)); return !!(p && (p.isSuperAdmin || p.isAdmin || p.isHalaqohCoordinator || p.isPengampuHalaqoh || p.isMudir)); },
-    'hafalanHarian.html':  function (session) { var p = getPermissions(getScopedSession(session)); return !!(p && (p.isSuperAdmin || p.isAdmin || p.isHalaqohCoordinator || p.isPengampuHalaqoh || p.isMudir)); },
-    'tasmiSetoran.html':   function (session) { var p = getPermissions(getScopedSession(session)); return !!(p && (p.isSuperAdmin || p.isAdmin || p.isHalaqohCoordinator || p.isPengampuHalaqoh || p.isMudir)); },
-    'ujianHafalan.html':   function (session) { var p = getPermissions(getScopedSession(session)); return !!(p && (p.isSuperAdmin || p.isAdmin || p.isHalaqohCoordinator || p.isPengampuHalaqoh || p.isPengujiHafalan || p.isMudir)); },
-    'nilaiUas.html':       function (session) { var p = getPermissions(getScopedSession(session)); return !!(p && (p.isSuperAdmin || p.isAdmin || p.isHalaqohCoordinator || p.isMudir)); },
+    'riwayatPindahHalaqoh.html': function (session) { return canAccessLockedLevel(getScopedSession(session), 'riwayatLog', 'manage'); },
+    'editHalaqohTasmi.html': function (session) { return canAccessLockedLevel(getScopedSession(session), 'halaqohTasmi', 'manageStruktur'); },
+    'halaqohAbsensi.html': function (session) { return canAccessLockedLevel(getScopedSession(session), 'misiTahfizh', 'manage'); },
+    'hafalanHarian.html':  function (session) { return canAccessLockedLevel(getScopedSession(session), 'misiTahfizh', 'manage'); },
+    'tasmiSetoran.html':   function (session) { return canAccessLockedLevel(getScopedSession(session), 'halaqohTasmi', 'manageSetoran'); },
+    'ujianHafalan.html':   function (session) { return canAccessLockedLevel(getScopedSession(session), 'misiTahfizh', 'manage'); },
+    'nilaiUas.html':       function (session) { return canAccessLockedLevel(getScopedSession(session), 'misiTahfizh', 'manage'); },
     /* ── Kelas ── */
     'editKelas.html':      function (session) { var p = getPermissions(session); return isPengurusWith(session, 'canManageKelasSiang') || !!(p && p.isMudir); },
-    'inputKelasLevel.html':function (session) { var p = getPermissions(getScopedSession(session)); return !!(p && (p.canManageKelasLevel || p.isMudir)); },
-    'kelasAbsensi.html':   function (session) { var p = getPermissions(session); return isPengurusWith(session, 'canManageKelasSiang') || isPengurusWith(session, 'canManageNilaiUp') || !!(p && p.isMudir); },
-    'nilaiUjian.html':     function (session) { var p = getPermissions(session); return isPengurusWith(session, 'canManageNilaiUp') || !!(p && p.isMudir); },
-    'editSoal.html':       function (session) { var p = getPermissions(session); return isPengurusWith(session, 'canManageNilaiUp') || !!(p && p.isMudir); },
+    'inputKelasLevel.html':function (session) { var p = getPermissions(getScopedSession(session)); return !!(p && p.addonsCanManage && p.addonsCanManage.raportRekamJejak) && isAddonActive(getScopedSession(session), 'raportRekamJejak'); },
+    'kelasAbsensi.html':   function (session) { return canAccessLockedLevel(getScopedSession(session), 'kelasSiangNilai', 'manage'); },
+    'nilaiUjian.html':     function (session) { return canAccessLockedLevel(getScopedSession(session), 'kelasSiangNilai', 'manage'); },
+    'editSoal.html':       function (session) { return canAccessLockedLevel(getScopedSession(session), 'kelasSiangNilai', 'manage'); },
+    'quizDigital.html':    function (session) { var p = getPermissions(getScopedSession(session)); return !!(p && p.addonsCanManage && p.addonsCanManage.quizDigital) && isAddonActive(getScopedSession(session), 'quizDigital'); },
     /* ── Regu ── */
     'editRegu.html':          function (session) { var p = getPermissions(getScopedSession(session)); return !!(p && (p.isSuperAdmin || p.isAdmin || p.isKsantrian || p.isMudir)); },
-    'riwayatPindahRegu.html': function (session) { var p = getPermissions(getScopedSession(session)); return !!(p && (p.isSuperAdmin || p.isAdmin || p.isKsantrian || p.isMudir)); },
-    'reguAbsensi.html':       function (session) { var p = getPermissions(getScopedSession(session)); return !!(p && (p.isSuperAdmin || p.isAdmin || p.isKsantrian || p.isPembinaRegu || p.isMudir)); },
-    'perkembanganSantri.html':function (session) { var p = getPermissions(getScopedSession(session)); return !!(p && (p.isSuperAdmin || p.isAdmin || p.isKsantrian || p.isPembinaRegu || p.isMudir)); },
-    'perkembanganTemplate.html':function (session) { var p = getPermissions(getScopedSession(session)); return !!(p && (p.isSuperAdmin || p.isAdmin || p.isKsantrian || p.isMudir)); },
+    'riwayatPindahRegu.html': function (session) { return canAccessLockedLevel(getScopedSession(session), 'riwayatLog', 'manage'); },
+    'reguAbsensi.html':       function (session) { return canAccessLockedLevel(getScopedSession(session), 'reguPerkembangan', 'manage'); },
+    'perkembanganSantri.html':function (session) { return canAccessLockedLevel(getScopedSession(session), 'reguPerkembangan', 'manage'); },
+    'perkembanganTemplate.html':function (session) { return canAccessLockedLevel(getScopedSession(session), 'reguPerkembangan', 'manage'); },
     /* ── Data Kelompok (gabungan tabel Halaqoh/Regu/Kelas) ── */
     'dataKelompok.html': function (session) { return isPengurus(session); },
     /* ── Data Kelompok Manual (klon tampilan, tapi diisi bebas manual) ── */
     'dataKelompokManual.html': function (session) { return isPengurus(session); },
     /* ── Raport & Rekam Jejak ── */
-    'raport&rekamJejak.html':  function (session) { var p = getPermissions(getScopedSession(session)); return !!(p && p.canAccessPanel); },
-    'akhlakKepribadian.html':  function (session) { var p = getPermissions(getScopedSession(session)); return !!(p && (p.isSuperAdmin || p.isAdmin || p.isKsantrian || p.isPembinaRegu || p.isMudir)); },
-    'deskripsiSantri.html':    function (session) { var p = getPermissions(getScopedSession(session)); return !!(p && (p.isSuperAdmin || p.isAdmin || p.isKsantrian || p.isPembinaRegu || p.isMudir)); },
+    'raport&rekamJejak.html':  function (session) { var p = getPermissions(getScopedSession(session)); return !!(p && p.canAccessPanel) && isAddonActive(getScopedSession(session), 'raportRekamJejak'); },
+    'akhlakKepribadian.html':  function (session) { var p = getPermissions(getScopedSession(session)); return !!(p && p.addonsCanManage && p.addonsCanManage.raportRekamJejak) && isAddonActive(getScopedSession(session), 'raportRekamJejak'); },
+    'deskripsiSantri.html':    function (session) { var p = getPermissions(getScopedSession(session)); return !!(p && p.addonsCanManage && p.addonsCanManage.raportRekamJejak) && isAddonActive(getScopedSession(session), 'raportRekamJejak'); },
     /* ── Pelanggaran & Kondisi ── */
-    'pelanggaran.html':      function (session) { return isPengurus(session); },
-    'jenisPelanggaran.html': function (session) { var p = getPermissions(getScopedSession(session)); return !!(p && (p.isSuperAdmin || p.isAdmin || p.isKsantrian || p.isMudir)); },
-    'santriSakit.html':      function (session) { return isPengurus(session); },
-    'izinPulang.html':       function (session) { return isPengurus(session); },
-    'bukuDigital.html':      function (session) { return isPengurus(session); },
-    'bankSoal.html':         function (session) { return isPengurus(session); },
-    'masterPelajaran.html':  function (session) { var p = getPermissions(getScopedSession(session)); return !!(p && (p.isSuperAdmin || p.isAdmin || p.canManagePelajaran || p.isMudir)); },
-    'progPelajaran.html':    function (session) { var p = getPermissions(getScopedSession(session)); return !!(p && (p.isSuperAdmin || p.isAdmin || p.canManagePelajaran || p.isMudir)); },
-    'rekapZoom.html':        function (session) { return isPengurus(session); },
+    'pelanggaran.html':      function (session) { return isPengurus(session) && canAccessLockedLevel(getScopedSession(session), 'pelanggaranKondisi', 'input'); },
+    'jenisPelanggaran.html': function (session) { return canAccessLockedLevel(getScopedSession(session), 'pelanggaranKondisi', 'manage'); },
+    'santriSakit.html':      function (session) { return canAccessLockedLevel(getScopedSession(session), 'pelanggaranKondisi', 'manage'); },
+    'izinPulang.html':       function (session) { return canAccessLockedLevel(getScopedSession(session), 'pelanggaranKondisi', 'manage'); },
+    'bukuDigital.html':      function (session) { return isPengurus(session) && isAddonActive(getScopedSession(session), 'bukuDigital'); },
+    'bankSoal.html':         function (session) { return isPengurus(session) && isAddonActive(getScopedSession(session), 'bankSoal'); },
+    'masterPelajaran.html':  function (session) { return canAccessLockedLevel(getScopedSession(session), 'masterPelajaran', 'view'); },
+    'progPelajaran.html':    function (session) { return canAccessLockedLevel(getScopedSession(session), 'masterPelajaran', 'view'); },
+    'rekapZoom.html':        function (session) { var p = getPermissions(getScopedSession(session)); return !!(p && p.addonsCanManage && p.addonsCanManage.rekapZoom) && isAddonActive(getScopedSession(session), 'rekapZoom'); },
     /* ── Pengurus ── */
     'strukturOrganisasi.html': function (session) { return isPengurus(session) || !!(session && session.role === 'santri'); },
     'masterJabatan.html':      function (session) { return isSuperAdmin(session); },
@@ -86,24 +87,32 @@
     'inputAbsensiPengurus.html':   function (session) { return isPengurus(session); },
     'rekapAbsensiPengurus.html':   function (session) { var p = getPermissions(getScopedSession(session)); return !!(p && (p.isSuperAdmin || p.isAdmin || p.isMudir || p.isBagianSdm)); },
     'jurnalSdm.html':              function (session) { return isPengurus(session); },
+    'catatanku.html':             function (session) { return isPengurus(session) && isAddonActive(getScopedSession(session), 'catatanku'); },
     'jadwalHarianPengurus.html':   function (session) { var p = getPermissions(getScopedSession(session)); return !!(p && (p.isSuperAdmin || p.isAdmin || p.isPengawasLapangan)); },
     'jadwalFingerprint.html':      function (session) { var p = getPermissions(getScopedSession(session)); return !!(p && (p.isSuperAdmin || p.isAdmin || p.isPengawasLapangan)); },
     /* ── Pengaturan ── */
     'portalSettings.html': function (session) { var p = getPermissions(getScopedSession(session)); return !!(p && (p.isSuperAdmin || p.isAdmin || p.isMudir)); },
-    'madingDigital.html':  function (session) { return !!(session && (session.role === 'pengurus' || session.role === 'santri')); },
-    'kelolaMading.html':   function (session) { var p = getPermissions(getScopedSession(session)); return !!(p && (p.isSuperAdmin || p.isAdmin || p.isMudir || p.hasMading || p.isAcademic)); },
-    'pengumuman.html':     function (session) { var p = getPermissions(getScopedSession(session)); return !!(p && (p.isSuperAdmin || p.isAdmin || p.isMudir)); },
-    'survey.html':         function (session) { var p = getPermissions(getScopedSession(session)); return !!(p && (p.isSuperAdmin || p.isAdmin || p.isMudir)); },
-    'kelolaAudit.html':    function (session) { var p = getPermissions(getScopedSession(session)); return !!(p && (p.isSuperAdmin || p.isAdmin || p.isMudir)); },
-    'kelolaAuditBawahan.html': function (session) { var p = getPermissions(getScopedSession(session)); return !!(p && (p.isSuperAdmin || p.isAdmin)); },
+    'madingDigital.html':  function (session) { return !!(session && (session.role === 'pengurus' || session.role === 'santri')) && isAddonActive(getScopedSession(session), 'madingDigital'); },
+    'kelolaMading.html':   function (session) { var p = getPermissions(getScopedSession(session)); return !!(p && p.addonsCanManage && p.addonsCanManage.madingDigital) && isAddonActive(getScopedSession(session), 'madingDigital'); },
+    'pengumuman.html':     function (session) { var p = getPermissions(getScopedSession(session)); return !!(p && p.addonsCanManage && p.addonsCanManage.pengumumanSurvey) && isAddonActive(getScopedSession(session), 'pengumumanSurvey'); },
+    'survey.html':         function (session) { var p = getPermissions(getScopedSession(session)); return !!(p && p.addonsCanManage && p.addonsCanManage.pengumumanSurvey) && isAddonActive(getScopedSession(session), 'pengumumanSurvey'); },
+    'kelolaAudit.html':    function (session) { return canAccessLockedLevel(getScopedSession(session), 'sistemAudit', 'manage'); },
+    'kelolaAuditBawahan.html': function (session) { return canAccessLockedLevel(getScopedSession(session), 'sistemAudit', 'manage'); },
     'superAdmin.html':     function (session) { return isSuperAdmin(session); },
     'backup.html':         function (session) { var p = getPermissions(getScopedSession(session)); return !!(p && (p.isSuperAdmin || p.isAdmin)); },
+    'kelolaAddons.html':   function (session) { var p = getPermissions(getScopedSession(session)); return !!(p && (p.isSuperAdmin || p.isAdmin)); },
     /* ── Kalender Akademik ── */
-    'kaldik.html':    function (session) { return isPengurus(session) || !!(session && session.role === 'santri'); },
-    'editKaldik.html':function (session) { var p = getPermissions(getScopedSession(session)); return !!(p && (p.isSuperAdmin || p.isAdmin || p.isAcademic || p.isMudir)); },
+    // Santri SELALU boleh lihat kalender, tidak terpengaruh level akses "Lihat Kalender" --
+    // itu murni jatah pengurus (jabatan hanya konsep pengurus, tidak berlaku untuk santri).
+    'kaldik.html':    function (session) { return !!(session && session.role === 'santri') || (isPengurus(session) && canAccessLockedLevel(getScopedSession(session), 'kalenderAkademik', 'view')); },
+    'editKaldik.html':function (session) { return canAccessLockedLevel(getScopedSession(session), 'kalenderAkademik', 'manage'); },
     /* ── Jam Digital ── */
-    'jamDigital.html':      function (session) { return true; },
-    'jamDigitalRemote.html':function (session) { var p = getPermissions(getScopedSession(session)); return !!(p && (p.isSuperAdmin || p.isAdmin || p.canAccessJamDigital || p.isMudir)); },
+    // 'return true' tanpa syarat dipertahankan (bukan bug) -- layar ini dipakai kiosk fisik
+    // yang sering dibuka TANPA sesi login sama sekali. Kalau ada sesi & addon "Jam Digital"
+    // memang sedang dimatikan, baru disembunyikan/ditolak; gerbang sungguhannya (data API +
+    // alias publik /jam-digital) ada di backend/server.js, bukan di sini.
+    'jamDigital.html':      function (session) { var p = getPermissions(getScopedSession(session)); if (p && p.addonsActive && p.addonsActive.jamDigital === false) return false; return true; },
+    'jamDigitalRemote.html':function (session) { var p = getPermissions(getScopedSession(session)); return !!(p && p.addonsCanManage && p.addonsCanManage.jamDigital) && isAddonActive(getScopedSession(session), 'jamDigital'); },
     /* ── Lainnya ── */
     'skemaDb.html':    function (session) { return isSuperAdmin(session); },
     'aksesInfo.html':  function (session) { return isSuperAdmin(session); },
@@ -111,12 +120,14 @@
     /* ── Santri (role santri) ── */
     'santriProfile.html':        function (session) { return !!(session && session.role === 'santri'); },
     'santri/santriProfile.html': function (session) { return !!(session && session.role === 'santri'); },
-    'rekamJejak.html':           function (session) { return !!(session && session.role === 'santri'); },
-    'santri/rekamJejak.html':    function (session) { return !!(session && session.role === 'santri'); },
+    'rekamJejak.html':           function (session) { return !!(session && session.role === 'santri') && isAddonActive(getScopedSession(session), 'raportRekamJejak'); },
+    'santri/rekamJejak.html':    function (session) { return !!(session && session.role === 'santri') && isAddonActive(getScopedSession(session), 'raportRekamJejak'); },
     'kondisiSantri.html':        function (session) { return !!(session && session.role === 'santri'); },
     'santri/kondisiSantri.html': function (session) { return !!(session && session.role === 'santri'); },
+    'quizSantri.html':           function (session) { return !!(session && session.role === 'santri') && isAddonActive(getScopedSession(session), 'quizDigital'); },
+    'santri/quizSantri.html':    function (session) { return !!(session && session.role === 'santri') && isAddonActive(getScopedSession(session), 'quizDigital'); },
     /* ── Akun ── */
-    'riwayat.html':        function (session) { return !!(session && session.role === 'pengurus'); },
+    'riwayat.html':        function (session) { return !!(session && session.role === 'pengurus') && canAccessLockedLevel(getScopedSession(session), 'riwayatLog', 'view'); },
     'accountProfile.html': function (session) { return !!(session && (session.role === 'pengurus' || session.role === 'santri')); },
     'changePassword.html': function (session) { return !!(session && (session.role === 'pengurus' || session.role === 'santri')); },
     'logout.html':         function (session) { return !!(session && (session.role === 'pengurus' || session.role === 'santri')); },
@@ -124,12 +135,36 @@
     /* ── Publik ── */
     'login.html':      function () { return true; },
     'loginSantri.html':function () { return true; },
-    'madingPublik.html':function () { return true; },
+    // 'return true' tanpa syarat dipertahankan (bukan bug) -- halaman ini boleh dilihat TANPA
+    // login sama sekali (mading publik). Kalau ada sesi & addon Mading Digital memang sedang
+    // dimatikan, baru disembunyikan/ditolak; gerbang sungguhannya ada di action
+    // content.public.list (backend), sama seperti pola jamDigital.html di atas.
+    'madingPublik.html':function (session) { var p = getPermissions(getScopedSession(session)); if (p && p.addonsActive && p.addonsActive.madingDigital === false) return false; return true; },
     'index.html':      function () { return true; }
   };
 
   function getPermissions(session) {
     return session && session.permissions ? session.permissions : null;
+  }
+
+  // Kelola Addons (2026-09-12): permissions.addonsActive dikirim backend (lihat `permissions`
+  // di backend/server.js). Field tak dikenal/hilang dianggap AKTIF (true) -- sesi lama yang
+  // permissions-nya belum sempat refresh, atau addon baru yang belum didaftarkan, tidak boleh
+  // mendadak keblokir.
+  function isAddonActive(session, key) {
+    var p = getPermissions(session);
+    if (!p || !p.addonsActive || p.addonsActive[key] === undefined) return true;
+    return !!p.addonsActive[key];
+  }
+
+  // Level akses (Lihat/Kelola) untuk kelompok halaman TERKUNCI yang sudah diaktifkan
+  // pengaturannya lewat Kelola Addons (lihat permissions.lockedLevelAccess di backend/server.js).
+  // Kelompok/level yang tidak dikenal dianggap AKTIF (true) -- konsisten dgn isAddonActive,
+  // aman kalau sesi lama belum sempat refresh atau kombinasi belum didaftarkan.
+  function canAccessLockedLevel(session, groupKey, levelKey) {
+    var p = getPermissions(session);
+    if (!p || !p.lockedLevelAccess || !p.lockedLevelAccess[groupKey] || p.lockedLevelAccess[groupKey][levelKey] === undefined) return true;
+    return !!p.lockedLevelAccess[groupKey][levelKey];
   }
 
   function clonePlainObject(object) {
@@ -298,12 +333,12 @@
   function getScopedNavPages(accessLevel) {
     /* Halaman umum yang boleh diakses semua pengurus, termasuk struktur organisasi
        (bisa diakses oleh semua role pengurus + santri). */
-    var base = ['index.html', 'kaldik.html', 'daftarSantri.html', 'strukturOrganisasi.html', 'pelanggaran.html', 'izinPulang.html', 'santriSakit.html', 'inputAbsensiPengurus.html', 'jurnalSdm.html', 'accountProfile.html', 'changePassword.html', 'riwayat.html', 'logout.html', 'bukuDigital.html', 'bankSoal.html', 'dataKelompok.html', 'dataKelompokManual.html', 'raport&rekamJejak.html'];
+    var base = ['index.html', 'kaldik.html', 'daftarSantri.html', 'strukturOrganisasi.html', 'pelanggaran.html', 'izinPulang.html', 'santriSakit.html', 'inputAbsensiPengurus.html', 'jurnalSdm.html', 'catatanku.html', 'accountProfile.html', 'changePassword.html', 'riwayat.html', 'logout.html', 'bukuDigital.html', 'bankSoal.html', 'dataKelompok.html', 'dataKelompokManual.html', 'raport&rekamJejak.html'];
     switch (String(accessLevel || '')) {
       case 'admin':
         return [];
       case 'operator_jam_digital':
-        return ['index.html', 'daftarSantri.html', 'strukturOrganisasi.html', 'jamDigital.html', 'jamDigitalRemote.html', 'santriSakit.html', 'inputAbsensiPengurus.html', 'jurnalSdm.html', 'accountProfile.html', 'changePassword.html', 'riwayat.html', 'logout.html', 'dataKelompok.html', 'dataKelompokManual.html', 'raport&rekamJejak.html'];
+        return ['index.html', 'daftarSantri.html', 'strukturOrganisasi.html', 'jamDigital.html', 'jamDigitalRemote.html', 'santriSakit.html', 'inputAbsensiPengurus.html', 'jurnalSdm.html', 'catatanku.html', 'accountProfile.html', 'changePassword.html', 'riwayat.html', 'logout.html', 'dataKelompok.html', 'dataKelompokManual.html', 'raport&rekamJejak.html'];
       case 'mudir':
         // Sama seperti 'admin': array kosong = tidak dibatasi daftar nav, cukup diserahkan ke canAccessPage()
         // (yang sudah mengizinkan hampir semua halaman admin untuk isMudir, tapi tetap menutup halaman khusus Super Admin).
@@ -313,23 +348,23 @@
       case 'pengampu_halaqoh':
         return base.concat(['halaqohAbsensi.html', 'hafalanHarian.html', 'tasmiSetoran.html', 'ujianHafalan.html', 'jadwalIbadah.html']);
       case 'akademik':
-        return base.concat(['dashboardAkademik.html', 'editKelas.html', 'inputKelasLevel.html', 'kelasAbsensi.html', 'nilaiUjian.html', 'editSoal.html', 'editKaldik.html', 'raport&rekamJejak.html', 'kelolaMading.html', 'jadwalIbadah.html']);
+        return base.concat(['dashboardAkademik.html', 'editKelas.html', 'inputKelasLevel.html', 'kelasAbsensi.html', 'nilaiUjian.html', 'editSoal.html', 'quizDigital.html', 'editKaldik.html', 'raport&rekamJejak.html', 'kelolaMading.html', 'jadwalIbadah.html']);
       case 'penguji_hafalan':
         return base.concat(['ujianHafalan.html', 'jadwalIbadah.html']);
       case 'pengajar':
-        return base.concat(['inputKelasLevel.html', 'kelasAbsensi.html', 'nilaiUjian.html', 'editSoal.html', 'jadwalIbadah.html']);
+        return base.concat(['inputKelasLevel.html', 'kelasAbsensi.html', 'nilaiUjian.html', 'editSoal.html', 'quizDigital.html', 'jadwalIbadah.html']);
       case 'kesehatan':
-        return ['index.html', 'kaldik.html', 'daftarSantri.html', 'strukturOrganisasi.html', 'santriSakit.html', 'pelanggaran.html', 'izinPulang.html', 'inputAbsensiPengurus.html', 'jurnalSdm.html', 'accountProfile.html', 'changePassword.html', 'logout.html', 'bukuDigital.html', 'bankSoal.html', 'dataKelompok.html', 'dataKelompokManual.html', 'raport&rekamJejak.html'];
+        return ['index.html', 'kaldik.html', 'daftarSantri.html', 'strukturOrganisasi.html', 'santriSakit.html', 'pelanggaran.html', 'izinPulang.html', 'inputAbsensiPengurus.html', 'jurnalSdm.html', 'catatanku.html', 'accountProfile.html', 'changePassword.html', 'logout.html', 'bukuDigital.html', 'bankSoal.html', 'dataKelompok.html', 'dataKelompokManual.html', 'raport&rekamJejak.html'];
       case 'sdm':
-        return ['index.html', 'kaldik.html', 'daftarSantri.html', 'strukturOrganisasi.html', 'editPengurus.html', 'kegiatanSop.html', 'koordinatAbsensi.html', 'rekapAbsensiPengurus.html', 'jurnalSdm.html', 'pelanggaran.html', 'izinPulang.html', 'santriSakit.html', 'inputAbsensiPengurus.html', 'dashboardSdm.html', 'accountProfile.html', 'changePassword.html', 'logout.html', 'bukuDigital.html', 'bankSoal.html', 'dataKelompok.html', 'dataKelompokManual.html', 'raport&rekamJejak.html'];
+        return ['index.html', 'kaldik.html', 'daftarSantri.html', 'strukturOrganisasi.html', 'editPengurus.html', 'kegiatanSop.html', 'koordinatAbsensi.html', 'rekapAbsensiPengurus.html', 'jurnalSdm.html', 'pelanggaran.html', 'izinPulang.html', 'santriSakit.html', 'inputAbsensiPengurus.html', 'dashboardSdm.html', 'catatanku.html', 'accountProfile.html', 'changePassword.html', 'logout.html', 'bukuDigital.html', 'bankSoal.html', 'dataKelompok.html', 'dataKelompokManual.html', 'raport&rekamJejak.html'];
       case 'ksantrian':
         return base.concat(['dashboardKesantrian.html', 'editRegu.html', 'riwayatPindahRegu.html', 'reguAbsensi.html', 'perkembanganSantri.html', 'perkembanganTemplate.html', 'raport&rekamJejak.html', 'akhlakKepribadian.html', 'deskripsiSantri.html', 'jenisPelanggaran.html', 'jadwalIbadah.html']);
       case 'kebersihan':
-        return ['index.html', 'kaldik.html', 'daftarSantri.html', 'strukturOrganisasi.html', 'jadwalPiket.html', 'pelanggaran.html', 'izinPulang.html', 'santriSakit.html', 'inputAbsensiPengurus.html', 'jurnalSdm.html', 'accountProfile.html', 'changePassword.html', 'logout.html', 'bukuDigital.html', 'bankSoal.html', 'dataKelompok.html', 'dataKelompokManual.html', 'raport&rekamJejak.html'];
+        return ['index.html', 'kaldik.html', 'daftarSantri.html', 'strukturOrganisasi.html', 'jadwalPiket.html', 'pelanggaran.html', 'izinPulang.html', 'santriSakit.html', 'inputAbsensiPengurus.html', 'jurnalSdm.html', 'catatanku.html', 'accountProfile.html', 'changePassword.html', 'logout.html', 'bukuDigital.html', 'bankSoal.html', 'dataKelompok.html', 'dataKelompokManual.html', 'raport&rekamJejak.html'];
       case 'mading':
         return base.concat(['kelolaMading.html', 'jadwalIbadah.html']);
       case 'pengawas_lapangan':
-        return ['index.html', 'kaldik.html', 'daftarSantri.html', 'jadwalIbadah.html', 'jadwalHarianPengurus.html', 'jadwalFingerprint.html', 'pelanggaran.html', 'izinPulang.html', 'santriSakit.html', 'inputAbsensiPengurus.html', 'jurnalSdm.html', 'accountProfile.html', 'changePassword.html', 'logout.html', 'bukuDigital.html', 'bankSoal.html', 'dataKelompok.html', 'dataKelompokManual.html', 'raport&rekamJejak.html'];
+        return ['index.html', 'kaldik.html', 'daftarSantri.html', 'jadwalIbadah.html', 'jadwalHarianPengurus.html', 'jadwalFingerprint.html', 'pelanggaran.html', 'izinPulang.html', 'santriSakit.html', 'inputAbsensiPengurus.html', 'jurnalSdm.html', 'catatanku.html', 'accountProfile.html', 'changePassword.html', 'logout.html', 'bukuDigital.html', 'bankSoal.html', 'dataKelompok.html', 'dataKelompokManual.html', 'raport&rekamJejak.html'];
       default:
         /* pembina regu dan role lainnya */
         return base.concat(['reguAbsensi.html', 'perkembanganSantri.html', 'akhlakKepribadian.html', 'deskripsiSantri.html', 'jadwalIbadah.html']);

@@ -794,7 +794,7 @@
       }
       document.getElementById('refreshButton').addEventListener('click', loadData);
       document.getElementById('toggleExpandButton').addEventListener('click', toggleExpandedList);
-      document.getElementById('searchInput').addEventListener('input', () => { state.page = 1; loadData(); });
+      document.getElementById('searchInput').addEventListener('input', PSUI.debounce(() => { state.page = 1; loadData(); }, PSUI.AUTOSAVE_DEBOUNCE_MS));
       document.getElementById('statusFilter').addEventListener('change', () => { state.page = 1; loadData(); });
       document.getElementById('sortSelect').addEventListener('change', () => { state.page = 1; loadData(); });
       document.getElementById('pageSizeSelect').addEventListener('change', event => { state.pageSize = Number(event.target.value); state.page = 1; loadData(); });

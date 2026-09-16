@@ -197,6 +197,23 @@
     .btn-danger  { background: #dc2626; color: #fff; }
     .btn-sm      { padding: 7px 13px; font-size: 0.73rem; border-radius: 10px; }
 
+    /* Sumber backup (checklist folder) */
+    .source-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; font-size: 0.82rem; }
+    .source-row-core { font-weight: 700; border-bottom: 1.5px dashed rgba(0,0,0,0.12); margin-bottom: 6px; padding-top: 0; }
+    .source-badge {
+      font-size: 0.62rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em;
+      background: rgba(127,29,29,0.1); color: #7f1d1d; padding: 3px 9px; border-radius: 999px; flex-shrink: 0;
+    }
+    .source-list { max-height: 280px; overflow-y: auto; }
+    .source-row-check { cursor: pointer; border-bottom: 1px solid rgba(0,0,0,0.05); }
+    .source-row-check:last-child { border-bottom: none; }
+    .source-checkbox { width: 16px; height: 16px; flex-shrink: 0; accent-color: #7f1d1d; cursor: pointer; }
+    .source-label { flex: 1; min-width: 0; }
+    .source-label em { opacity: 0.5; font-style: normal; }
+    .source-size { font-weight: 700; opacity: 0.55; font-size: 0.75rem; flex-shrink: 0; white-space: nowrap; }
+    .source-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 14px; }
+    .source-actions .btn-primary { margin-left: auto; }
+
     /* Access denied */
     .access-denied {
       display: flex; flex-direction: column; align-items: center;
@@ -245,6 +262,12 @@
             <button class="btn btn-primary" type="button" id="btnCreate">
               <i class="fa-solid fa-box-archive"></i> Buat Backup Sekarang
             </button>
+            <button class="btn btn-danger" type="button" id="btnCancelBackup" hidden>
+              <i class="fa-solid fa-ban"></i> Batalkan Backup
+            </button>
+            <button class="btn btn-outline" type="button" id="btnDownloadDb" title="Unduh zip berisi database (.sqlite + WAL/SHM) dan semua JSON pengaturan penting, TANPA file media. Ringan &amp; cepat.">
+              <i class="fa-solid fa-database"></i> Download Database Saja
+            </button>
             <button class="btn btn-outline" type="button" id="btnRefresh">
               <i class="fa-solid fa-rotate-right"></i> Muat Ulang
             </button>
@@ -262,6 +285,19 @@
             <div class="stat-box">
               <div class="stat-val" id="statLatest">—</div>
               <div class="stat-lbl">Backup Terbaru</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Sumber backup: pilih folder mana yg diikutkan -->
+        <section class="panel" style="padding-top:0;padding-bottom:8px;">
+          <div class="section-group">
+            <div class="section-group-header">
+              <span>Sumber Backup</span>
+              <span class="section-group-header-note" id="backupSourcesNote">Memuat…</span>
+            </div>
+            <div id="backupSourcesWrap" style="padding:16px 20px;">
+              <div class="backup-empty"><i class="fa-solid fa-spinner fa-spin"></i>Memuat daftar folder…</div>
             </div>
           </div>
         </section>
@@ -354,6 +390,7 @@
   <script>
     'use strict';
     var API_BASE = window.location.origin + '/api';
+    var RESTORE_CONFIRM_PHRASE = 'PULIHKAN'; // harus sama dgn cek di backend (/api/backup/restore)
     var STORAGE  = { token: 'ps_token', session: 'ps_session', apiBase: 'ps_api_base' };
     localStorage.setItem(STORAGE.apiBase, API_BASE);
 
@@ -453,12 +490,108 @@
             + '</div>'
             + '<div class="backup-row-actions">'
             +   '<button class="btn btn-outline btn-sm" type="button" onclick="doDownload(\'' + fn + '\')" title="Download"><i class="fa-solid fa-download"></i></button>'
-            +   '<button class="btn btn-danger btn-sm"  type="button" onclick="doDelete(\'' + fn + '\')"   title="Hapus"><i class="fa-solid fa-trash"></i></button>'
+            +   '<button class="btn btn-danger btn-sm"  type="button" onclick="doDelete(\'' + fn + '\', this)"   title="Hapus"><i class="fa-solid fa-trash"></i></button>'
             + '</div>'
             + '</div>';
         }).join('');
       } catch(e) {
         el.innerHTML = '<div class="backup-empty" style="opacity:1;color:#dc2626;"><i class="fa-solid fa-circle-exclamation" style="color:#dc2626;"></i>' + esc(e.message) + '</div>';
+      }
+    }
+
+    /* ── Sumber backup: checklist folder media + ukurannya ── */
+    var backupSourcesState = { core: null, folders: [] };
+
+    function findSourceFolder_(name) {
+      for (var i = 0; i < backupSourcesState.folders.length; i++) {
+        if (backupSourcesState.folders[i].name === name) return backupSourcesState.folders[i];
+      }
+      return null;
+    }
+
+    function updateBackupSourcesNote() {
+      var wrap = document.getElementById('backupSourcesWrap');
+      var boxes = wrap.querySelectorAll('.source-checkbox');
+      var checkedCount = 0;
+      var totalBytes = (backupSourcesState.core && backupSourcesState.core.sizeBytes) || 0;
+      boxes.forEach(function (cb) {
+        if (cb.checked) {
+          checkedCount++;
+          var f = findSourceFolder_(cb.value);
+          if (f) totalBytes += f.sizeBytes;
+        }
+      });
+      document.getElementById('backupSourcesNote').textContent =
+        checkedCount + '/' + boxes.length + ' folder dipilih · Estimasi ' + fmtBytes(totalBytes);
+    }
+
+    function renderBackupSources() {
+      var wrap = document.getElementById('backupSourcesWrap');
+      var core = backupSourcesState.core || { sizeBytes: 0 };
+      var rows = backupSourcesState.folders.map(function (f) {
+        var checked = f.selected ? ' checked' : '';
+        return '<label class="source-row source-row-check">'
+          + '<input type="checkbox" class="source-checkbox" value="' + esc(f.name) + '"' + checked + '>'
+          + '<span class="source-label">' + esc(f.label) + (f.empty ? ' <em>(kosong)</em>' : '') + '</span>'
+          + '<span class="source-size">' + fmtBytes(f.sizeBytes) + '</span>'
+          + '</label>';
+      }).join('');
+      wrap.innerHTML =
+          '<div class="source-row source-row-core">'
+        +   '<span class="source-badge">Wajib</span>'
+        +   '<span class="source-label">Database &amp; Pengaturan Inti</span>'
+        +   '<span class="source-size">' + fmtBytes(core.sizeBytes) + '</span>'
+        + '</div>'
+        + '<div class="source-list">' + (rows || '<div class="backup-empty" style="padding:16px;">Tidak ada folder media.</div>') + '</div>'
+        + '<div class="source-actions">'
+        +   '<button type="button" class="btn btn-outline btn-sm" id="btnSourcesSelectAll">Pilih Semua</button>'
+        +   '<button type="button" class="btn btn-outline btn-sm" id="btnSourcesSelectNone">Kosongkan</button>'
+        +   '<button type="button" class="btn btn-primary btn-sm" id="btnSaveSources">Simpan Pilihan</button>'
+        + '</div>';
+      wrap.querySelectorAll('.source-checkbox').forEach(function (cb) {
+        cb.addEventListener('change', updateBackupSourcesNote);
+      });
+      document.getElementById('btnSourcesSelectAll').addEventListener('click', function () {
+        wrap.querySelectorAll('.source-checkbox').forEach(function (cb) { cb.checked = true; });
+        updateBackupSourcesNote();
+      });
+      document.getElementById('btnSourcesSelectNone').addEventListener('click', function () {
+        wrap.querySelectorAll('.source-checkbox').forEach(function (cb) { cb.checked = false; });
+        updateBackupSourcesNote();
+      });
+      document.getElementById('btnSaveSources').addEventListener('click', doSaveBackupSources);
+      updateBackupSourcesNote();
+    }
+
+    async function loadBackupSources() {
+      try {
+        var data = await api('backup.sources');
+        var selected = Array.isArray(data.selectedFolders) ? data.selectedFolders : null;
+        backupSourcesState.core = data.core;
+        backupSourcesState.folders = (data.folders || []).map(function (f) {
+          return Object.assign({}, f, { selected: selected === null ? true : selected.indexOf(f.name) !== -1 });
+        });
+        renderBackupSources();
+      } catch (e) {
+        document.getElementById('backupSourcesNote').textContent = 'Gagal memuat.';
+        document.getElementById('backupSourcesWrap').innerHTML =
+          '<div class="backup-empty" style="opacity:1;color:#dc2626;"><i class="fa-solid fa-circle-exclamation" style="color:#dc2626;"></i>' + esc(e.message) + '</div>';
+      }
+    }
+
+    async function doSaveBackupSources() {
+      var btn = document.getElementById('btnSaveSources');
+      btn.disabled = true;
+      try {
+        var wrap = document.getElementById('backupSourcesWrap');
+        var selected = [];
+        wrap.querySelectorAll('.source-checkbox').forEach(function (cb) { if (cb.checked) selected.push(cb.value); });
+        await api('backup.settings.save', { selectedFolders: JSON.stringify(selected) }, 'POST');
+        showNotice('Pilihan folder backup disimpan. Berlaku untuk backup manual & otomatis berikutnya.');
+      } catch (e) {
+        showNotice(e.message || 'Gagal menyimpan pilihan folder.', 'error');
+      } finally {
+        btn.disabled = false;
       }
     }
 
@@ -496,19 +629,83 @@
       }
     }
 
-    async function doCreate() {
+    /* Backup jalan di latar belakang di server. backup.create langsung balas "dimulai",
+       lalu kita polling backup.status tiap 2 detik sampai selesai / error. */
+    var backupPollTimer = null;
+    var BACKUP_PHASE_LABEL = {
+      preparing: 'Menyiapkan…', archiving: 'Mengarsipkan…', pruning: 'Merapikan…'
+    };
+
+    function resetCreateBtn() {
+      var btn = document.getElementById('btnCreate');
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-box-archive"></i> Buat Backup Sekarang';
+      document.getElementById('btnCancelBackup').hidden = true;
+    }
+    function setCreateBtnBusy(text) {
       var btn = document.getElementById('btnCreate');
       btn.disabled = true;
-      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Membuat backup…';
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> ' + esc(text || 'Memproses…');
+    }
+
+    async function pollBackupStatus() {
+      if (backupPollTimer) { clearTimeout(backupPollTimer); backupPollTimer = null; }
+      var s;
       try {
-        var data = await api('backup.create', {}, 'POST');
-        showNotice('Backup berhasil: ' + data.filename + ' (' + fmtBytes(data.size) + ')');
-        await loadList();
-      } catch(e) {
-        showNotice(e.message || 'Gagal membuat backup.', 'error');
-      } finally {
+        s = await api('backup.status');
+      } catch (e) {
+        resetCreateBtn();
+        showNotice(e.message || 'Gagal cek status backup.', 'error');
+        return;
+      }
+      if (s.running) {
+        var lbl = BACKUP_PHASE_LABEL[s.phase] || 'Memproses…';
+        if (s.bytes) lbl += ' (' + fmtBytes(s.bytes) + ')';
+        setCreateBtnBusy(lbl);
+        var cancelBtn = document.getElementById('btnCancelBackup');
+        cancelBtn.hidden = !s.cancellable;
+        cancelBtn.disabled = false;
+        backupPollTimer = setTimeout(pollBackupStatus, 2000);
+        return;
+      }
+      resetCreateBtn();
+      if (s.phase === 'cancelled') {
+        showNotice('Backup dibatalkan.', 'info');
+      } else if (s.error) {
+        showNotice('Backup gagal: ' + s.error, 'error');
+      } else if (s.result) {
+        showNotice('Backup berhasil: ' + s.result.filename + ' (' + fmtBytes(s.result.size) + ')');
+      }
+      await loadList();
+      await loadAutoBackupSettings();
+    }
+
+    async function doCreate() {
+      setCreateBtnBusy('Memulai…');
+      try {
+        var res = await api('backup.create', {}, 'POST');
+        if (res && res.running && !res.started) {
+          showNotice('Sudah ada proses backup yang sedang berjalan.', 'info');
+        } else {
+          showNotice(res.message || 'Backup dimulai di latar belakang.');
+        }
+        pollBackupStatus();
+      } catch (e) {
+        resetCreateBtn();
+        showNotice(e.message || 'Gagal memulai backup.', 'error');
+      }
+    }
+
+    async function doCancelBackup() {
+      if (!confirm('Batalkan proses backup yang sedang berjalan?\nBackup sebagian yang sudah dibuat akan dibuang.')) return;
+      var btn = document.getElementById('btnCancelBackup');
+      btn.disabled = true;
+      try {
+        await api('backup.cancel', {}, 'POST');
+        showNotice('Membatalkan backup…', 'info');
+      } catch (e) {
+        showNotice(e.message || 'Gagal membatalkan backup.', 'error');
         btn.disabled = false;
-        btn.innerHTML = '<i class="fa-solid fa-box-archive"></i> Buat Backup Sekarang';
       }
     }
 
@@ -520,19 +717,39 @@
       a.click();
     }
 
-    async function doDelete(filename) {
+    /* Unduh HANYA database (.sqlite) sebagai zip -- endpoint stream langsung, tidak disimpan
+       di daftar backup. */
+    function doDownloadDb() {
+      var token = getToken();
+      var a = document.createElement('a');
+      a.href = '/api/backup/download-db?token=' + encodeURIComponent(token);
+      a.download = '';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      showNotice('Menyiapkan unduhan database…');
+    }
+
+    async function doDelete(filename, btn) {
       if (!confirm('Hapus backup "' + filename + '"?\nTindakan ini tidak dapat dibatalkan.')) return;
+      if (btn) btn.disabled = true;
       try {
         await api('backup.delete', { filename: filename }, 'POST');
         showNotice('Backup dihapus.');
         await loadList();
       } catch(e) {
         showNotice(e.message || 'Gagal menghapus backup.', 'error');
+        if (btn) btn.disabled = false;
       }
     }
 
+    // restoreInProgress: pengaman terhadap pemicuan ganda (drop file lagi / pilih file lagi
+    // lewat restoreZone) selagi restore sebelumnya masih berjalan -- restore itu aksi paling
+    // merusak di halaman ini (menimpa SELURUH data), jadi jangan sampai bisa dobel-jalan.
+    var restoreInProgress = false;
     async function doRestore(file) {
       if (!file) return;
+      if (restoreInProgress) { showNotice('Restore lain sedang berjalan, tunggu sampai selesai.', 'error'); return; }
       var scopedSession = window.PSAccess && typeof window.PSAccess.getScopedSession === 'function' ? window.PSAccess.getScopedSession(getStoredSession()) : getStoredSession();
       if (!scopedSession || !scopedSession.permissions || !scopedSession.permissions.canDelete) {
         showNotice('Hanya Super Admin dengan scope aktif Super Admin yang bisa melakukan restore.', 'error'); return;
@@ -544,14 +761,28 @@
         + 'Pastikan semua pengguna sudah logout.\n\n'
         + 'Lanjutkan?'
       )) return;
+      // Konfirmasi kedua: user WAJIB mengetik persis kata kunci -- restore = aksi paling merusak.
+      var typed = prompt(
+        'Konfirmasi terakhir.\n\n'
+        + 'Ketik  ' + RESTORE_CONFIRM_PHRASE + '  (huruf besar semua) untuk menimpa seluruh data\n'
+        + 'dengan isi "' + file.name + '".'
+      );
+      if (typed === null) return; // user batal
+      if (String(typed).trim() !== RESTORE_CONFIRM_PHRASE) {
+        showNotice('Teks konfirmasi tidak cocok. Restore dibatalkan.', 'error');
+        return;
+      }
 
+      restoreInProgress = true;
       document.getElementById('restoreProgress').style.display = 'flex';
       try {
         var token = getToken();
         var scopeLabel = window.PSAccess && typeof window.PSAccess.getActiveRoleScopeLabel === 'function'
           ? (window.PSAccess.getActiveRoleScopeLabel(getStoredSession()) || '')
           : '';
-        var r = await fetch('/api/backup/restore?token=' + encodeURIComponent(token) + '&scopeLabel=' + encodeURIComponent(scopeLabel), {
+        var r = await fetch('/api/backup/restore?token=' + encodeURIComponent(token)
+          + '&scopeLabel=' + encodeURIComponent(scopeLabel)
+          + '&confirm=' + encodeURIComponent(RESTORE_CONFIRM_PHRASE), {
           method:  'POST',
           headers: { 'Content-Type': 'application/zip' },
           body:    file
@@ -564,6 +795,8 @@
       } catch(e) {
         document.getElementById('restoreProgress').style.display = 'none';
         showNotice(e.message || 'Restore gagal.', 'error');
+      } finally {
+        restoreInProgress = false;
       }
     }
 
@@ -583,6 +816,8 @@
     });
 
     document.getElementById('btnCreate').addEventListener('click', doCreate);
+    document.getElementById('btnCancelBackup').addEventListener('click', doCancelBackup);
+    document.getElementById('btnDownloadDb').addEventListener('click', doDownloadDb);
     document.getElementById('btnRefresh').addEventListener('click', loadList);
     document.getElementById('btnSaveAutoBackup').addEventListener('click', doSaveAutoBackupSettings);
 
@@ -594,7 +829,10 @@
       var currentPage = window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : 'backup.html';
       if (window.PSShell) window.PSShell.mount({ currentPage: currentPage, session: session, getStoredSession: getStoredSession, storageKey: STORAGE.session });
       loadList();
+      loadBackupSources();
       loadAutoBackupSettings();
+      // Kalau ada backup yang lagi jalan (mis. auto-backup, atau tab dibuka ulang), langsung ikut polling.
+      api('backup.status').then(function (s) { if (s && s.running) pollBackupStatus(); }).catch(function () {});
 
       var scopedSession = window.PSAccess && typeof window.PSAccess.getScopedSession === 'function' ? window.PSAccess.getScopedSession(session) : session;
       var canRestore = !!(scopedSession && scopedSession.permissions && scopedSession.permissions.canDelete);

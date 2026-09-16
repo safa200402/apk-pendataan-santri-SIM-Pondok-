@@ -14,7 +14,7 @@ yang baru tersedia mulai Node.js v22.5 ke atas.
 
 LANGKAH 1 - SIAPKAN FILE DI LOKAL (ZIP)
 ----------------------------------------
-1. Matikan dulu server lokal (tutup jendela start-backend.bat / Ctrl+C).
+1. Matikan dulu server lokal (tutup jendela start-normal.bat / start-watch.bat / Ctrl+C).
    PENTING: SQLite pakai mode WAL. Kalau server masih hidup saat di-zip,
    sebagian data terbaru bisa masih ada di file "*.sqlite-wal" dan belum
    ter-checkpoint ke file utama -> data yang terbawa ke server jadi tidak
@@ -51,8 +51,12 @@ LANGKAH 4 - INSTALL DEPENDENCIES
 -----------------------------------
 1. Kembali ke halaman Setup Node.js App, buka aplikasi yang dibuat
 2. Klik "Run NPM Install"
-   (dependency: adm-zip, bcryptjs, express, quill -- tidak ada native
-   module yang perlu di-compile, jadi proses ini biasanya lancar)
+   (dependency: adm-zip, archiver, bcryptjs, express, quill -- tidak ada
+   native module yang perlu di-compile, jadi proses ini biasanya lancar)
+   PENTING: "archiver" WAJIB ke-install supaya backup jalan streaming ke
+   disk (RAM tetap kecil walau folder media besar). Kalau belum ke-install,
+   backup jatuh balik ke adm-zip (semua di RAM) dan bisa OOM/di-kill saat
+   media > ~150 MB -- persis masalah yang pernah bikin backup mati total.
 
 
 LANGKAH 5 - ENVIRONMENT VARIABLES
@@ -137,6 +141,38 @@ CATATAN UNTUK DEPLOY BERIKUTNYA:
 Kalau nanti upload ulang / extract ulang dan muncul error EACCES serupa
 di folder lain, penyebabnya sama (permission rusak dari proses extract).
 Solusinya jalankan ulang dua perintah "find" di atas.
+
+
+===================================================================
+MASALAH KE-2: BACKUP MATI TOTAL (MANUAL & OTOMATIS) SETELAH MEDIA MEMBESAR
+===================================================================
+GEJALA:
+- Klik "Buat Backup Sekarang" -> error / tidak jadi file apa pun.
+- Auto-backup berhenti (kolom "Terakhir" mentok di tanggal lama).
+- Di stderr.log: proses "Killed" / restart berulang, TANPA baris [backup].
+- Di daftar backup: file terakhir berhenti pas sebelum ada upload video
+  besar di Pengumuman (folder frontend/pengumuman-media).
+
+PENYEBAB:
+Versi lama membuat zip pakai adm-zip = seluruh file media + hasil zip
+ditampung di RAM sekaligus. Begitu folder media (video pengumuman dll)
+melewati ~150 MB, pemakaian RAM tembus limit CloudLinux LVE dan proses
+Node di-SIGKILL sebelum sempat menulis file -- makanya tidak ada .zip
+separuh pun, dan tidak ada log error dari app.
+
+SOLUSI (sudah masuk kode):
+- Backup sekarang STREAMING ke disk pakai "archiver" -- RAM tetap
+  ~puluhan MB berapa pun besar media-nya. Pastikan "archiver" ke-install
+  (Run NPM Install, lihat LANGKAH 4).
+- Backup jalan di LATAR BELAKANG: tombol langsung balas "diproses",
+  halaman polling status sampai selesai. Tidak ada lagi request yang
+  kena timeout LiteSpeed 60 detik.
+- File ditulis sebagai "<nama>.zip.part" lalu di-rename kalau sukses;
+  sisa .part dari proses yang mati dibersihkan otomatis tiap backup baru.
+
+CATATAN: auto-backup masih pakai timer di dalam proses Node. Kalau app
+sering di-suspend Passenger (traffic sepi), timer bisa ke-reset. Untuk
+jaminan, bisa tambah Cron Job hPanel yang hit endpoint backup.create.
 
 ===================================================================
 UPDATE APLIKASI (DEPLOY ULANG SETELAH ADA PERUBAHAN KODE)

@@ -8,7 +8,7 @@
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="../../shared-ui.css">
   <link rel="stylesheet" href="../../shared-shell.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+  <link rel="stylesheet" href="../../vendor/fontawesome/css/all.min.css">
   <script src="../../shared-ui.js"></script>
   <title>Riwayat</title>
   <style>
@@ -33,6 +33,13 @@
 
     .riw-toolbar { display: flex; gap: 7px; flex-wrap: wrap; align-items: center; margin: 14px 0; }
 
+    .riw-settings { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin: 14px 0 0; background: rgba(255,255,255,0.45); display: grid; gap: 8px; }
+    .riw-settings-title { font-size: 13px; font-weight: 800; color: var(--ink); text-transform: uppercase; letter-spacing: 0.04em; }
+    .riw-settings-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .riw-settings-row input { width: 160px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+    .riw-settings-row button { padding: 10px 16px; }
+    .riw-settings-hint { font-size: 12px; color: var(--muted); }
+
     .riw-list { display: grid; gap: 10px; margin-top: 10px; }
     .riw-card { border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; background: rgba(242, 222, 154, 0.5); display: flex; gap: 12px; align-items: flex-start; justify-content: space-between; }
     .riw-card-main { display: grid; gap: 4px; min-width: 0; }
@@ -44,6 +51,7 @@
     .riw-badge.mutasi { background: rgba(74,110,158,0.18); color: #33587f; }
     .riw-entitas { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
     .riw-label { font-size: 15px; font-weight: 700; color: var(--ink); }
+    .riw-label .riw-id { font-size: 12px; font-weight: 600; color: var(--muted); margin-left: 6px; }
     .riw-meta { font-size: 12.5px; color: var(--muted); }
     .riw-card-actions { flex-shrink: 0; }
 
@@ -101,8 +109,17 @@
             </label>
           </div>
           <div class="toolbar" id="actionToolbar">
+            <button class="secondary" id="toggleExpandButton" type="button" data-expand-state="collapsed">Buka semua</button>
             <button class="secondary" id="refreshButton" type="button">Muat ulang</button>
             <button class="danger" id="deleteAllButton" type="button">Hapus Semua Riwayat</button>
+          </div>
+          <div class="riw-settings" id="riwSettings" hidden>
+            <span class="riw-settings-title">Batas maksimal jumlah riwayat tersimpan</span>
+            <div class="riw-settings-row">
+              <input id="limitInput" type="number" min="100" max="50000" step="100" inputmode="numeric" placeholder="mis. 5000">
+              <button class="primary" id="saveLimitButton" type="button">Simpan Batas</button>
+            </div>
+            <p class="riw-settings-hint">Rentang 100&ndash;50.000. Kalau jumlah riwayat melebihi batas ini, entri paling lama otomatis dihapus (entri <strong>Mutasi</strong> dikecualikan &mdash; tidak ikut dihitung dan tidak pernah terhapus otomatis). Hanya Super Admin (dengan scope aktif Super Admin) yang bisa mengubah nilai ini.</p>
           </div>
           <div class="paging-host" id="paginationTop"></div>
           <div class="riw-list" id="riwList"></div>
@@ -136,7 +153,8 @@
     const state = {
       items: [], page: 1, pageSize: 20, total: 0, totalPages: 1,
       q: '', entitas: '', aksi: '',
-      canViewAll: false, canManage: false
+      canViewAll: false, canManage: false,
+      expandedIds: new Set()
     };
 
     const ENTITAS_LABELS = {
@@ -242,7 +260,12 @@
     }
 
     function prettifyFieldKey(key) {
-      return String(key).replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+      return String(key)
+        .replace(/_/g, ' ')
+        .replace(/^id\s+/i, '')
+        .replace(/\s+id$/i, '')
+        .replace(/\b\w/g, c => c.toUpperCase())
+        .trim() || String(key);
     }
 
     function formatDiffValue(v) {
@@ -286,7 +309,42 @@
           </div>`).join('');
       }
       if (!rows) return '';
-      return `<details class="riw-detail"><summary>Lihat detail data (sebelum/sesudah)</summary><div class="riw-diff">${rows}</div></details>`;
+      return `<details class="riw-detail" open><summary>Lihat detail data (sebelum/sesudah)</summary><div class="riw-diff">${rows}</div></details>`;
+    }
+
+    function isItemExpanded(id) {
+      return state.expandedIds.has(id);
+    }
+
+    function pruneExpandedIds() {
+      const visibleIds = new Set(state.items.map(item => item.id));
+      Array.from(state.expandedIds).forEach(id => {
+        if (!visibleIds.has(id)) state.expandedIds.delete(id);
+      });
+    }
+
+    function syncExpandToggleButton() {
+      const button = document.getElementById('toggleExpandButton');
+      if (!button) return;
+      const hasItems = state.items.length > 0;
+      const allExpanded = hasItems && state.items.every(item => state.expandedIds.has(item.id));
+      button.disabled = !hasItems;
+      button.dataset.expandState = allExpanded ? 'expanded' : 'collapsed';
+      button.textContent = allExpanded ? 'Tutup semua' : 'Buka semua';
+    }
+
+    function toggleItemExpanded(id) {
+      if (!id) return;
+      if (state.expandedIds.has(id)) state.expandedIds.delete(id);
+      else state.expandedIds.add(id);
+      renderList();
+    }
+
+    function toggleExpandedList() {
+      const allExpanded = state.items.length > 0 && state.items.every(item => state.expandedIds.has(item.id));
+      if (allExpanded) state.expandedIds.clear();
+      else state.items.forEach(item => state.expandedIds.add(item.id));
+      renderList();
     }
 
     function renderList() {
@@ -294,25 +352,39 @@
       if (!state.items.length) {
         list.innerHTML = '<div class="empty-state"><i class="fa-solid fa-clock-rotate-left"></i><p style="margin-top:8px;">Belum ada riwayat.</p></div>';
         renderPagination();
+        syncExpandToggleButton();
         return;
       }
-      list.innerHTML = state.items.map(item => {
+      list.innerHTML = state.items.map((item, index) => {
         const when = item.createdAt ? new Date(item.createdAt).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : '-';
+        const expanded = isItemExpanded(item.id);
+        const diffHtml = renderDiffHtml(item);
         return `
-        <div class="riw-card">
-          <div class="riw-card-main">
-            <div class="riw-card-top">
-              <span class="riw-badge ${escapeHtml(item.aksi)}">${escapeHtml(AKSI_LABELS[item.aksi] || item.aksi)}</span>
-              <span class="riw-entitas">${escapeHtml(entitasLabel(item.entitas))}</span>
+        <article class="card minimal-list-card ${expanded ? 'is-expanded' : ''}">
+          <div class="minimal-list-card-head">
+            <div class="minimal-list-card-main" data-collapse="${escapeHtml(item.id)}" role="button" tabindex="0" aria-expanded="${expanded ? 'true' : 'false'}" aria-label="${expanded ? 'Tutup detail riwayat' : 'Buka detail riwayat'}">
+              <div class="riw-card-top">
+                <span class="riw-badge ${escapeHtml(item.aksi)}">${escapeHtml(AKSI_LABELS[item.aksi] || item.aksi)}</span>
+                <span class="riw-entitas">${escapeHtml(entitasLabel(item.entitas))}</span>
+              </div>
+              <div class="riw-label">${escapeHtml(item.label || '(tanpa nama)')}${item.entitasId && !/\(#[^)]+\)\s*$/.test(item.label || '') ? `<span class="riw-id">#${escapeHtml(item.entitasId)}</span>` : ''}</div>
+              <span class="minimal-list-card-hint">${escapeHtml(item.userName || '-')}${item.userJabatan ? ' · ' + escapeHtml(item.userJabatan) : ''} &nbsp;·&nbsp; ${escapeHtml(when)} &nbsp;·&nbsp; ${index + 1} pada halaman ini</span>
             </div>
-            <div class="riw-label">${escapeHtml(item.label || '(tanpa nama)')}</div>
-            <div class="riw-meta">${escapeHtml(item.userName || '-')}${item.userJabatan ? ' · ' + escapeHtml(item.userJabatan) : ''} &nbsp;·&nbsp; ${escapeHtml(when)}</div>
-            ${renderDiffHtml(item)}
+            <button class="secondary minimal-list-card-toggle" type="button" data-collapse="${escapeHtml(item.id)}" aria-expanded="${expanded ? 'true' : 'false'}" aria-label="${expanded ? 'Tutup detail riwayat' : 'Buka detail riwayat'}">${expanded ? 'Tutup' : 'Detail'}</button>
           </div>
-          <div class="riw-card-actions"><button class="secondary${state.canManage ? '' : ' ps-locked'}" type="button" data-delete="${escapeHtml(item.id)}" ${state.canManage ? 'title="Hapus riwayat ini"' : 'disabled aria-disabled="true" title="Hanya Super Admin dengan scope aktif Super Admin yang bisa menghapus riwayat."'}>Hapus</button></div>
-        </div>`;
+          <div class="minimal-list-card-detail">
+            <div class="minimal-list-card-summary">
+              <div class="riw-meta">${escapeHtml(item.userName || '-')}${item.userJabatan ? ' · ' + escapeHtml(item.userJabatan) : ''} &nbsp;·&nbsp; ${escapeHtml(when)}</div>
+              ${diffHtml || '<div class="riw-meta" style="opacity:0.7;">Tidak ada rincian data sebelum/sesudah untuk entri ini.</div>'}
+            </div>
+            <div class="toolbar minimal-list-card-actions">
+              <button class="secondary${state.canManage ? '' : ' ps-locked'}" type="button" data-delete="${escapeHtml(item.id)}" ${state.canManage ? 'title="Hapus riwayat ini"' : 'disabled aria-disabled="true" title="Hanya Super Admin dengan scope aktif Super Admin yang bisa menghapus riwayat."'}>Hapus</button>
+            </div>
+          </div>
+        </article>`;
       }).join('');
       renderPagination();
+      syncExpandToggleButton();
     }
 
     function populateEntitasFilter(options) {
@@ -336,27 +408,69 @@
         state.canManage = !!data.canManage;
         populateEntitasFilter(data.entitasOptions);
         window.PSUI.applyPermissionLock(document.getElementById('deleteAllButton'), state.canManage, 'Hanya Super Admin dengan scope aktif Super Admin yang bisa menghapus semua riwayat.');
+        syncSettingsPanel();
         renderScopeNote();
+        pruneExpandedIds();
         renderList();
       } catch (error) {
         showNotice(error.message || 'Gagal memuat riwayat.', 'error');
       }
     }
 
-    async function deleteOne(id) {
+    async function deleteOne(id, btn) {
       if (!state.canManage) { showNotice('Hanya Super Admin dengan scope aktif Super Admin yang bisa menghapus riwayat.', 'error'); return; }
       if (!confirm('Hapus catatan riwayat ini?')) return;
+      if (btn) btn.disabled = true;
       try {
         await api('riwayat.delete', { id }, 'POST');
         showNotice('Riwayat dihapus.', 'success');
         await loadData();
       } catch (error) {
         showNotice(error.message || 'Gagal menghapus riwayat.', 'error');
+        if (btn) btn.disabled = false;
       }
     }
 
-    async function deleteAll() {
+    let settingsLoaded = false;
+    async function syncSettingsPanel() {
+      const wrap = document.getElementById('riwSettings');
+      wrap.hidden = !state.canManage;
+      if (!state.canManage || settingsLoaded) return;
+      settingsLoaded = true;
+      try {
+        const data = await api('riwayat.settings.get');
+        document.getElementById('limitInput').value = data.limitCount;
+      } catch (error) {
+        settingsLoaded = false;
+        showNotice(error.message || 'Gagal memuat batas riwayat.', 'error');
+      }
+    }
+
+    async function saveLimit() {
+      if (!state.canManage) { showNotice('Hanya Super Admin dengan scope aktif Super Admin yang bisa mengubah batas riwayat.', 'error'); return; }
+      const raw = parseInt(document.getElementById('limitInput').value, 10);
+      if (isNaN(raw) || raw < 100 || raw > 50000) {
+        showNotice('Batas riwayat harus angka antara 100 dan 50.000.', 'error');
+        return;
+      }
+      const btn = document.getElementById('saveLimitButton');
+      btn.disabled = true;
+      try {
+        const data = await api('riwayat.settings.save', { limitCount: raw }, 'POST');
+        document.getElementById('limitInput').value = data.limitCount;
+        showNotice('Batas riwayat disimpan: ' + data.limitCount + '. Riwayat berlebih (jika ada) sudah dipangkas.', 'success');
+        state.page = 1;
+        await loadData();
+      } catch (error) {
+        showNotice(error.message || 'Gagal menyimpan batas riwayat.', 'error');
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function deleteAll(btn) {
       if (!state.canManage) { showNotice('Hanya Super Admin dengan scope aktif Super Admin yang bisa menghapus semua riwayat.', 'error'); return; }
+      if (btn) btn.disabled = true;
       try {
         await api('riwayat.deleteAll', {}, 'POST');
         document.getElementById('deleteAllDialog').close();
@@ -365,28 +479,39 @@
         await loadData();
       } catch (error) {
         showNotice(error.message || 'Gagal menghapus semua riwayat.', 'error');
+      } finally {
+        if (btn) btn.disabled = false;
       }
     }
 
-    let searchTimer = null;
-    document.getElementById('searchInput').addEventListener('input', event => {
-      clearTimeout(searchTimer);
-      searchTimer = setTimeout(() => { state.q = event.target.value.trim(); state.page = 1; loadData(); }, 350);
-    });
+    document.getElementById('searchInput').addEventListener('input', PSUI.debounce(event => { state.q = event.target.value.trim(); state.page = 1; loadData(); }, PSUI.AUTOSAVE_DEBOUNCE_MS));
     document.getElementById('entitasFilter').addEventListener('change', event => { state.entitas = event.target.value; state.page = 1; loadData(); });
     document.getElementById('aksiFilter').addEventListener('change', event => { state.aksi = event.target.value; state.page = 1; loadData(); });
     document.getElementById('refreshButton').addEventListener('click', loadData);
+    document.getElementById('saveLimitButton').addEventListener('click', saveLimit);
+    document.getElementById('limitInput').addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); saveLimit(); } });
     document.getElementById('deleteAllButton').addEventListener('click', () => {
       if (!state.canManage) { showNotice('Hanya Super Admin dengan scope aktif Super Admin yang bisa menghapus semua riwayat.', 'error'); return; }
       document.getElementById('deleteAllDialog').showModal();
     });
     document.getElementById('closeDeleteAllDialog').addEventListener('click', () => document.getElementById('deleteAllDialog').close());
-    document.getElementById('deleteAllForm').addEventListener('submit', event => { event.preventDefault(); deleteAll(); });
+    document.getElementById('deleteAllForm').addEventListener('submit', event => { event.preventDefault(); deleteAll(event.submitter); });
 
     document.getElementById('riwList').addEventListener('click', event => {
       const btn = event.target.closest('[data-delete]');
-      if (btn) deleteOne(btn.getAttribute('data-delete'));
+      if (btn) { deleteOne(btn.getAttribute('data-delete'), btn); return; }
+      if (event.target.closest('.riw-detail')) return;
+      const collapseTrigger = event.target.closest('[data-collapse]');
+      if (collapseTrigger) toggleItemExpanded(collapseTrigger.getAttribute('data-collapse'));
     });
+    document.getElementById('riwList').addEventListener('keydown', event => {
+      const collapseTarget = event.target.closest('[data-collapse]');
+      if (!collapseTarget || collapseTarget.tagName === 'BUTTON') return;
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      event.preventDefault();
+      toggleItemExpanded(collapseTarget.getAttribute('data-collapse'));
+    });
+    document.getElementById('toggleExpandButton').addEventListener('click', toggleExpandedList);
 
     function handlePaginationClick(event) {
       const btn = event.target.closest('[data-page]');

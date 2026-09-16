@@ -9,7 +9,7 @@
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="../../../shared-ui.css">
   <link rel="stylesheet" href="../../../shared-shell.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+  <link rel="stylesheet" href="../../../vendor/fontawesome/css/all.min.css">
   <script src="../../../shared-ui.js"></script>
   <title>Rekam Jejak Saya</title>
   <style>
@@ -61,7 +61,15 @@
     .icon-ujian { background: #7a5a48; }
     .rj-section-head h2 { font-size: 14px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; }
 
-    .empty-note { font-size: 13px; color: var(--muted); font-style: italic; padding: 10px 0; }
+    .rj-empty-block { text-align: center; }
+    .empty-note { font-size: 13px; color: var(--muted); font-style: italic; padding: 10px 0 0; }
+    .empty-note-hint { font-size: 13px; color: var(--muted); padding: 4px 0 0; }
+    .prev-month-note-btn {
+      margin-top: 8px; min-height: 34px; padding: 0 16px; border-radius: 10px;
+      border: 2px solid rgba(0,0,0,0.12); background: transparent;
+      font-size: 13px; font-weight: 700; text-transform: none !important; letter-spacing: normal;
+    }
+    .prev-month-note-btn:hover { background: rgba(0,0,0,0.05); }
 
     /* Hafalan totals */
     .haf-totals { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 12px; }
@@ -228,7 +236,11 @@
     function renderPerkembangan(items, total, page) {
       items = items || [];
       const rows = items.map(p => `<tr><td>${esc(p.tanggal)}</td><td>${esc(p.teks)}</td></tr>`).join('') + padRows(2, items.length);
-      const note = total ? '' : `<p class="empty-note">Belum ada catatan perkembangan bulan ini.</p>`;
+      const note = total ? '' : `<div class="rj-empty-block">
+        <p class="empty-note">Belum ada catatan perkembangan bulan ini.</p>
+        <p class="empty-note-hint">Data bulan ini kosong, coba cek bulan sebelumnya.</p>
+        <button type="button" class="prev-month-note-btn">Lihat Bulan Lalu</button>
+      </div>`;
       return note + `<div style="overflow-x:auto;"><table class="rj-table">
         <thead><tr><th>Tgl</th><th>Catatan</th></tr></thead>
         <tbody>${rows}</tbody>
@@ -244,7 +256,11 @@
       </div>`;
       items = items || [];
       const rows = items.map(h => `<tr><td>${esc(h.tanggal)}</td><td>${esc(h.jenisLabel)}</td><td>${esc(h.detail)}</td><td class="num">${esc(h.nilai || '—')}</td></tr>`).join('') + padRows(4, items.length);
-      const note = total ? '' : `<p class="empty-note">Belum ada data hafalan bulan ini.</p>`;
+      const note = total ? '' : `<div class="rj-empty-block">
+        <p class="empty-note">Belum ada data hafalan bulan ini.</p>
+        <p class="empty-note-hint">Data bulan ini kosong, coba cek bulan sebelumnya.</p>
+        <button type="button" class="prev-month-note-btn">Lihat Bulan Lalu</button>
+      </div>`;
       return totalsHtml + note + `<div style="overflow-x:auto;"><table class="rj-table">
         <thead><tr><th>Tgl</th><th>Jenis</th><th>Detail</th><th class="num">Nilai</th></tr></thead>
         <tbody>${rows}</tbody>
@@ -254,7 +270,11 @@
     function renderUjian(items, total, page) {
       items = items || [];
       const rows = items.map(u => `<tr><td>${esc(u.tanggal)}</td><td>${esc(u.kelasName)}</td><td class="num">${esc(u.nilai)}</td><td>${esc(u.catatan || '—')}</td></tr>`).join('') + padRows(4, items.length);
-      const note = total ? '' : `<p class="empty-note">Belum ada ujian kelas siang bulan ini.</p>`;
+      const note = total ? '' : `<div class="rj-empty-block">
+        <p class="empty-note">Belum ada ujian kelas siang bulan ini.</p>
+        <p class="empty-note-hint">Data bulan ini kosong, coba cek bulan sebelumnya.</p>
+        <button type="button" class="prev-month-note-btn">Lihat Bulan Lalu</button>
+      </div>`;
       return note + `<div style="overflow-x:auto;"><table class="rj-table">
         <thead><tr><th>Tgl</th><th>Kelas</th><th class="num">Nilai</th><th>Catatan</th></tr></thead>
         <tbody>${rows}</tbody>
@@ -301,6 +321,7 @@
     }
 
     document.getElementById('rjContent').addEventListener('click', e => {
+      if (e.target.closest('.prev-month-note-btn')) { load(shiftMonth(currentBulan, -1)); return; }
       const btn = e.target.closest('button[data-section]');
       if (!btn) return;
       const page = parseInt(btn.dataset.page, 10);

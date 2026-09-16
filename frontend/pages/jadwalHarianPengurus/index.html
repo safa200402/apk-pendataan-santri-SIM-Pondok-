@@ -11,7 +11,7 @@
   <script src="../../shared-ui.js"></script>
   <title>Jadwal Harian Pengurus</title>
   <link rel="stylesheet" href="../../shared-shell.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+  <link rel="stylesheet" href="../../vendor/fontawesome/css/all.min.css">
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700&display=swap');
     :root {
@@ -417,6 +417,8 @@
 
     async function saveAll() {
       const entries = collectEntries();
+      const btn = document.getElementById('saveAllButton');
+      btn.disabled = true;
       showNotice('Menyimpan jadwal harian...', '');
       try {
         const data = await api('jadwalHarianPengurus.saveBulk', {
@@ -428,6 +430,8 @@
         await loadTable();
       } catch (error) {
         showNotice(error.message || 'Gagal menyimpan jadwal harian.', 'error');
+      } finally {
+        btn.disabled = false;
       }
     }
 

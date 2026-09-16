@@ -8,7 +8,7 @@
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="../../shared-ui.css">
   <link rel="stylesheet" href="../../shared-shell.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+  <link rel="stylesheet" href="../../vendor/fontawesome/css/all.min.css">
   <script src="../../shared-ui.js"></script>
   <title>Perkembangan Santri</title>
   <style>
@@ -35,6 +35,10 @@
         margin-top: 16px;
     }
     .chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; background: var(--line); color: var(--ink); }
+    .week-chip-row { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
+    .chip-week { display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 700; background: var(--line); color: var(--ink); }
+    .chip-week.is-met { background: rgba(116,132,108,0.18); color: var(--success); }
+    .chip-week.is-under { background: rgba(165,90,82,0.18); color: var(--danger); }
     .santri-dibekukan-badge { display: inline-flex; margin-left: 6px; padding: 1px 8px; font-size: 10px; font-weight: 700; border-radius: 999px; background: rgba(181,132,57,0.18); color: var(--warning, #b8860b); text-transform: uppercase; vertical-align: middle; }
     .empty-state { text-align: center; padding: 40px 16px; color: var(--muted); }
     .empty-state i { font-size: 32px; opacity: 0.4; }
@@ -84,7 +88,8 @@
     table.rp-tbl th { background: #9090901f; font-weight: 600; }
     table.rp-tbl td.num, table.rp-tbl th.num { text-align: center; }
     table.rp-tbl tfoot td { font-weight: 700; background: #faf6ee; }
-    .muted-note { color: #999; font-size: 12.5px; font-style: italic; }
+    .muted-note { color: #999; font-size: 12.5px; font-style: italic; margin: 0; }
+    .rj-prev-month-btn { margin-top: 8px; }
     .rj-perk { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid #ccc; border-left: 1px solid #ccc; }
     .rj-perk .pe { font-size: 13px; line-height: 1.55; padding: 5px 8px; border-right: 1px solid #ccc; border-bottom: 1px solid #ccc; min-height: 28px; }
     .rj-perk .pe .d { font-weight: 600; color: var(--accent); }
@@ -100,11 +105,22 @@
         outline: none !important; box-shadow: none !important; border-radius: 0 !important;
         max-width: 100% !important; width: 100% !important; height: auto !important; max-height: none !important;
       }
+      /* #dlg dipakai jg utk view interaktif (Pilih Santri/Entri), jadi shared-ui.js
+         enhanceDialog() nambahin class .ps-floating-dialog ke dia (utk styling floating +
+         ::backdrop gelap rgba(0,0,0,0.9) pas dialog dibuka normal) -- backdrop gelap itu
+         SENGAJA tidak dimatikan pas dialog biasa, tapi kalau lagi cetak/generate PDF sheet
+         RJ (banyak entri, sheet bisa < 1 halaman penuh), sisa area kosong di bawah konten
+         ikut kena backdrop gelap ini juga (dianggap bagian dari halaman tercetak, jadi
+         nongol item hitam raksasa di PDF) -- dilaporkan user 2026-08-29. Dimatikan HANYA
+         saat cetak, backdrop normal (non-print) tidak terpengaruh.
+      */
+      #dlg.rp-dlg-printing::backdrop { background: #fff !important; }
       #dlg.rp-dlg-printing .dlg-shell { padding: 0 !important; }
       #dlg.rp-dlg-printing .duplicate-dialog-head,
       #dlg.rp-dlg-printing #dlgNotice,
       #dlg.rp-dlg-printing .rp-dlg-toolbar { display: none !important; }
       .sheet { box-shadow: none; max-width: 100%; margin: 0; padding: 0; border-radius: 0; }
+      .rj-prev-month-btn { display: none !important; }
     }
     .week-group { margin-bottom: 14px; }
     .week-header { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 11px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; color: var(--accent); padding: 4px 2px 6px; margin-bottom: 6px; border-bottom: 1.5px solid var(--line); cursor: pointer; list-style: none; user-select: none; }
@@ -166,8 +182,8 @@
               <select id="fTa" class="ctl"><option value="">Semua tahun ajaran</option></select>
             </label>
             <label>
-              Cari nama regu, pembina, atau santri
-              <input type="search" id="fSearch" class="ctl" placeholder="Mis. regu 1, ustadz, ikhwan, atau nama santri">
+              Cari nama regu, pembina, badal, atau santri
+              <input type="search" id="fSearch" class="ctl" placeholder="Mis. regu 1, ustadz, ikhwan, badal, atau nama santri">
             </label>
             <label>
               Status
@@ -302,6 +318,24 @@
       while (cursor.getTime() <= lastWeekStart.getTime()) { weeks.push(formatDateYmd(cursor)); cursor.setDate(cursor.getDate() + 7); }
       return weeks;
     }
+    // Chip per-pekan di daftar santri (regu) -- ganti chip tunggal "X catatan sebulan" yg
+    // lama, jadi 4-5 chip (sebanyak pekan yg overlap bulan itu, sama spt getAllWeeksInMonth).
+    // Merah/ikon seru kalau catatan pekan itu < minPerWeek (setting audit perkembangan,
+    // dikirim backend lewat data.minPerWeek) -- keputusan user 2026-08-29.
+    function fmtWeekShortLabel(startYmd, endYmd) {
+      const s = new Date(startYmd + 'T00:00:00'), e = new Date(endYmd + 'T00:00:00');
+      return `${s.getDate()}–${e.getDate()} ${BULAN_PENDEK_ID[e.getMonth()]}`;
+    }
+    function renderWeekChips(weeks, minPerWeek) {
+      if (!weeks || !weeks.length) return '';
+      return `<div class="week-chip-row">` + weeks.map((w, i) => {
+        const label = fmtWeekShortLabel(w.weekStart, w.weekEnd);
+        const cls = w.met ? 'chip-week is-met' : 'chip-week is-under';
+        const icon = w.met ? '' : '<i class="fa-solid fa-triangle-exclamation"></i> ';
+        const title = `Pekan ${i + 1} (${label}): ${w.count} catatan${w.met ? '' : ` — kurang dari minimal ${minPerWeek}/pekan`}`;
+        return `<span class="${cls}" title="${escapeHtml(title)}">${icon}P${i + 1}: ${w.count}</span>`;
+      }).join('') + `</div>`;
+    }
     function groupEntriesByWeek(entries, bulan) {
       const byWeek = {};
       entries.forEach(e => { const wKey = formatDateYmd(getWeekStartSenin(e.tanggal)); (byWeek[wKey] = byWeek[wKey] || []).push(e); });
@@ -402,7 +436,7 @@
         if (state.fStatus === 'active' && !r.active) return false;
         if (state.fStatus === 'inactive' && r.active) return false;
         if (q) {
-          const hay = (r.name + ' ' + (r.genderGroup || '') + ' ' + (r.pembinaNames || []).join(' ') + ' ' + (r.santriNames || []).join(' ')).toLowerCase();
+          const hay = (r.name + ' ' + (r.genderGroup || '') + ' ' + (r.pembinaNames || []).join(' ') + ' ' + (r.badalNames || []).join(' ') + ' ' + (r.santriNames || []).join(' ')).toLowerCase();
           if (!hay.includes(q)) return false;
         }
         return true;
@@ -458,6 +492,7 @@
         const genderClass = getGenderGroupCardClass(r.genderGroup);
         const hintParts = [normalizeGenderGroupLabel(r.genderGroup), `${r.santriCount} santri`];
         if (r.pembinaNames && r.pembinaNames.length) hintParts.push(`Pembina: ${r.pembinaNames.join(', ')}`);
+        if (r.badalNames && r.badalNames.length) hintParts.push(`Badal: ${r.badalNames.join(', ')}`);
         if (!r.active) hintParts.push('Nonaktif');
         return `
         <article class="card minimal-list-card${genderClass ? ` ${genderClass}` : ''}${r.active ? '' : ' is-inactive'}">
@@ -520,8 +555,10 @@
         if (!list.length) { body.innerHTML = bulanCtrl + '<div class="empty-state"><i class="fa-solid fa-user-slash"></i><p style="margin-top:6px;">Tidak ada santri.</p></div>'; attachSantriListBulanInput(); return; }
         body.innerHTML = bulanCtrl + `<p style="font-size:12px;color:var(--muted);margin-bottom:8px;">klik santri untuk menulis catatan</p>` + list.map(s => `
           <div class="srow" onclick='openSantri(${jsAttr(s.id)},${jsAttr(s.name)})'>
-            <div class="nm"><strong>${escapeHtml(s.name)}</strong>${s.statusKey === 'dibekukan' ? '<span class="santri-dibekukan-badge">Dibekukan</span>' : ''}<small>${escapeHtml(s.noInduk || '-')}</small></div>
-            <span class="chip">${s.entryCount} catatan</span>
+            <div class="nm">
+              <strong>${escapeHtml(s.name)}</strong>${s.statusKey === 'dibekukan' ? '<span class="santri-dibekukan-badge">Dibekukan</span>' : ''}<small>${escapeHtml(s.noInduk || '-')}</small>
+              ${renderWeekChips(s.weeks, data.minPerWeek)}
+            </div>
             <button class="secondary srow-view-rj" type="button" title="Lihat sheet Rekam Jejak bulan ${escapeHtml(state.bulan)}" onclick='event.stopPropagation(); viewRekamJejakSheet(${jsAttr(s.id)});'><i class="fa-solid fa-book-open"></i> Lihat RJ</button>
             <i class="fa-solid fa-chevron-right" style="color:var(--muted)"></i>
           </div>`).join('');
@@ -537,7 +574,10 @@
     async function openSantri(santriId, name) {
       state.activeSantri = { id: santriId, name };
       state.view = 'entries';
-      state.entryBulan = new Date().toISOString().slice(0, 7);
+      // Ikut bulan yg lagi difilter di daftar santri (state.bulan) -- bukan selalu bulan
+      // berjalan, biar konsisten: santri dibuka dari filter "Juli" harusnya langsung nampilin
+      // catatan Juli, bukan diam2 lompat ke bulan sekarang (keputusan user 2026-08-29).
+      state.entryBulan = state.bulan || new Date().toISOString().slice(0, 7);
       document.getElementById('dlgEyebrow').textContent = state.activeRegu.name + ' · ' + (state.bulan || '');
       document.getElementById('dlgTitle').textContent = name;
       setActiveDlgView('viewEntries');
@@ -601,7 +641,7 @@
             <div class="entry" data-id="${escapeHtml(e.id)}">
               <div class="et-date"><span>${fmtDateInWeek(e.tanggal)}</span>
                 <span><button class="ico-btn" onclick='editEntry(${jsAttr(e.id)})' title="Edit"><i class="fa-solid fa-pen"></i></button>
-                <button class="ico-btn del" onclick='deleteEntry(${jsAttr(e.id)})' title="Hapus"><i class="fa-solid fa-trash"></i></button></span>
+                <button class="ico-btn del" onclick='deleteEntry(${jsAttr(e.id)}, this)' title="Hapus"><i class="fa-solid fa-trash"></i></button></span>
               </div>
               <div class="et-text">${escapeHtml(e.teks)}</div>
             </div>`).join('') : '<p style="padding:2px 4px 10px;color:var(--muted);font-size:12px;font-style:italic;">Belum ada catatan di pekan ini.</p>'}
@@ -616,12 +656,14 @@
       const teks = document.getElementById('etText').value.trim();
       if (!tanggal) { dlgNotice('Tanggal wajib diisi.', 'error'); return; }
       if (!teks) { dlgNotice('Tulis catatan dulu.', 'error'); return; }
+      const btn = document.getElementById('etSaveBtn');
+      btn.disabled = true;
       try {
         await api('perkembangan.save', { id: id || '', santriId: state.activeSantri.id, reguId: state.activeRegu.id, tanggal, teks }, 'POST');
         document.getElementById('etText').value = '';
         dlgNotice('Catatan disimpan.', 'success');
         await renderEntries();
-      } catch (e) { dlgNotice(e.message, 'error'); }
+      } catch (e) { dlgNotice(e.message, 'error'); } finally { btn.disabled = false; }
     }
     async function editEntry(id) {
       const data = await api('perkembangan.entryList', { santriId: state.activeSantri.id, reguId: state.activeRegu.id, bulan: state.entryBulan });
@@ -634,10 +676,11 @@
       btn.onclick = () => saveEntry(id);
       document.getElementById('etText').focus();
     }
-    async function deleteEntry(id) {
+    async function deleteEntry(id, btn) {
       if (!canManagePerkembanganScoped()) { dlgNotice('Mudir hanya bisa melihat catatan perkembangan, tidak bisa menghapus.', 'error'); return; }
       if (!confirm('Hapus catatan ini?')) return;
-      try { await api('perkembangan.delete', { id }, 'POST'); await renderEntries(); } catch (e) { dlgNotice(e.message, 'error'); }
+      if (btn) btn.disabled = true;
+      try { await api('perkembangan.delete', { id }, 'POST'); await renderEntries(); } catch (e) { dlgNotice(e.message, 'error'); if (btn) btn.disabled = false; }
     }
 
     async function loadTemplates() { try { const d = await api('perkembangan.template.list'); state.templates = d.templates || []; } catch (e) { state.templates = []; } }
@@ -646,6 +689,13 @@
     // SYNC di dekat script ini dan di blok CSS-nya. renderRekamJejak() salinan dari raport&rekamJejak;
     // sisanya (view di dalam #dlg, bukan dialog terpisah) khusus halaman ini.
     function fmtMonth(ym) { if (!/^\d{4}-\d{2}$/.test(ym || '')) return ym || '-'; const [y, m] = ym.split('-'); return BULAN_ID[parseInt(m, 10) - 1] + ' ' + y; }
+    // SYNC: sama dengan prevMonthStr() di pages/raport&rekamJejak/index.html — dipakai tombol "Lihat Bulan Lalu" di renderRekamJejak().
+    function prevMonthStr(ym) {
+      const [y, m] = (ym || '').split('-').map(Number);
+      if (!y || !m) return ym;
+      const d = new Date(y, m - 2, 1);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    }
     function renderRekamJejak(d) {
       const bulanLabel = fmtMonth(d.bulan);
       const ident = `<div class="rp-ident">
@@ -665,12 +715,16 @@
         ? `<table class="rp-tbl"><thead><tr><th>Tgl</th><th>Jenis</th><th>Detail</th><th class="num">Nilai</th></tr></thead><tbody>` +
           d.hafalan.map(h => `<tr><td>${escapeHtml(h.tanggal)}</td><td>${escapeHtml(h.jenisLabel)}</td><td>${escapeHtml(h.detail)}</td><td class="num">${escapeHtml(h.nilai || '-')}</td></tr>`).join('') +
           `</tbody><tfoot><tr><td colspan="2">Total</td><td colspan="2">Ziyadah: ${d.hafalanTotals.ziyadah} &nbsp;|&nbsp; Sabaqi: ${d.hafalanTotals.sabaqi} &nbsp;|&nbsp; Manzili: ${d.hafalanTotals.manzili} &nbsp;|&nbsp; Muroja'ah: ${d.hafalanTotals.murojaah || 0}</td></tr></tfoot></table>`
-        : '<p class="muted-note">Belum ada data hafalan bulan ini.</p>';
+        : `<p class="muted-note">Belum ada data hafalan bulan ini.</p>
+           <p class="muted-note">Data bulan ini kosong, coba cek bulan sebelumnya.</p>
+           <button type="button" class="secondary rj-prev-month-btn" onclick="rjPrevMonth('${escapeHtml(d.santri.id)}')">Lihat Bulan Lalu</button>`;
       const ujian = d.ujian && d.ujian.length
-        ? `<table class="rp-tbl"><thead><tr><th>Tgl</th><th>Kelas</th><th class="num">Nilai</th><th>Catatan</th></tr></thead><tbody>` +
-          d.ujian.map(u => `<tr><td>${escapeHtml(u.tanggal)}</td><td>${escapeHtml(u.kelasName)}</td><td class="num">${escapeHtml(u.nilai)}</td><td>${escapeHtml(u.catatan || '-')}</td></tr>`).join('') +
+        ? `<table class="rp-tbl"><thead><tr><th>Tgl</th><th>Kelas</th><th>Nama Ujian</th><th class="num">Nilai</th><th>Catatan</th></tr></thead><tbody>` +
+          d.ujian.map(u => `<tr><td>${escapeHtml(u.tanggal)}</td><td>${escapeHtml(u.kelasName)}</td><td>${escapeHtml(u.sesi ? 'Ujian-' + u.sesi : '-')}</td><td class="num">${escapeHtml(u.nilai)}</td><td>${escapeHtml(u.catatan || '-')}</td></tr>`).join('') +
           `</tbody></table>`
-        : '<p class="muted-note">Belum ada data ujian bulan ini.</p>';
+        : `<p class="muted-note">Belum ada data ujian bulan ini.</p>
+           <p class="muted-note">Data bulan ini kosong, coba cek bulan sebelumnya.</p>
+           <button type="button" class="secondary rj-prev-month-btn" onclick="rjPrevMonth('${escapeHtml(d.santri.id)}')">Lihat Bulan Lalu</button>`;
       const nasehat = d.nasehat ? `<div class="rp-sec"><h2>Pesan &amp; Nasehat</h2><div class="rj-nasehat">${escapeHtml(d.nasehat)}</div></div>` : '';
       return `<div class="raport-page">
         <div class="rp-head"><h1>Rekam Jejak Santri</h1><p>Laporan Perkembangan Bulanan — ${escapeHtml(bulanLabel)}</p></div>
@@ -685,6 +739,11 @@
     }
     // Tampilkan sheet RJ sebagai VIEW di dalam #dlgBody (dialog #dlg yang sudah terbuka), bukan dialog baru
     // — dipanggil dari tombol "Lihat RJ" di srow (renderSantri()), jadi "kembali" selalu balik ke daftar santri.
+    function rjPrevMonth(santriId) {
+      state.bulan = prevMonthStr(state.bulan);
+      viewRekamJejakSheet(santriId);
+    }
+
     async function viewRekamJejakSheet(santriId) {
       state.view = 'rekamJejak';
       document.getElementById('dlgEyebrow').textContent = state.activeRegu.name + ' · Rekam Jejak · ' + (state.bulan || '');
@@ -722,6 +781,7 @@
     window.openRegu = openRegu; window.openSantri = openSantri; window.backToSantri = backToSantri;
     window.editEntry = editEntry; window.deleteEntry = deleteEntry; window.goPage = goPage;
     window.viewRekamJejakSheet = viewRekamJejakSheet; window.closeRekamJejakView = closeRekamJejakView; window.printRekamJejakView = printRekamJejakView;
+    window.rjPrevMonth = rjPrevMonth;
 
     const session = getStoredSession();
     if (!session) { clearSession(); window.location.replace('/pages/login/'); }
@@ -750,7 +810,7 @@
         try { await loadRegu(); } catch (e) { showNotice(e.message || 'Gagal memuat ulang data.', 'error'); }
       });
       document.getElementById('fTa').addEventListener('change', function () { state.fTa = this.value; applyFilter(); });
-      document.getElementById('fSearch').addEventListener('input', function () { state.fSearch = this.value; applyFilter(); });
+      document.getElementById('fSearch').addEventListener('input', PSUI.debounce(function () { state.fSearch = this.value; applyFilter(); }, PSUI.AUTOSAVE_DEBOUNCE_MS));
       document.getElementById('fStatus').addEventListener('change', function () { state.fStatus = this.value; applyFilter(); });
       document.getElementById('fSort').addEventListener('change', function () { state.fSort = this.value; applyFilter(); });
       document.getElementById('fPageSize').addEventListener('change', function () { state.pageSize = parseInt(this.value, 10) || 12; state.page = 1; renderRegu(); });

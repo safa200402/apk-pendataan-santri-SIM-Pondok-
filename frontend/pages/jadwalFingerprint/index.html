@@ -11,7 +11,7 @@
   <script src="../../shared-ui.js"></script>
   <title>Jadwal Fingerprint</title>
   <link rel="stylesheet" href="../../shared-shell.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+  <link rel="stylesheet" href="../../vendor/fontawesome/css/all.min.css">
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700&display=swap');
     :root {
@@ -441,6 +441,8 @@
 
     async function saveAll() {
       const entries = collectEntries();
+      const btn = document.getElementById('saveAllButton');
+      btn.disabled = true;
       showNotice('Menyimpan koreksi...', '');
       try {
         const data = await api('jadwalFingerprint.saveOverride', {
@@ -452,10 +454,13 @@
         await loadTable();
       } catch (error) {
         showNotice(error.message || 'Gagal menyimpan koreksi.', 'error');
+      } finally {
+        btn.disabled = false;
       }
     }
 
-    async function resetOverride(pengurusId) {
+    async function resetOverride(pengurusId, btn) {
+      if (btn) btn.disabled = true;
       try {
         const data = await api('jadwalFingerprint.resetOverride', {
           pengurusId,
@@ -465,6 +470,7 @@
         await loadTable();
       } catch (error) {
         showNotice(error.message || 'Gagal menghapus koreksi.', 'error');
+        if (btn) btn.disabled = false;
       }
     }
 
@@ -510,6 +516,8 @@
 
     async function generateBridgeKey() {
       if (!confirm('Generate kunci baru? Kunci lama tidak berlaku lagi, script bridge yang sudah jalan harus diupdate .env-nya.')) return;
+      const btn = document.getElementById('generateBridgeKeyButton');
+      btn.disabled = true;
       try {
         const data = await api('fingerprint.settings.save', { generate: 'true' }, 'POST');
         document.getElementById('bridgeKeyInput').value = data.bridgeKey || '';
@@ -517,6 +525,8 @@
         showNotice('Kunci bridge baru berhasil dibuat.', 'success');
       } catch (error) {
         showNotice(error.message || 'Gagal generate kunci.', 'error');
+      } finally {
+        btn.disabled = false;
       }
     }
 
@@ -559,14 +569,16 @@
       `;
     }
 
-    async function deleteUnmatchedScan(id) {
+    async function deleteUnmatchedScan(id, btn) {
       if (!confirm('Hapus baris scan ini secara permanen dari database?')) return;
+      if (btn) btn.disabled = true;
       try {
         await api('jadwalFingerprint.deleteUnmatchedScan', { id }, 'POST');
         showNotice('Data scan dihapus.', 'success');
         loadUnmatchedScans();
       } catch (error) {
         showNotice(error.message || 'Gagal menghapus.', 'error');
+        if (btn) btn.disabled = false;
       }
     }
 
@@ -612,7 +624,7 @@
       document.getElementById('tableArea').addEventListener('click', event => {
         const btn = event.target.closest('[data-reset-id]');
         if (!btn) return;
-        resetOverride(btn.getAttribute('data-reset-id'));
+        resetOverride(btn.getAttribute('data-reset-id'), btn);
       });
       document.getElementById('tableArea').addEventListener('input', event => {
         const input = event.target.closest('.jfp-input');
@@ -653,7 +665,7 @@
         document.getElementById('unmatchedScansArea').addEventListener('click', event => {
           const btn = event.target.closest('[data-delete-unmatched-id]');
           if (!btn) return;
-          deleteUnmatchedScan(btn.getAttribute('data-delete-unmatched-id'));
+          deleteUnmatchedScan(btn.getAttribute('data-delete-unmatched-id'), btn);
         });
         loadUnmatchedScans();
       }

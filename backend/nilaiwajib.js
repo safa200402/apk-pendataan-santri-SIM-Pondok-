@@ -22,15 +22,21 @@ var DB_PATH = process.env.DB_PATH || path.join(DATA_DIR, 'pendataan-santri.sqlit
 var DB = new DatabaseSync(DB_PATH);
 DB.exec('PRAGMA journal_mode = WAL;');
 
-// Schema tabel nilaiWajib (auto-create kalau belum ada). Supaya tidak duplikasi definisi
-// dgn server.js utama (yang juga sudah punya schema nilaiWajib di SCHEMAS-nya), di sini
-// cukup CREATE TABLE IF NOT EXISTS — keduanya kompatibel (kolom identik).
-DB.exec('CREATE TABLE IF NOT EXISTS "nilaiWajib" (' +
+// Schema tabel nilaiWajibUjian (auto-create kalau belum ada). Supaya tidak duplikasi definisi
+// dgn server.js utama (yang juga sudah punya schema nilaiWajibUjian di SCHEMAS-nya), di sini
+// cukup CREATE TABLE IF NOT EXISTS — keduanya kompatibel (kolom identik). Tabel ini
+// menggantikan tabel lama "nilaiWajib" (tanpa tahun ajaran); migrasi data lama dijalankan
+// sekali di server.js (migrateNilaiWajibUjianTahunAjaran_). Setiap aturan terikat ke
+// "tahun_ajaran_id" -- model "ikut TA aktif otomatis": aturan dibuat & tampil hanya untuk
+// tahun ajaran yang sedang aktif (tahunAjaran.is_aktif = '1').
+DB.exec('CREATE TABLE IF NOT EXISTS "nilaiWajibUjian" (' +
   '_rowid INTEGER PRIMARY KEY AUTOINCREMENT,' +
-  '"id" TEXT,"jenis" TEXT,"sesi" TEXT,"id_kelas" TEXT,"tanggal" TEXT,"max_terlambat" TEXT,' +
+  '"id" TEXT,"jenis" TEXT,"sesi" TEXT,"id_kelas" TEXT,"tahun_ajaran_id" TEXT,"tanggal" TEXT,"max_terlambat" TEXT,' +
   '"catatan" TEXT,"status" TEXT,' +
   '"created_by_id" TEXT,"created_by_name" TEXT,"updated_by_id" TEXT,"updated_by_name" TEXT,' +
   '"edit_history" TEXT,"created_at" TEXT,"updated_at" TEXT)');
+// DB lama yang sempat kena versi awal tabel ini tanpa kolom tahun_ajaran_id: tambahkan.
+try { DB.exec('ALTER TABLE "nilaiWajibUjian" ADD COLUMN "tahun_ajaran_id" TEXT'); } catch (e) {}
 
 // Helper util (mini-clone dari yang ada di server.js utama, supaya modul ini mandiri).
 function cleanString_(v) { return v === undefined || v === null ? '' : String(v).trim(); }
@@ -76,19 +82,25 @@ function parseJenisSesiInput_(raw) {
   return { jenis: s, sesi: '1' };
 }
 
-// Baca semua baris nilaiWajib aktif.
-function listNilaiWajibRows_() {
-  return DB.prepare('SELECT _rowid AS __rowid, * FROM "nilaiWajib" ORDER BY _rowid ASC').all().map(function (r) {
+// Baca semua baris nilaiWajibUjian. Kalau taId dikirim, dibatasi ke tahun ajaran itu saja.
+function listNilaiWajibRows_(taId) {
+  var ta = cleanString_(taId);
+  var stmt = DB.prepare('SELECT _rowid AS __rowid, * FROM "nilaiWajibUjian"' +
+    (ta ? ' WHERE "tahun_ajaran_id" = ?' : '') + ' ORDER BY _rowid ASC');
+  var rows = ta ? stmt.all(ta) : stmt.all();
+  return rows.map(function (r) {
     return Object.assign({}, r, { _rowNumber: Number(r.__rowid) + 1 });
   });
 }
 function findNilaiWajibRowById_(id) {
-  var row = DB.prepare('SELECT _rowid AS __rowid, * FROM "nilaiWajib" WHERE "id" = ?').get(cleanString_(id));
+  var row = DB.prepare('SELECT _rowid AS __rowid, * FROM "nilaiWajibUjian" WHERE "id" = ?').get(cleanString_(id));
   if (!row) return null;
   return Object.assign({}, row, { _rowNumber: Number(row.__rowid) + 1 });
 }
+// ID unik global di seluruh tabel (lintas tahun ajaran), bukan per-TA -- supaya deep-link
+// ?openHalaqoh= / edit / delete by-id tetap tidak ambigu meski aturan tiap TA terpisah.
 function nextId_() {
-  var row = DB.prepare('SELECT MAX(CAST("id" AS INTEGER)) AS mx FROM "nilaiWajib"').get();
+  var row = DB.prepare('SELECT MAX(CAST("id" AS INTEGER)) AS mx FROM "nilaiWajibUjian"').get();
   return (row && !isNaN(parseInt(row.mx, 10)) ? parseInt(row.mx, 10) : 0) + 1;
 }
 
@@ -99,6 +111,7 @@ function normalizeNilaiWajibRow_(row) {
     jenis: cleanString_(row.jenis),
     sesi: cleanString_(row.sesi || '1'),
     kelasId: cleanString_(row.id_kelas),
+    tahunAjaranId: cleanString_(row.tahun_ajaran_id),
     tanggal: cleanString_(row.tanggal),
     maxTerlambat: cleanString_(row.max_terlambat),
     catatan: cleanString_(row.catatan),
@@ -130,6 +143,18 @@ function loadSantriName_(santriId) {
 function getActiveTahunAjaranId_() {
   var row = DB.prepare('SELECT "id" FROM "tahunAjaran" WHERE "is_aktif" = \'1\' LIMIT 1').get();
   return row ? cleanString_(row.id) : '';
+}
+// Aturan nilai wajib boleh dikelola untuk tahun ajaran mana pun (bukan cuma TA aktif) --
+// dialog "Atur Nilai Wajib" punya dropdown TA sendiri. Validasi id TA yang dikirim klien.
+function tahunAjaranExists_(taId) {
+  var id = cleanString_(taId);
+  if (!id) return false;
+  return !!DB.prepare('SELECT 1 FROM "tahunAjaran" WHERE "id" = ? LIMIT 1').get(id);
+}
+function loadTahunAjaranMeta_(taId) {
+  var row = DB.prepare('SELECT "id","nama","is_aktif" FROM "tahunAjaran" WHERE "id" = ?').get(cleanString_(taId));
+  if (!row) return null;
+  return { id: cleanString_(row.id), nama: cleanString_(row.nama), isAktif: cleanString_(row.is_aktif) === '1' };
 }
 function loadNilaiUpForKelas_(kelasId) {
   return DB.prepare('SELECT * FROM "nilaiUp" WHERE "id_kelas" = ?').all(cleanString_(kelasId)).map(function (r) {
@@ -251,15 +276,19 @@ function canManageNilaiGlobal_(session) {
   return labels.some(function (l) { return KWS.some(function (k) { return l.indexOf(k) !== -1; }); });
 }
 
-// List semua aturan nilai wajib GLOBAL (id_kelas kosong = berlaku semua kelas).
+// List semua aturan nilai wajib GLOBAL (id_kelas kosong = berlaku semua kelas) untuk satu
+// tahun ajaran. Default = TA aktif; klien boleh kirim ?taId=<id> untuk melihat/kelola TA lain
+// (dialog "Atur Nilai Wajib" punya dropdown TA). Kelengkapan dievaluasi thd kelas di TA itu.
 function handleList_(req, res) {
   try {
     var session = authenticateFromToken_(req.query.token || '');
     var todayStr = nowIso_().slice(0, 10);
-    var rows = listNilaiWajibRows_().map(normalizeNilaiWajibRow_).filter(function (r) { return r.active && !r.kelasId; });
-    // Aturan global: evaluasi terhadap kelas aktif DI TAHUN AJARAN AKTIF saja (kelas dari
-    // TA lama tidak ikut dihitung, meski statusnya masih "Aktif" di database).
-    var activeTaId = getActiveTahunAjaranId_();
+    var taId = cleanString_(req.query.taId) || getActiveTahunAjaranId_();
+    var taMeta = taId ? loadTahunAjaranMeta_(taId) : null;
+    if (!taId || !taMeta) return res.json({ ok: true, data: { items: [], today: todayStr, tahunAjaranId: '', tahunAjaran: null } });
+    var rows = listNilaiWajibRows_(taId).map(normalizeNilaiWajibRow_).filter(function (r) { return r.active && !r.kelasId; });
+    // Aturan global: evaluasi terhadap kelas aktif DI TAHUN AJARAN yang dipilih (kelas dari
+    // TA lain tidak ikut dihitung, meski statusnya masih "Aktif" di database).
     var allKelas = DB.prepare('SELECT * FROM "kelasSiang"').all().map(function (row) {
       return {
         id: cleanString_(row.id), name: cleanString_(row.name),
@@ -267,7 +296,7 @@ function handleList_(req, res) {
         santriIds: parseIdList_(row.id_murid), pengajarIds: parseIdList_(row.id_pengajar),
         active: cleanString_(row.status || 'Aktif').toLowerCase() !== 'nonaktif'
       };
-    }).filter(function (k) { return k.active && (!activeTaId || k.tahunAjaranId === activeTaId); });
+    }).filter(function (k) { return k.active && k.tahunAjaranId === taId; });
 
     var enriched = rows.map(function (r) {
       var kelasEvals = allKelas.map(function (k) {
@@ -285,7 +314,7 @@ function handleList_(req, res) {
         completeness: { status: aggStatus, totalKelas: totalKelas, kelasLengkap: kelasLengkap, kelasBelum: kelasBelum, kelasTerlambat: kelasTerlambat }
       });
     });
-    res.json({ ok: true, data: { items: enriched, today: todayStr } });
+    res.json({ ok: true, data: { items: enriched, today: todayStr, tahunAjaranId: taId, tahunAjaran: taMeta } });
   } catch (e) {
     res.status(e.code || 500).json({ ok: false, error: { message: e.message || 'Gagal.', code: e.code || 500 } });
   }
@@ -320,17 +349,24 @@ function handleSave_(req, res) {
     if (maxTerlambat < tanggal) return res.status(400).json({ ok: false, error: { message: 'Tanggal maksimal terlambat tidak boleh sebelum tanggal ujian.', code: 400 } });
     if (!canManageNilaiGlobal_(session)) return res.status(403).json({ ok: false, error: { message: 'Anda tidak punya akses untuk mengatur nilai wajib.', code: 403 } });
 
+    // Aturan terikat ke tahun ajaran. Klien (dropdown TA di dialog) kirim b.taId; default ke
+    // TA aktif kalau tidak dikirim. Boleh TA mana pun asal id-nya valid.
+    var taId = cleanString_(b.taId) || getActiveTahunAjaranId_();
+    if (!taId || !tahunAjaranExists_(taId)) {
+      return res.status(400).json({ ok: false, error: { message: 'Tahun ajaran tidak valid. Pilih tahun ajaran dulu.', code: 400 } });
+    }
+
     var now = nowIso_();
     if (id) {
       var existing = findNilaiWajibRowById_(id);
       if (!existing) return res.status(404).json({ ok: false, error: { message: 'Aturan nilai wajib tidak ditemukan.', code: 404 } });
-      DB.prepare('UPDATE "nilaiWajib" SET "jenis"=?, "sesi"=?, "id_kelas"=?, "tanggal"=?, "max_terlambat"=?, "catatan"=?, "status"=?, "updated_by_id"=?, "updated_by_name"=?, "updated_at"=? WHERE "id"=?')
-        .run(jenis, sesi, '', tanggal, maxTerlambat, catatan, 'Aktif', cleanString_(session.id), cleanString_(session.name), now, id);
+      DB.prepare('UPDATE "nilaiWajibUjian" SET "jenis"=?, "sesi"=?, "id_kelas"=?, "tahun_ajaran_id"=?, "tanggal"=?, "max_terlambat"=?, "catatan"=?, "status"=?, "updated_by_id"=?, "updated_by_name"=?, "updated_at"=? WHERE "id"=?')
+        .run(jenis, sesi, '', taId, tanggal, maxTerlambat, catatan, 'Aktif', cleanString_(session.id), cleanString_(session.name), now, id);
       return res.json({ ok: true, data: { id: id, message: 'Aturan nilai wajib diperbarui.' } });
     }
     var newId = String(nextId_());
-    DB.prepare('INSERT INTO "nilaiWajib" ("id","jenis","sesi","id_kelas","tanggal","max_terlambat","catatan","status","created_by_id","created_by_name","updated_by_id","updated_by_name","created_at","updated_at") VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
-      .run(newId, jenis, sesi, '', tanggal, maxTerlambat, catatan, 'Aktif', cleanString_(session.id), cleanString_(session.name), cleanString_(session.id), cleanString_(session.name), now, now);
+    DB.prepare('INSERT INTO "nilaiWajibUjian" ("id","jenis","sesi","id_kelas","tahun_ajaran_id","tanggal","max_terlambat","catatan","status","created_by_id","created_by_name","updated_by_id","updated_by_name","created_at","updated_at") VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
+      .run(newId, jenis, sesi, '', taId, tanggal, maxTerlambat, catatan, 'Aktif', cleanString_(session.id), cleanString_(session.name), cleanString_(session.id), cleanString_(session.name), now, now);
     return res.json({ ok: true, data: { id: newId, message: 'Aturan nilai wajib ditambahkan.' } });
   } catch (e) {
     res.status(e.code || 500).json({ ok: false, error: { message: e.message || 'Gagal menyimpan.', code: e.code || 500 } });
@@ -345,9 +381,10 @@ function handleDelete_(req, res) {
     if (!id) return res.status(400).json({ ok: false, error: { message: 'ID wajib diisi.', code: 400 } });
     var existing = findNilaiWajibRowById_(id);
     if (!existing) return res.status(404).json({ ok: false, error: { message: 'Aturan nilai wajib tidak ditemukan.', code: 404 } });
-    // Aturan global — cek akses admin/akademik global.
+    // Aturan global — cek akses admin/akademik global. Aturan tahun ajaran mana pun boleh
+    // dihapus (dialog "Atur Nilai Wajib" bisa memilih TA lewat dropdown-nya sendiri).
     if (!canManageNilaiGlobal_(session)) return res.status(403).json({ ok: false, error: { message: 'Akses ditolak.', code: 403 } });
-    DB.prepare('DELETE FROM "nilaiWajib" WHERE "id" = ?').run(id);
+    DB.prepare('DELETE FROM "nilaiWajibUjian" WHERE "id" = ?').run(id);
     return res.json({ ok: true, data: { id: id, message: 'Aturan nilai wajib dihapus.' } });
   } catch (e) {
     res.status(e.code || 500).json({ ok: false, error: { message: e.message || 'Gagal menghapus.', code: e.code || 500 } });
@@ -363,8 +400,12 @@ function handleByKelas_(req, res) {
     var kelas = loadKelas_(kelasId);
     if (!kelas) return res.status(404).json({ ok: false, error: { message: 'Kelas tidak ditemukan.', code: 404 } });
     var todayStr = nowIso_().slice(0, 10);
-    // Aturan global (id_kelas kosong) berlaku untuk semua kelas, termasuk kelas ini.
-    var aturanList = listNilaiWajibRows_().map(normalizeNilaiWajibRow_).filter(function (r) { return r.active && !r.kelasId; });
+    // Badge kelengkapan per kelas dievaluasi pakai aturan tahun ajaran KELAS itu sendiri
+    // (bukan selalu TA aktif) -- supaya saat melihat kelas dari TA lain, badge-nya nyambung.
+    var taId = cleanString_(kelas.tahunAjaranId) || getActiveTahunAjaranId_();
+    if (!taId) return res.json({ ok: true, data: { kelasId: kelasId, kelasName: kelas.name, tahunAjaranId: '', items: [], summary: { total: 0, lengkap: 0, belum: 0, terlambat: 0 }, today: todayStr } });
+    // Aturan global (id_kelas kosong) tahun ajaran ini berlaku untuk semua kelas TA tsb, termasuk kelas ini.
+    var aturanList = listNilaiWajibRows_(taId).map(normalizeNilaiWajibRow_).filter(function (r) { return r.active && !r.kelasId; });
     var nilaiUpList = loadNilaiUpForKelas_(kelasId);
     var items = aturanList.map(function (a) {
       var ev = evaluateNilaiWajib_(a, kelas, nilaiUpList, todayStr);
@@ -372,7 +413,7 @@ function handleByKelas_(req, res) {
     });
     // Ringkasan agregat.
     var summary = { total: items.length, lengkap: items.filter(function (i) { return i.completeness.status === 'lengkap'; }).length, belum: items.filter(function (i) { return i.completeness.status === 'belum'; }).length, terlambat: items.filter(function (i) { return i.completeness.status === 'terlambat'; }).length };
-    return res.json({ ok: true, data: { kelasId: kelasId, kelasName: kelas.name, items: items, summary: summary, today: todayStr } });
+    return res.json({ ok: true, data: { kelasId: kelasId, kelasName: kelas.name, tahunAjaranId: taId, items: items, summary: summary, today: todayStr } });
   } catch (e) {
     res.status(e.code || 500).json({ ok: false, error: { message: e.message || 'Gagal.', code: e.code || 500 } });
   }

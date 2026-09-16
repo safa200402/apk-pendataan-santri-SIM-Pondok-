@@ -42,6 +42,13 @@
     .empty-state { padding: 32px 16px; text-align: center; color: var(--muted); font-size: 14px; line-height: 1.65; }
     h2, h3 { text-transform: uppercase; }
 
+    /* Pagination */
+    .paging-host { display: grid; gap: 8px; margin: 3px 0; }
+    .paging { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; }
+    .page-center { display: grid; gap: 8px; justify-items: center; }
+    .page-numbers { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+    .page-summary { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+
     /* Filter bar */
     .filter-bar {
       display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; align-items: center;
@@ -99,12 +106,43 @@
     .border-biru   { border-left-color: #4e8fc0; }
     .border-ungu   { border-left-color: #8b64c2; }
     .border-oranye { border-left-color: #e07b2c; }
+    .minimal-list-card.border-merah, .minimal-list-card.border-kuning, .minimal-list-card.border-hijau,
+    .minimal-list-card.border-biru, .minimal-list-card.border-ungu, .minimal-list-card.border-oranye { border-left-width: 4px; border-left-style: solid; }
 
     /* Range indicator */
     .range-info {
       font-size: 12px; color: var(--muted); font-weight: 600; padding: 6px 0 0;
     }
     .range-info span { color: var(--accent); font-weight: 700; }
+
+    /* Tempel Data (bulk paste) -- pola sama spt jadwalIbadah tab Khutbah Jum'at */
+    .tempel-textarea { width: 100%; box-sizing: border-box; min-height: 180px; padding: 10px 12px; border-radius: 10px; border: 1.5px solid var(--line); background: rgba(255,255,255,0.6); color: var(--ink); font-size: 13px; font-family: monospace; resize: vertical; }
+    .tempel-label { font-size: 12px; font-weight: 700; color: var(--muted); display: block; margin-bottom: 4px; }
+    .tempel-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .tempel-preview-item { padding: 12px 14px; border-radius: 12px; border: 1.5px solid var(--line); background: rgba(255,255,255,0.5); font-size: 13px; }
+    .tempel-preview-item.has-error { border-color: rgba(165,90,82,0.4); background: rgba(165,90,82,0.04); }
+    .tempel-preview-item.has-warning { border-color: rgba(181,132,57,0.4); background: rgba(181,132,57,0.04); }
+    .tempel-preview-item.ok { border-color: rgba(116,132,108,0.4); background: rgba(116,132,108,0.04); }
+    .tempel-preview-title { font-weight: 700; margin-bottom: 6px; }
+    .tempel-msg { font-size: 12px; margin-top: 4px; }
+    .tempel-msg.error { color: var(--danger); }
+    .tempel-msg.warn { color: var(--warning); }
+    .tempel-preview-list { display: flex; flex-direction: column; gap: 8px; }
+    .tempel-summary { font-size: 12.5px; color: var(--muted); }
+    .tempel-preview-area { display: none; flex-direction: column; gap: 10px; }
+    .tempel-preview-area.show { display: flex; }
+    .tempel-warna-legend { font-size: 12px; color: var(--muted); background: rgba(91,73,57,0.05); border: 1.5px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+    .tempel-warna-legend strong { color: var(--ink); display: block; margin-bottom: 6px; font-size: 12px; }
+    .tempel-warna-legend-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; }
+    .tempel-warna-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; vertical-align: middle; }
+
+    /* Hapus Semua Data -- 3 mode (semua / rentang tanggal / TA+semester) */
+    .delete-all-scope-options { display: grid; gap: 10px; margin-bottom: 4px; }
+    .delete-all-scope-opt { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 14px; cursor: pointer; }
+    .delete-all-scope-opt input[type="radio"] { width: auto; flex-shrink: 0; }
+    .delete-all-scope-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-left: 26px; }
+    .delete-all-scope-fields label { font-size: 12px; }
+    #deleteAllTaFields { grid-template-columns: 1fr; }
   </style>
 </head>
 <body>
@@ -134,7 +172,10 @@
 
           <div class="toolbar">
             <button class="primary" id="addButton" type="button">+ Tambah acara</button>
+            <button class="secondary" id="toggleExpandButton" type="button" data-expand-state="collapsed">Buka semua</button>
+            <button class="secondary" id="tempelButton" type="button">Tempel Data</button>
             <button class="secondary" id="refreshButton" type="button">Muat ulang</button>
+            <button class="danger" id="deleteAllButton" type="button" hidden>Hapus Semua Data</button>
           </div>
 
           <div class="filter-bar">
@@ -153,9 +194,11 @@
             </select>
           </div>
 
+          <div class="paging-host" id="paginationTop"></div>
           <div class="list" id="list">
             <p class="empty-state">Memuat data...</p>
           </div>
+          <div class="paging-host" id="paginationBottom"></div>
         </section>
       </div>
     </div>
@@ -236,14 +279,137 @@
         </div>
       </form>
     </dialog>
+    <dialog class="ps-floating-dialog danger-dialog" id="deleteAllDialog">
+      <form class="dialog-body duplicate-dialog-body ps-dialog-shell" id="deleteAllForm" method="dialog">
+        <div class="duplicate-dialog-head ps-dialog-header danger-dialog-copy">
+          <div>
+            <h3>Hapus data kaldik</h3>
+            <p id="deleteAllScopeDesc">Semua acara kalender akademik akan dihapus permanen. Tindakan ini tidak bisa dibatalkan.</p>
+          </div>
+        </div>
+
+        <div class="dialog-main">
+          <div class="delete-all-scope-options">
+            <label class="delete-all-scope-opt">
+              <input type="radio" name="deleteAllScope" value="all" checked>
+              <span>Hapus semuanya</span>
+            </label>
+            <label class="delete-all-scope-opt">
+              <input type="radio" name="deleteAllScope" value="range">
+              <span>Hapus berdasarkan rentang tanggal</span>
+            </label>
+            <div class="delete-all-scope-fields" id="deleteAllRangeFields" hidden>
+              <label>
+                Dari tanggal
+                <input type="date" id="deleteAllRangeStart">
+              </label>
+              <label>
+                Sampai tanggal
+                <input type="date" id="deleteAllRangeEnd">
+              </label>
+            </div>
+            <label class="delete-all-scope-opt">
+              <input type="radio" name="deleteAllScope" value="tahunAjaran">
+              <span>Hapus satu tahun ajaran &amp; semester</span>
+            </label>
+            <div class="delete-all-scope-fields" id="deleteAllTaFields" hidden>
+              <label>
+                Tahun ajaran &amp; semester
+                <select id="deleteAllTaSelect">
+                  <option value="">Pilih tahun ajaran...</option>
+                </select>
+              </label>
+            </div>
+          </div>
+
+          <strong>Untuk lanjut, ketik:</strong>
+          <code>HAPUS SEMUA</code>
+          <br>
+          <label>
+            Konfirmasi
+            <input id="deleteAllConfirmInput" type="text" autocomplete="off" placeholder="Ketik HAPUS SEMUA">
+          </label>
+        </div>
+
+        <div class="toolbar ps-dialog-footer">
+          <button class="danger" id="confirmDeleteAllButton" type="submit" disabled>Konfirmasi</button>
+          <button class="secondary" id="closeDeleteAllDialog" type="button">Batal</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog class="ps-floating-dialog" id="editHistoryDialog">
+      <div class="dialog-body ps-dialog-shell" style="min-width:280px;">
+        <div class="ps-dialog-header">
+          <div>
+            <h3>Riwayat Edit</h3>
+            <p id="editHistorySubtitle" style="font-size:13px;color:var(--muted);"></p>
+          </div>
+        </div>
+        <div id="editHistoryList" style="display:grid;gap:8px;margin-top:4px;"></div>
+        <div class="toolbar ps-dialog-footer" style="margin-top:12px;">
+          <button class="secondary" id="closeEditHistoryDialog" type="button">Tutup</button>
+        </div>
+      </div>
+    </dialog>
+    <dialog class="ps-floating-dialog" id="tempelDialog">
+      <div class="dialog-body ps-dialog-shell" style="min-width:320px;">
+        <div class="ps-dialog-header">
+          <div>
+            <h3>Tempel Data Kaldik</h3>
+            <p style="font-size:13px;color:var(--muted);">Tempel banyak acara sekaligus, satu blok per acara, dipisah baris kosong.</p>
+          </div>
+        </div>
+        <div class="tempel-warna-legend">
+          <strong>Pilihan WARNA (kategori acara):</strong>
+          <div class="tempel-warna-legend-grid">
+            <div><span class="tempel-warna-dot" style="background:#e57373"></span><b>merah</b> — Libur / Hari Besar</div>
+            <div><span class="tempel-warna-dot" style="background:#e6b800"></span><b>kuning</b> — Ujian / Evaluasi</div>
+            <div><span class="tempel-warna-dot" style="background:#5daa7a"></span><b>hijau</b> — Kegiatan</div>
+            <div><span class="tempel-warna-dot" style="background:#4e8fc0"></span><b>biru</b> — Akademik (default kalau kosong)</div>
+            <div><span class="tempel-warna-dot" style="background:#8b64c2"></span><b>ungu</b> — Rapat / Administrasi</div>
+            <div><span class="tempel-warna-dot" style="background:#e07b2c"></span><b>oranye</b> — Lainnya</div>
+          </div>
+        </div>
+        <div>
+          <label class="tempel-label" for="tempelInput">Data tempelan</label>
+          <textarea class="tempel-textarea" id="tempelInput" placeholder="JUDUL: Libur Nasional
+TANGGAL MULAI: 2026-08-17
+TANGGAL SELESAI: 2026-08-17
+WARNA: merah
+DESKRIPSI:
+
+JUDUL: Ujian Tengah Semester
+TANGGAL MULAI: 2026-09-14
+TANGGAL SELESAI: 2026-09-18
+WARNA: kuning
+DESKRIPSI: Semua kelas siang"></textarea>
+        </div>
+        <div class="tempel-actions">
+          <button class="primary" id="tempelParseBtn" type="button">Buat Preview</button>
+          <button class="secondary" id="tempelExampleBtn" type="button">Isi Contoh</button>
+          <button class="secondary" id="tempelClearBtn" type="button">Kosongkan</button>
+        </div>
+        <div id="tempelPreviewArea" class="tempel-preview-area">
+          <div class="tempel-summary" id="tempelSummary"></div>
+          <div class="tempel-preview-list" id="tempelPreviewList"></div>
+        </div>
+        <div class="toolbar ps-dialog-footer" style="margin-top:12px;">
+          <button class="primary" id="tempelSaveBtn" type="button" disabled>Simpan data valid</button>
+          <button class="secondary" id="closeTempelDialog" type="button">Tutup</button>
+        </div>
+      </div>
+    </dialog>
   </div>
 
   <script src="../../shared-access.js"></script>
   <script src="../../shared-nav.js"></script>
   <script src="../../shared-shell.js"></script>
   <script>
+    const API_BASE = window.location.origin + '/api';
     const STORAGE = { apiBase: 'ps_api_base', token: 'ps_token', session: 'ps_session' };
-    const state = { items: [], tahunAjaranList: [], deleteTargetId: null };
+    localStorage.setItem(STORAGE.apiBase, API_BASE);
+    const state = { items: [], tahunAjaranList: [], deleteTargetId: null, page: 1, pageSize: 15, total: 0, totalPages: 1, expandedIds: new Set() };
+    let visibleKaldikIds = [];
     const uiState = { currentNoticeId: '', noticeCounter: 0, noticeShownAt: 0, pendingNotice: null };
 
     const WARNA = {
@@ -272,6 +438,14 @@
         : getStoredSession();
       const p = session && session.permissions;
       return !!(p && (p.isAdmin || p.isSuperAdmin || p.isAcademic));
+    }
+
+    function canDeleteAllRecords() {
+      const session = window.PSAccess && typeof window.PSAccess.getScopedSession === 'function'
+        ? window.PSAccess.getScopedSession(getStoredSession())
+        : getStoredSession();
+      const p = session && session.permissions;
+      return !!(p && (p.isAdmin || p.isSuperAdmin));
     }
 
     function createNoticeElement(text, type) {
@@ -381,11 +555,96 @@
       });
     }
 
+    function buildPaginationList(page, totalPages) {
+      const maxNumbers = 10;
+      if (totalPages <= maxNumbers) {
+        return Array.from({ length: totalPages }, (_, index) => index + 1);
+      }
+      const middleSlots = maxNumbers - 2;
+      const pages = [1];
+      let start = Math.max(2, page - Math.floor(middleSlots / 2));
+      let end = start + middleSlots - 1;
+      if (end > totalPages - 1) {
+        end = totalPages - 1;
+        start = end - middleSlots + 1;
+      }
+      if (start > 2) pages.push('...');
+      for (let value = start; value <= end; value += 1) pages.push(value);
+      if (end < totalPages - 1) pages.push('...');
+      pages.push(totalPages);
+      return pages;
+    }
+
+    function renderPagination() {
+      const markup = state.total
+        ? `
+          <div class="paging">
+            <button class="secondary" type="button" data-page="${state.page - 1}" ${state.page <= 1 ? 'disabled aria-disabled="true"' : ''}>Sebelumnya</button>
+            <div class="page-center">
+              <div class="page-numbers">
+                ${buildPaginationList(state.page, state.totalPages).map(item => (
+                  item === '...'
+                    ? '<span class="page-summary">...</span>'
+                    : `<button class="secondary page-btn ${item === state.page ? 'active' : ''}" type="button" data-page="${item}">${item}</button>`
+                )).join('')}
+              </div>
+              <div class="page-summary">Halaman ${state.page} dari ${state.totalPages} | total ${state.total} data</div>
+            </div>
+            <button class="secondary" type="button" data-page="${state.page + 1}" ${state.page >= state.totalPages ? 'disabled aria-disabled="true"' : ''}>Berikutnya</button>
+          </div>
+        `
+        : '';
+      window.PSUI.syncPaginationHosts({ markup, visibleCount: state.items.length, totalCount: state.total, topId: 'paginationTop', bottomId: 'paginationBottom' });
+    }
+
+    function isItemExpanded(id) {
+      return state.expandedIds.has(id);
+    }
+
+    function pruneExpandedIds() {
+      const visibleIds = new Set(state.items.map(function(item) { return item.id; }));
+      Array.from(state.expandedIds).forEach(function(id) {
+        if (!visibleIds.has(id)) state.expandedIds.delete(id);
+      });
+    }
+
+    function syncExpandToggleButton() {
+      const button = document.getElementById('toggleExpandButton');
+      if (!button) return;
+      const hasItems = visibleKaldikIds.length > 0;
+      const allExpanded = hasItems && visibleKaldikIds.every(function(id) { return state.expandedIds.has(id); });
+      button.disabled = !hasItems;
+      button.dataset.expandState = allExpanded ? 'expanded' : 'collapsed';
+      button.textContent = allExpanded ? 'Tutup semua' : 'Buka semua';
+    }
+
+    function toggleItemExpanded(id) {
+      if (!id) return;
+      if (state.expandedIds.has(id)) state.expandedIds.delete(id);
+      else state.expandedIds.add(id);
+      renderList();
+    }
+
+    function toggleExpandedList() {
+      const allExpanded = visibleKaldikIds.length > 0 && visibleKaldikIds.every(function(id) { return state.expandedIds.has(id); });
+      if (allExpanded) visibleKaldikIds.forEach(function(id) { state.expandedIds.delete(id); });
+      else visibleKaldikIds.forEach(function(id) { state.expandedIds.add(id); });
+      renderList();
+    }
+
     function renderList() {
-      const items = getFilteredItems();
+      const filtered = getFilteredItems();
       const list  = document.getElementById('list');
+      state.total = filtered.length;
+      state.totalPages = Math.max(1, Math.ceil(state.total / state.pageSize));
+      if (state.page > state.totalPages) state.page = state.totalPages;
+      if (state.page < 1) state.page = 1;
+      const items = filtered.slice((state.page - 1) * state.pageSize, state.page * state.pageSize);
+      visibleKaldikIds = items.map(function(ev) { return ev.id; });
       if (!items.length) {
         list.innerHTML = '<p class="empty-state">Belum ada acara yang cocok dengan filter.<br>Klik "Tambah acara" untuk menambahkan.</p>';
+        renderPagination();
+        syncExpandToggleButton();
         return;
       }
       list.innerHTML = items.map(function(ev) {
@@ -396,20 +655,155 @@
           ? formatDate(ev.tanggalMulai)
           : formatDate(ev.tanggalMulai) + ' — ' + formatDate(ev.tanggalSelesai)
             + ' <span style="color:var(--muted);font-size:11px">(' + (days + 1) + ' hari)</span>';
+        const expanded = isItemExpanded(ev.id);
+        const idAttr = escapeHtml(ev.id);
+        const aria = expanded ? 'Tutup detail acara' : 'Buka detail acara';
 
-        return '<div class="card ev-card border-' + escapeHtml(ev.warna || 'biru') + '">'
-          + '<div class="ev-card-info">'
-          + '<p class="ev-card-judul">' + escapeHtml(ev.judul) + '</p>'
-          + '<p class="ev-card-date">' + dateLabel + '</p>'
-          + (ev.deskripsi ? '<p class="ev-card-desc">' + escapeHtml(ev.deskripsi) + '</p>' : '')
+        return '<article class="card minimal-list-card border-' + escapeHtml(ev.warna || 'biru') + (expanded ? ' is-expanded' : '') + '">'
+          + '<div class="minimal-list-card-head">'
+          +   '<div class="minimal-list-card-main" data-collapse="' + idAttr + '" role="button" tabindex="0" aria-expanded="' + (expanded ? 'true' : 'false') + '" aria-label="' + aria + '">'
+          +     '<p class="ev-card-judul">' + escapeHtml(ev.judul) + '</p>'
+          +     '<span class="minimal-list-card-hint">' + dateLabel + ' &nbsp;&middot;&nbsp; ' + escapeHtml(w.label) + '</span>'
+          +   '</div>'
+          +   '<button class="secondary minimal-list-card-toggle" type="button" data-collapse="' + idAttr + '" aria-expanded="' + (expanded ? 'true' : 'false') + '" aria-label="' + aria + '">' + (expanded ? 'Tutup' : 'Detail') + '</button>'
           + '</div>'
-          + '<div class="ev-card-actions">'
-          + '<span class="ev-badge-small" style="background:' + w.hex + '">' + escapeHtml(w.label) + '</span>'
-          + '<button class="secondary" type="button" data-edit="' + escapeHtml(ev.id) + '" style="padding:7px 12px;font-size:12px">Edit</button>'
-          + (canManageRecords() ? '<button class="danger" type="button" data-delete="' + escapeHtml(ev.id) + '" style="padding:7px 12px;font-size:12px">Hapus</button>' : '')
+          + '<div class="minimal-list-card-detail">'
+          +   '<div class="minimal-list-card-summary">'
+          +     '<p class="ev-card-date"><span class="ev-badge-small" style="background:' + w.hex + '">' + escapeHtml(w.label) + '</span> &nbsp; ' + dateLabel + '</p>'
+          +     (ev.deskripsi ? '<p class="ev-card-desc">' + escapeHtml(ev.deskripsi) + '</p>' : '<p class="ev-card-desc" style="opacity:0.6">Tidak ada deskripsi.</p>')
+          +   '</div>'
+          +   '<div class="toolbar minimal-list-card-actions">'
+          +     '<button class="secondary" type="button" data-edit="' + idAttr + '" style="padding:7px 12px;font-size:12px">Edit</button>'
+          +     '<button class="secondary" type="button" data-history="' + idAttr + '" style="padding:7px 12px;font-size:12px">Riwayat Edit</button>'
+          +     (canManageRecords() ? '<button class="danger" type="button" data-delete="' + idAttr + '" style="padding:7px 12px;font-size:12px">Hapus</button>' : '')
+          +   '</div>'
           + '</div>'
-          + '</div>';
+          + '</article>';
       }).join('');
+      renderPagination();
+      syncExpandToggleButton();
+    }
+
+    function showEditHistory(id) {
+      const item = state.items.find(function(x) { return x.id === id; });
+      if (!item) return;
+      document.getElementById('editHistorySubtitle').textContent = item.judul;
+      let history = [];
+      try { history = JSON.parse((item.record && item.record.edit_history) || '[]'); } catch (e) { history = []; }
+      const listEl = document.getElementById('editHistoryList');
+      if (!history.length) {
+        listEl.innerHTML = '<p style="color:var(--muted);font-size:13px;">Belum ada riwayat edit.</p>';
+      } else {
+        listEl.innerHTML = history.map(function(e, i) {
+          return '<div style="padding:10px 12px;border-radius:10px;background:rgba(255,248,230,0.85);border:1px solid var(--line);">'
+            + '<div style="font-weight:700;font-size:13px;">' + (i + 1) + '. ' + escapeHtml(e.name || '-') + '</div>'
+            + '<div style="font-size:12px;color:var(--muted);margin-top:2px;">' + escapeHtml(e.jabatan || '-') + ' &nbsp;·&nbsp; ' + escapeHtml(e.action || 'edit') + '</div>'
+            + '<div style="font-size:11px;color:var(--muted);margin-top:1px;">' + escapeHtml(e.at || '-') + '</div>'
+            + '</div>';
+        }).join('');
+      }
+      document.getElementById('editHistoryDialog').showModal();
+    }
+
+    // ── Tempel Data (bulk paste) -- pola sama spt jadwalIbadah tab Khutbah Jum'at,
+    // action backend 'kaldik.quickImportPreview'/'kaldik.quickImport'. Beda dari khutbah:
+    // tidak ada logika "update existing by tanggal" krn kaldik boleh banyak acara di
+    // tanggal sama -- tempel selalu nambah baris baru, duplikat cuma dikasih warning.
+    const TEMPEL_EXAMPLE = `JUDUL: Libur Nasional
+TANGGAL MULAI: 2026-08-17
+TANGGAL SELESAI: 2026-08-17
+WARNA: merah
+DESKRIPSI:
+
+JUDUL: Ujian Tengah Semester
+TANGGAL MULAI: 2026-09-14
+TANGGAL SELESAI: 2026-09-18
+WARNA: kuning
+DESKRIPSI: Semua kelas siang`;
+
+    let tempelPreviews = [];
+
+    function resetTempelPreviewUi() {
+      tempelPreviews = [];
+      document.getElementById('tempelPreviewArea').classList.remove('show');
+      document.getElementById('tempelPreviewList').innerHTML = '';
+      document.getElementById('tempelSummary').innerHTML = '';
+      const saveBtn = document.getElementById('tempelSaveBtn');
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Simpan data valid';
+    }
+
+    function openTempelDialog() {
+      document.getElementById('tempelInput').value = '';
+      resetTempelPreviewUi();
+      document.getElementById('tempelDialog').showModal();
+      document.getElementById('tempelInput').focus();
+    }
+
+    async function parseTempelPreview() {
+      const text = document.getElementById('tempelInput').value.trim();
+      if (!text) { showNotice('Teks tempelan kosong.', 'error'); return; }
+      const btn = document.getElementById('tempelParseBtn');
+      btn.disabled = true;
+      try {
+        const data = await api('kaldik.quickImportPreview', { text }, 'POST');
+        tempelPreviews = data.previews || [];
+        renderTempelPreview();
+      } catch (e) {
+        showNotice(e.message || 'Gagal membuat preview.', 'error');
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    function renderTempelPreview() {
+      const area = document.getElementById('tempelPreviewArea');
+      const list = document.getElementById('tempelPreviewList');
+      const summaryEl = document.getElementById('tempelSummary');
+      const saveBtn = document.getElementById('tempelSaveBtn');
+      const validCount = tempelPreviews.filter(p => p.canSave).length;
+      const invalidCount = tempelPreviews.length - validCount;
+      const warningCount = tempelPreviews.reduce((sum, p) => sum + p.warnings.length, 0);
+
+      summaryEl.textContent = `Total ${tempelPreviews.length} — ${validCount} siap disimpan, ${invalidCount} perlu dicek, ${warningCount} warning.`;
+
+      list.innerHTML = tempelPreviews.map(p => {
+        const cls = p.errors.length ? 'has-error' : p.warnings.length ? 'has-warning' : 'ok';
+        const icon = p.errors.length
+          ? '<i class="fa-solid fa-circle-xmark" style="color:var(--danger);"></i>'
+          : p.warnings.length
+            ? '<i class="fa-solid fa-triangle-exclamation" style="color:var(--warning);"></i>'
+            : '<i class="fa-solid fa-circle-check" style="color:#4a7a3f;"></i>';
+        const isSingle = p.tanggalMulai === p.tanggalSelesai;
+        const dateLabel = isSingle ? formatDate(p.tanggalMulai) : formatDate(p.tanggalMulai) + ' — ' + formatDate(p.tanggalSelesai);
+        return `<div class="tempel-preview-item ${cls}">
+          <div class="tempel-preview-title">${icon} #${p.index} — ${escapeHtml(p.judul || '(tanpa judul)')} — ${escapeHtml(dateLabel)}</div>
+          ${p.errors.map(e => `<div class="tempel-msg error"><i class="fa-solid fa-xmark"></i> ${escapeHtml(e)}</div>`).join('')}
+          ${p.warnings.map(w => `<div class="tempel-msg warn"><i class="fa-solid fa-triangle-exclamation"></i> ${escapeHtml(w)}</div>`).join('')}
+        </div>`;
+      }).join('');
+
+      area.classList.add('show');
+      saveBtn.disabled = validCount === 0;
+      saveBtn.textContent = validCount ? `Simpan ${validCount} data valid` : 'Simpan data valid';
+    }
+
+    async function saveTempel() {
+      const entries = tempelPreviews.filter(p => p.canSave);
+      if (!entries.length) return;
+      const btn = document.getElementById('tempelSaveBtn');
+      btn.disabled = true;
+      try {
+        const data = await api('kaldik.quickImport', { entries }, 'POST');
+        document.getElementById('tempelDialog').close();
+        showNotice(data.message || 'Data tersimpan.', 'success');
+        resetTempelPreviewUi();
+        document.getElementById('tempelInput').value = '';
+        await loadData();
+      } catch (e) {
+        showNotice(e.message || 'Gagal menyimpan.', 'error');
+        btn.disabled = false;
+      }
     }
 
     async function loadData() {
@@ -433,6 +827,7 @@
           }).join('');
 
         clearNotice();
+        pruneExpandedIds();
         renderList();
       } catch(err) {
         showNotice(err.message || 'Gagal memuat data.', 'error');
@@ -499,6 +894,8 @@
         warna:          warnaEl ? warnaEl.value : 'biru'
       };
 
+      const btn = event.submitter;
+      if (btn) btn.disabled = true;
       try {
         showNotice('Menyimpan...', 'info');
         await api('kaldik.save', { record }, 'POST');
@@ -507,6 +904,8 @@
         showNotice('Acara berhasil disimpan.', 'success');
       } catch(err) {
         showNotice(err.message || 'Gagal menyimpan.', 'error');
+      } finally {
+        if (btn) btn.disabled = false;
       }
     }
 
@@ -519,9 +918,10 @@
       document.getElementById('deleteDialog').showModal();
     }
 
-    async function confirmDelete() {
+    async function confirmDelete(btn) {
       const id = state.deleteTargetId;
       if (!id) return;
+      if (btn) btn.disabled = true;
       try {
         showNotice('Menghapus...', 'info');
         await api('kaldik.delete', { id }, 'POST');
@@ -531,6 +931,89 @@
         showNotice('Acara dihapus.', 'success');
       } catch(err) {
         showNotice(err.message || 'Gagal menghapus.', 'error');
+        if (btn) btn.disabled = false;
+      }
+    }
+
+    const DELETE_ALL_SCOPE_DESC = {
+      all: 'Semua acara kalender akademik akan dihapus permanen. Tindakan ini tidak bisa dibatalkan.',
+      range: 'Acara di dalam rentang tanggal yang dipilih akan dihapus permanen. Tindakan ini tidak bisa dibatalkan.',
+      tahunAjaran: 'Acara di dalam rentang tanggal ajaran &amp; semester yang dipilih akan dihapus permanen. Tindakan ini tidak bisa dibatalkan.'
+    };
+
+    function getDeleteAllScope() {
+      const checked = document.querySelector('input[name="deleteAllScope"]:checked');
+      return checked ? checked.value : 'all';
+    }
+
+    function syncDeleteAllScopeFields() {
+      const scope = getDeleteAllScope();
+      document.getElementById('deleteAllRangeFields').hidden = scope !== 'range';
+      document.getElementById('deleteAllTaFields').hidden = scope !== 'tahunAjaran';
+      document.getElementById('deleteAllScopeDesc').innerHTML = DELETE_ALL_SCOPE_DESC[scope] || DELETE_ALL_SCOPE_DESC.all;
+    }
+
+    function closeDeleteAllDialog() {
+      document.getElementById('deleteAllDialog').close();
+      document.getElementById('deleteAllConfirmInput').value = '';
+      document.getElementById('confirmDeleteAllButton').disabled = true;
+    }
+
+    function syncDeleteAllConfirmState() {
+      const matched = document.getElementById('deleteAllConfirmInput').value.trim() === 'HAPUS SEMUA';
+      document.getElementById('confirmDeleteAllButton').disabled = !matched;
+    }
+
+    function openDeleteAllDialog() {
+      if (!canDeleteAllRecords()) {
+        showNotice('Hanya Admin dan Super Admin yang bisa menghapus semua data kaldik.', 'error');
+        return;
+      }
+      const form = document.getElementById('deleteAllForm');
+      form.querySelector('input[name="deleteAllScope"][value="all"]').checked = true;
+      document.getElementById('deleteAllRangeStart').value = '';
+      document.getElementById('deleteAllRangeEnd').value = '';
+      const taSelect = document.getElementById('deleteAllTaSelect');
+      taSelect.innerHTML = '<option value="">Pilih tahun ajaran...</option>'
+        + state.tahunAjaranList.map(function(ta) {
+          return '<option value="' + escapeHtml(ta.id) + '">' + escapeHtml(ta.namaDisplay || ta.nama) + '</option>';
+        }).join('');
+      syncDeleteAllScopeFields();
+      document.getElementById('deleteAllDialog').showModal();
+      document.getElementById('deleteAllConfirmInput').value = '';
+      document.getElementById('confirmDeleteAllButton').disabled = true;
+      window.setTimeout(function() { document.getElementById('deleteAllConfirmInput').focus(); }, 20);
+    }
+
+    async function deleteAllKaldik(event) {
+      event.preventDefault();
+      const confirmation = document.getElementById('deleteAllConfirmInput').value.trim();
+      if (confirmation !== 'HAPUS SEMUA') {
+        showNotice('Tulis HAPUS SEMUA untuk melanjutkan.', 'error');
+        return;
+      }
+      const scope = getDeleteAllScope();
+      const payload = { scope };
+      if (scope === 'range') {
+        const start = document.getElementById('deleteAllRangeStart').value;
+        const end = document.getElementById('deleteAllRangeEnd').value;
+        if (!start || !end) { showNotice('Isi rentang tanggal terlebih dahulu.', 'error'); return; }
+        if (end < start) { showNotice('Tanggal selesai tidak boleh sebelum tanggal mulai.', 'error'); return; }
+        payload.tanggalMulai = start;
+        payload.tanggalSelesai = end;
+      } else if (scope === 'tahunAjaran') {
+        const taId = document.getElementById('deleteAllTaSelect').value;
+        if (!taId) { showNotice('Pilih tahun ajaran & semester terlebih dahulu.', 'error'); return; }
+        payload.tahunAjaranId = taId;
+      }
+      closeDeleteAllDialog();
+      try {
+        showNotice('Menghapus data...', 'info');
+        const data = await api('kaldik.deleteAll', payload, 'POST');
+        await loadData();
+        showNotice(data.message || 'Data berhasil dihapus.', 'success');
+      } catch(err) {
+        showNotice(err.message || 'Gagal menghapus data.', 'error');
       }
     }
 
@@ -551,29 +1034,75 @@
 
       window.PSUI.applyPermissionLock(document.getElementById('addButton'), canManageRecords(), 'Mudir hanya bisa melihat kalender akademik, tidak bisa menambah acara.');
       document.getElementById('addButton').addEventListener('click', function() { openDialog(null); });
+      window.PSUI.applyPermissionLock(document.getElementById('tempelButton'), canManageRecords(), 'Mudir hanya bisa melihat kalender akademik, tidak bisa menempel data.');
+      document.getElementById('tempelButton').addEventListener('click', openTempelDialog);
       document.getElementById('refreshButton').addEventListener('click', loadData);
+      document.getElementById('deleteAllButton').hidden = !canDeleteAllRecords();
+      document.getElementById('deleteAllButton').addEventListener('click', openDeleteAllDialog);
+      document.getElementById('closeDeleteAllDialog').addEventListener('click', closeDeleteAllDialog);
+      document.getElementById('deleteAllConfirmInput').addEventListener('input', syncDeleteAllConfirmState);
+      document.getElementById('deleteAllForm').addEventListener('submit', deleteAllKaldik);
+      document.querySelectorAll('input[name="deleteAllScope"]').forEach(function(radio) {
+        radio.addEventListener('change', syncDeleteAllScopeFields);
+      });
+      document.getElementById('deleteAllDialog').addEventListener('close', function() {
+        document.getElementById('deleteAllConfirmInput').value = '';
+        document.getElementById('confirmDeleteAllButton').disabled = true;
+      });
       document.getElementById('form').addEventListener('submit', saveForm);
       document.getElementById('closeDialog').addEventListener('click', function() { document.getElementById('dialog').close(); });
-      document.getElementById('deleteForm').addEventListener('submit', function(e) { e.preventDefault(); confirmDelete(); });
+      document.getElementById('deleteForm').addEventListener('submit', function(e) { e.preventDefault(); confirmDelete(e.submitter); });
       document.getElementById('closeDeleteDialog').addEventListener('click', function() { document.getElementById('deleteDialog').close(); });
+      document.getElementById('closeEditHistoryDialog').addEventListener('click', function() { document.getElementById('editHistoryDialog').close(); });
+      document.getElementById('closeTempelDialog').addEventListener('click', function() { document.getElementById('tempelDialog').close(); });
+      document.getElementById('tempelParseBtn').addEventListener('click', parseTempelPreview);
+      document.getElementById('tempelExampleBtn').addEventListener('click', function() { document.getElementById('tempelInput').value = TEMPEL_EXAMPLE; });
+      document.getElementById('tempelClearBtn').addEventListener('click', function() {
+        document.getElementById('tempelInput').value = '';
+        resetTempelPreviewUi();
+      });
+      document.getElementById('tempelSaveBtn').addEventListener('click', saveTempel);
 
       document.getElementById('form').elements.namedItem('tanggalMulai').addEventListener('change', syncRangeInfo);
       document.getElementById('form').elements.namedItem('tanggalSelesai').addEventListener('change', syncRangeInfo);
 
-      document.getElementById('filterTa').addEventListener('change', renderList);
-      document.getElementById('filterMonth').addEventListener('change', renderList);
-      document.getElementById('filterWarna').addEventListener('change', renderList);
+      document.getElementById('filterTa').addEventListener('change', function() { state.page = 1; renderList(); });
+      document.getElementById('filterMonth').addEventListener('change', function() { state.page = 1; renderList(); });
+      document.getElementById('filterWarna').addEventListener('change', function() { state.page = 1; renderList(); });
+
+      document.addEventListener('click', function(e) {
+        const page = e.target.getAttribute && e.target.getAttribute('data-page');
+        if (!page) return;
+        const nextPage = Number(page);
+        if (!nextPage || nextPage < 1 || nextPage > state.totalPages || nextPage === state.page) return;
+        state.page = nextPage;
+        renderList();
+      });
 
       document.getElementById('list').addEventListener('click', function(e) {
-        const editBtn   = e.target.closest('[data-edit]');
-        const deleteBtn = e.target.closest('[data-delete]');
+        const editBtn    = e.target.closest('[data-edit]');
+        const deleteBtn  = e.target.closest('[data-delete]');
+        const historyBtn = e.target.closest('[data-history]');
         if (editBtn) {
           const item = state.items.find(function(x) { return x.id === editBtn.getAttribute('data-edit'); });
           if (item) openDialog(item);
         } else if (deleteBtn) {
           openDeleteDialog(deleteBtn.getAttribute('data-delete'));
+        } else if (historyBtn) {
+          showEditHistory(historyBtn.getAttribute('data-history'));
+        } else {
+          const collapseTrigger = e.target.closest('[data-collapse]');
+          if (collapseTrigger) toggleItemExpanded(collapseTrigger.getAttribute('data-collapse'));
         }
       });
+      document.getElementById('list').addEventListener('keydown', function(e) {
+        const collapseTarget = e.target.closest('[data-collapse]');
+        if (!collapseTarget || collapseTarget.tagName === 'BUTTON') return;
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        e.preventDefault();
+        toggleItemExpanded(collapseTarget.getAttribute('data-collapse'));
+      });
+      document.getElementById('toggleExpandButton').addEventListener('click', toggleExpandedList);
     }
   </script>
 </body>

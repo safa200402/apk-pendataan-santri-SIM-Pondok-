@@ -627,6 +627,8 @@
         showNotice('Import semua data hanya untuk Super Admin.', 'error');
         return;
       }
+      const importBtn = document.getElementById('importAllButton');
+      if (importBtn) importBtn.disabled = true;
       try {
         showNotice('Mengimpor workbook semua data...', 'info');
         await window.PSExcel.importWorkbook(api, file, {
@@ -637,6 +639,8 @@
         await loadDashboard();
       } catch (error) {
         showNotice(error.message || 'Gagal import semua data.', 'error');
+      } finally {
+        if (importBtn) importBtn.disabled = false;
       }
     }
 

@@ -8,7 +8,7 @@
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="../../shared-ui.css">
   <link rel="stylesheet" href="../../shared-shell.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+  <link rel="stylesheet" href="../../vendor/fontawesome/css/all.min.css">
   <script src="../../shared-ui.js"></script>
   <title>Raport Santri</title>
   <style>
@@ -106,7 +106,9 @@
     .rp-pencapaian { font-size: 13.5px; line-height: 1.8; margin: 8px 0 14px; }
     .rp-pencapaian .k { display: inline-block; width: 110px; font-weight: 600; }
     .rp-desc { font-size: 13.5px; line-height: 1.7; white-space: pre-wrap; padding: 12px 16px; background: #9090901f; border-radius: 8px; border: 1px solid #e6dcc8; min-height: 60px; }
-    .muted-note { color: #999; font-size: 12.5px; font-style: italic; }
+    .muted-note { color: #999; font-size: 12.5px; font-style: italic; margin: 0; }
+    .rj-prev-month-btn { margin-top: 8px; }
+    @media print { .rj-prev-month-btn { display: none !important; } }
     .rp-missing { color: #7c4a00; background: #fff3cd; border-radius: 3px; padding: 1px 5px; font-style: italic; font-size: 12px; }
     p.rp-para.rp-missing {
       display: block;
@@ -234,6 +236,13 @@
     function escapeHtml(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
     function fmtMonth(ym) { if (!/^\d{4}-\d{2}$/.test(ym || '')) return ym || '-'; const [y, m] = ym.split('-'); return BULAN_ID[parseInt(m, 10) - 1] + ' ' + y; }
     function fmtDate(s) { if (!s) return '-'; const d = new Date(s + 'T00:00:00'); if (isNaN(d)) return s; return d.getDate() + ' ' + BULAN_ID[d.getMonth()] + ' ' + d.getFullYear(); }
+    // SYNC: sama dengan prevMonthStr() di pages/perkembanganSantri/index.html — dipakai tombol "Lihat Bulan Lalu" di renderRekamJejak().
+    function prevMonthStr(ym) {
+      const [y, m] = (ym || '').split('-').map(Number);
+      if (!y || !m) return ym;
+      const d = new Date(y, m - 2, 1);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    }
     function showNotice(text, type) {
       const stack = document.getElementById('noticeStack');
       const el = document.createElement('div'); el.className = `notice show ${type || ''}`.trim();
@@ -577,6 +586,12 @@
       window.print();
     }
 
+    function rjPrevMonth(santriId) {
+      const bulanInput = document.getElementById('bulanRjInput');
+      bulanInput.value = prevMonthStr(bulanInput.value);
+      viewRekamJejak(santriId);
+    }
+
     async function viewRekamJejak(santriId) {
       const bulan = document.getElementById('bulanRjInput').value || new Date().toISOString().slice(0, 7);
       const sheet = document.getElementById('rekamJejakSheet');
@@ -612,12 +627,16 @@
         ? `<table class="rp-tbl"><thead><tr><th>Tgl</th><th>Jenis</th><th>Detail</th><th class="num">Nilai</th></tr></thead><tbody>` +
           d.hafalan.map(h => `<tr><td>${escapeHtml(h.tanggal)}</td><td>${escapeHtml(h.jenisLabel)}</td><td>${escapeHtml(h.detail)}</td><td class="num">${escapeHtml(h.nilai || '-')}</td></tr>`).join('') +
           `</tbody><tfoot><tr><td colspan="2">Total</td><td colspan="2">Ziyadah: ${d.hafalanTotals.ziyadah} &nbsp;|&nbsp; Sabaqi: ${d.hafalanTotals.sabaqi} &nbsp;|&nbsp; Manzili: ${d.hafalanTotals.manzili} &nbsp;|&nbsp; Muroja'ah: ${d.hafalanTotals.murojaah || 0}</td></tr></tfoot></table>`
-        : '<p class="muted-note">Belum ada data hafalan bulan ini.</p>';
+        : `<p class="muted-note">Belum ada data hafalan bulan ini.</p>
+           <p class="muted-note">Data bulan ini kosong, coba cek bulan sebelumnya.</p>
+           <button type="button" class="btn secondary sm rj-prev-month-btn" onclick="rjPrevMonth('${escapeHtml(d.santri.id)}')">Lihat Bulan Lalu</button>`;
       const ujian = d.ujian && d.ujian.length
-        ? `<table class="rp-tbl"><thead><tr><th>Tgl</th><th>Kelas</th><th class="num">Nilai</th><th>Catatan</th></tr></thead><tbody>` +
-          d.ujian.map(u => `<tr><td>${escapeHtml(u.tanggal)}</td><td>${escapeHtml(u.kelasName)}</td><td class="num">${escapeHtml(u.nilai)}</td><td>${escapeHtml(u.catatan || '-')}</td></tr>`).join('') +
+        ? `<table class="rp-tbl"><thead><tr><th>Tgl</th><th>Kelas</th><th>Nama Ujian</th><th class="num">Nilai</th><th>Catatan</th></tr></thead><tbody>` +
+          d.ujian.map(u => `<tr><td>${escapeHtml(u.tanggal)}</td><td>${escapeHtml(u.kelasName)}</td><td>${escapeHtml(u.sesi ? 'Ujian-' + u.sesi : '-')}</td><td class="num">${escapeHtml(u.nilai)}</td><td>${escapeHtml(u.catatan || '-')}</td></tr>`).join('') +
           `</tbody></table>`
-        : '<p class="muted-note">Belum ada data ujian bulan ini.</p>';
+        : `<p class="muted-note">Belum ada data ujian bulan ini.</p>
+           <p class="muted-note">Data bulan ini kosong, coba cek bulan sebelumnya.</p>
+           <button type="button" class="btn secondary sm rj-prev-month-btn" onclick="rjPrevMonth('${escapeHtml(d.santri.id)}')">Lihat Bulan Lalu</button>`;
       const nasehat = d.nasehat ? `<div class="rp-sec"><h2>Pesan &amp; Nasehat</h2><div class="rj-nasehat">${escapeHtml(d.nasehat)}</div></div>` : '';
       return `<div class="raport-page">
         <div class="rp-head"><h1>Rekam Jejak Santri</h1><p>Laporan Perkembangan Bulanan — ${escapeHtml(bulanLabel)}</p></div>
@@ -631,7 +650,7 @@
       </div>`;
     }
 
-    window.viewRaport = viewRaport; window.viewRekamJejak = viewRekamJejak; window.goPage = goPage;
+    window.viewRaport = viewRaport; window.viewRekamJejak = viewRekamJejak; window.rjPrevMonth = rjPrevMonth; window.goPage = goPage;
     window.closeOverlay = closeOverlay; window.printOverlay = printOverlay;
 
     const session = getStoredSession();
@@ -642,7 +661,7 @@
       document.getElementById('bulanRjInput').value = new Date().toISOString().slice(0, 7);
       document.getElementById('taSelect').addEventListener('change', function () { state.tahunAjaranId = this.value; });
       document.getElementById('genderInput').addEventListener('change', function () { state.gender = this.value; applyFilter(); });
-      document.getElementById('searchInput').addEventListener('input', function () { state.search = this.value; applyFilter(); });
+      document.getElementById('searchInput').addEventListener('input', PSUI.debounce(function () { state.search = this.value; applyFilter(); }, PSUI.AUTOSAVE_DEBOUNCE_MS));
       const exportAllBtn = document.getElementById('exportAllBtn');
       const exportAllRjBtn = document.getElementById('exportAllRjBtn');
       if (canExportRaportRekamJejak(session)) {

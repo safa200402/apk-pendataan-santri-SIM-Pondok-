@@ -552,20 +552,30 @@
       }
     }
 
+    // logoutAllButton & ttdClearSavedBtn adalah <div class="btn">, bukan <button> sungguhan --
+    // .disabled tidak berefek pada div, jadi dikunci pakai flag "busy" manual (pola sama dgn
+    // quickImportState.busy di halaman lain) supaya tidak bisa diklik dobel selagi request jalan.
+    let logoutAllBusy = false;
     async function logoutAllSessions() {
+      if (logoutAllBusy) return;
       if (!confirm('Keluar dari semua perangkat yang sedang login? Kamu (di perangkat ini juga) perlu login ulang setelah ini.')) return;
+      logoutAllBusy = true;
       try {
         await api('account.logoutAllSessions', {}, 'POST');
       } catch (e) {
         showNotice(e.message || 'Gagal keluar dari semua perangkat.', 'error');
+        logoutAllBusy = false;
         return;
       }
       clearSession();
       window.location.replace('/pages/login/');
     }
 
+    let clearTtdBusy = false;
     async function clearTtdSaved() {
+      if (clearTtdBusy) return;
       if (!confirm('Hapus tanda tangan yang tersimpan?')) return;
+      clearTtdBusy = true;
       try {
         const data = await api('account.profile.save', { record: { name: state.account.name, ttd: '' } }, 'POST');
         state.account = data.account?.item || state.account;
@@ -574,6 +584,8 @@
         showTtdNotice('Tanda tangan dihapus.', '');
       } catch (e) {
         showTtdNotice(e.message || 'Gagal menghapus tanda tangan.', 'error');
+      } finally {
+        clearTtdBusy = false;
       }
     }
 
@@ -655,8 +667,11 @@
       }
       renderAvatar();
     }
+    // saveButton juga <div class="btn">, bukan <button> sungguhan -- dikunci pakai flag busy.
+    let saveProfileBusy = false;
     async function saveProfile(event) {
       event.preventDefault();
+      if (saveProfileBusy) return;
       const formData = new FormData(document.getElementById('profileForm'));
       const record = {};
       formData.forEach((value, key) => { record[key] = String(value || ''); });
@@ -668,6 +683,7 @@
       if (state.useDefaultPhoto) {
         record.use_default_photo = true;
       }
+      saveProfileBusy = true;
       try {
         showNotice('Menyimpan profil akun...', '');
         const data = await api('account.profile.save', { record }, 'POST');
@@ -682,6 +698,8 @@
         showNotice(data.message || 'Profil akun berhasil diperbarui.', '');
       } catch (error) {
         showNotice(error.message || 'Gagal menyimpan profil akun.', 'error');
+      } finally {
+        saveProfileBusy = false;
       }
     }
 

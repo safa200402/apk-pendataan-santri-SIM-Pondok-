@@ -1,0 +1,281 @@
+CATATAN KEAMANAN -- BROKEN ACCESS CONTROL DI FOLDER UPLOAD (OWASP A01)
+=======================================================================
+DITUNDA 2026-09-14. Belum ada kode yang diubah. Kalau mau dieksekusi,
+tinggal ikuti "5. RENCANA LANGKAH" di bawah -- semua status [ ] (belum).
+
+
+1. MASALAH
+----------
+backend/server.js:29590 memasang:
+  app.use(express.static(FRONTEND_DIR, { ... }))
+
+FRONTEND_DIR mencakup SELURUH folder frontend/, termasuk 15 folder upload
+di BACKUP_FILE_DIRS_ (backend/server.js:656-673): portal-logos,
+profile-photos, kelas-docs, santri-docs, izin-pulang-fotos,
+santri-sakit-fotos, pelanggaran-fotos, absensi-pengurus-fotos,
+buku-digital, bank-soal, jam-digital-logo, jam-digital-audio,
+jam-digital-videos, pengumuman-media, catatan-media, quiz-media.
+
+express.static TIDAK lewat middleware auth apa pun -> siapa saja yang
+tahu/nebak URL file (dari response API, history browser, forward chat)
+bisa akses langsung, termasuk dokumen KK/akte santri, foto pelanggaran,
+foto sakit, foto izin pulang -- walau tidak pernah login / sudah logout.
+Nama file dikasih random suffix (saveSantriDoc_ ~16550-16567, pola
+`fieldKey-santriId-timestamp-<4byte hex>.ext`) tapi itu cuma
+security-by-obscurity, bukan access control.
+
+Constraint: auth app ini BUKAN cookie session, tapi custom token di
+header `token` per request API (authenticateRequest_, server.js:20030).
+<img src>/<a href>/window.open() dari browser tidak bisa nyisipkan
+header custom -> route file baru tidak bisa cuma andalkan header token
+biasa.
+
+
+2. HASIL INVESTIGASI (SUDAH DIKERJAKAN, JANGAN DIULANG)
+--------------------------------------------------------
+
+2a. Tidak ada 1 helper JS terpusat untuk build URL file. Tiap halaman
+    reimplement sendiri (resolveAssetUrl versi lokal, resolveFotoUrl,
+    atau raw string concat '/' + path) -- total ~15+ titik yang perlu
+    disentuh kalau backend mengubah bentuk field-nya:
+      - daftarSantri/index.html : 1183 (resolveAssetUrl lokal, prefix
+        '../../'), 1294 (openDocUrlViewer), 2200 & 2426 (duplikat
+        '../../' + fileUrl untuk field admin_kk_file/admin_ktp_file/
+        admin_akta_file/jaminan_file)
+      - pelanggaran/index.html : 731, 908 (raw '/' + f.path, di-esc())
+      - santriSakit/index.html : 601, 829 (sama pola dgn pelanggaran)
+      - izinPulang/index.html : 649, 950-951 (window.open + img src,
+        TIDAK di-esc() -- beda dari 2 halaman di atas)
+      - inputAbsensiPengurus/index.html : 410-415 (resolveFotoUrl lokal),
+        614, 776 -- koordinatAbsensi/index.html TIDAK render foto ini
+        sama sekali
+      - editKelas/index.html : 2738, 2891 (raw '/' + f.path)
+      - catatanku/index.html : gambar di-insertEmbed ke Quill delta,
+        URL absolut sudah dari backend (server.js:30203)
+      - pengumuman/index.html : 507-508, 521-522 (editor); shared-shell.js
+        :1346,1369,1375 (popup pengumuman yang tampil ke SEMUA user login,
+        pengurus & santri -- ini konsumer paling luas)
+      - accountProfile/index.html:387-392, editPengurus/index.html:730-735,
+        portalSettings/index.html:373-378 -- masing2 versi lokal
+        resolveAssetUrl sendiri (bukan yang di shared-shell.js -- yang di
+        shared-shell.js:48-53 cuma dipakai internal shell, tidak diexport)
+
+    -> KESIMPULAN: pola yang cocok = pendekatan (a) signed URL, backend
+    yang embed URL-nya, frontend TIDAK perlu diubah, karena field yang
+    sama isinya tinggal ditambah query string sig+exp.
+
+2b. Preseden pola auth-via-query-string SUDAH ADA di codebase ini, tiru
+    gaya ini untuk route baru:
+      - GET /api/buku/file        server.js:30208 (token di req.query.token)
+      - GET /api/banksoal/file    server.js:30316
+      - GET /api/backup/download  server.js:30491
+      - GET /api/backup/download-db server.js:30519
+    Semua manual: baca token dari query -> authenticateRequest_(token,
+    false, '') -> cek permission spesifik -> fs.readFileSync/res.sendFile.
+    TIDAK ada middleware generik pembaca token di depan static (yang ada
+    cuma dispatcher app.all('/api', ...) server.js:29475, khusus JSON).
+
+    REKOMENDASI: jangan taruh token session mentah di query (itu yang
+    dipakai buku/banksoal/backup, risikonya nempel lama di browser
+    history/log karena token session hidup sampai logout). Untuk 15
+    folder upload ini, bikin token tanda tangan SENDIRI (HMAC + expiry)
+    yang berumur pendek, supaya kalau ke-share/ke-screenshot tidak bisa
+    dipakai lagi setelah kadaluarsa.
+
+2c. authenticateRequest_(token, allowSantri, scopeLabel) (server.js:20030):
+    - Token kosong/invalid -> createError_(..., 401).
+    - Bisa dipanggil pengurus-only dgn authenticateRequest_(token, false)
+      -- banyak dipakai sudah (30494, 30522).
+    - Session pengurus punya .permissions (dari resolvePengurusPermissions_)
+      dan .kelasIds; session santri TIDAK punya .permissions sama sekali.
+
+2d. canViewSantri / canManageSantri (resolvePengurusPermissions_,
+    server.js:20123): TIDAK ADA scoping per-santri sama sekali hari ini.
+      canViewSantri = canAccessPanel && !isPengabdian (20183-20186)
+      canManageSantri = isAdmin (20217)
+    santri.list (20436-20438) cuma cek blanket canViewSantri/
+    canManageSantri, tidak difilter per kelasIds/pembinaReguIds. Fungsi
+    raportAccessibleSantri_ (5349-5365) punya branch pembinaReguIds tapi
+    itu DEAD CODE (canAccessPanel selalu true duluan). Tidak ketemu
+    fungsi seperti canSeeSantri_/filterSantriByAccess yang scoping per
+    id santri.
+    -> KONSEKUENSI UNTUK RENCANA INI: gate realistis untuk santri-docs/
+    pelanggaran-fotos/santri-sakit-fotos/izin-pulang-fotos ya cuma
+    "pengurus aktif non-pengabdian" (canViewSantri), SAMA seperti yang
+    sudah berlaku di santri.list hari ini -- BUKAN pengecekan per kelas/
+    halaqoh/regu spesifik (itu tidak ada infrastrukturnya sekarang).
+    FK yang dibawa tiap record: santri_id langsung (dokumen ada di kolom
+    santri sendiri; pelanggaran/santriSakit/izinPulang fotos_json di
+    baris masing2 sheet, semua cuma punya santri_id, TIDAK ada id_kelas/
+    id_halaqoh/id_regu).
+
+2e. canAccessLevel_() (server.js:415): groupKey+level untuk ADDON/FEATURE
+    gate (mis. 'riwayatLog','view'), BUKAN entity-level kelas/halaqoh/
+    regu. Bukan alat yang pas untuk per-santri, cuma referensi pola
+    fallbackFn.
+
+2f. Export raport/rekamJejak & daftarSantri PDF/Excel: 100% client-side
+    (jsPDF/ExcelJS di browser, backend cuma kirim JSON). Backend TIDAK
+    pernah fs.readFileSync file2 ini untuk export -> export TIDAK
+    terdampak oleh perubahan ini. Satu2nya tempat path file nongol di
+    export = raw-table Excel daftarSantri, sebagai teks path (server.js
+    927-934), bukan gambar embed.
+
+2g. catatan-media beda dari yang lain: akses per-dokumen, bukan blanket.
+    catatanResolveAccess_ (server.js:30697-30720) -- owner selalu penuh,
+    doc.share_everyone ('view'/'edit'/''), shares per user/jabatan.
+    Upload route SUDAH cek ini (30182), tapi baca file via express.static
+    TIDAK cek sama sekali -- kalau share di-revoke, file lama tetap bisa
+    diakses selamanya oleh siapa yang pernah punya URL-nya. Path shape:
+    catatan-media/<docId>/<filename> -- docId ada di path, bisa dipakai
+    re-check catatanResolveAccess_ saat serve.
+
+2h. pengumuman-media: target audience by jabatan + kecuali_pengurus_ids
+    (exclusion list, lihat server.js:1495, 11163-11166, 11382-11390).
+    Exclusion ini cuma dipakai untuk nentuin popup nongol atau tidak,
+    BUKAN untuk membatasi siapa yang boleh fetch file media-nya. User
+    TIDAK menyebut folder ini di daftar "privat" atau "publik" saat
+    minta task -- perlu keputusan: replikasi penuh target+exclusion per
+    file (mahal) vs cukup gate "harus login" saja (pengurus atau santri,
+    tanpa cek exclusion). Rekomendasi: mulai dari "harus login" dulu.
+
+2i. quiz-media: HANYA audio latar dekoratif (dicek: editSoal/index.html
+    tidak punya field audio sama sekali -- audio adalah setting level-
+    quiz, bukan per-soal). TIDAK ada isi soal/kunci jawaban di sini.
+    normalizeQuizBgAudioUrl_ (13951-13958) sudah whitelist path+ekstensi
+    audio. Rekomendasi: AMAN tetap PUBLIC, skip dari signing.
+
+2j. bank-soal & buku-digital: SUDAH ada rute API sendiri yang auth-gated
+    (bukan lewat express.static sama sekali dari sisi frontend):
+      GET /api/buku/file      server.js:30208 -> cek canOpenBuku_ (25074-
+                               25079, tri-level semua/terbatas/dikunci)
+      GET /api/banksoal/file  server.js:30316 -> HANYA cek session ada,
+                               TIDAK re-check role/permission (beda dgn
+                               upload-nya di 30256 yang cek canUploadSoal)
+    MASALAH: folder fisiknya TETAP diserve mentah oleh express.static,
+    jadi URL langsung ke file bisa BYPASS canOpenBuku_ / role-check di
+    atas sama sekali. Perbaikan yang perlu: TUTUP akses langsung ke 2
+    folder ini di static (redirect ke / atau blok), TIDAK perlu bikin
+    signed-url baru karena rute API-nya sudah ada dan sudah benar (kecuali
+    bug missing-role-check di banksoal, itu bug terpisah, opsional
+    dibenahi sekalian karena sekelas OWASP A01 juga).
+
+2k. portal-logos, jam-digital-logo/audio/videos: dikonfirmasi memang
+    dipakai PRE-LOGIN / kiosk publik (login.html:550-563, loginSantri.html
+    :488-500 fetch portal.brand.public.get sebelum login; whitelist no-auth
+    action di server.js:30599). TETAP PUBLIC, tidak diubah.
+
+2l. Bug kecil terkait (bukan fokus utama, DIBIARKAN untuk sekarang):
+    pelanggaran.foto.delete & santri.sakit.foto.delete terima raw `path`
+    dari client (pelanggaran/index.html:914, santriSakit/index.html:835)
+    dan fs.unlinkSync tanpa path.resolve+root-containment check seperti
+    deleteSantriDoc_ (16570-16576) punya -- cuma dilindungi "harus match
+    path yang tersimpan di record" (server.js:26278-26290, 25039-25055).
+    izin.pulang.foto.delete lebih aman, pakai fotoIndex bukan path
+    (izinPulang/index.html:960).
+
+
+3. KLASIFIKASI FOLDER (HASIL VERIFIKASI KE PEMAKAIAN NYATA)
+-------------------------------------------------------------
+PRIVAT (perlu signed-url gating):
+  santri-docs            -> gate: canViewSantri (sama spt santri.list)
+  pelanggaran-fotos       -> gate: permission halaman pelanggaran (cek
+                             saat implementasi persisnya nama flag apa
+                             di shared-access.js / authorizeAction_)
+  santri-sakit-fotos      -> gate: canAccessSantriSakit (server.js:21011)
+  izin-pulang-fotos       -> gate: permission halaman izinPulang (cek
+                             case 'izinPulang.*' di authorizeAction_)
+  profile-photos          -> gate: cukup "sudah login" (pengurus/santri),
+                             bukan data serahasia KK/akte
+  absensi-pengurus-fotos  -> gate: permission halaman inputAbsensiPengurus
+  catatan-media           -> gate: catatanResolveAccess_ PER DOKUMEN (pakai
+                             docId dari path), BUKAN blanket login
+  kelas-docs              -> gate: canManageKelasSiang / Mudir (shared-
+                             access.js:51)
+  pengumuman-media        -> gate minimal: "sudah login" (lihat 2h)
+
+TETAP PUBLIC (tidak diubah):
+  portal-logos, jam-digital-logo, jam-digital-audio, jam-digital-videos
+  bank-soal, buku-digital  -> tutup bypass fisiknya saja, API gate-nya
+                              sudah ada dan dipakai (lihat 2j)
+  quiz-media               -> tetap public, cuma audio dekoratif (2i)
+
+
+4. YANG TIDAK BOLEH BERUBAH (SUDAH DIKONFIRMASI AMAN)
+--------------------------------------------------------
+- Backup/restore: baca folder langsung dari disk (BACKUP_FILE_DIRS_,
+  656-673), TIDAK lewat HTTP -- tidak tersentuh perubahan ini sama sekali.
+- Konstanta *_DIR / *_DIR_NAME (592-673) -- JANGAN dipindah/diganti,
+  cuma tambah rute baru DI DEPAN express.static (urutan register Express
+  menentukan prioritas).
+- Export PDF/Excel raport & daftarSantri -- client-side, tidak baca file
+  dari disk backend (2f), aman.
+
+
+5. RENCANA LANGKAH (SEMUA STATUS [ ] -- BELUM DIKERJAKAN)
+------------------------------------------------------------
+Estimasi total: kira-kira 10-11 jam kerja (~1.5-2 hari).
+
+[ ] Langkah 1 -- Finalisasi keputusan desain (approach a: signed URL
+    HMAC+expiry; default masa berlaku sig -- pertimbangkan beberapa jam,
+    bukan menit, karena dipasang di <img src> yang bisa nempel lama di
+    tab terbuka; konfirmasi ulang klasifikasi di bagian 3, terutama
+    pengumuman-media & quiz-media yang tidak disebut user secara
+    eksplisit).                                         -- 0.5 jam
+
+[ ] Langkah 2 -- Backend: helper signing & guard traversal.
+    Fungsi baru gaya ES5 + underscore: signFileUrl_(relPath, ttlMs),
+    verifyFileSignedUrl_(relPath, sig, exp), dan
+    resolveSafePathInDir_(dir, filename) yang wajib path.basename()
+    + cek hasil path.resolve() tetap di dalam dir (niru pola yang
+    sudah ada di deleteSantriDoc_, 16570-16576).          -- 1 jam
+
+[ ] Langkah 3 -- Backend: 1 route pencegat generik untuk semua folder
+    privat di bagian 3, didaftarkan SEBELUM server.js:29590. Validasi
+    sig+exp+traversal di sini saja (izin per-entitas SUDAH dicek saat
+    signing di langkah 4, jadi route ini tidak perlu re-check
+    canViewSantri dkk, kecuali catatan-media yang perlu re-check
+    catatanResolveAccess_ karena share bisa di-revoke setelah URL
+    disebar -- lihat 2g).                                -- 1.5 jam
+
+[ ] Langkah 4 -- Backend: sisipkan signed URL ke response API yang
+    SUDAH auth-gated (santri record x4 field dokumen, pelanggaran/
+    santriSakit/izinPulang fotos[], kelas-docs files[], profile
+    photoUrl x3 halaman pemanggil, absensiPengurus fotoUrl, catatanku
+    -- rewrite URL gambar di dalam Quill delta JSON saat dibaca,
+    pengumuman-media di editor + popup shared-shell). Titik tersentuh
+    paling banyak di langkah ini.                         -- 3 jam
+
+[ ] Langkah 5 -- Backend: tutup bypass fisik bank-soal & buku-digital
+    di static middleware (folder tetap ada, cuma direct-URL diblok;
+    API /api/buku/file & /api/banksoal/file tidak diubah). Opsional:
+    sekalian tambah role-check yang hilang di GET /api/banksoal/file
+    (2j).                                                  -- 1 jam
+
+[ ] Langkah 6 -- Frontend: verifikasi ~15 titik di bagian 2a tidak
+    double-prefix / tidak rusak karena field sekarang berisi query
+    string tambahan. Rapikan inkonsistensi kecil sambil lewat: esc()
+    yang hilang di izinPulang (649, 950-951).              -- 1 jam
+
+[ ] Langkah 7 -- Testing manual sesuai acceptance criteria: tanpa
+    login -> 401/403 (bukan isi file); login tapi tidak berwenang ke
+    entitas terkait -> ditolak; login & berwenang -> tetap tampil
+    normal (foto profil, tombol "Lihat" dokumen daftarSantri, foto
+    pelanggaran/sakit/izin pulang, export PDF/Excel); traversal
+    ../../etc/passwd -> ditolak; backup/restore tidak berubah;
+    madingPublik & jamDigitalRemote tetap jalan tanpa login.
+                                                             -- 1.5-2 jam
+
+[ ] Langkah 8 -- Review kode + update catatan ini (tandai [✅] per
+    langkah yang selesai, catat keputusan final tiap keputusan di
+    Langkah 1).                                             -- 0.5 jam
+
+
+6. ACCEPTANCE CRITERIA (SALIN DARI PERMINTAAN AWAL, JANGAN DIUBAH)
+---------------------------------------------------------------------
+- Request langsung ke URL file privat TANPA login -> ditolak (401/403).
+- Login tapi TIDAK punya akses ke entitas terkait -> ditolak, bukan
+  cuma cek "sudah login".
+- Login DAN berwenang -> tetap bisa lihat/download seperti biasa.
+- Tidak ada regresi di backup, restore, madingPublik, jamDigitalRemote.
+- Path traversal di parameter filename -> ditolak.

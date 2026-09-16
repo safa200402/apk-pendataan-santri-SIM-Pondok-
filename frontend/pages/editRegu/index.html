@@ -411,12 +411,6 @@
       <section class="panel nav" id="nav"></section>
       <div class="content-stack">
         <section class="notice info" id="notice"></section>
-        <section class="issue-panel">
-          <h2>Masalah Terkait</h2>
-          <p>Temuan audit yang relevan dengan regu akan muncul di sini.</p>
-          <div class="issue-summary" id="issueSummary">Belum ada data audit.</div>
-          <ul class="issue-warning-list" id="issueList"></ul>
-        </section>
         <section class="panel">
           <div class="section-head">
             <h2>Daftar regu</h2>
@@ -777,16 +771,6 @@ Fulan 2</button>
       hasInput: false,
       dirty: false,
       parsed: false
-    };
-    const ISSUE_GROUP_CONFIG = {
-      active_without_regu: true,
-      frozen_without_assignments: true,
-      regu_without_pembina: true,
-      regu_gender_mismatch: true,
-      invalid_references: {
-        filter: item => item.entity === 'regu',
-        successText: 'Tidak ada referensi regu yang hilang.'
-      }
     };
     const uiState = {
       currentNoticeId: '',
@@ -1334,7 +1318,6 @@ Fulan 2</button>
 
       try {
         await loadData();
-        await issuePanelController.load();
       } catch (error) {
         showNotice(error.message || 'Data regu tersimpan, tetapi daftar gagal dimuat ulang.', 'error');
       }
@@ -1490,8 +1473,6 @@ Fulan 2</button>
       }
     }
 
-    const issuePanelController = createIssuePanelController(api, { issueConfig: ISSUE_GROUP_CONFIG });
-
     function checklistMetaHtml(item) {
       const idPart = item.noInduk ? `NIS ${item.noInduk}` : (item.username ? '@' + item.username : '');
       const bits = [idPart, item.statusLabel || ''].filter(Boolean);
@@ -1505,7 +1486,7 @@ Fulan 2</button>
       document.getElementById(targetId).innerHTML = (items || []).map((item, index) => `
         <label data-item-index="${index}">
           <input type="checkbox" value="${item.id}" ${selected.has(item.id) ? 'checked' : ''}>
-          <span>${escapeHtml(item.name)}${checklistMetaHtml(item)}</span>
+          <span>${escapeHtml(item.name)}${checklistMetaHtml(item)}</span>${item.namaLain ? `<span aria-hidden="true" style="display:none">${escapeHtml(item.namaLain)}</span>` : ''}
         </label>
       `).join('');
       updateChecklistHint(targetId);
@@ -1756,23 +1737,23 @@ Fulan 2</button>
           const res = await api('bulk.setTahunAjaran', { sheetKey: DATASET_KEY, ids, tahunAjaranId: taId }, 'POST');
           clearSelectedIds();
           await loadData();
-          if (typeof issuePanelController !== 'undefined' && issuePanelController) await issuePanelController.load();
           showNotice((res && res.message) || 'Tahun ajaran berhasil diperbarui.', 'success');
         } catch (e) { showNotice(e.message || 'Gagal mengubah tahun ajaran.', 'error'); }
       };
     }
 
-    async function handleBulkToggle(active) {
+    async function handleBulkToggle(active, btn) {
       const ids = getSelectedIds();
       if (!ids.length) return showNotice('Pilih minimal satu regu.', 'error');
       if (!confirm(`${active ? 'Aktifkan' : 'Nonaktifkan'} ${ids.length} regu terpilih?`)) return;
+      if (btn) btn.disabled = true;
       try {
         await api('bulk.toggle', { sheetKey: DATASET_KEY, ids, active }, 'POST');
         clearSelectedIds();
         await loadData();
-        await issuePanelController.load();
       } catch (error) {
         showNotice(error.message || 'Gagal memproses aksi massal.', 'error');
+        if (btn) btn.disabled = false;
       }
     }
 
@@ -1806,7 +1787,6 @@ Fulan 2</button>
           const res = await doDeleteFn(word);
           clearSelectedIds();
           await loadData();
-          if (typeof issuePanelController !== 'undefined' && issuePanelController) await issuePanelController.load();
           showNotice((res && res.message) || 'Data dihapus permanen.', 'info');
         } catch (e) { showNotice(e.message || 'Gagal menghapus.', 'error'); }
       };
@@ -1852,6 +1832,8 @@ Fulan 2</button>
       const file = event.target.files && event.target.files[0];
       event.target.value = '';
       if (!file) return;
+      const importBtn = document.getElementById('importExcelButton');
+      importBtn.disabled = true;
       showNotice('Memproses import Excel regu...', 'info');
       try {
         await window.PSExcel.importDataset(api, DATASET_KEY, file, {
@@ -1860,10 +1842,11 @@ Fulan 2</button>
           }
         });
         await loadData();
-        await issuePanelController.load();
         showNotice('Import Excel regu selesai.', 'info');
       } catch (error) {
         showNotice(error.message || 'Gagal import Excel.', 'error');
+      } finally {
+        importBtn.disabled = false;
       }
     }
 
@@ -1895,7 +1878,7 @@ Fulan 2</button>
                   <strong class="minimal-list-card-name">${escapeHtml(item.name)}</strong>
                   ${contextLabel ? `<span class="regu-context-label">(${escapeHtml(contextLabel)})</span>` : ''}
                 </div>
-                <span class="minimal-list-card-hint">Pembina: ${escapeHtml(item.pembinaLabels.join(', ') || '-')}</span>
+                <span class="minimal-list-card-hint">${escapeHtml(item.status)} &nbsp;·&nbsp; Santri ${item.santriCount} &nbsp;·&nbsp; Pembina ${item.pembinaLabels.length} &nbsp;·&nbsp; Badal ${item.badalLabels.length}</span>
               </div>
               <button class="secondary minimal-list-card-toggle" type="button" data-edit="${item.id}" aria-label="Edit regu ${escapeHtml(item.name)}">Edit</button>
             </div>
@@ -1903,6 +1886,7 @@ Fulan 2</button>
               <div class="minimal-list-card-summary">
                 <p>Kategori gender: ${escapeHtml(normalizeGenderGroupLabel(item.genderGroup))}</p>
                 <p>${escapeHtml(item.description || 'Tanpa deskripsi.')}</p>
+                <p>Pembina: ${escapeHtml(item.pembinaLabels.join(', ') || '-')}</p>
                 <p>Pembantu Pembina (Badal): ${escapeHtml(item.badalLabels.join(', ') || '-')}</p>
                 <p>Total santri: ${escapeHtml(String(item.santriCount))}</p>
               </div>
@@ -2083,17 +2067,64 @@ Fulan 2</button>
       const santriName = document.getElementById('pindahSantriSearch').value.trim() || 'Santri';
       const targetName = document.getElementById('pindahTargetSelect').selectedOptions[0]?.textContent || 'regu tujuan';
       if (!confirm(`Pindahkan ${santriName} dari regu ini ke ${targetName} pada ${tanggal}?`)) return;
+      const btn = document.getElementById('pindahSantriBtn');
+      btn.disabled = true;
       try {
         const result = await api('regu.pindahkanSantri', {
           santriId, fromReguId: item.id, toReguId, tanggal, alasan
         }, 'POST');
         document.getElementById('dialog').close();
         await loadData();
-        await issuePanelController.load();
         showNotice(result.message || 'Santri berhasil dipindahkan.', 'success');
       } catch (error) {
         showNotice(error.message || 'Gagal memindahkan santri.', 'error');
+      } finally {
+        btn.disabled = false;
       }
+    }
+
+    // Peringatan santri dibekukan di roster: dialog overlay konfirmasi SEBELUM simpan.
+    // Santri NONAKTIF tidak dicek di sini -- endpoint `references` cuma mengirim santri
+    // aktif + dibekukan, jadi santri nonaktif tak pernah muncul di checklist & otomatis
+    // terlepas dari roster saat simpan (keputusan user 2026-08-31).
+    function pickFrozenSantriFromChecklist(santriIds) {
+      const picked = new Set(santriIds || []);
+      return (state.refs.santri || []).filter(s => picked.has(s.id) && s.statusLabel === 'Dibekukan');
+    }
+
+    function confirmFrozenSantriBeforeSave(frozenList) {
+      return new Promise(resolve => {
+        let dlg = document.getElementById('frozenSantriDialog');
+        if (!dlg) {
+          dlg = document.createElement('dialog');
+          dlg.id = 'frozenSantriDialog';
+          // data-no-history: dialog konfirmasi transien yang dibuka DI ATAS dialog edit --
+          // jangan ikut mekanisme history dialog bersama (shared-ui.js), kalau tidak klik
+          // Batal akan men-history.back() dan menutup dialog edit di belakangnya juga.
+          dlg.setAttribute('data-no-history', 'true');
+          dlg.style.cssText = 'border:none;border-radius:16px;padding:0;max-width:460px;width:94vw;box-shadow:0 20px 60px rgba(0,0,0,0.3);color:#3a2f25;';
+          document.body.appendChild(dlg);
+        }
+        const rows = frozenList.map(s => `<li>${escapeHtml(s.name)}${s.noInduk ? ` <span style="color:#8a7f72;">&middot; NIS ${escapeHtml(s.noInduk)}</span>` : ''}</li>`).join('');
+        dlg.innerHTML = `<div style="padding:22px;display:grid;gap:12px;font-family:inherit;">
+          <h3 style="margin:0;color:var(--warning,#b26a00);">Ada santri dibekukan</h3>
+          <div style="font-size:13.5px;line-height:1.6;">
+            <strong>${frozenList.length}</strong> santri berstatus <strong>Dibekukan</strong> ikut tercentang di kelompok ini:
+            <ul style="margin:8px 0 0;padding-left:20px;">${rows}</ul>
+            <br>Santri dibekukan boleh tetap berada di kelompok. Lanjutkan simpan?
+          </div>
+          <div style="display:flex;gap:10px;justify-content:flex-end;">
+            <button class="secondary" type="button" id="frozenSantriCancel">Batal</button>
+            <button class="primary" type="button" id="frozenSantriOk">Ya, simpan tetap</button>
+          </div>
+        </div>`;
+        dlg.showModal();
+        let settled = false;
+        const finish = (val) => { if (settled) return; settled = true; try { dlg.close(); } catch (e) {} resolve(val); };
+        dlg.querySelector('#frozenSantriCancel').onclick = () => finish(false);
+        dlg.querySelector('#frozenSantriOk').onclick = () => finish(true);
+        dlg.addEventListener('close', () => finish(false), { once: true });
+      });
     }
 
     async function saveForm(event) {
@@ -2116,28 +2147,34 @@ Fulan 2</button>
         document.getElementById('dialogTahunAjaran').focus();
         return;
       }
+      const frozenPicked = pickFrozenSantriFromChecklist(record.santriIds);
+      if (frozenPicked.length && !(await confirmFrozenSantriBeforeSave(frozenPicked))) return;
+      const btn = event.submitter;
+      if (btn) btn.disabled = true;
       try {
         await api('regu.save', { record }, 'POST');
         document.getElementById('dialog').close();
         await loadData();
-        await issuePanelController.load();
       } catch (error) {
         showNotice(error.message || 'Gagal menyimpan regu.', 'error');
+      } finally {
+        if (btn) btn.disabled = false;
       }
     }
 
-    async function toggleItem(id) {
+    async function toggleItem(id, btn) {
       const item = state.items.find(entry => entry.id === id);
       if (!item) return;
       const nextActive = !item.active;
       const yes = confirm(`${nextActive ? 'Aktifkan' : 'Nonaktifkan'} regu "${item.name}"?`);
       if (!yes) return;
+      if (btn) btn.disabled = true;
       try {
         await api('regu.toggle', { id, active: nextActive }, 'POST');
         await loadData();
-        await issuePanelController.load();
       } catch (error) {
         showNotice(error.message || 'Gagal mengubah status regu.', 'error');
+        if (btn) btn.disabled = false;
       }
     }
 
@@ -2185,7 +2222,6 @@ Fulan 2</button>
         state.page = 1;
         clearSelectedIds();
         await loadData();
-        await issuePanelController.load();
         showNotice(data.message || 'Semua regu berhasil dihapus.', 'info');
       } catch (error) {
         showNotice(error.message || 'Gagal menghapus semua regu.', 'error');
@@ -2209,7 +2245,6 @@ Fulan 2</button>
       document.getElementById('addButton').addEventListener('click', () => openDialog());
       document.getElementById('refreshButton').addEventListener('click', async () => {
         await loadData();
-        await issuePanelController.load();
       });
       document.getElementById('toggleExpandButton').addEventListener('click', toggleExpandedList);
       document.getElementById('toolbarCollapseToggle').addEventListener('click', toggleActionToolbar);
@@ -2226,7 +2261,7 @@ Fulan 2</button>
       document.getElementById('deleteAllButton').addEventListener('click', openDeleteAllDialog);
       document.getElementById('importExcelInput').addEventListener('change', handleImportChange);
       document.getElementById('tahunAjaranFilter').addEventListener('change', event => { state.page = 1; state.tahunAjaranFilter = event.target.value; loadData(); });
-      document.getElementById('searchInput').addEventListener('input', () => { state.page = 1; loadData(); });
+      document.getElementById('searchInput').addEventListener('input', PSUI.debounce(() => { state.page = 1; loadData(); }, PSUI.AUTOSAVE_DEBOUNCE_MS));
       document.getElementById('statusFilter').addEventListener('change', () => { state.page = 1; loadData(); });
       document.getElementById('genderFilter').addEventListener('change', () => { state.page = 1; loadData(); });
       document.getElementById('sortSelect').addEventListener('change', () => { state.page = 1; loadData(); });
@@ -2309,7 +2344,7 @@ Fulan 2</button>
         return;
       }
       if (toggleId) {
-        toggleItem(toggleId);
+        toggleItem(toggleId, actionButton);
         return;
       }
       if (deleteId) {
@@ -2336,8 +2371,8 @@ Fulan 2</button>
       const { id } = event.target;
       if (id === 'selectVisibleButton') selectVisibleItems();
       if (id === 'clearSelectedButton') clearSelectedIds();
-      if (id === 'bulkActivateButton') handleBulkToggle(true);
-      if (id === 'bulkDeactivateButton') handleBulkToggle(false);
+      if (id === 'bulkActivateButton') handleBulkToggle(true, event.target);
+      if (id === 'bulkDeactivateButton') handleBulkToggle(false, event.target);
       if (id === 'bulkTahunAjaranButton') bulkSetTahunAjaran();
       if (id === 'bulkDeleteButton') handleBulkDelete();
     });
@@ -2350,7 +2385,6 @@ Fulan 2</button>
       syncActionToolbar();
       syncExpandToggleButton();
       await loadData();
-      await issuePanelController.load();
       if (window.PSShell && typeof window.PSShell.consumeAuditMismatchSantriPanel === 'function') {
         window.PSShell.consumeAuditMismatchSantriPanel(name => {
           document.getElementById('searchInput').value = name;

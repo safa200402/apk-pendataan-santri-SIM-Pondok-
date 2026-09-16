@@ -75,7 +75,10 @@ Variabel environment yang dikenali:
 | `APP_HOST` | `0.0.0.0` | Host yang di-bind (untuk akses dari LAN) |
 | `DB_PATH` | `backend/data/pendataan-santri.sqlite` | Lokasi file database |
 
-Di Windows, tersedia juga `start-backend.bat` yang otomatis mendeteksi IP LAN dan membuka firewall rule agar server bisa diakses dari perangkat lain di jaringan yang sama.
+Di Windows, tersedia dua file batch yang otomatis mendeteksi IP LAN dan membuka firewall rule agar server bisa diakses dari perangkat lain di jaringan yang sama:
+
+- `start-normal.bat` — menjalankan `npm start` (mode normal, tanpa auto-restart). Untuk pemakaian harian.
+- `start-watch.bat` — menjalankan `npm run dev` (`node --watch`, auto-restart tiap file berubah). Untuk development.
 
 ## Model Pengguna & Hak Akses
 

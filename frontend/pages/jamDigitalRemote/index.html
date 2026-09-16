@@ -11,8 +11,8 @@
   <script src="../../shared-ui.js"></script>
   <title>Remote Jam Digital</title>
   <link rel="stylesheet" href="../../shared-shell.css">
-  <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
-  <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
+  <link href="../../vendor/quill/quill.snow.css" rel="stylesheet">
+  <script src="../../vendor/quill/quill.js"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700&display=swap');
     :root {
@@ -1589,6 +1589,8 @@
       var startSec = Math.max(0, parseInt(document.getElementById('ytStartSec').value) || 0);
       var repeat = document.getElementById('ytRepeat').value || 'once';
       if (!url) { flash('stVideo', 'Masukkan URL YouTube terlebih dahulu.', 'danger'); return; }
+      var addBtn = document.getElementById('btnAddYoutube');
+      if (addBtn) addBtn.disabled = true;
       fetch(JAM_API + '/add-youtube', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1606,7 +1608,8 @@
           flash('stVideo', (res.error && res.error.message) || 'Gagal menambahkan.', 'danger');
         }
       })
-      .catch(function (e) { flash('stVideo', 'Error: ' + e.message, 'danger'); });
+      .catch(function (e) { flash('stVideo', 'Error: ' + e.message, 'danger'); })
+      .finally(function () { if (addBtn) addBtn.disabled = false; });
     });
 
     /* ── Patch renderState & syncForm untuk video ── */
@@ -1637,6 +1640,8 @@
       var progLabel = document.getElementById('logoPLabel');
       if (prog) prog.classList.add('show');
       if (progLabel) progLabel.textContent = 'Mengupload: 0%';
+      var uploadBtn = document.getElementById('btnUploadLogo');
+      if (uploadBtn) uploadBtn.disabled = true;
       var params = new URLSearchParams({ token: getToken(), filename: file.name });
       var xhr = new XMLHttpRequest();
       xhr.open('POST', JAM_API + '/upload-logo?' + params.toString());
@@ -1650,6 +1655,7 @@
       };
       xhr.onload = function () {
         if (prog) prog.classList.remove('show');
+        if (uploadBtn) uploadBtn.disabled = false;
         try {
           var res = JSON.parse(xhr.responseText);
           if (res.ok) {
@@ -1662,6 +1668,7 @@
       };
       xhr.onerror = function () {
         if (prog) prog.classList.remove('show');
+        if (uploadBtn) uploadBtn.disabled = false;
         flash('stLogo', 'Upload gagal. Periksa koneksi.', 'danger');
       };
       xhr.send(file);
@@ -1695,6 +1702,8 @@
       var progLabel = document.getElementById('audioPLabel');
       if (prog) prog.classList.add('show');
       if (progLabel) progLabel.textContent = 'Mengupload: 0%';
+      var uploadBtn = document.getElementById('btnUploadAudio');
+      if (uploadBtn) uploadBtn.disabled = true;
       var kind = (document.getElementById('audioKind') || {}).value || 'alarm';
       var params = new URLSearchParams({ token: getToken(), filename: file.name, kind: kind });
       var xhr = new XMLHttpRequest();
@@ -1709,6 +1718,7 @@
       };
       xhr.onload = function () {
         if (prog) prog.classList.remove('show');
+        if (uploadBtn) uploadBtn.disabled = false;
         try {
           var res = JSON.parse(xhr.responseText);
           if (res.ok) {
@@ -1721,6 +1731,7 @@
       };
       xhr.onerror = function () {
         if (prog) prog.classList.remove('show');
+        if (uploadBtn) uploadBtn.disabled = false;
         flash('stAudio', 'Upload gagal. Periksa koneksi.', 'danger');
       };
       xhr.send(file);

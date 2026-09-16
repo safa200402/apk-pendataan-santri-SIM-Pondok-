@@ -518,33 +518,41 @@
         published_at: fields.namedItem('published_at').value,
         status: fields.namedItem('status').value
       };
+      const submitBtn = event.submitter || event.currentTarget.querySelector('button[type="submit"]');
+      if (submitBtn) submitBtn.disabled = true;
       try {
         await api('content.save', { record }, 'POST');
         document.getElementById('dialog').close();
         await loadData();
       } catch (error) {
         showNotice(error.message || 'Gagal menyimpan konten.', 'error');
+      } finally {
+        if (submitBtn) submitBtn.disabled = false;
       }
     }
-    async function toggleItem(id) {
+    async function toggleItem(id, btn) {
       const item = state.items.find(entry => entry.id === id);
       if (!item) return;
+      if (btn) btn.disabled = true;
       try {
         await api('content.toggle', { id, active: item.status !== 'Published' }, 'POST');
         await loadData();
       } catch (error) {
         showNotice(error.message || 'Gagal mengubah status konten.', 'error');
+        if (btn) btn.disabled = false;
       }
     }
-    async function deleteItem(id) {
+    async function deleteItem(id, btn) {
       const item = state.items.find(entry => entry.id === id);
       if (!item) return;
       if (!confirm(`Hapus konten "${item.title}"?`)) return;
+      if (btn) btn.disabled = true;
       try {
         await api('content.delete', { id }, 'POST');
         await loadData();
       } catch (error) {
         showNotice(error.message || 'Gagal menghapus konten.', 'error');
+        if (btn) btn.disabled = false;
       }
     }
     async function exportContent() {
@@ -619,8 +627,8 @@
           const item = state.items.find(entry => entry.id === editId);
           if (item) openDialog(item);
         }
-        if (toggleId) toggleItem(toggleId);
-        if (deleteId) deleteItem(deleteId);
+        if (toggleId) toggleItem(toggleId, actionButton);
+        if (deleteId) deleteItem(deleteId, actionButton);
       });
       window.addEventListener('load', () => {
         initEditor();

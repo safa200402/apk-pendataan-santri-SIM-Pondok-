@@ -1,0 +1,98 @@
+CATATAN PERFORMA - TIMEOUT & CARA BIKIN SERVER LEBIH CEPAT / ENTENG
+===================================================================
+Ringkasan hasil telaah backend/server.js (Node v22.15, Express 5.1,
+node:sqlite DatabaseSync). Status tiap butir ditandai di bagian 3:
+  [✅] = SELESAI      [ ] = belum dikerjakan
+
+
+1. TIMEOUT -- BERAPA DETIK?
+--------------------------
+server.js TIDAK menyetel timeout HTTP manual sama sekali.
+app.listen(PORT, ...) (baris ~29568) memakai DEFAULT bawaan Node 22:
+
+  requestTimeout   = 300 detik (5 menit)  -> batas menerima seluruh body request
+  headersTimeout   = 60 detik             -> batas menerima header request
+  keepAliveTimeout = 5 detik              -> koneksi idle keep-alive ditutup
+  server.timeout   = 0 (MATI)             -> socket idle, dimatikan sejak Node 13
+
+Batas ukuran body: express.json / express.urlencoded = 20mb (baris ~27817-27818).
+Route raw upload lain punya limit sendiri (10mb s/d 1030mb).
+
+Timeout eksplisit di kode, tapi BUKAN timeout HTTP:
+  - ffmpeg execFile (baris ~27795)      : 15 menit
+  - WA init delay (baris ~27838)        : 3 detik
+  - auto-backup timer (baris ~33617)    : 60 detik
+  - sweep sampah catatan (baris ~29558) : 90 detik lalu tiap 6 jam
+
+Frontend (shared-shell.js): fetch TIDAK pakai AbortController / timeout,
+jadi kalau server lambat browser menunggu sampai default browser (~300 dtk
+di Chrome).
+
+
+2. AKAR MASALAH "BERAT"
+----------------------
+node:sqlite DatabaseSync (baris ~271) = SEMUA query SINKRON / blocking.
+Satu request yang query DB memblokir seluruh event loop. Kalau beberapa
+pengurus membuka halaman berat bersamaan, mereka ANTRE, bukan paralel.
+Ini penyebab utama lambat saat rame.
+
+
+3. REKOMENDASI (urut dari paling berdampak)
+------------------------------------------
+
+[✅] A. TUNING PRAGMA SQLITE   -- SELESAI 2026-09-09
+   Helper baru applyDbConnectionPragmas_(db) di backend/server.js (~baris 278),
+   dipanggil di 2 tempat objek DatabaseSync dibuat: boot (~baris 288) dan
+   setelah restore backup (restoreFromBackupZip_, ~baris 33619).
+   Pragma yang dipasang:
+     PRAGMA journal_mode = WAL;        (sudah ada, dipindah ke helper)
+     PRAGMA synchronous  = NORMAL;     -- write jauh lebih ringan, aman dgn WAL
+     PRAGMA busy_timeout = 5000;       -- 5 dtk, hilangkan "database is locked"
+     PRAGMA cache_size   = -16000;     -- ~16 MB page cache
+     PRAGMA temp_store   = MEMORY;
+     PRAGMA mmap_size    = 268435456;  -- 256 MB memory-mapped I/O
+   Verifikasi: node --check OK; boot lokal OK; nilai pragma dibaca balik cocok
+   (synchronous=1=NORMAL, temp_store=2=MEMORY, dst).
+
+[ ] B. INDEX
+   Baru ada ~10 index, hampir semua di tabel hafalanHarian & catatan*
+   (baris ~26927-26942). Tabel besar lain -- nilai*, absensi*, perkembangan,
+   tasmiSetoran, tabel keanggotaan -- kemungkinan belum punya index pada
+   kolom yang sering dipakai di WHERE / JOIN / ORDER BY:
+   id_santri, tanggal, tahun_ajaran_id, id_halaqoh, id_kelas, id_regu.
+   Cek dgn: DB.exec('EXPLAIN QUERY PLAN <query>'). Untuk tabel ribuan baris
+   sering 10-100x lebih cepat.
+
+[ ] C. COMPRESSION (GZIP)
+   Belum ada di dependencies.
+     npm i compression
+     app.use(compression());   // pasang sebelum route
+   Respons JSON turun 70-90%. Sangat terasa di HP / koneksi lambat.
+
+[ ] D. CACHE ASET FRONTEND
+   HTML/JS/CSS sekarang dikirim no-store (baris ~27971) -> di-download ulang
+   PENUH tiap pindah halaman (tidak ada 304). sw.js memakai network-first
+   untuk file ini, jadi tetap menunggu jaringan sebelum render.
+   Opsi:
+     - beri hash pada nama file shared-*.js / shared-*.css + Cache-Control
+       public, max-age=31536000, immutable; HTML tetap no-store; ATAU
+     - ubah strategi sw.js jadi stale-while-revalidate untuk shared JS/CSS.
+   shared-shell.js paling besar -> paling terasa. Lanjutan rencana vendoring
+   lib CDN yang sudah ada.
+
+[ ] E. CHECKPOINT WAL BERKALA
+   File *.sqlite-wal yang membengkak memperlambat baca. PRAGMA
+   wal_checkpoint(TRUNCATE) sudah dipakai saat backup. Tambah timer ringan
+   PRAGMA wal_checkpoint(PASSIVE) tiap ~5 menit untuk server yang hidup terus.
+
+[ ] F. BATASI UKURAN PAYLOAD LIST
+   Endpoint yang mengembalikan ratusan baris + blob base64 (foto/dokumen)
+   -> paginate, dan pisahkan media ke endpoint /media/:id yang ber-cache.
+   Pola benar yang sudah ada: daftarSantri detailPdf & catatan-media pakai
+   file terpisah.
+
+[ ] G. CONCURRENCY (kalau A-F belum cukup)
+   Karena DatabaseSync blocking, pindahkan query paling berat ke Worker
+   Thread supaya event loop tidak berhenti.
+   Ukuran file server.js (1.5 MB / ~33k baris) TIDAK memengaruhi runtime
+   (di-parse sekali saat start), hanya soal maintainability.

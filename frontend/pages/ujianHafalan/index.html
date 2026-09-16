@@ -9,7 +9,7 @@
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="../../shared-ui.css">
   <link rel="stylesheet" href="../../shared-shell.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+  <link rel="stylesheet" href="../../vendor/fontawesome/css/all.min.css">
   <script src="../../shared-ui.js"></script>
   <script src="../../shared-access.js"></script>
   <script src="../../shared-nav.js"></script>
@@ -1130,7 +1130,7 @@ TAHAP: diajukan`;
           state.queueSearch = this.value.trim();
           state.queuePage = 1;
           loadQueue();
-        }, 300));
+        }, PSUI.AUTOSAVE_DEBOUNCE_MS));
       }
     }
 
@@ -1205,7 +1205,7 @@ TAHAP: diajukan`;
           actions += `<button class="action-btn primary" onclick="openNilaiForm('${escHtml(u.id)}')"><i class="fa-solid fa-star"></i> Nilai</button>`;
         }
         actions += `<button class="action-btn" onclick="showEditHistory('${escHtml(u.id)}')"><i class="fa-solid fa-clock-rotate-left"></i> Riwayat</button>`;
-        actions += `<button class="action-btn danger" onclick="deleteUjian('${escHtml(u.id)}')"><i class="fa-solid fa-trash"></i> Hapus</button>`;
+        actions += `<button class="action-btn danger" onclick="deleteUjian('${escHtml(u.id)}', this)"><i class="fa-solid fa-trash"></i> Hapus</button>`;
         const santriColor = u.santriGender === 'male' ? 'color:#3c82d2' : u.santriGender === 'female' ? 'color:#c8508c' : '';
 
         html += `<tr>
@@ -1502,8 +1502,9 @@ TAHAP: diajukan`;
       }
     }
 
-    async function deleteUjian(id) {
+    async function deleteUjian(id, btn) {
       if (!confirm('Hapus data ujian ini?')) return;
+      if (btn) btn.disabled = true;
       try {
         await api('ujian.hafalan.delete', { id });
         await loadUjianList();
@@ -1513,6 +1514,7 @@ TAHAP: diajukan`;
         window.PSUI && window.PSUI.showNotice && window.PSUI.showNotice('Data ujian dihapus.', 'success');
       } catch (e) {
         window.PSUI && window.PSUI.showNotice && window.PSUI.showNotice(e.message, 'error');
+        if (btn) btn.disabled = false;
       }
     }
 
@@ -1629,7 +1631,7 @@ TAHAP: diajukan`;
         state.searchQuery = this.value.trim();
         state.page = 1;
         loadDashboard();
-      }, 300));
+      }, PSUI.AUTOSAVE_DEBOUNCE_MS));
       document.getElementById('queueTahapFilter').addEventListener('change', function () {
         state.queueTahap = this.value;
         state.queuePage = 1;

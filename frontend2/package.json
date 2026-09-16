@@ -1,0 +1,25 @@
+{
+  "name": "frontend2",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "description": "Rewrite React (Vite) dari frontend/ lama, dibangun berdampingan tanpa menggantikannya. Diakses lewat /v2 di server yang sama (lihat backend/server.js).",
+  "scripts": {
+    "build:tokens": "node scripts/buildTokens.mjs",
+    "predev": "npm run build:tokens",
+    "prebuild": "npm run build:tokens",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.26.2",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "vite": "^5.4.11"
+  }
+}

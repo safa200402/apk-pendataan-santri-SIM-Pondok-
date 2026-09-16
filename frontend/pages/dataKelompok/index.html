@@ -367,7 +367,7 @@
       mountShell(initialSession);
       document.querySelectorAll('#sectionTabs .tab-btn').forEach(btn => btn.addEventListener('click', () => switchSection(btn.dataset.section)));
       document.getElementById('refreshButton').addEventListener('click', loadActiveSection);
-      document.getElementById('filterSearch').addEventListener('input', debounce(loadActiveSection, 350));
+      document.getElementById('filterSearch').addEventListener('input', debounce(loadActiveSection, PSUI.AUTOSAVE_DEBOUNCE_MS));
       document.getElementById('filterStatus').addEventListener('change', loadActiveSection);
       document.getElementById('filterGender').addEventListener('change', loadActiveSection);
       document.getElementById('filterSort').addEventListener('change', loadActiveSection);

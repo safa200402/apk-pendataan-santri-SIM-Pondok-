@@ -143,6 +143,24 @@
       margin-top: 18px;
     }
 
+    #rekapAbsensiButton {
+      background: var(--sick-soft);
+      color: var(--ink);
+    }
+    #rekapAbsensiButton:hover {
+      background: var(--sick);
+      color: #fff;
+    }
+
+    #silabusButton {
+      background: var(--info-soft);
+      color: var(--ink);
+    }
+    #silabusButton:hover {
+      background: var(--info);
+      color: var(--ink);
+    }
+
     .btn, .search-field {
       min-height: 48px;
     }
@@ -677,7 +695,7 @@
       text-transform: uppercase;
       padding: 1px 5px;
       border-radius: 5px;
-      max-width: 70px;
+      max-width: 96px;
       text-align: right;
       text-wrap: wrap;
     }
@@ -1180,14 +1198,14 @@
         <div class="attendance-toolbar">
           <div class="toolbar" style=" padding: 11px; ">
             <div>
+              <button class="btn" id="rekapAbsensiButton" type="button">Rekap Sakit &amp; Izin</button>
+              <button class="btn" id="silabusButton" type="button">Silabus</button>
               <button class="btn" id="toggleNamaButton" type="button">Sembunyikan Nama</button>
               <button class="btn secondary" id="setAllHadirButton" type="button">Set semua hadir</button>
               <button class="btn warning" id="copyLatestButton" type="button" title="Salin status terakhir">Salin terakhir</button>
               <button class="btn" id="clearAllButton" type="button">Kosongkan status</button>
               <button class="btn" id="undoButton" type="button">Undo</button>
               <button class="btn" id="redoButton" type="button">Redo</button>
-              <button class="btn secondary" id="rekapAbsensiButton" type="button">Rekap Sakit &amp; Izin</button>
-              <button class="btn secondary" id="silabusButton" type="button">Silabus</button>
             </div>
           </div>
         </div>
@@ -1939,8 +1957,9 @@
         const isMulaiDay = entry.sakit.tanggalMulai && entry.sakit.tanggalMulai === date;
         const isSembuhDay = !entry.sakit.ongoing && entry.sakit.tanggalSembuh && entry.sakit.tanggalSembuh === date;
         if (isMulaiDay) {
-          const label = 'Mulai Sakit' + (entry.sakit.jamMulai ? ' ' + entry.sakit.jamMulai : '');
-          const text = ['Mulai sakit' + (entry.sakit.jamMulai ? ' ' + entry.sakit.jamMulai : ''), entry.sakit.keterangan, entry.sakit.tempat ? 'di ' + entry.sakit.tempat : ''].filter(Boolean).join(' · ');
+          const boleh = sakitBolehLabel(entry);
+          const label = 'Mulai Sakit' + (entry.sakit.jamMulai ? ' ' + entry.sakit.jamMulai : '') + (boleh ? ' — ' + boleh : '');
+          const text = ['Mulai sakit' + (entry.sakit.jamMulai ? ' ' + entry.sakit.jamMulai : ''), entry.sakit.keterangan, entry.sakit.tempat ? 'di ' + entry.sakit.tempat : '', boleh].filter(Boolean).join(' · ');
           infos.push({ label, type: 'sakit', text });
         }
         if (isSembuhDay) {
@@ -1949,8 +1968,10 @@
           infos.push({ label, type: 'sembuh', text });
         }
         if (!isMulaiDay && !isSembuhDay) {
-          const text = ['Sakit', entry.sakit.keterangan, entry.sakit.tempat ? 'di ' + entry.sakit.tempat : ''].filter(Boolean).join(' · ');
-          infos.push({ label: 'Sakit', type: 'sakit', text });
+          const boleh = sakitBolehLabel(entry);
+          const label = 'Sakit' + (boleh ? ' — ' + boleh : '');
+          const text = ['Sakit', entry.sakit.keterangan, entry.sakit.tempat ? 'di ' + entry.sakit.tempat : '', boleh].filter(Boolean).join(' · ');
+          infos.push({ label, type: 'sakit', text });
         }
       }
       if (entry.izin) {
@@ -2518,7 +2539,13 @@
 
     async function saveModal(event) {
       event.preventDefault();
-      await saveModalChanges({ reload: true });
+      const btn = document.getElementById('saveDialogButton');
+      if (btn) btn.disabled = true;
+      try {
+        await saveModalChanges({ reload: true });
+      } finally {
+        if (btn) btn.disabled = false;
+      }
     }
 
     function openAbsensiRekapPanel() {
@@ -2641,7 +2668,8 @@
       body.innerHTML = progress + rows;
     }
 
-    async function toggleSilabusItem(id) {
+    async function toggleSilabusItem(id, cb) {
+      if (cb) cb.disabled = true;
       try {
         await api('kelas.silabus.toggle', { id }, 'POST');
         const kelas = state.modal.kelas;
@@ -2650,6 +2678,7 @@
         renderSilabusPanelBody();
       } catch (e) {
         showNotice(e.message || 'Gagal mengubah status materi.', 'error');
+        if (cb) cb.disabled = false;
       }
     }
 
@@ -2664,11 +2693,11 @@
     }
 
     function bindEvents() {
-      document.getElementById('searchInput').addEventListener('input', event => {
+      document.getElementById('searchInput').addEventListener('input', PSUI.debounce(event => {
         state.searchQuery = event.target.value || '';
         state.page = 1;
         renderCards();
-      });
+      }, PSUI.AUTOSAVE_DEBOUNCE_MS));
       document.getElementById('filterGender').addEventListener('change', event => {
         state.filterGender = event.target.value || '';
         state.page = 1;
@@ -2740,10 +2769,10 @@
       });
       document.getElementById('prevDateButton').addEventListener('click', () => shiftDate(-1));
       document.getElementById('nextDateButton').addEventListener('click', () => shiftDate(1));
-      document.getElementById('santriSearchInput').addEventListener('input', event => {
+      document.getElementById('santriSearchInput').addEventListener('input', PSUI.debounce(event => {
         state.modal.filter = event.target.value || '';
         renderAttendanceBody();
-      });
+      }, PSUI.AUTOSAVE_DEBOUNCE_MS));
       applyHideSantriNamePref(localStorage.getItem(STORAGE.hideSantriName) === '1');
       document.getElementById('toggleNamaButton').addEventListener('click', () => {
         applyHideSantriNamePref(!document.getElementById('attendanceBody').classList.contains('hide-name-col'));
@@ -2765,7 +2794,7 @@
       });
       document.getElementById('silabusBody').addEventListener('change', function(event) {
         const cb = event.target.closest('[data-silabus-check]');
-        if (cb) toggleSilabusItem(cb.getAttribute('data-silabus-check'));
+        if (cb) toggleSilabusItem(cb.getAttribute('data-silabus-check'), cb);
       });
 
       document.getElementById('attendanceBody').addEventListener('click', event => {

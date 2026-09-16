@@ -457,7 +457,7 @@
         btn.addEventListener('click', function(e) { e.stopPropagation(); openDialog(this.dataset.edit); });
       });
       el.querySelectorAll('[data-delete]').forEach(function(btn) {
-        btn.addEventListener('click', function(e) { e.stopPropagation(); deleteBuku(this.dataset.delete); });
+        btn.addEventListener('click', function(e) { e.stopPropagation(); deleteBuku(this.dataset.delete, this); });
       });
     }
 
@@ -538,15 +538,16 @@
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
     }
 
-    async function deleteBuku(id) {
+    async function deleteBuku(id, btn) {
       var b = state.items.find(function(x) { return x.id === id; });
       if (!b) return;
       if (!confirm('Hapus buku "' + b.judul + '"? Tindakan ini tidak dapat dibatalkan.')) return;
+      if (btn) btn.disabled = true;
       try {
         await api('buku.delete', { id: id });
         showNotice('Buku berhasil dihapus.', 'success');
         await loadBuku();
-      } catch(e) { showNotice('Gagal menghapus: ' + e.message, 'error'); }
+      } catch(e) { showNotice('Gagal menghapus: ' + e.message, 'error'); if (btn) btn.disabled = false; }
     }
 
     /* ── Dialog ── */
@@ -757,8 +758,9 @@
         if (e.dataTransfer.files[0]) selectFile(e.dataTransfer.files[0]);
       });
 
+      var debouncedApplyFilters = PSUI.debounce(applyFilters, PSUI.AUTOSAVE_DEBOUNCE_MS);
       ['searchBuku','filterPelajaran','filterAkses','filterJenis'].forEach(function(id) {
-        document.getElementById(id).addEventListener('input', applyFilters);
+        document.getElementById(id).addEventListener('input', debouncedApplyFilters);
         document.getElementById(id).addEventListener('change', applyFilters);
       });
 

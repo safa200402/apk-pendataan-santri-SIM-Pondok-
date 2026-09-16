@@ -9,7 +9,7 @@
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="../../shared-ui.css">
   <link rel="stylesheet" href="../../shared-shell.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+  <link rel="stylesheet" href="../../vendor/fontawesome/css/all.min.css">
   <script src="../../shared-ui.js"></script>
   <title>Input Tingkat Kelas</title>
   <style>
@@ -527,7 +527,7 @@
         if (btn && window.PSUI) window.PSUI.applyPermissionLock(btn, canManage, 'Mudir hanya bisa melihat tingkat kelas santri, tidak bisa menyimpan perubahan.');
       })();
       document.getElementById('taSelect').addEventListener('change', function () { state.tahunAjaranId = this.value; state.page = 1; loadKelas(); });
-      document.getElementById('searchInput').addEventListener('input', function () { state.searchQuery = this.value; state.page = 1; renderKelas(); });
+      document.getElementById('searchInput').addEventListener('input', PSUI.debounce(function () { state.searchQuery = this.value; state.page = 1; renderKelas(); }, PSUI.AUTOSAVE_DEBOUNCE_MS));
       document.getElementById('statusFilter').addEventListener('change', function () { state.statusFilter = this.value; state.page = 1; loadKelas(); });
       document.getElementById('genderFilter').addEventListener('change', function () { state.genderFilter = this.value; state.page = 1; renderKelas(); });
       document.getElementById('jamFilter').addEventListener('change', function () { state.jamFilter = this.value; state.page = 1; renderKelas(); });
