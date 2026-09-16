@@ -490,6 +490,7 @@
               <button type="button" class="secondary q-mode-btn active" data-qmode="form">Mode Form</button>
               <button type="button" class="secondary q-mode-btn" data-qmode="text">Mode Teks</button>
             </div>
+            <button type="button" class="secondary hidden" id="btnQuizTextFormatHelp" style="font-size:11px;padding:7px 12px;"><i class="fa-solid fa-circle-question"></i>&ensp;Contoh Format</button>
             <div class="q-add-dropdown" id="qAddDropdown">
               <div class="secondary" id="btnAddBlock" role="button" tabindex="0" style="padding:7px 12px;font-size:11px;font-weight:800;">+ Tambah Blok <i class="fa-solid fa-caret-down"></i></div>
               <div class="q-add-menu hidden" id="qAddMenu">
@@ -584,6 +585,20 @@
         <button class="danger" type="button" id="btnFolderEditDelete" style="margin-left:auto;">Hapus Folder</button>
       </div>
     </form>
+  </dialog>
+
+  <!-- ── Contoh format Mode Teks -- dibuka dari dalam #editorDialog, data-no-history wajib
+       (pola sama dgn resultDialog/folderEditDialog: nested di atas dialog lain). ── -->
+  <dialog class="ps-floating-dialog" id="quizTextFormatDialog" data-no-history="true">
+    <div class="dialog-body ps-dialog-shell" style="gap:12px;">
+      <div class="ps-dialog-header"><h3>Contoh Format Mode Teks</h3></div>
+      <p class="muted" style="margin:0;">Satu contoh per jenis blok. Klik "Salin" di tiap kartu buat nyalin satu, atau "Salin Semua" buat nempel langsung ke kotak teks sebagai template lengkap.</p>
+      <div id="qtfExamples" style="display:grid;gap:12px;max-height:60vh;overflow:auto;"></div>
+      <div class="ps-dialog-footer">
+        <button class="primary" type="button" id="btnCopyAllQuizFormat"><i class="fa-solid fa-copy"></i>&ensp;Salin Semua</button>
+        <button class="secondary" type="button" id="btnCloseQuizFormatDialog">Tutup</button>
+      </div>
+    </div>
   </dialog>
 
   <!-- ── Browser folder (pindahkan quiz / pilih induk) — FETCH per-tingkat, dipaginasi + cari ── -->
@@ -1650,6 +1665,72 @@
     const QUIZ_MARK_TYPE = Object.keys(QUIZ_TYPE_MARK).reduce((m, t) => (m[QUIZ_TYPE_MARK[t]] = t, m), {});
     const QUIZ_ALL_MARKS = Object.values(QUIZ_TYPE_MARK);
 
+    // Contoh 1 blok per jenis, ditampilkan di dialog "Contoh Format" (tombol #btnQuizTextFormatHelp,
+    // cuma kelihatan pas Mode Teks aktif). Ditulis manual (bukan diturunkan dari QUIZ_TYPE_MARK)
+    // supaya isinya tetap contoh soal yang masuk akal buat dibaca, bukan sekadar simbol kosong.
+    const QUIZ_TEXT_FORMAT_EXAMPLES = [
+      { label: 'Pilihan Ganda', text: '➡️ Berapa rakaat sholat Subuh?\n1\n2 ✅\n3\n4\nPENJELASAN: Sholat Subuh dikerjakan 2 rakaat.\nBOBOT: 2' },
+      { label: 'Isian Singkat', text: '✏️ Apa ibu kota Indonesia?\nJakarta ✅\nDKI Jakarta ✅\nPENJELASAN: Jakarta adalah ibu kota Republik Indonesia.' },
+      { label: 'Isian Bank Kata', text: '🧩 JUDUL: Latihan kosakata\nKucing itu sedang [[tidur|beristirahat]] di atas [[meja]].\nPENGECOH: berlari, kursi\nPENJELASAN: Perhatikan konteks kalimat.' },
+      { label: 'Susun Kalimat', text: '🔤 PROMPT: Susun jadi kalimat yang benar\nSaya pergi ke sekolah setiap pagi\nPENGECOH: kadang, malam' },
+      { label: 'Halaman Materi', text: '📄 JUDUL: Ringkasan Bab 3' }
+    ];
+
+    // Sama seperti copyTextToClipboard di pages/pelanggaran & pages/santriSakit -- fallback
+    // execCommand buat konteks non-secure (mis. dibuka lewat http:// LAN tanpa TLS).
+    async function copyTextToClipboard(text) {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        return;
+      }
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.focus(); ta.select();
+      const ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      if (!ok) throw new Error('Gagal menyalin ke clipboard.');
+    }
+
+    function renderQuizTextFormatExamples() {
+      document.getElementById('qtfExamples').innerHTML = QUIZ_TEXT_FORMAT_EXAMPLES.map((ex, i) => `
+        <div style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;">
+            <strong style="font-size:12.5px;">${esc(ex.label)}</strong>
+            <button type="button" class="secondary qtf-copy-one" data-i="${i}" style="font-size:10.5px;padding:4px 9px;min-height:0;"><i class="fa-solid fa-copy"></i>&ensp;Salin</button>
+          </div>
+          <pre style="white-space:pre-wrap;word-break:break-word;margin:0;font-family:ui-monospace,'Cascadia Code','Consolas',monospace;font-size:12.5px;line-height:1.7;background:#fff;border:1px solid var(--line);border-radius:8px;padding:8px 10px;">${esc(ex.text)}</pre>
+        </div>
+      `).join('');
+    }
+    document.getElementById('btnQuizTextFormatHelp').addEventListener('click', () => {
+      renderQuizTextFormatExamples();
+      const dlg = document.getElementById('quizTextFormatDialog');
+      if (!dlg.open) dlg.showModal();
+    });
+    document.getElementById('btnCloseQuizFormatDialog').addEventListener('click', () => document.getElementById('quizTextFormatDialog').close());
+    document.getElementById('qtfExamples').addEventListener('click', async (ev) => {
+      const btn = ev.target.closest('.qtf-copy-one');
+      if (!btn) return;
+      const orig = btn.innerHTML;
+      try {
+        await copyTextToClipboard(QUIZ_TEXT_FORMAT_EXAMPLES[+btn.dataset.i].text);
+        btn.innerHTML = '<i class="fa-solid fa-check"></i>&ensp;Tersalin!';
+        setTimeout(() => { btn.innerHTML = orig; }, 1600);
+      } catch (e) { showNotice('Gagal menyalin.', 'error'); }
+    });
+    document.getElementById('btnCopyAllQuizFormat').addEventListener('click', async () => {
+      const btn = document.getElementById('btnCopyAllQuizFormat');
+      const orig = btn.innerHTML;
+      try {
+        await copyTextToClipboard(QUIZ_TEXT_FORMAT_EXAMPLES.map(ex => ex.text).join('\n\n'));
+        btn.innerHTML = '<i class="fa-solid fa-check"></i>&ensp;Tersalin!';
+        setTimeout(() => { btn.innerHTML = orig; }, 1600);
+      } catch (e) { showNotice('Gagal menyalin.', 'error'); }
+    });
+
     // Baris isi (tanpa penanda) untuk blok opaque — dipakai serialize & dibandingkan saat parse.
     // Halaman Materi TIDAK ikut meratakan HTML-nya ke sini -- isi rich text-nya diedit langsung
     // lewat kartu Quill di panel Materi (renderTextMateriPanel), di sini cuma bawa baris JUDUL.
@@ -1874,6 +1955,7 @@
       document.getElementById('qFormMode').style.display = mode === 'text' ? 'none' : 'block';
       document.getElementById('qTextMode').style.display = mode === 'text' ? 'block' : 'none';
       document.getElementById('qTextHint').style.display = mode === 'text' ? 'block' : 'none';
+      document.getElementById('btnQuizTextFormatHelp').classList.toggle('hidden', mode !== 'text');
       S.qMode = mode;
     }
     function switchQuizMode(mode) {
