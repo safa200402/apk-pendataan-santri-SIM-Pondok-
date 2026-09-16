@@ -15648,6 +15648,10 @@ function computeQuizSantriListItem_(quizRow, ctx, myAttempts, myBacaan) {
   var attempts = (myAttempts || []).filter(function (j) { return cleanString_(j.quiz_id) === cleanString_(quizRow.id); });
   var done = attempts.filter(function (j) { return cleanString_(j.status_kerja) === 'selesai'; });
   var inProgress = attempts.filter(function (j) { return cleanString_(j.status_kerja) === 'berlangsung'; })[0] || null;
+  // Berapa soal yang SUDAH dijawab minimal 1x di attempt yang lagi berlangsung -- answers_json
+  // di-upsert per questionId (lihat upsertQuizAnswer_), jadi panjang array = jumlah soal unik
+  // yang sudah disentuh, tak peduli sudah berapa kali diulang jawabannya.
+  var answeredCount = inProgress ? parseQuizJson_(inProgress.answers_json, []).length : 0;
   var openAt = cleanString_(quizRow.open_at), closeAt = cleanString_(quizRow.close_at);
   var notYetOpen = openAt && ctx.now16 < openAt.slice(0, 16);
   var closed = closeAt && ctx.now16 > closeAt.slice(0, 16);
@@ -15678,6 +15682,7 @@ function computeQuizSantriListItem_(quizRow, ctx, myAttempts, myBacaan) {
     attemptsLeft: attemptsLeft,
     canStart: !notYetOpen && !closed && (attemptsLeft === -1 || attemptsLeft > 0 || !!inProgress),
     hasInProgress: !!inProgress,
+    answeredCount: answeredCount,
     inProgressAttemptId: inProgress ? cleanString_(inProgress.id) : '',
     canReview: done.length > 0,
     scoreVisible: scoreVisible,
