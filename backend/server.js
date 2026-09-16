@@ -9225,12 +9225,42 @@ function handleTasmiSetoranRekapBulananLengkap_(request, session) {
 // yang bisa diakses dalam satu tahun ajaran (bukan cuma satu halaqoh) -- dipakai laporan PDF
 // gabungan "siapa boleh ditelpon" lintas halaqoh. Tidak menyertakan catatan sesi umum (per
 // halaqoh) karena tidak ada satu daftar pekan yang sama relevan untuk semua halaqoh sekaligus.
+// Versi ringan loadDataset_() khusus buat handleTasmiSetoranRekapBulananLengkapSemua_(): cuma
+// baca 4 tabel yang dipakai (halaqohTasmi buat scope akses, pengurus/santri buat label nama,
+// tahunAjaran buat cari TA aktif + nama TA), bukan 18 tabel penuh. Beda dari kasus authenticate/
+// references (yang bisa dikasih cache biasa), handler ini TIDAK bisa dicache dengan cara yang
+// sama karena hasilnya discope per-session (getAccessibleHalaqohTasmi_ -- koordinator halaqoh
+// cuma lihat halaqoh dia, admin lihat semua) -- nentuin scope itu sendiri butuh dataset duluan,
+// jadi cache tak akan menghindari biaya termahalnya. Makanya di sini dataset-nya dipersempit,
+// bukan hasilnya disimpan.
+function loadTasmiRekapDataset_() {
+  var pengurusState = readSheetState_('pengurus');
+  var santriState = readSheetState_('santri');
+  var halaqohTasmiState = readSheetState_('halaqohTasmi');
+  var tahunAjaranState = readSheetState_('tahunAjaran');
+
+  var dataset = {
+    pengurus: pengurusState.rows.map(normalizePengurus_),
+    santri: santriState.rows.map(normalizeSantri_),
+    halaqohTasmi: halaqohTasmiState.rows.map(normalizeHalaqohTasmi_),
+    tahunAjaran: sortTahunAjaranList_(tahunAjaranState.rows.map(normalizeTahunAjaran_))
+  };
+
+  dataset.indexes = {
+    pengurusById: indexById_(dataset.pengurus),
+    santriById: indexById_(dataset.santri),
+    tahunAjaranById: indexById_(dataset.tahunAjaran)
+  };
+
+  return dataset;
+}
+
 function handleTasmiSetoranRekapBulananLengkapSemua_(request, session) {
   if (!canAccessTasmiSetoranPdfExport_(session)) throw createError_('Fitur download PDF hanya untuk super admin, admin, atau koordinator halaqoh.', 403);
   var bulan = cleanString_(request.bulan || '').slice(0, 7);
   if (!/^\d{4}-\d{2}$/.test(bulan)) throw createError_('Format bulan tidak valid (YYYY-MM).', 400);
 
-  var dataset = loadDataset_();
+  var dataset = loadTasmiRekapDataset_();
   var tahunAjaranId = cleanString_(request.tahunAjaranId);
   if (!tahunAjaranId) {
     var aktifTa = (dataset.tahunAjaran || []).filter(function (t) { return t.isAktif; })[0];
