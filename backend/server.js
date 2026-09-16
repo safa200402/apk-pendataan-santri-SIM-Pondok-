@@ -15439,8 +15439,34 @@ function sweepExpiredQuizAttempts_() {
   });
 }
 
+// Versi ringan loadDataset_() khusus buat quizSantriContext_() (dipakai 6 handler quiz santri:
+// List, Browse, Get, DocGet, DocProgress, Start): cuma baca 4 tabel -- santri, kelasSiang,
+// tahunAjaran, dan pengurus (yang terakhir cuma buat label pengajar/badal kelas di
+// handleQuizSantriList_ lewat dataset.indexes.pengurusById) -- bukan 18 tabel penuh. Dipanggil
+// berulang dalam SATU sesi santri ngerjain quiz (buka daftar, browse folder, buka soal, autosave
+// progress dokumen, mulai attempt) -- pola sama kayak dialog rekap hafalan yang manggil ulang
+// tiap interaksi.
+function loadQuizSantriContextDataset_() {
+  var santriState = readSheetState_('santri');
+  var kelasState = readSheetState_('kelasSiang');
+  var tahunAjaranState = readSheetState_('tahunAjaran');
+  var pengurusState = readSheetState_('pengurus');
+
+  var dataset = {
+    santri: santriState.rows.map(normalizeSantri_),
+    kelasSiang: kelasState.rows.map(normalizeKelas_),
+    tahunAjaran: sortTahunAjaranList_(tahunAjaranState.rows.map(normalizeTahunAjaran_)),
+    pengurus: pengurusState.rows.map(normalizePengurus_)
+  };
+
+  dataset.indexes = { pengurusById: indexById_(dataset.pengurus) };
+  dataset.tahunAjaranAktif = dataset.tahunAjaran.filter(function (t) { return t.isAktif; })[0] || null;
+
+  return dataset;
+}
+
 function quizSantriContext_(session) {
-  var dataset = loadDataset_();
+  var dataset = loadQuizSantriContextDataset_();
   var santriId = cleanString_(session.id);
   var activeTaId = dataset.tahunAjaranAktif ? cleanString_(dataset.tahunAjaranAktif.id) : '';
   var santriRow = findById_(dataset.santri, santriId);
