@@ -17393,8 +17393,14 @@ function handleKegiatanSopByJabatan_(request) {
   return { ok: true, timestamp: nowIso_(), data: { pjList: pjList, jabatanList: pjList } };
 }
 
+// Versi ringan loadDataset_() khusus buat handleKegiatanSopLampiranList_(): cuma baca 1 tabel
+// (kegiatanSopLampiran), bukan 18. Dipanggil tiap kali dialog lampiran kegiatan SOP dibuka.
+function loadKegiatanSopLampiranDataset_() {
+  return { kegiatanSopLampiran: readSheetState_('kegiatanSopLampiran').rows.map(normalizeKegiatanSopLampiran_) };
+}
+
 function handleKegiatanSopLampiranList_(request) {
-  var dataset = loadDataset_();
+  var dataset = loadKegiatanSopLampiranDataset_();
   var idKegiatan = cleanString_(request.id_kegiatan || request.idKegiatan);
   if (!idKegiatan) throw createError_('id_kegiatan diperlukan.', 400);
   var items = (dataset.kegiatanSopLampiran || [])
