@@ -1,0 +1,174 @@
+# CATATAN: Cara Upload Project Ini ke GitHub
+
+Ditulis supaya tinggal COPAS ke terminal (CMD atau PowerShell di Windows — perintah `git` sama persis di keduanya).
+
+Isinya 2 bagian:
+- **BAGIAN 1** = Upload PERTAMA KALI (bikin repo dari nol)
+- **BAGIAN 2** = Update / upload ulang setelah ada perubahan kode
+
+Plus beberapa tips tambahan di bagian paling bawah.
+
+## Persiapan (cek/lakukan SEKALI SAJA di komputer ini)
+
+**1) Pastikan Git sudah terinstall.** Cek di terminal:
+
+```
+git --version
+```
+
+Kalau belum ada, download di https://git-scm.com/download/win lalu install (pilihan default / next-next-next juga sudah cukup).
+
+**2) Kenalkan identitas kamu ke Git** (skip kalau sudah pernah setup sebelumnya):
+
+```
+git config --global user.name "Nama Kamu"
+git config --global user.email "email-akun-github-kamu@gmail.com"
+```
+
+**3) PENTING — sudah dibuatkan file `.gitignore` di folder project ini**
+
+File `.gitignore` menentukan file/folder mana yang SENGAJA TIDAK ikut diupload ke GitHub. Ini penting karena di dalam folder project ada:
+
+- `node_modules/` — ukurannya besar (150 MB+), gampang diinstall ulang pakai `npm install`, tidak perlu diupload
+- `backend/data/` — database asli (`.sqlite`) + backup `.zip` yang bisa 700 MB+, isinya **DATA ASLI santri & pengurus** (nama, dll) — jangan sampai bocor ke publik
+- `backend/certs/` — **PRIVATE KEY** sertifikat HTTPS, tidak boleh diupload ke mana pun
+- `frontend/profile-photos`, `santri-docs`, `santri-sakit-fotos`, `izin-pulang-fotos`, `pelanggaran-fotos`, dll — **FOTO ASLI** santri/pengurus hasil upload lewat aplikasi
+- Folder `💠data_backup`, `💠data-file-assets`, `frontend/frontend.zip` — backup manual & arsip besar yang tidak perlu ikut ke GitHub
+
+> **JANGAN** hapus/edit `.gitignore` ini kecuali kamu benar-benar paham resikonya.
+
+> **SEBELUM push pertama kali**, cek juga beberapa file berikut di root folder project (bukan source code, isinya data/laporan ASLI) — sebaiknya dipindah keluar folder project atau dihapus dulu:
+> - `Laporan_Anomali_Data_Santri.xlsx`
+> - File `.json` dengan nama panjang aneh (mengandung tulisan `anomali_santri_halaqoh`)
+> - `preview_result.json`
+> - `utk`
+
+## BAGIAN 1: Upload Pertama Kali (Buat Repo Baru dari Nol)
+
+### STEP A — Buat repo kosong di GitHub lewat browser (sekali saja)
+
+1. Buka https://github.com/new
+2. Isi "Repository name" (contoh: `apk-pendataan-santri`)
+3. Pilih Public atau Private
+   > **SARAN:** pilih **PRIVATE** dulu, karena project ini menyangkut data pesantren (santri yang sebagian besar di bawah umur). Bisa diubah ke Public belakangan lewat menu Settings repo kalau memang mau dipublikasikan.
+4. **JANGAN** centang "Add a README file" / ".gitignore" / "license" (biar tidak bentrok dengan file yang sudah ada di folder lokal)
+5. Klik **Create repository**
+6. GitHub akan menampilkan alamat repo, bentuknya seperti `https://github.com/USERNAME/NAMA-REPO.git`. Salin alamat ini, dipakai di STEP B baris `git remote add origin`.
+
+### STEP B — Jalankan di terminal, DI DALAM folder project ini
+
+Boleh copas semua sekaligus, jalan berurutan dari atas ke bawah:
+
+```
+cd /d "c:\Users\Windows 1021\Desktop\apk_pendataan_santri\Versi JS + sqlite + HTML Statis"
+git init
+git add .
+git commit -m "Initial commit"
+git branch -M main
+git remote add origin https://github.com/safa200402/apk-pendataan-santri-SIM-Pondok-.git
+git push -u origin main
+```
+
+Ganti URL di baris `git remote add origin` dengan URL asli dari STEP A kalau bikin repo baru yang berbeda.
+
+**Soal login:** saat `git push` pertama kali biasanya muncul jendela browser untuk login GitHub — login seperti biasa, nanti otomatis tersambung. Kalau yang muncul malah prompt username/password DI DALAM terminal (bukan browser), ingat GitHub **sudah tidak menerima password akun biasa** — pakai Personal Access Token sebagai pengganti password:
+
+1. Buka https://github.com/settings/tokens
+2. "Generate new token (classic)"
+3. Centang scope `repo`
+4. Generate → copy tokennya → tempel token itu di kolom "password" saat diminta terminal
+
+Selesai. Buka `https://github.com/USERNAME/NAMA-REPO` untuk cek hasilnya.
+
+## BAGIAN 2: Update / Upload Ulang (Setelah Ada Perubahan Kode)
+
+Dipakai TIAP KALI habis edit kode dan mau kirim perubahan ke GitHub. Jalankan di terminal, di dalam folder project ini:
+
+```
+cd /d "c:\Users\Windows 1021\Desktop\apk_pendataan_santri\Versi JS + sqlite + HTML Statis"
+git add .
+git commit -m "Tulis di sini ringkasan perubahannya"
+git push
+```
+
+Ganti tulisan di dalam tanda kutip dengan ringkasan singkat perubahan yang kamu buat, contoh:
+
+```
+git commit -m "Fix bug audit jurnal SDM"
+git commit -m "Tambah fitur download detail santri"
+```
+
+Kalau `git commit` bilang `nothing to commit, working tree clean` artinya memang belum ada perubahan yang perlu diupload — aman, abaikan saja.
+
+Kalau `git push` gagal dan muncul kata `rejected` / `non-fast-forward`, artinya ada perubahan di GitHub yang belum ada di komputer kamu (misalnya file sempat diedit langsung lewat web GitHub). Tarik dulu perubahannya:
+
+```
+git pull
+```
+
+lalu ulangi:
+
+```
+git push
+```
+
+## Cek Cepat Sebelum Push (opsional, tapi disarankan)
+
+```
+git status
+```
+
+Perintah ini menampilkan file apa saja yang AKAN ikut terupload SEBELUM kamu jalankan `git add .`. Berguna untuk mastiin tidak ada file besar / data pribadi yang kebawa tanpa sengaja (walau sudah ada `.gitignore`).
+
+## Inovasi Tambahan (biar proses upload makin gampang & rapi)
+
+**1) Script sekali-klik untuk update: `upload-github.bat`**
+
+Supaya BAGIAN 2 nggak perlu diketik manual tiap kali, sudah dibuatkan file `upload-github.bat` di folder project ini. Tinggal DOUBLE-KLIK filenya, nanti tinggal ketik ringkasan perubahan (commit message) saat diminta, dan otomatis dijalankan add + commit + push secara berurutan.
+
+**2) Commit message yang rapi**
+
+Biasakan pesan commit singkat tapi jelas isinya APA yang berubah, contoh:
+
+- `Fix: bug jam kerja pengurus salah hitung lembur`
+- `Feat: tambah halaman jadwal ibadah`
+- `Docs: update README cara jalanin server`
+
+Riwayat commit yang rapi sangat membantu kalau suatu saat perlu lacak balik penyebab sebuah bug.
+
+**3) File `.env` untuk data rahasia**
+
+Kalau ke depannya perlu nambah API key / kredensial (WhatsApp, email, dll), **JANGAN** ditulis langsung di `server.js`. Simpan di file `.env` di root project (sudah otomatis di-ignore lewat `.gitignore`), lalu dibaca lewat `process.env.NAMA_VARIABEL` di kode. Ini mencegah kredensial ikut ter-push ke GitHub secara tidak sengaja.
+
+**4) Tandai versi stabil sebelum perubahan besar (`git tag`)**
+
+Sebelum mulai ubah fitur besar/berisiko, kasih tag dulu di versi yang lagi stabil, supaya gampang balik kalau ada masalah:
+
+```
+git tag v1.0-stabil
+git push origin v1.0-stabil
+```
+
+Untuk balik ke titik itu kalau perlu:
+
+```
+git checkout v1.0-stabil
+```
+
+**5) Kalau terlanjur ke-commit file besar/sensitif sebelum sempat di-ignore**
+
+```
+git rm -r --cached NAMA_FOLDER_ATAU_FILE
+git commit -m "Stop tracking file sensitif"
+git push
+```
+
+> Catatan: ini cuma menghentikan Git MELACAK file itu mulai sekarang — kalau sudah SEMPAT ter-push ke GitHub sebelumnya, riwayat lamanya tetap ada di history. Makanya sebisa mungkin dicegah dari awal pakai `.gitignore`, BUKAN dibersihkan belakangan.
+
+**6) GitHub Desktop sebagai alternatif (kalau males terminal)**
+
+Kalau suatu saat malas ketik perintah, ada aplikasi resmi [GitHub Desktop](https://desktop.github.com) yang menampilkan perubahan file secara visual, tinggal klik "Commit" lalu "Push origin". Fungsinya sama persis dengan BAGIAN 2 di atas, cuma dalam bentuk tampilan klik-klik.
+
+---
+
+Selesai. Simpan file ini — tinggal buka & copas tiap butuh upload/update ke GitHub.

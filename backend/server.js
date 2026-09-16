@@ -24446,12 +24446,6 @@ function handleUjianHafalanSetStatus_(request, session) {
   return { ok: true, timestamp: nowIso_(), data: { id: id, message: 'Status ujian berhasil diperbarui.' } };
 }
 
-function requireSuperAdmin_(session) {
-  if (!session || !session.permissions || !session.permissions.isSuperAdmin) {
-    throw createError_('Hanya Super Admin yang bisa melakukan aksi ini.', 403);
-  }
-}
-
 function parseUjianHafalanTempelText_(text) {
   var blocks = text.split(/\n[ \t]*\n/);
   var entries = [];
@@ -27697,15 +27691,6 @@ var DEFAULT_PELANGGARAN_JENIS = [
   { nama: 'Tidak menghormati pengurus', kategori: 'sedang' },
   { nama: 'Pelanggaran lainnya', kategori: 'ringan' }
 ];
-
-function getMondayOfWeek_(dateStr) {
-  var d = dateStr ? new Date(dateStr) : new Date();
-  if (isNaN(d.getTime())) d = new Date();
-  var day = d.getDay();
-  var diff = (day === 0) ? -6 : 1 - day;
-  d.setDate(d.getDate() + diff);
-  return d.toISOString().slice(0, 10);
-}
 
 var JADWAL_IBADAH_HARI_ = ['senin', 'selasa', 'rabu', 'kamis', 'jumat', 'sabtu', 'ahad'];
 var JADWAL_IBADAH_WAKTU_ = ['subuh', 'dzuhur', 'ashar', 'maghrib', 'isya'];
