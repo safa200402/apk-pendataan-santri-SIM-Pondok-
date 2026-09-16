@@ -29,7 +29,7 @@ echo Keterangan: kalau daftar di atas kosong, berarti project
 echo kamu sudah paling baru, tidak perlu download apa-apa.
 echo.
 
-set /p LANJUT=Lanjutkan download & gabungkan perubahan di atas ke project ini? (y/n):
+set /p LANJUT=Lanjutkan download ^& gabungkan perubahan di atas ke project ini? (y/n):
 if /i not "%LANJUT%"=="y" (
     echo.
     echo Dibatalkan. Tidak ada perubahan yang didownload.
