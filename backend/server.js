@@ -761,6 +761,53 @@ var BCRYPT_ROUNDS = 10;
 var DEFAULT_SANTRI_PASSWORD = 'password123';
 var currentAuditSession_ = null;
 
+// ── Presence (siapa lagi "online") -- in-memory saja, SENGAJA tidak ditulis ke DB supaya tidak
+// nambah beban tulis di jalur yang dieksekusi tiap request (authenticateRequest_). Konsekuensinya
+// data ini reset kalau server restart -- ini murni buat "lihat siapa aktif SEKARANG", bukan
+// riwayat historis. Logika akumulasi waktu online: tiap request yang berhasil autentikasi dicatat
+// jamnya; kalau jeda dari request SEBELUMNYA orang yg sama <= PRESENCE_GAP_MS, jeda itu ditambah
+// ke onlineMs (dianggap sesi nyambung terus); kalau jedanya lebih lama, onlineMs direset ke 0
+// (dianggap sesi baru, sesi lama sudah putus).
+var PRESENCE_GAP_MS = 5 * 60 * 1000;       // >5 menit tanpa request = dianggap sesi terputus
+var PRESENCE_WINDOW_MS = 60 * 60 * 1000;   // window "online" yang ditampilkan = 1 jam terakhir
+var PRESENCE_STALE_MS = 24 * 60 * 60 * 1000; // sapu entri yg sudah gak keliatan >24 jam biar map gak numpuk
+var presenceState_ = {};
+
+function recordPresence_(session) {
+  if (!session || !session.id || !session.role) return;
+  var key = session.role + ':' + session.id;
+  var now = Date.now();
+  var entry = presenceState_[key];
+  if (!entry) {
+    presenceState_[key] = { role: session.role, id: session.id, name: session.name || '', lastSeenAt: now, onlineMs: 0 };
+    return;
+  }
+  var gap = now - entry.lastSeenAt;
+  entry.onlineMs = gap <= PRESENCE_GAP_MS ? (entry.onlineMs + gap) : 0;
+  entry.lastSeenAt = now;
+  entry.name = session.name || entry.name;
+}
+
+function listPresence_() {
+  var now = Date.now();
+  Object.keys(presenceState_).forEach(function (key) {
+    if (now - presenceState_[key].lastSeenAt > PRESENCE_STALE_MS) delete presenceState_[key];
+  });
+  var items = Object.keys(presenceState_).map(function (key) { return presenceState_[key]; })
+    .filter(function (e) { return (now - e.lastSeenAt) <= PRESENCE_WINDOW_MS; })
+    .map(function (e) {
+      return {
+        role: e.role,
+        id: e.id,
+        name: e.name,
+        lastSeenSecondsAgo: Math.round((now - e.lastSeenAt) / 1000),
+        onlineMinutes: Math.round(e.onlineMs / 60000)
+      };
+    })
+    .sort(function (a, b) { return a.lastSeenSecondsAgo - b.lastSeenSecondsAgo; });
+  return { windowMinutes: PRESENCE_WINDOW_MS / 60000, total: items.length, items: items };
+}
+
 // Run once at startup to ensure all santri without a password get the default
 process.nextTick(function () {
   try {
@@ -2773,6 +2820,8 @@ function handleRequest_(e, method) {
         return jsonResponse_(handleDashboard_());
       case 'audit':
         return jsonResponse_(handleAudit_());
+      case 'presence.list':
+        return jsonResponse_({ ok: true, timestamp: nowIso_(), data: listPresence_() });
       case 'export.data':
         return jsonResponse_(handleExportData_(request, session));
       case 'import.preview':
@@ -20348,7 +20397,7 @@ function authenticateRequest_(token, allowSantri, scopeLabel) {
       var scoped = applyScopeToPermissions_(cleanedScope, enriched, dataset, rawPermissions);
       if (scoped) permissions = scoped;
     }
-    return {
+    var pengurusSession_ = {
       role: 'pengurus',
       id: enriched.id,
       name: enriched.name,
@@ -20363,6 +20412,8 @@ function authenticateRequest_(token, allowSantri, scopeLabel) {
       permissions: permissions,
       rawPermissions: rawPermissions
     };
+    recordPresence_(pengurusSession_);
+    return pengurusSession_;
   }
 
   if (allowSantri) {
@@ -20370,7 +20421,7 @@ function authenticateRequest_(token, allowSantri, scopeLabel) {
       return item.active && parseSessionTokens_(item.token).indexOf(cleanedToken) !== -1;
     })[0];
     if (santri) {
-      return {
+      var santriSession_ = {
         role: 'santri',
         id: santri.id,
         name: santri.name,
@@ -20378,6 +20429,8 @@ function authenticateRequest_(token, allowSantri, scopeLabel) {
         noInduk: santri.noInduk,
         photoUrl: santri.photoUrl || ''
       };
+      recordPresence_(santriSession_);
+      return santriSession_;
     }
   }
 
@@ -20732,6 +20785,9 @@ function authorizeAction_(session, action, request) {
     case 'audit':
       if (session.permissions.isAdmin || session.permissions.canManageHalaqoh || session.permissions.canManageKelasSiang || session.permissions.canManageAbsensi) return;
       break;
+    case 'presence.list':
+      requireSuperAdmin_(session);
+      return;
     case 'content.public.list':
       return;
     case 'santri.list':

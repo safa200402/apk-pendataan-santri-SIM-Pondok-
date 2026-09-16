@@ -399,6 +399,11 @@
           description: 'Ikhtisar data dan akses cepat (Super Admin)'
         },
         {
+          href: '/pages/onlineSekarang/',
+          label: '*** Pengguna Online',
+          description: 'Pantau akun pengurus/santri yang aktif dalam 1 jam terakhir (Super Admin)'
+        },
+        {
           href: '/pages/portalSettings/',
           label: '** Pengaturan Portal',
           description: 'Atur logo dan nama organisasi'

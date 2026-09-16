@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#9e2f22">
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="../../shared-ui.css">
+  <link rel="stylesheet" href="../../shared-shell.css">
+  <link rel="stylesheet" href="../../vendor/fontawesome/css/all.min.css">
+  <script src="../../shared-ui.js"></script>
+  <title>Pengguna Online</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700&display=swap');
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; }
+    .panel { padding: 22px; }
+    button { font: inherit; }
+    :root { --ink:#4d4034; --muted:#7b6a58; --line:rgba(91,73,57,0.15); --accent:#b97650; --danger:#a55a52; }
+    .btn { padding: 9px 18px; border-radius: 12px; border: none; cursor: pointer; font-weight: 700; display: inline-flex; align-items: center; gap: 8px; }
+    .loading { text-align: center; padding: 40px; color: var(--muted); }
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; margin-bottom: 18px; }
+    .stat-card { background: rgba(242, 222, 154, 0.96); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; }
+    .stat-num { font-size: 1.8rem; font-weight: 800; color: var(--ink); line-height: 1; }
+    .stat-label { font-size: 12px; color: var(--muted); font-weight: 500; }
+    table.presence-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+    table.presence-table th, table.presence-table td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); }
+    table.presence-table th { color: var(--muted); font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: .02em; }
+    table.presence-table tbody tr:hover { background: #f8f4ef; }
+    .role-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 700; padding: 3px 10px; border-radius: 99px; }
+    .role-pengurus { background: #e3f2fd; color: #1565c0; }
+    .role-santri { background: #e8f5e9; color: #2e7d32; }
+    .live-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #2e7d32; margin-right: 6px; animation: pulse 1.6s infinite; }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+    .empty-ok { text-align: center; padding: 24px; color: var(--muted); font-size: 13px; }
+  </style>
+</head>
+<body>
+  <div class="notice-stack" id="noticeStack" popover="manual"></div>
+  <main>
+    <div class="app-layout">
+      <section class="panel nav" id="nav"></section>
+      <div class="content-stack">
+        <section class="panel">
+          <h1 style="font-size:1.5rem;font-weight:700;color:var(--ink);margin:0 0 4px;">Pengguna Online</h1>
+          <p style="color:var(--muted);font-size:14px;margin:0 0 14px;">
+            Akun pengurus/santri yang mengakses sistem dalam 1 jam terakhir. "Estimasi online" dihitung dari jeda antar-request:
+            kalau jedanya &le; 5 menit dianggap sesi nyambung terus (waktunya ditambah), kalau lebih dianggap sesi baru (reset ke 0).
+            Data ini di memori server saja &mdash; ke-reset kalau server di-restart, bukan riwayat historis.
+          </p>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+            <button class="btn primary" id="refreshBtn"><i class="fa-solid fa-rotate-right"></i> Muat Ulang</button>
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);font-weight:600;">
+              <input type="checkbox" id="autoRefreshChk" checked style="width:16px;height:16px;">
+              Auto-refresh tiap 15 detik
+            </label>
+          </div>
+        </section>
+        <section class="panel">
+          <div id="statsGrid" class="stats-grid" style="display:none;"></div>
+          <div id="content"><div class="loading"><i class="fa-solid fa-spinner fa-spin fa-2x"></i><p style="margin-top:12px;">Memuat data...</p></div></div>
+        </section>
+      </div>
+    </div>
+  </main>
+  <script src="../../shared-access.js"></script>
+  <script src="../../shared-nav.js"></script>
+  <script src="../../shared-shell.js"></script>
+  <script>
+    const API_BASE = window.location.origin + '/api';
+    const STORAGE = { apiBase: 'ps_api_base', token: 'ps_token', session: 'ps_session' };
+    localStorage.setItem(STORAGE.apiBase, API_BASE);
+
+    function getStoredSession() { try { return JSON.parse(localStorage.getItem(STORAGE.session)); } catch { return null; } }
+    function getToken() { return localStorage.getItem(STORAGE.token); }
+    function clearSession() { localStorage.removeItem(STORAGE.session); localStorage.removeItem(STORAGE.token); }
+    function escapeHtml(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+    function mountShell(session) { return window.PSShell.mount({ currentPage: window.PSAccess ? window.PSAccess.cleanFileName(window.location.pathname) : 'onlineSekarang.html', session, getStoredSession, storageKey: STORAGE.session }); }
+
+    async function api(action, payload = {}) {
+      const token = getToken();
+      if (!token) { clearSession(); window.location.replace('/pages/login/'); throw new Error('Sesi tidak ditemukan.'); }
+      const r = await fetch(`${API_BASE}?${new URLSearchParams({ action, token, ...payload })}`);
+      const json = await r.json();
+      if (!json.ok) { const e = new Error(json.error?.message || 'Gagal.'); e.code = json.error?.code || 500; if (e.code === 401) { clearSession(); window.location.replace('/pages/login/'); } throw e; }
+      return json.data;
+    }
+
+    function fmtDuration(seconds) {
+      if (seconds < 60) return seconds + ' detik lalu';
+      const m = Math.round(seconds / 60);
+      if (m < 60) return m + ' menit lalu';
+      const h = Math.floor(m / 60);
+      return h + ' jam ' + (m % 60) + ' menit lalu';
+    }
+
+    function renderStats(d) {
+      const grid = document.getElementById('statsGrid');
+      grid.style.display = '';
+      grid.innerHTML = `
+        <div class="stat-card">
+          <span class="stat-num"><span class="live-dot"></span>${d.total}</span>
+          <span class="stat-label"><i class="fa-solid fa-tower-broadcast" style="opacity:.55;margin-right:4px;"></i>Online (${d.windowMinutes} menit terakhir)</span>
+        </div>
+      `;
+    }
+
+    function renderTable(d) {
+      const content = document.getElementById('content');
+      if (!d.items.length) {
+        content.innerHTML = '<div class="empty-ok"><i class="fa-solid fa-moon" style="opacity:.5;"></i><br>Tidak ada akun yang aktif dalam ' + d.windowMinutes + ' menit terakhir.</div>';
+        return;
+      }
+      const rows = d.items.map(it => `
+        <tr>
+          <td>${escapeHtml(it.name || ('#' + it.id))}</td>
+          <td><span class="role-badge role-${it.role}">${it.role === 'pengurus' ? 'Pengurus' : 'Santri'}</span></td>
+          <td>${escapeHtml(fmtDuration(it.lastSeenSecondsAgo))}</td>
+          <td>${it.onlineMinutes > 0 ? '&plusmn; ' + it.onlineMinutes + ' menit' : '<span style="color:var(--muted);">baru mulai</span>'}</td>
+        </tr>
+      `).join('');
+      content.innerHTML = `
+        <table class="presence-table">
+          <thead><tr><th>Nama</th><th>Peran</th><th>Terakhir Aktif</th><th>Estimasi Online</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      `;
+    }
+
+    async function load() {
+      try {
+        const d = await api('presence.list');
+        renderStats(d);
+        renderTable(d);
+      } catch (e) {
+        document.getElementById('content').innerHTML = `<div class="loading" style="color:var(--danger);"><i class="fa-solid fa-triangle-exclamation fa-2x"></i><p style="margin-top:8px;font-weight:600;">${escapeHtml(e.message)}</p></div>`;
+      }
+    }
+
+    let autoRefreshTimer = null;
+    function setupAutoRefresh() {
+      if (autoRefreshTimer) { clearInterval(autoRefreshTimer); autoRefreshTimer = null; }
+      if (document.getElementById('autoRefreshChk').checked) {
+        autoRefreshTimer = setInterval(load, 15000);
+      }
+    }
+
+    const session = getStoredSession();
+    if (!session) { clearSession(); window.location.replace('/pages/login/'); }
+    else if (window.PSAccess && window.PSAccess.redirectIfForbidden(session, '/pages/onlineSekarang/')) { /* redirected */ }
+    else {
+      mountShell(session);
+      document.getElementById('refreshBtn').addEventListener('click', load);
+      document.getElementById('autoRefreshChk').addEventListener('change', setupAutoRefresh);
+      load();
+      setupAutoRefresh();
+    }
+    if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {}); }
+  </script>
+</body>
+</html>
