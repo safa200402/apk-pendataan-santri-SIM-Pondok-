@@ -8263,8 +8263,41 @@ function handlePindahHalaqohEdit_(request) {
   };
 }
 
+// Versi ringan loadDataset_() dipakai bareng oleh buildHalaqohTasmiListItems_() (backing
+// halaqohTasmi.list, dipanggil tiap buka/filter ulang halaman Halaqoh Tasmi') dan
+// handleHalaqohTasmiSummaryPdfData_() (export PDF rekap semua halaqoh tasmi'). Cuma baca 5
+// tabel: halaqohTasmi (data utama), pengurus & santri (index label pengampu/badal/santri lewat
+// enrichHalaqohTasmi_), tahunAjaran (index nama TA), dan halaqoh (dipakai
+// computeSantriHafalanDetailByTA_ di jalur summary PDF saja, tapi aman ikut dimuat di sini
+// biar 1 loader dipakai 2 pemanggil) -- bukan 18 tabel penuh. Sebelumnya
+// handleHalaqohTasmiSummaryPdfData_ malah manggil loadDataset_() DUA KALI (sekali lewat fungsi
+// ini, sekali lagi sendiri) -- sekarang keduanya berbagi 1 load yang sama & jauh lebih sempit.
+function loadHalaqohTasmiListDataset_() {
+  var pengurusState = readSheetState_('pengurus');
+  var santriState = readSheetState_('santri');
+  var halaqohState = readSheetState_('halaqoh');
+  var halaqohTasmiState = readSheetState_('halaqohTasmi');
+  var tahunAjaranState = readSheetState_('tahunAjaran');
+
+  var dataset = {
+    pengurus: pengurusState.rows.map(normalizePengurus_),
+    santri: santriState.rows.map(normalizeSantri_),
+    halaqoh: halaqohState.rows.map(normalizeHalaqoh_),
+    halaqohTasmi: halaqohTasmiState.rows.map(normalizeHalaqohTasmi_),
+    tahunAjaran: sortTahunAjaranList_(tahunAjaranState.rows.map(normalizeTahunAjaran_))
+  };
+
+  dataset.indexes = {
+    pengurusById: indexById_(dataset.pengurus),
+    santriById: indexById_(dataset.santri),
+    tahunAjaranById: indexById_(dataset.tahunAjaran)
+  };
+
+  return dataset;
+}
+
 function buildHalaqohTasmiListItems_(request) {
-  var dataset = loadDataset_();
+  var dataset = loadHalaqohTasmiListDataset_();
   var q = cleanString_(request.q).toLowerCase();
   var statusFilter = cleanString_(request.status).toLowerCase();
   var tahunAjaranFilter = cleanString_(request.tahunAjaranId);
@@ -8666,7 +8699,7 @@ function handleHalaqohTasmiSummaryPdfData_(request, session) {
     throw createError_('Download PDF halaqoh tasmi\' hanya untuk Admin dan Super Admin.', 403);
   }
   var items = buildHalaqohTasmiListItems_(request);
-  var dataset = loadDataset_();
+  var dataset = loadHalaqohTasmiListDataset_();
   var detailByTA = {};
 
   var enrichedItems = items.map(function (item) {
