@@ -761,6 +761,53 @@ var BCRYPT_ROUNDS = 10;
 var DEFAULT_SANTRI_PASSWORD = 'password123';
 var currentAuditSession_ = null;
 
+// ── Presence (siapa lagi "online") -- in-memory saja, SENGAJA tidak ditulis ke DB supaya tidak
+// nambah beban tulis di jalur yang dieksekusi tiap request (authenticateRequest_). Konsekuensinya
+// data ini reset kalau server restart -- ini murni buat "lihat siapa aktif SEKARANG", bukan
+// riwayat historis. Logika akumulasi waktu online: tiap request yang berhasil autentikasi dicatat
+// jamnya; kalau jeda dari request SEBELUMNYA orang yg sama <= PRESENCE_GAP_MS, jeda itu ditambah
+// ke onlineMs (dianggap sesi nyambung terus); kalau jedanya lebih lama, onlineMs direset ke 0
+// (dianggap sesi baru, sesi lama sudah putus).
+var PRESENCE_GAP_MS = 5 * 60 * 1000;       // >5 menit tanpa request = dianggap sesi terputus
+var PRESENCE_WINDOW_MS = 60 * 60 * 1000;   // window "online" yang ditampilkan = 1 jam terakhir
+var PRESENCE_STALE_MS = 24 * 60 * 60 * 1000; // sapu entri yg sudah gak keliatan >24 jam biar map gak numpuk
+var presenceState_ = {};
+
+function recordPresence_(session) {
+  if (!session || !session.id || !session.role) return;
+  var key = session.role + ':' + session.id;
+  var now = Date.now();
+  var entry = presenceState_[key];
+  if (!entry) {
+    presenceState_[key] = { role: session.role, id: session.id, name: session.name || '', lastSeenAt: now, onlineMs: 0 };
+    return;
+  }
+  var gap = now - entry.lastSeenAt;
+  entry.onlineMs = gap <= PRESENCE_GAP_MS ? (entry.onlineMs + gap) : 0;
+  entry.lastSeenAt = now;
+  entry.name = session.name || entry.name;
+}
+
+function listPresence_() {
+  var now = Date.now();
+  Object.keys(presenceState_).forEach(function (key) {
+    if (now - presenceState_[key].lastSeenAt > PRESENCE_STALE_MS) delete presenceState_[key];
+  });
+  var items = Object.keys(presenceState_).map(function (key) { return presenceState_[key]; })
+    .filter(function (e) { return (now - e.lastSeenAt) <= PRESENCE_WINDOW_MS; })
+    .map(function (e) {
+      return {
+        role: e.role,
+        id: e.id,
+        name: e.name,
+        lastSeenSecondsAgo: Math.round((now - e.lastSeenAt) / 1000),
+        onlineMinutes: Math.round(e.onlineMs / 60000)
+      };
+    })
+    .sort(function (a, b) { return a.lastSeenSecondsAgo - b.lastSeenSecondsAgo; });
+  return { windowMinutes: PRESENCE_WINDOW_MS / 60000, total: items.length, items: items };
+}
+
 // Run once at startup to ensure all santri without a password get the default
 process.nextTick(function () {
   try {
@@ -2773,6 +2820,8 @@ function handleRequest_(e, method) {
         return jsonResponse_(handleDashboard_());
       case 'audit':
         return jsonResponse_(handleAudit_());
+      case 'presence.list':
+        return jsonResponse_({ ok: true, timestamp: nowIso_(), data: listPresence_() });
       case 'export.data':
         return jsonResponse_(handleExportData_(request, session));
       case 'import.preview':
@@ -3991,11 +4040,51 @@ function handleAccountProfileSave_(request, session) {
   };
 }
 
+// Versi ringan loadDataset_() khusus buat handleSantriSelf_(): cuma baca 7 tabel yang dipakai
+// (santri, halaqoh, kelasSiang, regu, tahunAjaran, content, pengurus -- yang terakhir buat label
+// pengampu/pengajar/pembina lewat dataset.indexes.pengurusById di enrichHalaqoh_/enrichKelas_/
+// enrichRegu_), bukan 18 tabel penuh. Action ini backing halaman profil portal SANTRI -- home
+// page yang kebuka tiap santri login.
+function loadSantriSelfDataset_() {
+  var pengurusState = readSheetState_('pengurus');
+  var santriState = readSheetState_('santri');
+  var halaqohState = readSheetState_('halaqoh');
+  var kelasState = readSheetState_('kelasSiang');
+  var reguState = readSheetState_('regu');
+  var tahunAjaranState = readSheetState_('tahunAjaran');
+  var contentState = readSheetState_('content');
+
+  var dataset = {
+    pengurus: pengurusState.rows.map(normalizePengurus_),
+    santri: santriState.rows.map(normalizeSantri_),
+    halaqoh: halaqohState.rows.map(normalizeHalaqoh_),
+    kelasSiang: kelasState.rows.map(normalizeKelas_),
+    regu: reguState.rows.map(normalizeRegu_),
+    tahunAjaran: sortTahunAjaranList_(tahunAjaranState.rows.map(normalizeTahunAjaran_)),
+    content: contentState.rows.map(normalizeContent_)
+  };
+
+  dataset.indexes = {
+    pengurusById: indexById_(dataset.pengurus),
+    santriById: indexById_(dataset.santri),
+    halaqohById: indexById_(dataset.halaqoh),
+    kelasById: indexById_(dataset.kelasSiang),
+    reguById: indexById_(dataset.regu),
+    tahunAjaranById: indexById_(dataset.tahunAjaran)
+  };
+
+  dataset.membership = buildMembershipMaps_(dataset);
+  dataset.tahunAjaranAktif = dataset.tahunAjaran.filter(function (t) { return t.isAktif; })[0] || null;
+  dataset.membershipAktifTa = dataset.tahunAjaranAktif ? buildMembershipMaps_(dataset, dataset.tahunAjaranAktif.id) : dataset.membership;
+
+  return dataset;
+}
+
 function handleSantriSelf_(session, request) {
   if (!session || session.role !== 'santri') {
     throw createError_('Akses hanya untuk santri aktif.', 403);
   }
-  var dataset = loadDataset_();
+  var dataset = loadSantriSelfDataset_();
   var santri = findById_(dataset.santri, session.id);
   if (!santri) {
     throw createError_('Data santri tidak ditemukan.', 404);
@@ -8223,8 +8312,41 @@ function handlePindahHalaqohEdit_(request) {
   };
 }
 
+// Versi ringan loadDataset_() dipakai bareng oleh buildHalaqohTasmiListItems_() (backing
+// halaqohTasmi.list, dipanggil tiap buka/filter ulang halaman Halaqoh Tasmi') dan
+// handleHalaqohTasmiSummaryPdfData_() (export PDF rekap semua halaqoh tasmi'). Cuma baca 5
+// tabel: halaqohTasmi (data utama), pengurus & santri (index label pengampu/badal/santri lewat
+// enrichHalaqohTasmi_), tahunAjaran (index nama TA), dan halaqoh (dipakai
+// computeSantriHafalanDetailByTA_ di jalur summary PDF saja, tapi aman ikut dimuat di sini
+// biar 1 loader dipakai 2 pemanggil) -- bukan 18 tabel penuh. Sebelumnya
+// handleHalaqohTasmiSummaryPdfData_ malah manggil loadDataset_() DUA KALI (sekali lewat fungsi
+// ini, sekali lagi sendiri) -- sekarang keduanya berbagi 1 load yang sama & jauh lebih sempit.
+function loadHalaqohTasmiListDataset_() {
+  var pengurusState = readSheetState_('pengurus');
+  var santriState = readSheetState_('santri');
+  var halaqohState = readSheetState_('halaqoh');
+  var halaqohTasmiState = readSheetState_('halaqohTasmi');
+  var tahunAjaranState = readSheetState_('tahunAjaran');
+
+  var dataset = {
+    pengurus: pengurusState.rows.map(normalizePengurus_),
+    santri: santriState.rows.map(normalizeSantri_),
+    halaqoh: halaqohState.rows.map(normalizeHalaqoh_),
+    halaqohTasmi: halaqohTasmiState.rows.map(normalizeHalaqohTasmi_),
+    tahunAjaran: sortTahunAjaranList_(tahunAjaranState.rows.map(normalizeTahunAjaran_))
+  };
+
+  dataset.indexes = {
+    pengurusById: indexById_(dataset.pengurus),
+    santriById: indexById_(dataset.santri),
+    tahunAjaranById: indexById_(dataset.tahunAjaran)
+  };
+
+  return dataset;
+}
+
 function buildHalaqohTasmiListItems_(request) {
-  var dataset = loadDataset_();
+  var dataset = loadHalaqohTasmiListDataset_();
   var q = cleanString_(request.q).toLowerCase();
   var statusFilter = cleanString_(request.status).toLowerCase();
   var tahunAjaranFilter = cleanString_(request.tahunAjaranId);
@@ -8626,7 +8748,7 @@ function handleHalaqohTasmiSummaryPdfData_(request, session) {
     throw createError_('Download PDF halaqoh tasmi\' hanya untuk Admin dan Super Admin.', 403);
   }
   var items = buildHalaqohTasmiListItems_(request);
-  var dataset = loadDataset_();
+  var dataset = loadHalaqohTasmiListDataset_();
   var detailByTA = {};
 
   var enrichedItems = items.map(function (item) {
@@ -9225,12 +9347,42 @@ function handleTasmiSetoranRekapBulananLengkap_(request, session) {
 // yang bisa diakses dalam satu tahun ajaran (bukan cuma satu halaqoh) -- dipakai laporan PDF
 // gabungan "siapa boleh ditelpon" lintas halaqoh. Tidak menyertakan catatan sesi umum (per
 // halaqoh) karena tidak ada satu daftar pekan yang sama relevan untuk semua halaqoh sekaligus.
+// Versi ringan loadDataset_() khusus buat handleTasmiSetoranRekapBulananLengkapSemua_(): cuma
+// baca 4 tabel yang dipakai (halaqohTasmi buat scope akses, pengurus/santri buat label nama,
+// tahunAjaran buat cari TA aktif + nama TA), bukan 18 tabel penuh. Beda dari kasus authenticate/
+// references (yang bisa dikasih cache biasa), handler ini TIDAK bisa dicache dengan cara yang
+// sama karena hasilnya discope per-session (getAccessibleHalaqohTasmi_ -- koordinator halaqoh
+// cuma lihat halaqoh dia, admin lihat semua) -- nentuin scope itu sendiri butuh dataset duluan,
+// jadi cache tak akan menghindari biaya termahalnya. Makanya di sini dataset-nya dipersempit,
+// bukan hasilnya disimpan.
+function loadTasmiRekapDataset_() {
+  var pengurusState = readSheetState_('pengurus');
+  var santriState = readSheetState_('santri');
+  var halaqohTasmiState = readSheetState_('halaqohTasmi');
+  var tahunAjaranState = readSheetState_('tahunAjaran');
+
+  var dataset = {
+    pengurus: pengurusState.rows.map(normalizePengurus_),
+    santri: santriState.rows.map(normalizeSantri_),
+    halaqohTasmi: halaqohTasmiState.rows.map(normalizeHalaqohTasmi_),
+    tahunAjaran: sortTahunAjaranList_(tahunAjaranState.rows.map(normalizeTahunAjaran_))
+  };
+
+  dataset.indexes = {
+    pengurusById: indexById_(dataset.pengurus),
+    santriById: indexById_(dataset.santri),
+    tahunAjaranById: indexById_(dataset.tahunAjaran)
+  };
+
+  return dataset;
+}
+
 function handleTasmiSetoranRekapBulananLengkapSemua_(request, session) {
   if (!canAccessTasmiSetoranPdfExport_(session)) throw createError_('Fitur download PDF hanya untuk super admin, admin, atau koordinator halaqoh.', 403);
   var bulan = cleanString_(request.bulan || '').slice(0, 7);
   if (!/^\d{4}-\d{2}$/.test(bulan)) throw createError_('Format bulan tidak valid (YYYY-MM).', 400);
 
-  var dataset = loadDataset_();
+  var dataset = loadTasmiRekapDataset_();
   var tahunAjaranId = cleanString_(request.tahunAjaranId);
   if (!tahunAjaranId) {
     var aktifTa = (dataset.tahunAjaran || []).filter(function (t) { return t.isAktif; })[0];
@@ -11123,12 +11275,20 @@ function normalizeContentTargetRole_(value, fallback) {
   return normalizeContentTargetRole_(fallback || 'umum');
 }
 
+// Versi ringan loadDataset_() khusus buat handleContentPublicList_/handleContentSelfList_:
+// cuma baca 1 tabel (content), bukan 18. content.public.list dipanggil TANPA LOGIN dari
+// frontend/index.html (halaman utama) -- dihit semua pengunjung sebelum sempat login, jadi
+// termasuk yang paling sering diakses (dan paling boros kalau baca 18 tabel tiap kali).
+function loadContentListDataset_() {
+  return { content: readSheetState_('content').rows.map(normalizeContent_) };
+}
+
 function handleContentPublicList_(request) {
   var targetRole = normalizeContentTargetRole_(request.targetRole || 'umum');
   if (targetRole !== 'umum') {
     targetRole = 'umum';
   }
-  var dataset = loadDataset_();
+  var dataset = loadContentListDataset_();
   return {
     ok: true,
     timestamp: nowIso_(),
@@ -11144,7 +11304,7 @@ function handleContentSelfList_(session) {
   if (!session || session.role !== 'pengurus') {
     throw createError_('Akses hanya untuk pengurus aktif.', 403);
   }
-  var dataset = loadDataset_();
+  var dataset = loadContentListDataset_();
   return {
     ok: true,
     timestamp: nowIso_(),
@@ -15401,8 +15561,34 @@ function sweepExpiredQuizAttempts_() {
   });
 }
 
+// Versi ringan loadDataset_() khusus buat quizSantriContext_() (dipakai 6 handler quiz santri:
+// List, Browse, Get, DocGet, DocProgress, Start): cuma baca 4 tabel -- santri, kelasSiang,
+// tahunAjaran, dan pengurus (yang terakhir cuma buat label pengajar/badal kelas di
+// handleQuizSantriList_ lewat dataset.indexes.pengurusById) -- bukan 18 tabel penuh. Dipanggil
+// berulang dalam SATU sesi santri ngerjain quiz (buka daftar, browse folder, buka soal, autosave
+// progress dokumen, mulai attempt) -- pola sama kayak dialog rekap hafalan yang manggil ulang
+// tiap interaksi.
+function loadQuizSantriContextDataset_() {
+  var santriState = readSheetState_('santri');
+  var kelasState = readSheetState_('kelasSiang');
+  var tahunAjaranState = readSheetState_('tahunAjaran');
+  var pengurusState = readSheetState_('pengurus');
+
+  var dataset = {
+    santri: santriState.rows.map(normalizeSantri_),
+    kelasSiang: kelasState.rows.map(normalizeKelas_),
+    tahunAjaran: sortTahunAjaranList_(tahunAjaranState.rows.map(normalizeTahunAjaran_)),
+    pengurus: pengurusState.rows.map(normalizePengurus_)
+  };
+
+  dataset.indexes = { pengurusById: indexById_(dataset.pengurus) };
+  dataset.tahunAjaranAktif = dataset.tahunAjaran.filter(function (t) { return t.isAktif; })[0] || null;
+
+  return dataset;
+}
+
 function quizSantriContext_(session) {
-  var dataset = loadDataset_();
+  var dataset = loadQuizSantriContextDataset_();
   var santriId = cleanString_(session.id);
   var activeTaId = dataset.tahunAjaranAktif ? cleanString_(dataset.tahunAjaranAktif.id) : '';
   var santriRow = findById_(dataset.santri, santriId);
@@ -15462,6 +15648,15 @@ function computeQuizSantriListItem_(quizRow, ctx, myAttempts, myBacaan) {
   var attempts = (myAttempts || []).filter(function (j) { return cleanString_(j.quiz_id) === cleanString_(quizRow.id); });
   var done = attempts.filter(function (j) { return cleanString_(j.status_kerja) === 'selesai'; });
   var inProgress = attempts.filter(function (j) { return cleanString_(j.status_kerja) === 'berlangsung'; })[0] || null;
+  // Progres soal di attempt yang lagi berlangsung. Examination tak pernah requeue -- disentuh
+  // sekali (benar/salah) = selesai, jadi panjang answers_json (di-upsert per questionId, lihat
+  // upsertQuizAnswer_) sudah pas. Drill BEDA: soal yang salah dimasukkan lagi ke antrean sampai
+  // benar, jadi "disentuh" saja belum tentu "selesai" -- dihitung dari yang sudah BENAR
+  // (autoCorrect) supaya progres yang ditampilkan tak menghitung soal yang masih diulang.
+  var inProgressAnswers = inProgress ? parseQuizJson_(inProgress.answers_json, []) : [];
+  var answeredCount = !inProgress ? 0
+    : tipe === 'drill' ? inProgressAnswers.filter(function (a) { return !!a.autoCorrect; }).length
+    : inProgressAnswers.length;
   var openAt = cleanString_(quizRow.open_at), closeAt = cleanString_(quizRow.close_at);
   var notYetOpen = openAt && ctx.now16 < openAt.slice(0, 16);
   var closed = closeAt && ctx.now16 > closeAt.slice(0, 16);
@@ -15492,6 +15687,7 @@ function computeQuizSantriListItem_(quizRow, ctx, myAttempts, myBacaan) {
     attemptsLeft: attemptsLeft,
     canStart: !notYetOpen && !closed && (attemptsLeft === -1 || attemptsLeft > 0 || !!inProgress),
     hasInProgress: !!inProgress,
+    answeredCount: answeredCount,
     inProgressAttemptId: inProgress ? cleanString_(inProgress.id) : '',
     canReview: done.length > 0,
     scoreVisible: scoreVisible,
@@ -17289,8 +17485,14 @@ function handleKegiatanSopByJabatan_(request) {
   return { ok: true, timestamp: nowIso_(), data: { pjList: pjList, jabatanList: pjList } };
 }
 
+// Versi ringan loadDataset_() khusus buat handleKegiatanSopLampiranList_(): cuma baca 1 tabel
+// (kegiatanSopLampiran), bukan 18. Dipanggil tiap kali dialog lampiran kegiatan SOP dibuka.
+function loadKegiatanSopLampiranDataset_() {
+  return { kegiatanSopLampiran: readSheetState_('kegiatanSopLampiran').rows.map(normalizeKegiatanSopLampiran_) };
+}
+
 function handleKegiatanSopLampiranList_(request) {
-  var dataset = loadDataset_();
+  var dataset = loadKegiatanSopLampiranDataset_();
   var idKegiatan = cleanString_(request.id_kegiatan || request.idKegiatan);
   if (!idKegiatan) throw createError_('id_kegiatan diperlukan.', 400);
   var items = (dataset.kegiatanSopLampiran || [])
@@ -17787,8 +17989,34 @@ function handleExportData_(request, session) {
   };
 }
 
+// Versi ringan loadDataset_() khusus buat buildReferencePayload_(): cuma baca 7 tabel yang
+// benar-benar dipakai buat isi dropdown/filter (pengurus, santri, jabatan, halaqoh, kelasSiang,
+// regu, tahunAjaran), bukan 18 tabel penuh. Action 'references' dipanggil tiap kali salah satu
+// dari 5 halaman (santriSakit, survey, pelanggaran, pengumuman, izinPulang) dibuka, jadi 11 tabel
+// lain (absensi*/nilaiUp/kegiatanSop*/content/halaqohTasmi/pengurus_jabatan) yang dibaca+
+// dinormalize tapi langsung dibuang di buildReferencePayload_() lama, sekarang tidak ikut dibaca.
+function loadReferenceDataset_() {
+  var pengurusState = readSheetState_('pengurus');
+  var santriState = readSheetState_('santri');
+  var jabatanState = readSheetState_('jabatan');
+  var halaqohState = readSheetState_('halaqoh');
+  var kelasState = readSheetState_('kelasSiang');
+  var reguState = readSheetState_('regu');
+  var tahunAjaranState = readSheetState_('tahunAjaran');
+
+  return {
+    pengurus: pengurusState.rows.map(normalizePengurus_),
+    santri: santriState.rows.map(normalizeSantri_),
+    jabatan: jabatanState.rows.map(normalizeJabatan_),
+    halaqoh: halaqohState.rows.map(normalizeHalaqoh_),
+    kelasSiang: kelasState.rows.map(normalizeKelas_),
+    regu: reguState.rows.map(normalizeRegu_),
+    tahunAjaran: sortTahunAjaranList_(tahunAjaranState.rows.map(normalizeTahunAjaran_))
+  };
+}
+
 function buildReferencePayload_() {
-  var dataset = loadDataset_();
+  var dataset = loadReferenceDataset_();
   return {
     pengurus: dataset.pengurus.filter(function (item) { return item.active; }).map(function (item) {
       return { id: item.id, name: item.name, username: item.username, status: item.status, statusLabel: getPengurusStatusKey_(item.status) === 'dibekukan' ? 'Dibekukan' : 'Aktif' };
@@ -20121,13 +20349,51 @@ function applyScopeToPermissions_(scopeLabel, enriched, dataset, existingPerms) 
   return p;
 }
 
+// Versi ringan loadDataset_() khusus buat authenticateRequest_(): cuma baca 6 tabel yang
+// benar-benar dipakai buat cocokin token + hitung hak akses (pengurus, santri, jabatan,
+// pengurus_jabatan, kelasSiang buat collectPengurusKelasIds_, regu buat collectPembinaReguIds_),
+// bukan 18 tabel penuh seperti loadDataset_(). Menghindari baca+normalize absensi*/nilaiUp/
+// kegiatanSop/content/tahunAjaran yang tak dipakai sama sekali di jalur auth, padahal jalur ini
+// dieksekusi di SETIAP request (bukan cuma yang butuh dataset penuh).
+function loadAuthDataset_() {
+  var pengurusState = readSheetState_('pengurus');
+  var santriState = readSheetState_('santri');
+  var jabatanState = readSheetState_('jabatan');
+  var pengurusJabatanState = readSheetState_('pengurus_jabatan');
+  var kelasState = readSheetState_('kelasSiang');
+  var reguState = readSheetState_('regu');
+
+  var dataset = {
+    pengurus: pengurusState.rows.map(normalizePengurus_),
+    santri: santriState.rows.map(normalizeSantri_),
+    jabatan: jabatanState.rows.map(normalizeJabatan_),
+    pengurusJabatan: pengurusJabatanState.rows.map(normalizePengurusJabatan_),
+    kelasSiang: kelasState.rows.map(normalizeKelas_),
+    regu: reguState.rows.map(normalizeRegu_)
+  };
+
+  dataset.indexes = {
+    jabatanById: indexById_(dataset.jabatan)
+  };
+
+  dataset.jabatanByPengurus = {};
+  dataset.pengurusJabatan.forEach(function (row) {
+    if (!dataset.jabatanByPengurus[row.idPengurus]) {
+      dataset.jabatanByPengurus[row.idPengurus] = [];
+    }
+    dataset.jabatanByPengurus[row.idPengurus].push(row);
+  });
+
+  return dataset;
+}
+
 function authenticateRequest_(token, allowSantri, scopeLabel) {
   var cleanedToken = cleanString_(token);
   if (!cleanedToken) {
     throw createError_('Token tidak ditemukan.', 401);
   }
 
-  var dataset = loadDataset_();
+  var dataset = loadAuthDataset_();
   var pengurus = dataset.pengurus.filter(function (item) {
     return item.active && parseSessionTokens_(item.token).indexOf(cleanedToken) !== -1;
   })[0];
@@ -20141,7 +20407,7 @@ function authenticateRequest_(token, allowSantri, scopeLabel) {
       var scoped = applyScopeToPermissions_(cleanedScope, enriched, dataset, rawPermissions);
       if (scoped) permissions = scoped;
     }
-    return {
+    var pengurusSession_ = {
       role: 'pengurus',
       id: enriched.id,
       name: enriched.name,
@@ -20156,6 +20422,8 @@ function authenticateRequest_(token, allowSantri, scopeLabel) {
       permissions: permissions,
       rawPermissions: rawPermissions
     };
+    recordPresence_(pengurusSession_);
+    return pengurusSession_;
   }
 
   if (allowSantri) {
@@ -20163,7 +20431,7 @@ function authenticateRequest_(token, allowSantri, scopeLabel) {
       return item.active && parseSessionTokens_(item.token).indexOf(cleanedToken) !== -1;
     })[0];
     if (santri) {
-      return {
+      var santriSession_ = {
         role: 'santri',
         id: santri.id,
         name: santri.name,
@@ -20171,6 +20439,8 @@ function authenticateRequest_(token, allowSantri, scopeLabel) {
         noInduk: santri.noInduk,
         photoUrl: santri.photoUrl || ''
       };
+      recordPresence_(santriSession_);
+      return santriSession_;
     }
   }
 
@@ -20525,6 +20795,9 @@ function authorizeAction_(session, action, request) {
     case 'audit':
       if (session.permissions.isAdmin || session.permissions.canManageHalaqoh || session.permissions.canManageKelasSiang || session.permissions.canManageAbsensi) return;
       break;
+    case 'presence.list':
+      requireSuperAdmin_(session);
+      return;
     case 'content.public.list':
       return;
     case 'santri.list':
@@ -27064,47 +27337,59 @@ function handleRekapAbsensiPengurusList_(request, session) {
   if (!session.permissions.canManageKoordinatAbsensi) requireAdmin_(session);
   var bulan = cleanString_(request.bulan || '').slice(0, 7);
   if (!/^\d{4}-\d{2}$/.test(bulan)) bulan = nowIso_().slice(0, 7);
-  var todayStr = nowIso_().slice(0, 10);
-  var days = getDaysInMonth_(bulan);
-  var dataset = loadDataset_();
-  var koordinatState = readSheetState_('koordinatAbsensi');
-  var absensiState = readSheetState_('absensiPengurus');
 
-  var aturanByPengurus = {};
-  koordinatState.rows.forEach(function (r) {
-    if (cleanString_(r.status || '').toLowerCase() === 'nonaktif') return;
-    var pid = String(r.id_pengurus);
-    if (!aturanByPengurus[pid]) aturanByPengurus[pid] = [];
-    aturanByPengurus[pid].push(r);
-  });
+  // Cache hasil agregasi (pola sama dgn hafalanAggCache_/'rekapSemua' di atas): kunci = bulan
+  // (satu-satunya filter yg mempengaruhi hasil, halaman ini tak discope per-session), fingerprint
+  // tabel sumber + ceiling TTL 20 dtk. Sebelumnya TANPA cache -- admin/SDM yang gonta-ganti bulan
+  // atau buka ulang halaman ini bikin loadDataset_() + rekapStatsForPengurus_ (loop semua pengurus
+  // x semua hari sebulan) diulang dari nol tiap kali walau datanya belum berubah sama sekali.
+  var rapFp = hafalanAggSourceFingerprint_(['pengurus', 'jabatan', 'pengurus_jabatan', 'koordinatAbsensi', 'absensiPengurus']);
+  var items = hafalanAggCacheGet_('rekapAbsensiPengurus', bulan, rapFp);
 
-  var absensiByPengurusByDate = {};
-  absensiState.rows.forEach(function (r) {
-    if (cleanString_(r.status || '').toLowerCase() === 'dihapus') return;
-    if (!String(r.tanggal || '').startsWith(bulan)) return;
-    var pid = String(r.id_pengurus);
-    if (!absensiByPengurusByDate[pid]) absensiByPengurusByDate[pid] = {};
-    if (!absensiByPengurusByDate[pid][r.tanggal]) absensiByPengurusByDate[pid][r.tanggal] = [];
-    absensiByPengurusByDate[pid][r.tanggal].push(r);
-  });
+  if (!items) {
+    var todayStr = nowIso_().slice(0, 10);
+    var days = getDaysInMonth_(bulan);
+    var dataset = loadDataset_();
+    var koordinatState = readSheetState_('koordinatAbsensi');
+    var absensiState = readSheetState_('absensiPengurus');
 
-  var items = dataset.pengurus
-    .filter(function (p) { return p.active !== false && cleanString_(p.status || '').toLowerCase() !== 'inactive'; })
-    .map(function (p) {
-      var pid = String(p.id);
-      var enriched = enrichPengurus_(p, dataset);
-      var aturanList = aturanByPengurus[pid] || [];
-      var stats = rekapStatsForPengurus_(pid, aturanList, absensiByPengurusByDate[pid] || {}, days, todayStr);
-      return {
-        id: enriched.id,
-        name: enriched.name,
-        jabatanDisplay: enriched.jabatanLabels.join(', '),
-        primaryJabatanLabel: enriched.primaryJabatanLabel,
-        hasAturan: aturanList.length > 0,
-        stats: stats
-      };
+    var aturanByPengurus = {};
+    koordinatState.rows.forEach(function (r) {
+      if (cleanString_(r.status || '').toLowerCase() === 'nonaktif') return;
+      var pid = String(r.id_pengurus);
+      if (!aturanByPengurus[pid]) aturanByPengurus[pid] = [];
+      aturanByPengurus[pid].push(r);
     });
-  items.sort(function (a, b) { return (a.name || '').localeCompare(b.name || '', 'id'); });
+
+    var absensiByPengurusByDate = {};
+    absensiState.rows.forEach(function (r) {
+      if (cleanString_(r.status || '').toLowerCase() === 'dihapus') return;
+      if (!String(r.tanggal || '').startsWith(bulan)) return;
+      var pid = String(r.id_pengurus);
+      if (!absensiByPengurusByDate[pid]) absensiByPengurusByDate[pid] = {};
+      if (!absensiByPengurusByDate[pid][r.tanggal]) absensiByPengurusByDate[pid][r.tanggal] = [];
+      absensiByPengurusByDate[pid][r.tanggal].push(r);
+    });
+
+    items = dataset.pengurus
+      .filter(function (p) { return p.active !== false && cleanString_(p.status || '').toLowerCase() !== 'inactive'; })
+      .map(function (p) {
+        var pid = String(p.id);
+        var enriched = enrichPengurus_(p, dataset);
+        var aturanList = aturanByPengurus[pid] || [];
+        var stats = rekapStatsForPengurus_(pid, aturanList, absensiByPengurusByDate[pid] || {}, days, todayStr);
+        return {
+          id: enriched.id,
+          name: enriched.name,
+          jabatanDisplay: enriched.jabatanLabels.join(', '),
+          primaryJabatanLabel: enriched.primaryJabatanLabel,
+          hasAturan: aturanList.length > 0,
+          stats: stats
+        };
+      });
+    items.sort(function (a, b) { return (a.name || '').localeCompare(b.name || '', 'id'); });
+    hafalanAggCacheSet_('rekapAbsensiPengurus', bulan, rapFp, items);
+  }
   return { ok: true, timestamp: nowIso_(), data: { items: items, bulan: bulan } };
 }
 
@@ -28059,8 +28344,18 @@ function buildJadwalIbadahKhutbahCarouselItem_(tahunAjaranId) {
   return { type: 'khutbah', title: "Jadwal Khutbah Jum'at", entries: entries };
 }
 
+// Versi ringan loadDataset_() khusus buat handleJadwalIbadahBerandaCarousel_(): cuma baca 1
+// tabel (tahunAjaran) yang benar-benar dipakai (lewat resolveTahunAjaranId_), sisanya (jadwal
+// imam/kultum/khutbah) sudah lewat readSheetState_() langsung, tak lewat dataset sama sekali.
+// Action ini dipanggil di halaman Beranda -- halaman PERTAMA yang kebuka tiap pengurus login,
+// jadi paling sering diakses di seluruh aplikasi.
+function loadJadwalIbadahBerandaDataset_() {
+  var tahunAjaranState = readSheetState_('tahunAjaran');
+  return { tahunAjaran: sortTahunAjaranList_(tahunAjaranState.rows.map(normalizeTahunAjaran_)) };
+}
+
 function handleJadwalIbadahBerandaCarousel_(request, session) {
-  var dataset = loadDataset_();
+  var dataset = loadJadwalIbadahBerandaDataset_();
   var tahunAjaranId = resolveTahunAjaranId_(request.tahunAjaranId, dataset);
   var items = [];
   if (tahunAjaranId) {
@@ -30876,12 +31171,38 @@ function catatanInsertVersion_(docId, opts) {
   extra.forEach(function (r) { runStatement_('DELETE FROM "catatanVersion" WHERE "id" = ?', [r.id]); });
 }
 
+// Versi ringan loadDataset_() khusus buat handleCatatanRefs_() (dialog "bagikan dokumen" di
+// Catatanku): cuma baca 3 tabel -- pengurus, jabatan, pengurus_jabatan (buat label jabatan lewat
+// enrichPengurus_) -- bukan 18 tabel penuh.
+function loadCatatanRefsDataset_() {
+  var pengurusState = readSheetState_('pengurus');
+  var jabatanState = readSheetState_('jabatan');
+  var pengurusJabatanState = readSheetState_('pengurus_jabatan');
+
+  var dataset = {
+    pengurus: pengurusState.rows.map(normalizePengurus_),
+    jabatan: jabatanState.rows.map(normalizeJabatan_),
+    pengurusJabatan: pengurusJabatanState.rows.map(normalizePengurusJabatan_)
+  };
+
+  dataset.indexes = { jabatanById: indexById_(dataset.jabatan) };
+  dataset.jabatanByPengurus = {};
+  dataset.pengurusJabatan.forEach(function (row) {
+    if (!dataset.jabatanByPengurus[row.idPengurus]) {
+      dataset.jabatanByPengurus[row.idPengurus] = [];
+    }
+    dataset.jabatanByPengurus[row.idPengurus].push(row);
+  });
+
+  return dataset;
+}
+
 function handleCatatanRefs_(request, session) {
   requirePengurus_(session);
   if (!canManageAddon_(session, 'catatanku', ADDON_MANAGE_FALLBACK_.catatanku)) {
     throw createError_('Hanya Mudir, Admin, Super Admin, atau jabatan yang diatur di Kelola Addons yang dapat mengelola berbagi dokumen.', 403);
   }
-  var dataset = loadDataset_();
+  var dataset = loadCatatanRefsDataset_();
   var users = (dataset.pengurus || [])
     .filter(function (p) { return p.active; })
     .map(function (p) {

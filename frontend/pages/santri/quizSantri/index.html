@@ -808,7 +808,7 @@
       const tipeChip = `<span class="chip">${q.tipe === 'examination' ? 'Examination' : 'Drill'}</span>`;
       const status = q.notYetOpen ? '<span class="chip w">Belum dibuka</span>'
         : q.closed ? '<span class="chip mut">Sudah ditutup</span>'
-        : q.hasInProgress ? '<span class="chip w">Sedang dikerjakan</span>'
+        : q.hasInProgress ? `<span class="chip w">Sedang dikerjakan (${q.answeredCount}/${q.questionCount} soal)</span>`
         : (q.attemptsLeft === 0 ? '<span class="chip mut">Kesempatan habis</span>' : '<span class="chip g">Bisa dikerjakan</span>');
       const canStart = !q.notYetOpen && !q.closed && q.attemptsLeft !== 0;
       const startLabel = q.hasInProgress ? 'Lanjutkan' : (q.doneCount ? 'Kerjakan lagi' : 'Mulai');

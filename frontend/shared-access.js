@@ -26,6 +26,7 @@
   var PAGE_RULES = {
     /* ── Dashboard ── */
     'dashboard.html':            function (session) { return isSuperAdmin(getScopedSession(session)); },
+    'onlineSekarang.html':       function (session) { return isSuperAdmin(getScopedSession(session)); },
     'dashboardAdmin.html':       function (session) { var p = getPermissions(getScopedSession(session)); return !!(p && (p.isSuperAdmin || p.isAdmin || p.isMudir)); },
     'dashboardKoordHalaqoh.html':function (session) { var p = getPermissions(getScopedSession(session)); return !!(p && (p.isSuperAdmin || p.isAdmin || p.isHalaqohCoordinator || p.isMudir)); },
     'dashboardAkademik.html':    function (session) { var p = getPermissions(getScopedSession(session)); return !!(p && (p.isSuperAdmin || p.isAdmin || p.isAcademic || p.isMudir)); },
