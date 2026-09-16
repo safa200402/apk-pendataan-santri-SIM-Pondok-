@@ -3991,11 +3991,51 @@ function handleAccountProfileSave_(request, session) {
   };
 }
 
+// Versi ringan loadDataset_() khusus buat handleSantriSelf_(): cuma baca 7 tabel yang dipakai
+// (santri, halaqoh, kelasSiang, regu, tahunAjaran, content, pengurus -- yang terakhir buat label
+// pengampu/pengajar/pembina lewat dataset.indexes.pengurusById di enrichHalaqoh_/enrichKelas_/
+// enrichRegu_), bukan 18 tabel penuh. Action ini backing halaman profil portal SANTRI -- home
+// page yang kebuka tiap santri login.
+function loadSantriSelfDataset_() {
+  var pengurusState = readSheetState_('pengurus');
+  var santriState = readSheetState_('santri');
+  var halaqohState = readSheetState_('halaqoh');
+  var kelasState = readSheetState_('kelasSiang');
+  var reguState = readSheetState_('regu');
+  var tahunAjaranState = readSheetState_('tahunAjaran');
+  var contentState = readSheetState_('content');
+
+  var dataset = {
+    pengurus: pengurusState.rows.map(normalizePengurus_),
+    santri: santriState.rows.map(normalizeSantri_),
+    halaqoh: halaqohState.rows.map(normalizeHalaqoh_),
+    kelasSiang: kelasState.rows.map(normalizeKelas_),
+    regu: reguState.rows.map(normalizeRegu_),
+    tahunAjaran: sortTahunAjaranList_(tahunAjaranState.rows.map(normalizeTahunAjaran_)),
+    content: contentState.rows.map(normalizeContent_)
+  };
+
+  dataset.indexes = {
+    pengurusById: indexById_(dataset.pengurus),
+    santriById: indexById_(dataset.santri),
+    halaqohById: indexById_(dataset.halaqoh),
+    kelasById: indexById_(dataset.kelasSiang),
+    reguById: indexById_(dataset.regu),
+    tahunAjaranById: indexById_(dataset.tahunAjaran)
+  };
+
+  dataset.membership = buildMembershipMaps_(dataset);
+  dataset.tahunAjaranAktif = dataset.tahunAjaran.filter(function (t) { return t.isAktif; })[0] || null;
+  dataset.membershipAktifTa = dataset.tahunAjaranAktif ? buildMembershipMaps_(dataset, dataset.tahunAjaranAktif.id) : dataset.membership;
+
+  return dataset;
+}
+
 function handleSantriSelf_(session, request) {
   if (!session || session.role !== 'santri') {
     throw createError_('Akses hanya untuk santri aktif.', 403);
   }
-  var dataset = loadDataset_();
+  var dataset = loadSantriSelfDataset_();
   var santri = findById_(dataset.santri, session.id);
   if (!santri) {
     throw createError_('Data santri tidak ditemukan.', 404);
