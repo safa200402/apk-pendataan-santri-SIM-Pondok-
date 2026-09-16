@@ -28165,8 +28165,18 @@ function buildJadwalIbadahKhutbahCarouselItem_(tahunAjaranId) {
   return { type: 'khutbah', title: "Jadwal Khutbah Jum'at", entries: entries };
 }
 
+// Versi ringan loadDataset_() khusus buat handleJadwalIbadahBerandaCarousel_(): cuma baca 1
+// tabel (tahunAjaran) yang benar-benar dipakai (lewat resolveTahunAjaranId_), sisanya (jadwal
+// imam/kultum/khutbah) sudah lewat readSheetState_() langsung, tak lewat dataset sama sekali.
+// Action ini dipanggil di halaman Beranda -- halaman PERTAMA yang kebuka tiap pengurus login,
+// jadi paling sering diakses di seluruh aplikasi.
+function loadJadwalIbadahBerandaDataset_() {
+  var tahunAjaranState = readSheetState_('tahunAjaran');
+  return { tahunAjaran: sortTahunAjaranList_(tahunAjaranState.rows.map(normalizeTahunAjaran_)) };
+}
+
 function handleJadwalIbadahBerandaCarousel_(request, session) {
-  var dataset = loadDataset_();
+  var dataset = loadJadwalIbadahBerandaDataset_();
   var tahunAjaranId = resolveTahunAjaranId_(request.tahunAjaranId, dataset);
   var items = [];
   if (tahunAjaranId) {
