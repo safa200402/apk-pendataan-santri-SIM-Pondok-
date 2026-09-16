@@ -15648,10 +15648,15 @@ function computeQuizSantriListItem_(quizRow, ctx, myAttempts, myBacaan) {
   var attempts = (myAttempts || []).filter(function (j) { return cleanString_(j.quiz_id) === cleanString_(quizRow.id); });
   var done = attempts.filter(function (j) { return cleanString_(j.status_kerja) === 'selesai'; });
   var inProgress = attempts.filter(function (j) { return cleanString_(j.status_kerja) === 'berlangsung'; })[0] || null;
-  // Berapa soal yang SUDAH dijawab minimal 1x di attempt yang lagi berlangsung -- answers_json
-  // di-upsert per questionId (lihat upsertQuizAnswer_), jadi panjang array = jumlah soal unik
-  // yang sudah disentuh, tak peduli sudah berapa kali diulang jawabannya.
-  var answeredCount = inProgress ? parseQuizJson_(inProgress.answers_json, []).length : 0;
+  // Progres soal di attempt yang lagi berlangsung. Examination tak pernah requeue -- disentuh
+  // sekali (benar/salah) = selesai, jadi panjang answers_json (di-upsert per questionId, lihat
+  // upsertQuizAnswer_) sudah pas. Drill BEDA: soal yang salah dimasukkan lagi ke antrean sampai
+  // benar, jadi "disentuh" saja belum tentu "selesai" -- dihitung dari yang sudah BENAR
+  // (autoCorrect) supaya progres yang ditampilkan tak menghitung soal yang masih diulang.
+  var inProgressAnswers = inProgress ? parseQuizJson_(inProgress.answers_json, []) : [];
+  var answeredCount = !inProgress ? 0
+    : tipe === 'drill' ? inProgressAnswers.filter(function (a) { return !!a.autoCorrect; }).length
+    : inProgressAnswers.length;
   var openAt = cleanString_(quizRow.open_at), closeAt = cleanString_(quizRow.close_at);
   var notYetOpen = openAt && ctx.now16 < openAt.slice(0, 16);
   var closed = closeAt && ctx.now16 > closeAt.slice(0, 16);
