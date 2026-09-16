@@ -17787,8 +17787,34 @@ function handleExportData_(request, session) {
   };
 }
 
+// Versi ringan loadDataset_() khusus buat buildReferencePayload_(): cuma baca 7 tabel yang
+// benar-benar dipakai buat isi dropdown/filter (pengurus, santri, jabatan, halaqoh, kelasSiang,
+// regu, tahunAjaran), bukan 18 tabel penuh. Action 'references' dipanggil tiap kali salah satu
+// dari 5 halaman (santriSakit, survey, pelanggaran, pengumuman, izinPulang) dibuka, jadi 11 tabel
+// lain (absensi*/nilaiUp/kegiatanSop*/content/halaqohTasmi/pengurus_jabatan) yang dibaca+
+// dinormalize tapi langsung dibuang di buildReferencePayload_() lama, sekarang tidak ikut dibaca.
+function loadReferenceDataset_() {
+  var pengurusState = readSheetState_('pengurus');
+  var santriState = readSheetState_('santri');
+  var jabatanState = readSheetState_('jabatan');
+  var halaqohState = readSheetState_('halaqoh');
+  var kelasState = readSheetState_('kelasSiang');
+  var reguState = readSheetState_('regu');
+  var tahunAjaranState = readSheetState_('tahunAjaran');
+
+  return {
+    pengurus: pengurusState.rows.map(normalizePengurus_),
+    santri: santriState.rows.map(normalizeSantri_),
+    jabatan: jabatanState.rows.map(normalizeJabatan_),
+    halaqoh: halaqohState.rows.map(normalizeHalaqoh_),
+    kelasSiang: kelasState.rows.map(normalizeKelas_),
+    regu: reguState.rows.map(normalizeRegu_),
+    tahunAjaran: sortTahunAjaranList_(tahunAjaranState.rows.map(normalizeTahunAjaran_))
+  };
+}
+
 function buildReferencePayload_() {
-  var dataset = loadDataset_();
+  var dataset = loadReferenceDataset_();
   return {
     pengurus: dataset.pengurus.filter(function (item) { return item.active; }).map(function (item) {
       return { id: item.id, name: item.name, username: item.username, status: item.status, statusLabel: getPengurusStatusKey_(item.status) === 'dibekukan' ? 'Dibekukan' : 'Aktif' };
